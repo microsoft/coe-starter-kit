@@ -1,0 +1,39 @@
+parameters:
+- name: serviceConnection
+  type: string
+- name: aadGroupCanvasConfiguration
+  type: string  
+
+steps:
+- powershell: |
+    Import-Module Microsoft.PowerApps.Administration.PowerShell -Force -RequiredVersion $(PowerAppsAdminModuleVersion) -ArgumentList @{ NonInteractive = $true }
+    Add-PowerAppsAccount -TenantID $(TenantId) -ApplicationId $(ClientId) -ClientSecret $(ClientSecret)
+    Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
+    $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
+
+    # json config value must follow this format
+    #[
+    #    {
+    #        "aadGroupId": "aad-security-group-guid-1",
+    #        "canvasNameInSolution": "pfx_app-name-in-solution-name-1",
+    #        "roleName":"CanView or CanViewWithShare or CanEdit" 
+    #    },
+    #    {
+    #        "aadGroupId": "aad-security-group-guid-2",
+    #        "canvasNameInSolution": "pfx_app-name-in-solution-name-2",
+    #        "roleName":"CanView or CanViewWithShare or CanEdit" 
+    #    }
+    #]
+    $config = ConvertFrom-Json '${{parameters.aadGroupCanvasConfiguration}}'
+
+    foreach ($c in $config){
+        $aadGroupId = $c.aadGroupId
+        $roleName = $c.roleName
+        $canvasNameInSolution = $c.canvasNameInSolution     
+        $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $canvasNameInSolution -Fields canvasappid
+        $appId = $canvasApps.CrmRecords[0].canvasappid
+        $environmentId = "$(EnvironmentId)"
+        Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId
+    }
+  displayName: 'Share Canvas App with AAD Group'
+  condition: and(succeeded(), ne(variables['setAadGroupCanvasConfigurationOutput.outAadGroupCanvasConfiguration'], ''))

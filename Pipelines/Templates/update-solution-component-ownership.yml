@@ -1,0 +1,51 @@
+parameters:
+- name: serviceConnection
+  type: string
+- name: solutionComponentOwnershipConfiguration
+  type: string
+
+steps:
+- powershell: |
+    Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
+    $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
+
+    # json config value must follow this format
+    #[
+    #    {
+    #        "solutionComponentType": 29,
+    #        "solutionComponentUniqueName":"if-29-must-be-workflowid",
+    #        "ownerEmail": "username@yourdomain.com"
+    #    },
+    #    {
+    #        "solutionComponentType": 29,
+    #        "solutionComponentUniqueName":"if-29-must-be-workflowid",
+    #        "ownerEmail": "username@yourdomain.com"
+    #    }
+    #]
+    Write-Host '${{parameters.solutionComponentOwnershipConfiguration}}'
+    $config = ConvertFrom-Json '${{parameters.solutionComponentOwnershipConfiguration}}'
+    #$config = ConvertFrom-Json '[{"solutionComponentType": 29,"solutionComponentUniqueName": "bd40f612-41ff-ea11-a815-000d3a1abe26","ownerEmail": "jonis@pplatform.onmicrosoft.com"}]'
+    
+    # Workflows of type Modern Flow might need an interactive user owner.
+    # One example is where you want the Flow that runs to use that users license entitlements.
+    # Currently only implementing workflow ownership change until we indentify real usage scenarios for other solution components needing ownership change post import.
+    # See https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solutioncomponent?view=dynamics-ce-odata-9
+    # ...for solutionComponentType values 29=Workflow (including Flow), 300=Canvas App, etc 
+    foreach ($c in $config){
+      switch ($c.solutionComponentType){
+        # Workflow 
+        29 {  
+          $solutionComponentResults =  Get-CrmRecords -conn $conn -EntityLogicalName workflow -FilterAttribute "workflowid" -FilterOperator "eq" -FilterValue $c.solutionComponentUniqueName
+        } 
+        default {
+          Write-Host "##vso[task.logissue type=warning]NOT IMPLEMENTED - You supplied a solutionComponentType of $c.solutionComponentType for solutionComponentUniqueName $solutionComponentUniqueName"
+          exit 1;
+        }      
+      }
+      $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $c.ownerEmail
+      $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
+      Set-CrmRecordOwner -conn $conn $solutionComponentResults.CrmRecords[0] $systemUserId
+    }
+    
+  displayName: 'Update Solution Component Ownership'
+  condition: and(succeeded(), ne(variables['setSolutionComponentOwnershipConfigurationOutput.outSolutionComponentOwnershipConfiguration'], ''))
