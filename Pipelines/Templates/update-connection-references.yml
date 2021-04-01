@@ -51,6 +51,8 @@ steps:
     $result = Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields objectid,componenttype
     $solutionComponents = $result.CrmRecords
 
+    $componentOwnershipConfig = ConvertFrom-Json '${{parameters.solutionComponentOwnershipConfiguration}}'
+
     foreach ($c in $solutionComponents){
         if ($c.componenttype -eq "Workflow"){
             # Flows can only be turned on if the user turning them on has permissions to connections being referenced by the connection reference
@@ -67,9 +69,14 @@ steps:
                   break
                 }
               }
-              if ($impersonationCallerId -eq "" -and '$(AdminUserName)' -ne "") {
-                  $systemusers = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $(AdminUserName)
-                  $impersonationCallerId = $systemusers.CrmRecords[0].systemuserid
+              if ($impersonationCallerId -eq "") {
+                  foreach ($ownerConfig in $componentOwnershipConfig){
+                      if($c.objectid -eq $ownerConfig.solutionComponentUniqueName){
+                          $systemusers = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $ownerConfig.ownerEmail
+                          $impersonationCallerId = $systemusers.CrmRecords[0].systemuserid
+                          break
+                      }
+                  }
               }
               if ($impersonationCallerId -ne "") {
                   $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
