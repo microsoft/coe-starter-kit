@@ -155,17 +155,41 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 ### Create Service Connections for DevOps to access Power Platform
 Each Dataverse environment (i.e. Development, Validation, Test and Production) will need to have a **Power Platform service connection in DevOps**. For each of your environments follow the steps below to setup the service connection.
 1. Go to https://dev.azure.com and select your **Project**
+
 1. Under **Project Settings** in your Azure DevOps project select the **Service connections** menu item.
+
 1. Select **Create/New service connection** and Search for Power Platform and select the **Power Platform** Service connection type and Select **Next**.
-![image.png](.attachments/GETTINGSTARTED/image-79dc6002-cb1f-4533-95d5-753ef179c77e.png)
+  ![image.png](.attachments/GETTINGSTARTED/image-79dc6002-cb1f-4533-95d5-753ef179c77e.png)
+
 1. In the **Server URL** put your environment url (e.g. https://myorg.crm.dynamics.com/). **NOTE: You must include the trailing forward slash see below**
+
 1. Enter the same value as above for the **Service Connection Name**.  **NOTE: You must include the trailing forward slash**
    
     >[!IMPORTANT] Currently ALM Accelerator will use the Service connection name to identify the service connection to use per environment so this needs to be the same url you entered above **including the trailing forward slash**).
+    
 1. Enter the **Tenant ID**, **Application (client) ID** and **Client Secret** you copied from AAD when you created your App Registration and select **Save**.
+
+1. In order for users to be able to use the service connection from the ALM Accelerator App the Service Connections must provide permissions to all users to be able to **Read** the Service Connections. Update Permissions as follows:
+
+    - Select the **Service Connection** to be **shared with users** from the **Service Connections** list.
+
+      ![image-20210401084558807](.attachments/GETTINGSTARTED/image-20210401084558807.png)
+
+    - Select the **3 dots** in the top right corner and Select **Security**.
+
+      ![image-20210401084807231](.attachments/GETTINGSTARTED/image-20210401084807231.png)
+
+    - Select the **Group or User** you want to provide Read permissions to in the Dropdown.
+
+    - Select the **Reader** **Role** and Select **Add**
+
+      ![image-20210401093313321](.attachments/GETTINGSTARTED/image-20210401093313321.png)
+
 1. Repeat these steps as needed for each of your environments (i.e. Development, Validation, Test and Production).
 
 ### Copy the YAML Pipelines from GitHub to your Azure DevOps instance.
+
+> [!NOTE] You could also clone the GitHub repo directly into a new repo in Azure DevOps if you choose. However, the steps below will ensure that only the assets required are copied to your Azure DevOps repo.
 
 1. Go to https://github.com/microsoft/coe-alm-accelerator-templates/ and clone the repo to a local folder.
 
@@ -226,6 +250,9 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
     | ProductionSourceBranch | [The branch you want to use to trigger a **Production Release**] NOTE: Generally this would be the **main** branch but could be setup to only release when merging to another branch of your choosing. When changes are made to the branch specified in this variable a release to Production will begin. |
 
 ### Update Permissions for the Project Build Service
+
+>  [!IMPORTANT] There are a number of "Build Service" accounts in Azure DevOps that may confuse the steps below. Pay close attention to the names / format specified in in Step 3 and 5 below. You may need to search for the specific account if it doesn't show up in the initial list.
+
 1. In Azure DevOps Select **Project Settings** in the left hand navigation.
 
 1. Select **Repositories** > **Permissions**. 
@@ -245,8 +272,6 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
 
 1. Find and select the user name **[Your Project Name] Build Service ([Your Organization Name])** under Users and set the **same values as above**.
 
-   >[!NOTE] If you receive permissions errors in the export pipeline you can read more on configuring these settings here https://github.com/MicrosoftDocs/azure-DevOps-docs/issues/5151.
-   
 ## Creating a Pipeline for your Solution
 
 When you create a solution in Dataverse you'll need to create a pipeline specifically for that solution. Follow these steps for creating a pipeline for your solution in Azure DevOps
@@ -559,7 +584,7 @@ The  pipeline variables are **ValidationAadGroupTeamConfiguration**, **TestAadGr
 
 The  pipeline variables are **ValidationSolutionComponentOwnershipConfiguration**, **TestSolutionComponentOwnershipConfiguration** and **ProdSolutionComponentOwnershipConfiguration**. These pipeline variables are used for assigning ownership of solution components to Dataverse Users after the solution is imported into an environment. This is particularly useful for components such as Flows that will be owned by default by the Service Principal user when the solution is imported by the pipeline and organizations want to reassign them after import.
 
->[!NOTE] The current pipeline only implements the ability to set ownership of Flows the ability to assign other components to users could be added in the future.
+>[!NOTE] The current pipeline only implements the ability to set ownership of Flows. The ability to assign other components to users could be added in the future.
 
 1. The format of the JSON for these variables take the form of an array of objects. 
 
