@@ -159,7 +159,7 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 1. Under **Project Settings** in your Azure DevOps project select the **Service connections** menu item.
 
 1. Select **Create/New service connection** and Search for Power Platform and select the **Power Platform** Service connection type and Select **Next**.
-  ![image.png](.attachments/GETTINGSTARTED/image-79dc6002-cb1f-4533-95d5-753ef179c77e.png)
+    ![image.png](.attachments/GETTINGSTARTED/image-79dc6002-cb1f-4533-95d5-753ef179c77e.png)
 
 1. In the **Server URL** put your environment url (e.g. https://myorg.crm.dynamics.com/). **NOTE: You must include the trailing forward slash see below**
 
