@@ -51,12 +51,20 @@ steps:
   condition: and(succeeded(), eq(variables['TriggerSolutionUpgrade'], ''))
 
 - powershell: |
+   $managedSolutionPath = ''
+   #Attempt to find the managed solution in the build pipeline drop if build and deploy are seperate pipelines
    Get-ChildItem -Path "$(Pipeline.Workspace)/buildPipeline/drop" -Filter "$(SolutionName)*.zip" | 
    ForEach-Object {
        If ($_.FullName.Contains("_managed")) 
        { 
          $managedSolutionPath = $_.FullName 
+         break
        }
+   }
+   If ($managedSolutionPath eq '')
+   {
+        #Default to managed solution path in the same pipeline if using build-deploy-Solution.yml
+        $managedSolutionPath = '$(Pipeline.Workspace)/drop/$(SolutionName)_$(Build.BuildNumber)_managed.zip'
    }
    Write-Host "##vso[task.setVariable variable=ManagedSolutionPath]$managedSolutionPath"
    Write-Host $managedSolutionPath
@@ -68,9 +76,6 @@ steps:
   inputs:
     jsonfiles: '$(Pipeline.Workspace)/buildPipeline/drop/meta-*.json'
   continueOnError: true 
-
-- task: printAllVariables@1
-  displayName: 'Print all variables'
 
 # If the TriggerSolutionUpgrade variable is false, then import the solution as an Update
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.import-solution.PowerPlatformImportSolution@0
