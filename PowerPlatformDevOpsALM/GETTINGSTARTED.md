@@ -197,11 +197,11 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 
 1. Create a **new project** or select an **existing project**.
 
-1. Go to **Repos** and **create a new Repo** for the ALM Accelerator Components or **use the default repo** created with the project.
+1. Go to **Repos** and **create a new Repo** for the ALM Accelerator Components or **use the default repo** created with the project. ![Creating a new Azure DevOps Repo](.attachments/GETTINGSTARTED/image-20210408135110844.png)
 
 1. **Clone** the AzDO repo to a new local folder 
 
-1. Copy the **Pipelines** folder (cloned from GitHub) to the solution folder for the AzDO repo you created.
+1. Copy the **Pipelines** folder cloned from GitHub to the solution folder for the AzDO repo you created.
 
 1. Commit the source code to your AzDO repo and push the code to AzDO.
 
@@ -244,10 +244,7 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
     | ClientSecret | [The Application (client) Secret you copied when creating the App Registration] NOTE: It's recommeded that you secure this value by clicking the lock next to the value so others can't see your secret. |
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
     | PipelineIdToLoadJsonValuesFrom  | [The pipeline ID for export-solution-to-git copied in the previous step] |
-    | ValidationServiceConnection  | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. |
-    | TestServiceConnection  | [The url of the test instance of Dataverse e.g. https://test.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Test Environment** **Service Connection** name you specified previously including any trailing forward slash. |
-    | ProdServiceConnection  | [The url of the production instance of Dataverse e.g. https://prod.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Prod Environment** **Service Connection** name you specified previously including any trailing forward slash. |
-    | ProductionSourceBranch | [The branch you want to use to trigger a **Production Release**] NOTE: Generally this would be the **main** branch but could be setup to only release when merging to another branch of your choosing. When changes are made to the branch specified in this variable a release to Production will begin. |
+    | ProductionSourceBranch         | [The branch you want to use to trigger a **Production Release**] NOTE: Generally this would be the **main** branch but could be setup to only release when merging to another branch of your choosing. When changes are made to the branch specified in this variable a release to Production will begin. |
 
 ### Update Permissions for the Project Build Service
 
@@ -274,49 +271,54 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
 
 ## Creating a Pipeline for your Solution
 
-When you create a solution in Dataverse you'll need to create a pipeline specifically for that solution. Follow these steps for creating a pipeline for your solution in Azure DevOps
+When you create a solution in Dataverse you'll need to create a pipeline specifically for that solution. Follow these steps for creating a pipeline for your solution in Azure DevOps. There are sample pipelines included in the Pipeline directory in the CoE ALM Templates repo 
 
-### Create the Pipeline
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-SampleSolution.yml
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-validation-SampleSolution.yml
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-test-SampleSolution.yml
 
-There is a sample pipeline included in the Pipeline directory in the CoE ALM Templates repo (https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/trigger-SampleSolution.yml). The sample pipeline provides flexibility for organizations to store their pipeline templates in a separate project or repo from the specific solution pipeline YAML. Follow the steps below to configure your **solution pipeline**. Repeat the steps for each of the solutions you will be source controlling with the ALM Accelerator.
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-prod-SampleSolution.yml
 
-> [!IMPORTANT] The pipeline YAML for your solution pipeline will always be stored in the same repo to which you will be source controlling your solution. However, the pipeline templates (i.e. the folder Pipeline\Templates) can exist in either the same repo as your solution pipeline YAML or in a separate repo. 
+The sample pipelines provides flexibility for organizations to store their pipeline templates in a separate project or repo from the specific solution pipeline YAML. Follow the steps below to configure your **solution pipeline**. Repeat the steps for each of the solutions you will be source controlling with the ALM Accelerator.
+
+> [!IMPORTANT] The pipeline YAML for your solution pipeline will always be stored in the same repo to which you will be source controlling your solution. However, the pipeline templates (i.e. the folder Pipeline\Templates) can exist in either the same repo as your solution pipeline YAML or in a separate repo and/or project. 
+
+### Create the Build Pipeline
+
+The build pipeline is used to build a previously exported and unpacked solution to be deployed using the deployment pipelines created in the next step. 
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
-1. Open the sample pipeline (e.g. **trigger-SampleSolution.yml\***) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
+1. Open the sample build pipeline (i.e. **build-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
 
-   ![image-20210310170636997](.attachments/GETTINGSTARTED/image-20210310170636997.png)
-
-   
+   ![image-20210408143713699](.attachments/GETTINGSTARTED/image-20210408143713699.png)
 
 1. Navigate to the **Repo where you want to source control your solution**.
    
-   > [!NOTE] In the case below we have a brand new repo for the new solution, called MyNewSolution. So, we are creating the **Pipeline** folder and a readme doc, for demonstration purpose, you could also create your pipeline YAML file at this point per step 4 below and skip adding a readme.
-
-   ![image-20210301100715073](.attachments/GETTINGSTARTED/image-20210301100715073.png)
-
-1. Select **New** from the top menu and then **File**
+1. Select **New** from the top menu and then **Folder**
    
-1. Give the new Pipeline YAML file a name (e.g. trigger-MyNewSolution.yml) and click **Create**
+   ![image-20210408144230561](.attachments/GETTINGSTARTED/image-20210408144230561.png)
+   
+1. Give the new **Folder the same name as your solution** (e.g. MyNewSolution) and the new Pipeline YAML file a name (e.g. build-MyNewSolution.yml). Select **Create**
 
-   ![image-20210301100912277](.attachments/GETTINGSTARTED/image-20210301100912277.png)
+   ![image-20210408144634619](.attachments/GETTINGSTARTED/image-20210408144634619.png)
 
-1. Paste the YAML from **trigger-SampleSolutionInSeperateRepo.yml\*** into your new Pipeline YAML file.
+1. Paste the YAML from **build-SampleSolution.yml** into your new Pipeline YAML file.
 
-   ![image-20210310170858018](.attachments/GETTINGSTARTED/image-20210310170858018.png)
+   ![image-20210408155252306](.attachments/GETTINGSTARTED/image-20210408155252306.png)
 
 1. Update the following values in your new Pipeline YAML.
 
-   - Change the **resources -> repositories -> name**  to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **ALMAcceleratorPipelineRepo** and it exists in the same project as our MyNewSolution repo.
-   ![image-20210310171320446](.attachments/GETTINGSTARTED/image-20210310171320446.png)
+   - Change the **resources -> repositories -> name**  to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **coe-alm-accelerator-templates** and it exists in the same project as our MyNewSolution repo. Additionally, you can specify a branch for where your templates live using the **ref** parameter if required.
+   ![image-20210408155550482](.attachments/GETTINGSTARTED/image-20210408155550482.png)
 
-    - Change or remove the branch name(s) under **trigger -> branches -> include** depending on your branching strategy. The branch(es) you specify here will be the branch(es) on which the build triggers. Depending on your branching strategy you may want to specify something **other than main**. We're specifying **MyNewSolution-main and main** here for demonstration purposes based on our branching strategy. In our case we pull our development branches into a branch specific to the solution (i.e. **MyNewSolution-main**) prior to merging into our main branch for release.
+    - Change or remove the branch name(s) under **trigger -> branches -> include** depending on your branching strategy. The branch(es) you specify here will be the branch(es) on which the build triggers. Depending on your branching strategy you may want to specify something **other than main**. We're specifying **MyNewSolution-main and main** here for demonstration purposes based on our branching strategy. In our case we pull our development branches into a branch specific to the solution (i.e. **MyNewSolution-main**) prior to merging into our **main** branch for release.
 
-    - Update the **include** and **exclude** paths for the trigger as needed. In the sample we are only triggering when the folder for our specific solution is changed. This is based on our branching strategy for which we have all of our solutions contained in a single repo and separate pipelines for each of the solutions with all of the solutions organized into their own directories
+    - Update the **include** and **exclude** paths for the trigger as needed. In the sample we are only triggering when the folder for our specific solution is changed and certain sub-folders that contain buildable assets.
 
     - Change any value that references **SampleSolutionName** to the unique name of your Solution (e.g. MySolutionName).
-   ![image-20210310171515186](.attachments/GETTINGSTARTED/image-20210310171515186.png)
+
+     ![image-20210408161211168](.attachments/GETTINGSTARTED/image-20210408161211168.png)
 
     - **Commit** your changes.
 
@@ -327,17 +329,80 @@ There is a sample pipeline included in the Pipeline directory in the CoE ALM Tem
 
 1. Select the **Azure DevOps repo** which contains the Pipeline YAML you created in step 4.
    
-   ![image-20210301102759410](.attachments/GETTINGSTARTED/image-20210301102759410.png)
+   ![image-20210409083425392](.attachments/GETTINGSTARTED/image-20210409083425392.png)
 
-1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 4** and Select **Continue**.
-   ![image-20210301103019999](.attachments/GETTINGSTARTED/image-20210301103019999.png)
-
+1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
+   
+![image-20210409083527099](.attachments/GETTINGSTARTED/image-20210409083527099.png)
+   
 1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
    ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
 
-1. Update the pipeline name to **build-deploy-MyNewSolution** (where 'MyNewSolution' is the name of your solution) and select **Save**.
+1. Update the pipeline name to **build-MyNewSolution** (where 'MyNewSolution' is the name of your solution) and select **Save**.
 
-   ![image-20210301103251841](.attachments/GETTINGSTARTED/image-20210301103251841.png)
+   ![image-20210409083640130](.attachments/GETTINGSTARTED/image-20210409083640130.png)
+
+### Create the Deployment Pipeline(s)
+
+Deployment Pipelines are used to deploy builds created by the build pipeline to environments in your tenant. You can create as many deployment pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers. The sample deployment pipelines trigger off of build completion and the specific branches associated with the builds.
+
+The following steps show how to create a pipeline from the sample pipeline YAML (**deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
+
+1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
+
+1. Open the sample deployment pipeline (i.e. **deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml or deploy-prod-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
+
+   ![image-20210408172106137](.attachments/GETTINGSTARTED/image-20210408172106137.png)
+
+1. Navigate to the **Repo where you want to source control your solution** and select the folder you created when creating your build pipeline.
+
+1. Select **New** from the top menu and then **File**
+
+   ![image-20210408172425370](.attachments/GETTINGSTARTED/image-20210408172425370.png)
+
+1. Give the new Pipeline YAML file a name (e.g. **deploy-validation-SampleSolution.yml**, **deploy-test-SampleSolution.yml** or **deploy-prod-SampleSolution.yml**). Select **Create**
+
+   ![image-20210408172718885](.attachments/GETTINGSTARTED/image-20210408172718885.png)
+
+1. Paste the YAML from **deploy-validation-SampleSolution.yml**, **deploy-test-SampleSolution.yml** or **deploy-prod-SampleSolution.yml** into your new Pipeline YAML file.
+
+1. ![image-20210408175237829](.attachments/GETTINGSTARTED/image-20210408175237829.png)
+
+1. Update the following values in your new Pipeline YAML.
+
+   - Change the **resources -> repositories -> name**  to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **coe-alm-accelerator-templates** and it exists in the same project as our MyNewSolution repo. Additionally, you can specify a branch for where your templates live using the **ref** parameter if required.
+     
+   ![image-20210408175435181](.attachments/GETTINGSTARTED/image-20210408175435181.png)
+     
+    - Change or remove the branch name(s) under **resources -> pipelines -> trigger -> branches -> include** depending on your branching strategy. The branch(es) you specify here will be the branch(es) on which the deployment triggers based on the build branch. Depending on your branching strategy you may want to specify something **other than what is specified in the sample**. In the above screenshot we have specified refs/pull/* because we want to run the validation deployment on Pull Requests prior to merging.
+
+    - Change any value that references **SampleSolutionName** to the unique name of your Solution (e.g. MySolutionName).
+
+      ![image-20210408175919661](.attachments/GETTINGSTARTED/image-20210408175919661.png)
+
+    - **Commit** your changes.
+
+1. In Azure DevOps go to **Pipelines** and **Create a New Pipeline**
+
+1. Select **Azure Repos Git** for your code Repository.
+   ![image.png](.attachments/GETTINGSTARTED/image-b27c7dc5-7fe7-449f-99bc-73b9b351cc94.png)
+
+1. Select the **Azure DevOps repo** which contains the deployment Pipeline YAML.
+
+    ![image-20210409083340072](.attachments/GETTINGSTARTED/image-20210409083340072.png)
+
+1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
+   
+![image-20210409083824702](.attachments/GETTINGSTARTED/image-20210409083824702.png)
+   
+1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
+   ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
+
+1. Update the pipeline name to **deploy-validation-MyNewSolution** (where 'MyNewSolution' is the name of your solution) and select **Save**.
+
+   ![image-20210409083958467](.attachments/GETTINGSTARTED/image-20210409083958467.png)
+   
+1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline yaml from the **coe-alm-accelerator-templates repo** (i.e. deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml and deploy-prod-SampleSolution.yml).
 
 ### Importing Data from your Pipeline
 
@@ -417,13 +482,27 @@ In order to leverage executing the build pipeline for your solution when a **Pul
 
    ![image-20210301104042544](.attachments/GETTINGSTARTED/image-20210301104042544.png) 
 
-### Setting Pipeline Variables
+### Setting Deployment Pipeline Variables
 
-The ALM Accelerator uses JSON formatted Pipeline variables for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. These pipeline variables are **optional** and depend on what type of components your solution pipelines deploy. For instance, if your solutions only contain Dataverse Tables, Columns and Model Driven Apps these steps **may not be necessary** and can be skipped. The following variables allow you to fully automate the deployment of your solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
+The ALM Accelerator uses JSON formatted Pipeline variables for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. These pipeline variables are **optional** and depend on what type of components your solution pipelines deploy. For instance, if your solutions only contain Dataverse Tables, Columns and Model Driven Apps **some of these steps may not be necessary** and can be skipped. The following variables allow you to fully automate the deployment of your solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
 
-#### Create Connection Reference Pipeline Variables
+> [!IMPORTANT] These pipeline variables will be set for each **deployment pipeline** you've configured above based on the environment to which your pipeline deploys.
 
-The connection reference variables are **ValidationConnectionReferences**, **TestConnectionReferences** and **ProdConnectionReferences**. These pipeline variables are used for setting connection references in your solution to specific connections configured in a target environment after the solution is imported into an environment.
+#### Create Environment and Service Connection (Required)
+
+These variables are required by every deployment pipeline. The Environment variable is **Environment** and the Service Connection variable is **ServiceConnection**. 
+
+The **Environment** variable is used to specify the Azure DevOps environment being deployed to in order to enable tracking deployment history and set permissions and approvals for deployment to specific environments. For more information on Environments in AzureDevOps see https://docs.microsoft.com/en-us/azure/devops/pipelines/process/environments.
+
+
+
+ The **Service Connection** variable is used to specify how the pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created 
+
+
+
+#### Create Connection Reference Pipeline Variable (Optional)
+
+The connection reference variable is **ConnectionReferences**. This pipeline variable is used for setting connection references in your solution to specific connections configured in a target environment after the solution is imported into an environment.
 
 1. You will need to create the connections manually in your target environments and copy the IDs for the connection to use in the JSON value below
 
@@ -461,9 +540,9 @@ The connection reference variables are **ValidationConnectionReferences**, **Tes
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create Environment Variable Pipeline Variables
+#### Create Environment Variable Pipeline Variable (Optional)
 
-The environment variable pipeline variables are **ValidationEnvironmentVariables**, **TestEnvironmentVariables** and **ProdEnvironmentVariables**. These pipeline variables are used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
+The environment variable pipeline variable is **EnvironmentVariables**. This pipeline variable is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
 
 1. The format of the JSON for these variables take the form of an array of name/value pairs.
 
@@ -496,9 +575,9 @@ The environment variable pipeline variables are **ValidationEnvironmentVariables
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create AAD Group Canvas Configuration Pipeline Variables
+#### Create AAD Group Canvas Configuration Pipeline Variable (Optional)
 
-The aad group canvas configuration pipeline variables are **ValidationAadGroupCanvasConfiguration**, **TestAadGroupCanvasConfiguration** and **ProdAadGroupCanvasConfiguration**. These pipeline variables are used for **sharing canvas apps** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
+The aad group canvas configuration pipeline variable is **AadGroupCanvasConfiguration**. This pipeline variable is used for **sharing canvas apps** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
 
 1. The format of the JSON for these variables take the form of an array of objects. The **roleName** can be one of **CanView**, **CanViewWithShare** and **CanEdit**
 
@@ -540,9 +619,9 @@ The aad group canvas configuration pipeline variables are **ValidationAadGroupCa
    ![image.png](.attachments/GETTINGSTARTED/aadappvariables.png)
    Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create AAD Group / Team Configuration Pipeline Variables
+#### Create AAD Group / Team Configuration Pipeline Variable (Optional)
 
-The  pipeline variables are **ValidationAadGroupTeamConfiguration**, **TestAadGroupTeamConfiguration** and **ProdAadGroupTeamConfiguration**. These pipeline variables are used for mapping **Dataverse Teams and Roles** to specific **Azure Active Directory Groups** after the solution is imported into an environment. The security roles will need to added to your solution if they are not manually created in the target environment.
+The pipeline variable is **AadGroupTeamConfiguration**. This pipeline variable is used for mapping **Dataverse Teams and Roles** to specific **Azure Active Directory Groups** after the solution is imported into an environment. The security roles will need to added to your solution if they are not manually created in the target environment.
 
 1. The format of the JSON for these variables take the form of an array of objects. One or many roles can be applied to any given team and these roles provide permissions to solution components required by the users in the group.
 
@@ -580,9 +659,9 @@ The  pipeline variables are **ValidationAadGroupTeamConfiguration**, **TestAadGr
    ![image.png](.attachments/GETTINGSTARTED/aadteamgroupvariables.png)
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create Solution Component Ownership Pipeline Variables
+#### Create Solution Component Ownership Pipeline Variable (Optional)
 
-The  pipeline variables are **ValidationSolutionComponentOwnershipConfiguration**, **TestSolutionComponentOwnershipConfiguration** and **ProdSolutionComponentOwnershipConfiguration**. These pipeline variables are used for assigning ownership of solution components to Dataverse Users after the solution is imported into an environment. This is particularly useful for components such as Flows that will be owned by default by the Service Principal user when the solution is imported by the pipeline and organizations want to reassign them after import.
+The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This variable is used for assigning ownership of solution components to Dataverse Users after the solution is imported into an environment. This is particularly useful for components such as Flows that will be owned by default by the Service Principal user when the solution is imported by the pipeline and organizations want to reassign them after import.
 
 >[!NOTE] The current pipeline only implements the ability to set ownership of Flows. The ability to assign other components to users could be added in the future.
 
@@ -620,7 +699,7 @@ The  pipeline variables are **ValidationSolutionComponentOwnershipConfiguration*
 1. For the example above the values look like the following
    ![image.png](.attachments/GETTINGSTARTED/componentappvariables.png)
 
-1. Where applicable repeat the steps above for each solution / pipeline you create.
+1. Where applicable repeat the steps above for each deployment solution / pipeline you create.
 
 ## Publishing the Solutions and Configuring the App
 
@@ -707,13 +786,6 @@ The  pipeline variables are **ValidationSolutionComponentOwnershipConfiguration*
 
 ## Troubleshooting
 
-1. If you see the following when running the **temp-build-psopa** pipeline. 
-   "The repository Microsoft/PowerApps-Language-Tooling in project f786000c-2d77-42a2-9d5a-5b6d12ef1570 could not be retrieved. Verify the name and credentials being used. GitHub reported the error, Resource protected by organization SAML enforcement. You must grant your OAuth token access to this organization." 
-
-    - You may need to ensure that you have authorized the service connection during the authentication step.
-
-    ![image-20210225161550399](.attachments/GETTINGSTARTED/image-20210225161550399.png)
-
 2. Occasionally, you may see the following when launching the app. "The app stopped working. Try refreshing your browser." This generally happens after launching the app and then getting a prompt to login. To get around this issue use a **private browser session**. This isn't an issue with the app itself but an issue with credential caching in the browser.
 
    ![image-20210225172822543](.attachments/GETTINGSTARTED/image-20210225172822543.png)
@@ -721,3 +793,5 @@ The  pipeline variables are **ValidationSolutionComponentOwnershipConfiguration*
 3. When you setup your pipelines such that the pipeline templates are stored in a different repository than the solution pipeline you may get the following message when trying to run your pipeline for the first time. To eliminate the error select the **Permit** button to grant the repo running the pipeline access to the template repository.
 
    ![image-20210311114131170](.attachments/GETTINGSTARTED/image-20210311114131170.png)
+   
+3. Build completion triggers not firing. There a few reasons the pipeline completion triggers may not fire depending on how you have setup your branches and build pipelines. **For troubleshooting tips see here https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers**
