@@ -1,5 +1,6 @@
 # Set up ALM Accelerator for Advanced Maker components
-- [Set up ALM Accelerator for Advanced Maker components](#-set--up-alm-accelerator-for-advanced-maker-components)
+
+- [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
   * [Prerequisites](#prerequisites)
     + [Environments](#environments)
     + [Users and Permissions](#users-and-permissions)
@@ -10,26 +11,27 @@
     + [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
     + [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
     + [Copy the YAML Pipelines from GitHub to your Azure DevOps instance.](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
-    + [Create Pipelines for Import and Export of Solutions](#create-pipelines-for-import-and-export-of-solutions)
+    + [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import--delete-and-export-of-solutions)
     + [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
     + [Create Pipeline global variables](#create-pipeline-global-variables)
     + [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
   * [Creating a Pipeline for your Solution](#creating-a-pipeline-for-your-solution)
-    + [Create the Pipeline](#create-the-pipeline)
+    + [Create the Build Pipeline](#create-the-build-pipeline)
+    + [Create the Deployment Pipeline(s)](#create-the-deployment-pipeline-s-)
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
     + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
-    + [Setting Pipeline Variables](#setting-pipeline-variables)
-      - [Create Connection Reference Pipeline Variables](#create-connection-reference-pipeline-variables)
-      - [Create Environment Variable Pipeline Variables](#create-environment-variable-pipeline-variables)
-      - [Create AAD Group Canvas Configuration Pipeline Variables](#create-aad-group-canvas-configuration-pipeline-variables)
-      - [Create AAD Group / Team Configuration Pipeline Variables](#create-aad-group---team-configuration-pipeline-variables)
-      - [Create Solution Component Ownership Pipeline Variables](#create-solution-component-ownership-pipeline-variables)
+    + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
+      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection--required-)
+      - [Create Connection Reference Pipeline Variable (Optional)](#create-connection-reference-pipeline-variable--optional-)
+      - [Create Environment Variable Pipeline Variable (Optional)](#create-environment-variable-pipeline-variable--optional-)
+      - [Create AAD Group Canvas Configuration Pipeline Variable (Optional)](#create-aad-group-canvas-configuration-pipeline-variable--optional-)
+      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group---team-configuration-pipeline-variable--optional-)
+      - [Create Solution Component Ownership Pipeline Variable (Optional)](#create-solution-component-ownership-pipeline-variable--optional-)
   * [Publishing the Solutions and Configuring the App](#publishing-the-solutions-and-configuring-the-app)
     + [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
     + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
   * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
   * [Troubleshooting](#troubleshooting)
-
 
 The ALM Accelerator components enable makers to apply source control strategies using Azure DevOps and use automated builds and deployment of solutions to their environments without the need for manual intervention by the maker, administrator, developer, or tester. In addition the ALM Accelerator provides makers the ability to work without intimate knowledge of the downstream technologies and to be able to switch quickly from developing solutions to source controlling the solution and ultimately pushing their apps to other environments with as few interruptions to their work as possible.
 
@@ -245,6 +247,7 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
     | PipelineIdToLoadJsonValuesFrom  | [The pipeline ID for export-solution-to-git copied in the previous step] |
     | ProductionSourceBranch         | [The branch you want to use to trigger a **Production Release**] NOTE: Generally this would be the **main** branch but could be setup to only release when merging to another branch of your choosing. When changes are made to the branch specified in this variable a release to Production will begin. |
+    | ValidationServiceConnection | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. This environment will be used to run solution checker during the build process. |
 
 ### Update Permissions for the Project Build Service
 
@@ -333,8 +336,9 @@ The build pipeline is used to build a previously exported and unpacked solution 
 
 1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
    
+
 ![image-20210409083527099](.attachments/GETTINGSTARTED/image-20210409083527099.png)
-   
+
 1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
    ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
 
@@ -372,8 +376,9 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
    - Change the **resources -> repositories -> name**  to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **coe-alm-accelerator-templates** and it exists in the same project as our MyNewSolution repo. Additionally, you can specify a branch for where your templates live using the **ref** parameter if required.
      
+
    ![image-20210408175435181](.attachments/GETTINGSTARTED/image-20210408175435181.png)
-     
+
     - Change or remove the branch name(s) under **resources -> pipelines -> trigger -> branches -> include** depending on your branching strategy. The branch(es) you specify here will be the branch(es) on which the deployment triggers based on the build branch. Depending on your branching strategy you may want to specify something **other than what is specified in the sample**. In the above screenshot we have specified refs/pull/* because we want to run the validation deployment on Pull Requests prior to merging.
 
     - Change any value that references **SampleSolutionName** to the unique name of your Solution (e.g. MySolutionName).
@@ -393,14 +398,17 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
 1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
    
-![image-20210409083824702](.attachments/GETTINGSTARTED/image-20210409083824702.png)
-   
+
+    ![image-20210409083824702](.attachments/GETTINGSTARTED/image-20210409083824702.png)
+
 1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
    ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
 
 1. Update the pipeline name to **deploy-validation-MyNewSolution** (where 'MyNewSolution' is the name of your solution) and select **Save**.
 
    ![image-20210409083958467](.attachments/GETTINGSTARTED/image-20210409083958467.png)
+   
+   > [!NOTE] If your new pipeline was not created in the default branch of the repo you may need to update the **Default branch for manual and scheduled builds**. See the following link for setting the **Default branch for manual and scheduled builds**. [Configure pipeline triggers - Azure Pipelines | Microsoft Docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers)
    
 1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline yaml from the **coe-alm-accelerator-templates repo** (i.e. deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml and deploy-prod-SampleSolution.yml).
 
