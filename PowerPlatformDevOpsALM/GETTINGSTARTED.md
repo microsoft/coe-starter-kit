@@ -33,9 +33,6 @@
   * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
   * [Troubleshooting](#troubleshooting)
 
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
-
-
 The ALM Accelerator components enable makers to apply source control strategies using Azure DevOps and use automated builds and deployment of solutions to their environments without the need for manual intervention by the maker, administrator, developer, or tester. In addition the ALM Accelerator provides makers the ability to work without intimate knowledge of the downstream technologies and to be able to switch quickly from developing solutions to source controlling the solution and ultimately pushing their apps to other environments with as few interruptions to their work as possible.
 
 This solution uses Azure DevOps for source control and deployments. You can sign up for Azure DevOps for free for up to 5 users on the [Azure DevOps](https://azure.microsoft.com/en-us/services/DevOps/) site.
@@ -250,6 +247,7 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
     | PipelineIdToLoadJsonValuesFrom  | [The pipeline ID for export-solution-to-git copied in the previous step] |
     | ProductionSourceBranch         | [The branch you want to use to trigger a **Production Release**] NOTE: Generally this would be the **main** branch but could be setup to only release when merging to another branch of your choosing. When changes are made to the branch specified in this variable a release to Production will begin. |
+    | ValidationServiceConnection | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. This environment will be used to run solution checker during the build process. |
 
 ### Update Permissions for the Project Build Service
 
@@ -399,9 +397,9 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
     ![image-20210409083340072](.attachments/GETTINGSTARTED/image-20210409083340072.png)
 
 1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
-   
 
 ![image-20210409083824702](.attachments/GETTINGSTARTED/image-20210409083824702.png)
+
 
 1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
    ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
@@ -409,6 +407,8 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 1. Update the pipeline name to **deploy-validation-MyNewSolution** (where 'MyNewSolution' is the name of your solution) and select **Save**.
 
    ![image-20210409083958467](.attachments/GETTINGSTARTED/image-20210409083958467.png)
+   
+   > [!NOTE] If your new pipeline was not created in the default branch of the repo you may need to update the **Default branch for manual and scheduled builds**. See the following link for setting the **Default branch for manual and scheduled builds**. [Configure pipeline triggers - Azure Pipelines | Microsoft Docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers)
    
 1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline yaml from the **coe-alm-accelerator-templates repo** (i.e. deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml and deploy-prod-SampleSolution.yml).
 
