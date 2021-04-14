@@ -21,12 +21,12 @@
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
     + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
     + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
-      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection--required-)
-      - [Create Connection Reference Pipeline Variable (Optional)](#create-connection-reference-pipeline-variable--optional-)
-      - [Create Environment Variable Pipeline Variable (Optional)](#create-environment-variable-pipeline-variable--optional-)
-      - [Create AAD Group Canvas Configuration Pipeline Variable (Optional)](#create-aad-group-canvas-configuration-pipeline-variable--optional-)
-      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group---team-configuration-pipeline-variable--optional-)
-      - [Create Solution Component Ownership Pipeline Variable (Optional)](#create-solution-component-ownership-pipeline-variable--optional-)
+      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
+      - [Create Connection Reference Pipeline Variable (Optional)](#create-connection-reference-pipeline-variable-optional)
+      - [Create Environment Variable Pipeline Variable (Optional)](#create-environment-variable-pipeline-variable-optional)
+      - [Create AAD Group Canvas Configuration Pipeline Variable (Optional)](#create-aad-group-canvas-configuration-pipeline-variable-optional)
+      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group---team-configuration-pipeline-variable-optional)
+      - [Create Solution Component Ownership Pipeline Variable (Optional)](#create-solution-component-ownership-pipeline-variable-optional)
   * [Publishing the Solutions and Configuring the App](#publishing-the-solutions-and-configuring-the-app)
     + [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
     + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
@@ -397,9 +397,9 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
     ![image-20210409083340072](.attachments/GETTINGSTARTED/image-20210409083340072.png)
 
 1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
-   
 
-    ![image-20210409083824702](.attachments/GETTINGSTARTED/image-20210409083824702.png)
+![image-20210409083824702](.attachments/GETTINGSTARTED/image-20210409083824702.png)
+
 
 1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
    ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
@@ -498,15 +498,15 @@ The ALM Accelerator uses JSON formatted Pipeline variables for updating **connec
 
 #### Create Environment and Service Connection (Required)
 
-These variables are required by every deployment pipeline. The Environment variable is **Environment** and the Service Connection variable is **ServiceConnection**. 
+These variables are required by every deployment pipeline. The Environment variable is **EnvironmentName** and the Service Connection variable is **ServiceConnection**. 
 
-The **Environment** variable is used to specify the Azure DevOps environment being deployed to in order to enable tracking deployment history and set permissions and approvals for deployment to specific environments. For more information on Environments in AzureDevOps see https://docs.microsoft.com/en-us/azure/devops/pipelines/process/environments.
+The **EnvironmentName** variable is used to specify the Azure DevOps environment being deployed to in order to enable tracking deployment history and set permissions and approvals for deployment to specific environments. Depending on the environment to which you're deploying set this value to **Validate, Test or Production** For more information on Environments in AzureDevOps see https://docs.microsoft.com/en-us/azure/devops/pipelines/process/environments.
 
+![image-20210414170154479](.attachments/GETTINGSTARTED/image-20210414170154479.png)
 
+ The **ServiceConnection** variable is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created above [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
 
- The **Service Connection** variable is used to specify how the pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created 
-
-
+![image-20210414170210916](.attachments/GETTINGSTARTED/image-20210414170210916.png)
 
 #### Create Connection Reference Pipeline Variable (Optional)
 
