@@ -714,7 +714,7 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
 ### Install ALM Accelerator Solutions in Dataverse
 > [!NOTE] As of January 2021, before installing the solutions you will need to **enable Power Apps Component Framework for Canvas apps** from the Power Platform Admin Center by going to https://admin.powerplatform.microsoft.com/ selecting your environment and selecting **Settings** - **Product** - **Features**. From here select the toggle for **Power Apps component framework for canvas apps** to turn it on.
 ![image.png](.attachments/GETTINGSTARTED/image-717c0f47-d496-4d3c-aa14-59feeb822268.png)
-1. Download the **latest managed solution** from GitHub (https://github.com/microsoft/coe-starter-kit-preview/releases)
+1. Download the **latest managed solution** from GitHub (https://github.com/microsoft/coe-starter-kit/releases)
 2. Go to https://make.powerapps.com and select the environment you want to use to host the ALM Accelerator App
 3. Select **Solutions** from the left navigation.
 4. Click **Import** and Browse to the location of the managed solution you downloaded.
