@@ -14,7 +14,9 @@ parameters:
   type: string
 - name: solutionComponentOwnershipConfiguration
   type: string
-
+- name: importUnmanaged
+  type: string
+  default: 'false'
 steps:
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@0
   displayName: 'Install Power Platform Build Tools'
@@ -48,7 +50,7 @@ steps:
     PowerPlatformSPN: '${{parameters.serviceConnection}}'
     SolutionInputFile: '$(UnmanagedSolutionPath)'
     PublishWorkflows: true
-  condition: and(succeeded(), eq(variables['TriggerSolutionUpgrade'], ''))
+  condition: and(succeeded(), eq('${{parameters.importUnmanaged}}', 'true'))
 
 - powershell: |
    $managedSolutionPath = ''
@@ -68,24 +70,15 @@ steps:
    Write-Host "##vso[task.setVariable variable=ManagedSolutionPath]$managedSolutionPath"
    Write-Host $managedSolutionPath
   displayName: 'Get managed solution zip path'
+  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'))
 
 # Task will read the json file from the Pipeline Artifact and populate the value of the variables from the build pipeline for PRs and for Solution Upgrade
 - task: nkdagility.variablehydration.variablerehydration-task.variablerehydration@0
   displayName: 'Load Variables from drop'
   inputs:
     jsonfiles: '$(Pipeline.Workspace)/buildPipeline/drop/meta-*.json'
+  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'))
   continueOnError: true 
-
-- task: printAllVariables@1
-  displayName: 'Print all variables'
-
-# See if there is a specific target branch specified in the pipeline variables and set the deployment variable based on the target branch of the build
-#- powershell: |
-#   if ('$(TargetBranch)' -ne '' -And (('$(PullRequestTarget)' -ne '' -And '$(TargetBranch)' -ne '$(PullRequestTarget)') -Or ('$(Build.SourceBranchName)' -ne '' -And '$(TargetBranch)' -ne '$(Build.SourceBranchName)')))
-#   {
-#        Write-Host "##vso[task.complete result=Failed;]Target Branch not configured for this deployment"
-#   }
-#  displayName: 'Check if Target Branch'
 
 # If the TriggerSolutionUpgrade variable is false, then import the solution as an Update
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.import-solution.PowerPlatformImportSolution@0
@@ -95,7 +88,7 @@ steps:
     PowerPlatformSPN: '${{parameters.serviceConnection}}'
     SolutionInputFile: $(ManagedSolutionPath)
     PublishWorkflows: true
-  condition: and(succeeded(), ne(variables['TriggerSolutionUpgrade'], ''), or(eq(variables['TriggerSolutionUpgrade'], 'false'), eq(variables['SolutionExists'], 'False')))
+  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), or(eq(variables['TriggerSolutionUpgrade'], 'false'), eq(variables['SolutionExists'], 'False')))
 
 # If the TriggerSolutionUpgrade variable is true, then import the solution as an Upgrade, staging it as a holding solution, so we can apply a solution Upgrade.
 # Doing this will ensure that items removed from the solution in development are also removed from the solution in the target environment after the Upgrade is applied.
@@ -106,7 +99,7 @@ steps:
     PowerPlatformSPN: '${{parameters.serviceConnection}}'
     SolutionInputFile: $(ManagedSolutionPath)
     HoldingSolution: true
-  condition: and(succeeded(), eq(variables['TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'True'))
+  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), eq(variables['TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'True'))
 
 # NOTE: Sometimes you need to perform intermediary steps between staging the upgrade and applying it.  
 # An example would be moving data from one entity to another before deleting the entity.
