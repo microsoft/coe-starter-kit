@@ -1,37 +1,37 @@
 # Set up ALM Accelerator for Advanced Maker components
 
 - [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
-  * [Prerequisites](#prerequisites)
-    + [Environments](#environments)
-    + [Users and Permissions](#users-and-permissions)
-  * [Azure DevOps Pipeline Setup](#azure-devops-pipeline-setup)
-    + [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
-    + [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
-    + [Create an App User in your Dataverse Environments.](#create-an-app-user-in-your-dataverse-environments)
-    + [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
-    + [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
-    + [Copy the YAML Pipelines from GitHub to your Azure DevOps instance.](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
-    + [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import--delete-and-export-of-solutions)
-    + [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
-    + [Create Pipeline global variables](#create-pipeline-global-variables)
-    + [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
-  * [Creating a Pipeline for your Solution](#creating-a-pipeline-for-your-solution)
-    + [Create the Build Pipeline](#create-the-build-pipeline)
-    + [Create the Deployment Pipeline(s)](#create-the-deployment-pipeline-s-)
-    + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
-    + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
-    + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
+  - [Prerequisites](#prerequisites)
+    - [Environments](#environments)
+    - [Users and Permissions](#users-and-permissions)
+  - [Azure DevOps Pipeline Setup](#azure-devops-pipeline-setup)
+    - [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
+    - [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
+    - [Create an App User in your Dataverse Environments.](#create-an-app-user-in-your-dataverse-environments)
+    - [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
+    - [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
+    - [Copy the YAML Pipelines from GitHub to your Azure DevOps instance.](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
+    - [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
+    - [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
+    - [Create Pipeline global variables](#create-pipeline-global-variables)
+    - [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
+  - [Creating a Pipeline for your Solution](#creating-a-pipeline-for-your-solution)
+    - [Create the Build Pipeline](#create-the-build-pipeline)
+    - [Create the Deployment Pipeline(s)](#create-the-deployment-pipelines)
+    - [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
+    - [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
+    - [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
       - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
       - [Create Connection Reference Pipeline Variable (Optional)](#create-connection-reference-pipeline-variable-optional)
       - [Create Environment Variable Pipeline Variable (Optional)](#create-environment-variable-pipeline-variable-optional)
       - [Create AAD Group Canvas Configuration Pipeline Variable (Optional)](#create-aad-group-canvas-configuration-pipeline-variable-optional)
-      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group---team-configuration-pipeline-variable-optional)
+      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
       - [Create Solution Component Ownership Pipeline Variable (Optional)](#create-solution-component-ownership-pipeline-variable-optional)
-  * [Publishing the Solutions and Configuring the App](#publishing-the-solutions-and-configuring-the-app)
-    + [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
-    + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
-  * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
-  * [Troubleshooting](#troubleshooting)
+  - [Publishing the Solutions and Configuring the App](#publishing-the-solutions-and-configuring-the-app)
+    - [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
+    - [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
+  - [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
+  - [Troubleshooting](#troubleshooting)
 
 The ALM Accelerator components enable makers to apply source control strategies using Azure DevOps and use automated builds and deployment of solutions to their environments without the need for manual intervention by the maker, administrator, developer, or tester. In addition the ALM Accelerator provides makers the ability to work without intimate knowledge of the downstream technologies and to be able to switch quickly from developing solutions to source controlling the solution and ultimately pushing their apps to other environments with as few interruptions to their work as possible.
 
@@ -220,7 +220,7 @@ Following the steps below to create the following pipelines based on the YAML in
 | delete-unmanaged-solution-and-components.yml | delete-unmanaged-solution-and-components |
 
 1. In Azure DevOps go to **Pipelines** and **Create a New Pipeline**
-1. Select **Azure Repos Git** for your code Repository and point to Azure DevOps repo you created and seeded in the first step above.
+2. Select **Azure Repos Git** for your code Repository and point to Azure DevOps repo you created and seeded with the pipeline templates in the steps above.
 ![image.png](.attachments/GETTINGSTARTED/image-b27c7dc5-7fe7-449f-99bc-73b9b351cc94.png)
 1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file** and point to **/Pipelines/export-solution-to-git.yml**, **/Pipelines/import-unmanaged-to-dev-environment.yml** or **/Pipelines/delete-unmanaged-solution-and-components.yml**  and Select **Continue**.
 ![image-20210309102040713](.attachments/GETTINGSTARTED/image-20210309102040713.png)
@@ -251,17 +251,17 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
 
 ### Update Permissions for the Project Build Service
 
->  [!IMPORTANT] There are a number of "Build Service" accounts in Azure DevOps that may confuse the steps below. Pay close attention to the names / format specified in in Step 3 and 5 below. You may need to search for the specific account if it doesn't show up in the initial list.
+>  [!IMPORTANT] There are a number of "Build Service" accounts in Azure DevOps that may confuse the steps below. Pay close attention to the names / format specified in Step 3 and 5 below. You may need to search for the specific account if it doesn't show up in the initial list.
 
 1. In Azure DevOps Select **Project Settings** in the left hand navigation.
 
-1. Select **Repositories** > **Permissions**. 
+2. Select **Repositories** > **Security**. 
 
-1. Find and select **Project Collection Build Service ([Your Organization Name])** under Users.
+3. Find and select **Project Collection Build Service ([Your Organization Name])** under Users.
 
    > [!NOTE: In some cases you may not see Your Organization Name after the Project Collection Build Service user. In some cases it may just be a unique identifier and you may need to use the search function to find this user. Select this user]
 
-1. Set the following permissions for the Build Service user.
+4. Set the following permissions for the Build Service user.
 
    | Permission | Value |
    |--|--|
@@ -270,7 +270,7 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
    | Create branch | Allow |
    ![image.png](.attachments/GETTINGSTARTED/image-8505cb38-0569-442b-aac0-cc9ceea3b5a5.png)
 
-1. Find and select the user name **[Your Project Name] Build Service ([Your Organization Name])** under Users and set the **same values as above**.
+5. Find and select the user name **[Your Project Name] Build Service ([Your Organization Name])** under Users and set the **same values as above**.
 
 ## Creating a Pipeline for your Solution
 
@@ -492,7 +492,7 @@ In order to leverage executing the build pipeline for your solution when a **Pul
 
 ### Setting Deployment Pipeline Variables
 
-The ALM Accelerator uses JSON formatted Pipeline variables for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. These pipeline variables are **optional** and depend on what type of components your solution pipelines deploy. For instance, if your solutions only contain Dataverse Tables, Columns and Model Driven Apps **some of these steps may not be necessary** and can be skipped. The following variables allow you to fully automate the deployment of your solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
+The ALM Accelerator uses JSON formatted Pipeline variables for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. **Environ,mentName** and **ServiceConnection** variables are **required** for each pipeline. All other pipeline variables are **optional** and depend on what type of components your solution pipelines deploy. For instance, if your solutions only contain Dataverse Tables, Columns and Model Driven Apps **some of these steps may not be necessary** and can be skipped. The following variables allow you to fully automate the deployment of your solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
 
 > [!IMPORTANT] These pipeline variables will be set for each **deployment pipeline** you've configured above based on the environment to which your pipeline deploys.
 
