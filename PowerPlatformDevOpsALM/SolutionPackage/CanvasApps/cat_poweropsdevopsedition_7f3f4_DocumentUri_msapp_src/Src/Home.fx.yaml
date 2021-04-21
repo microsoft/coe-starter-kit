@@ -20,7 +20,7 @@ Home As screen:
     "glrSolutions As gallery.'BrowseLayout_Vertical_TwoTextVariant_ver4.0'":
         Fill: =RGBA(255,255, 255, 1)
         Height: =883
-        Items: =Search(SelectedEnvironmentSolutions, txtSearch.Text, "friendlyname")
+        Items: =Search(Sort(SelectedEnvironmentSolutions, friendlyname), txtSearch.Text, "friendlyname")
         Layout: =Layout.Vertical
         OnSelect: =
         TemplatePadding: =0
@@ -41,6 +41,7 @@ Home As screen:
             PaddingTop: =0
             Size: =15
             Text: =ThisItem.friendlyname
+            Tooltip: =ThisItem.friendlyname
             VerticalAlign: =VerticalAlign.Top
             Width: =362
             Wrap: =false
@@ -1861,7 +1862,7 @@ Home As screen:
             Align: =Left
             FontWeight: =FontWeight.Semibold
             PaddingLeft: =0
-            Text: =Concatenate(drpAdoPipelinesWithBuild.SelectedText.'data-ADB4D7A662F548B49FAC2B986E348A1BDisplayName', " Import History")
+            Text: =Concatenate(drpAdoPipelinesWithBuild.SelectedText.DisplayName, " Import History")
             Width: =500
             X: =30
             Y: =278
@@ -1956,15 +1957,41 @@ Home As screen:
             HoverColor: =ColorFade(drpAdoOrganizations.Color, 20%)
             HoverFill: =ColorFade(drpAdoOrganizations.SelectionFill, 20%)
             Items: =Orgs
-            OnChange: |+
-                =Set(SelectedOrg, drpAdoOrganizations.Selected);
-                ClearCollect(SelectedOrgProjects, CustomAzureDevOps.GetProjects(SelectedOrg.AccountName).value);
-                Set(SelectedProject, First(SelectedOrgProjects));
-                ClearCollect(SelectedProjectPipelines, Filter(CustomAzureDevOps.GetPipelines(SelectedOrg.AccountName, SelectedProject.name).value, StartsWith(name,"deploy-")));
-                Set(SelectedProjectServiceEndPoints, CustomAzureDevOps.GetServiceEndpoints(SelectedOrg.AccountName,SelectedProject.name,{'api-version':"6.1-preview"}));
-                ClearCollect(SelectedProjectRepos, CustomAzureDevOps.GetGitRepos(SelectedOrg.AccountName,SelectedProject.name).value);
-                
-                
+            OnChange: |
+                =Set(
+                    SelectedOrg,
+                    drpAdoOrganizations.Selected
+                );
+                ClearCollect(
+                    SelectedOrgProjects,
+                    CustomAzureDevOps.GetProjects(SelectedOrg.AccountName).value
+                );
+                Set(
+                    SelectedProject,
+                    First(SelectedOrgProjects)
+                );
+                ClearCollect(
+                    SelectedProjectPipelines,
+                    CustomAzureDevOps.GetPipelines(
+                        SelectedOrg.AccountName,
+                        SelectedProject.name
+                    ).value
+                );
+                Set(
+                    SelectedProjectServiceEndPoints,
+                    CustomAzureDevOps.GetServiceEndpoints(
+                        SelectedOrg.AccountName,
+                        SelectedProject.name,
+                        {'api-version': "6.1-preview"}
+                    )
+                );
+                ClearCollect(
+                    SelectedProjectRepos,
+                    CustomAzureDevOps.GetGitRepos(
+                        SelectedOrg.AccountName,
+                        SelectedProject.name
+                    ).value
+                );
             PressedBorderColor: =drpAdoOrganizations.HoverBorderColor
             PressedColor: =drpAdoOrganizations.Fill
             PressedFill: =drpAdoOrganizations.Color
@@ -2787,27 +2814,6 @@ Home As screen:
                     SelectedEnvironment,
                     DefaultEnvironmentToLoad
                 );
-                ClearCollect(
-                    SelectedProjectPipelines,
-                    AddColumns(
-                        Filter(
-                            CustomAzureDevOps.GetPipelines(
-                                DefaultOrg.Value,
-                                DefaultProject.Value
-                            ).value,
-                            StartsWith(
-                                name,
-                                "deploy-validation-"
-                            )
-                        ),
-                        "DisplayName",
-                        Substitute(
-                            name,
-                            "deploy-validation-",
-                            ""
-                        )
-                    )
-                );
                 // Set Organization and Project Specific Settings Names
                 Set(
                     LastSavedBranchesCreatedSettingName,
@@ -3167,32 +3173,60 @@ Home As screen:
                                         )
                                     )
                                 ),
-                                solutionTargetBranchStatus: CustomAzureDevOps.GetBuilds(
-                                    drpAdoOrganizations.Selected.AccountName,
-                                    drpAdoProjects.Selected.name,
-                                    {
-                                        branchName: LookUp(
+                                solutionTargetBranchStatus: If(
+                                    !IsBlank(
+                                        LookUp(
                                             LastSavedPullRequests,
                                             solutionUniqueName = e.uniquename,
                                             targetBranchName
-                                        ),
-                                        requestedFor: gblAzureDevOpsUserId,
-                                        queryOrder: "queueTimeDescending",
-                                        '$top': 1
-                                    }
-                                ).value,
-                                solutionReleaseBranchStatus: CustomAzureDevOps.GetBuilds(
-                                    drpAdoOrganizations.Selected.AccountName,
-                                    drpAdoProjects.Selected.name,
-                                    {
-                                        queryOrder: "queueTimeDescending",
-                                        definitions: LookUp(
-                                            SelectedProjectPipelines,
-                                            DisplayName = "deploy-prod-" & e.uniquename
-                                        ).id,
-                                        '$top': 1
-                                    }
-                                ).value
+                                        )
+                                    ),
+                                    CustomAzureDevOps.GetBuilds(
+                                        drpAdoOrganizations.Selected.AccountName,
+                                        drpAdoProjects.Selected.name,
+                                        {
+                                            branchName: LookUp(
+                                                LastSavedPullRequests,
+                                                solutionUniqueName = e.uniquename,
+                                                targetBranchName
+                                            ),
+                                            requestedFor: gblAzureDevOpsUserId,
+                                            queryOrder: "queueTimeDescending",
+                                            minTime: LookUp(
+                                                SolutionsLatestBuildStatuses,
+                                                uniquename = e.uniquename,
+                                                pullRequestStatus
+                                            ).closedDate//used to constrain number of results since $top was not working
+                                        }
+                                    ).value
+                                ),
+                                solutionReleaseBranchStatus: If(
+                                    !IsBlank(
+                                        LookUp(
+                                            SolutionsLatestBuildStatuses,
+                                            uniquename = e.uniquename,
+                                            solutionTargetBranchStatus
+                                        ).finishTime
+                                    ),
+                                    CustomAzureDevOps.GetBuilds(
+                                        drpAdoOrganizations.Selected.AccountName,
+                                        drpAdoProjects.Selected.name,
+                                        {
+                                            queryOrder: "queueTimeDescending",
+                                            definitions: LookUp(
+                                                SelectedProjectPipelines,
+                                                DisplayName = "deploy-prod-" & e.uniquename
+                                            ).id,
+                                            minTime: First(
+                                                LookUp(
+                                                    SolutionsLatestBuildStatuses,
+                                                    uniquename = e.uniquename,
+                                                    solutionTargetBranchStatus
+                                                )
+                                            ).finishTime//used to constrain number of results since $top was not working
+                                        }
+                                    ).value
+                                )
                             }
                         );
                     )
