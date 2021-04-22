@@ -8,9 +8,22 @@ This solution uses Azure DevOps for source control and deployments. You can sign
 
 >[!NOTE] The pipelines in the ALM Accelerator components rely on some third party extensions to fill gaps in areas where native utilities are not available or the effort to recreate the functionality is prohibitive. We recognize that this isn't ideal and are working toward eliminating these utilities as we grow the solution and native capabilities become available. However, in the interest of providing a sample implementation of full end to end Power Platform Pipelines it was decided that this would be necessary at the moment. Where possible the documentation calls out these third party tools, their purpose and their documentation / source code.
 
+## Document structure
+
+The GETTINGSTARTED.md is structured into 7 main sections
+
+- **Prequisites** - Considerations and requirements in order to complete the setup.
+- **Foundational Setup** - This sections walks through the base setup of the ALM Accelerator for Advanced Makers. The base setup consist of the steps and configurations required.
+- **Development Project Setup** - This sections includes the steps required to set up a new Development Project covering project specific setup of Azure DevOps, generic build and deployment pipelines, Service Connections, Power Platform Environments and Application Users
+- **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing.
+- **Importing the Solution and Configuring the App** - This section takes you through the steps required to import the actual ALM Accelerator for Advanced Makers canvas app and configuring the included custom connector.
+- **Using the ALM Accelerator App** - A short introduction to using the AA4AM canvas app
+- **Troubleshooting** - A few pointers on some know issues and how to remediate these.
+
 ## Table of Contents
 
 - [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
+  - [Document structure](#document-structure)
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
     - [Environments](#environments)
