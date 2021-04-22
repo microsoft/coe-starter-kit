@@ -1693,8 +1693,7 @@ Home As screen:
             HoverBorderColor: =ColorFade(drpAdoPipelinesWithBuild.BorderColor, 20%)
             HoverColor: =ColorFade(drpAdoPipelinesWithBuild.Color, 20%)
             HoverFill: =ColorFade(drpAdoPipelinesWithBuild.SelectionFill, 20%)
-            Items: |
-                =SelectedProjectPipelines
+            Items: =ImportSolutions
             OnChange: =Select(fncRefreshPipelineRuns)
             PressedBorderColor: =drpAdoPipelinesWithBuild.HoverBorderColor
             PressedColor: =drpAdoPipelinesWithBuild.Fill
@@ -1862,7 +1861,7 @@ Home As screen:
             Align: =Left
             FontWeight: =FontWeight.Semibold
             PaddingLeft: =0
-            Text: =Concatenate(drpAdoPipelinesWithBuild.SelectedText.DisplayName, " Import History")
+            Text: =Concatenate(drpAdoPipelinesWithBuild.SelectedText.'data-ADB4D7A662F548B49FAC2B986E348A1BDisplayName', " Import History")
             Width: =500
             X: =30
             Y: =278
@@ -2616,428 +2615,6 @@ Home As screen:
             Y: =151
             ZIndex: =4
 
-        fncInitializeHome As button:
-            HoverBorderColor: =ColorFade(fncInitializeHome.BorderColor, 20%)
-            HoverColor: =ColorFade(fncInitializeHome.Color, 20%)
-            HoverFill: =ColorFade(fncInitializeHome.Fill, 20%)
-            OnSelect: |
-                =UpdateContext({showLoader: true});
-                UpdateContext({locStartCheckBuildStatusTimer: false});
-                UpdateContext({locIsSaveSettingsEnabled: false});
-                //Set Global user, Global CDS user and get App User Settings
-                Set(
-                    gblUser,
-                    User()
-                );
-                Set(
-                    gblCdsUser,
-                    LookUp(
-                        Users,
-                        domainname = gblUser.Email
-                    )
-                );
-                // Get user settings for this App.   
-                Set(
-                    AppUserSetting,
-                    LookUp(
-                        'App User Settings',
-                        AppName = ApplicationName && Owner = gblCdsUser
-                    )
-                );
-                // If App User Setting record doesn't exist, it is the first time the user has used this app, so create it and force user to save initial values
-                If(
-                    IsBlank(AppUserSetting),
-                    Set(
-                        AppUserSetting,
-                        Patch(
-                            'App User Settings',
-                            {cat_appname: ApplicationName}
-                        )
-                    );
-                    UpdateContext(
-                        {
-                            showDialogOverlay: true,
-                            showSettingsDialog: true
-                        }
-                    );
-                    
-                );
-                //Store User Settings in a collection
-                ClearCollect(
-                    AppUserSetting_UserSettings,
-                    Filter(
-                        'User Settings',
-                        'App User Setting'.'App User Setting' = AppUserSetting.'App User Setting'
-                    )
-                );
-                //Pull the Orgs, Projects and Project Repos.
-                Set(
-                    Orgs,
-                    CustomAzureDevOps.GetOrganizations()
-                );
-                Set(
-                    DefaultOrg,
-                    LookUp(
-                        AppUserSetting_UserSettings,
-                        Name = DefaultOrgSettingName
-                    )
-                );
-                Set(
-                    DefaultOrgValue,// Required to force explicit column selection, otherwise the Value field won't be returned in the result
-                    LookUp(
-                        AppUserSetting_UserSettings,
-                        Name = DefaultOrgSettingName
-                    ).Value
-                );
-                If(
-                    IsBlank(DefaultOrg) && CountRows(Orgs) > 0,
-                    Set(
-                        DefaultOrg,
-                        Patch(
-                            'User Settings',
-                            {
-                                'App User Setting': AppUserSetting,
-                                Name: DefaultOrgSettingName,
-                                Value: First(Orgs).AccountName
-                            }
-                        )
-                    )
-                );
-                ClearCollect(
-                    SelectedOrgProjects,
-                    CustomAzureDevOps.GetProjects(DefaultOrg.Value).value
-                );
-                Set(
-                    DefaultProject,
-                    LookUp(
-                        AppUserSetting_UserSettings,
-                        Name = DefaultProjectSettingName
-                    )
-                );
-                If(
-                    IsBlank(DefaultProject) && CountRows(SelectedOrgProjects) > 0,
-                    Set(
-                        DefaultProject,
-                        Patch(
-                            'User Settings',
-                            {
-                                'App User Setting': AppUserSetting,
-                                Name: DefaultProjectSettingName,
-                                Value: First(SelectedOrgProjects).name
-                            }
-                        )
-                    )
-                );
-                ClearCollect(
-                    SelectedProjectRepos,
-                    CustomAzureDevOps.GetGitRepos(
-                        drpAdoOrganizations.Selected.AccountName,
-                        drpAdoProjects.Selected.name
-                    ).value
-                );
-                Set(
-                    DefaultRepo,
-                    LookUp(
-                        AppUserSetting_UserSettings,
-                        Name = DefaultRepoSettingName
-                    )
-                );
-                Set(
-                    RepoOverridden,
-                    IsBlank(
-                        LookUp(
-                            SelectedProjectRepos,
-                            name = DefaultRepo.Value
-                        )
-                    ) And EnablePreviewFeatures
-                );
-                If(
-                    IsBlank(DefaultRepo) && CountRows(SelectedProjectRepos) > 0,
-                    Set(
-                        DefaultRepo,
-                        Patch(
-                            'User Settings',
-                            {
-                                'App User Setting': AppUserSetting,
-                                Name: DefaultRepoSettingName,
-                                Value: First(SelectedProjectRepos).name
-                            }
-                        )
-                    )
-                );
-                ClearCollect(
-                    AdoServiceEndpoints,
-                    Filter(
-                        CustomAzureDevOps.GetServiceEndpoints(
-                            DefaultOrg.Value,
-                            DefaultProject.Value
-                        ).value,
-                        ".dynamics.com" in name
-                    )
-                );
-                ClearCollect(
-                    Environments,
-                    Filter(
-                        PowerAppsforMakers.GetEnvironments().value,
-                        properties.linkedEnvironmentMetadata.instanceUrl in AdoServiceEndpoints.name
-                    )
-                );
-                Set(
-                    DefaultEnvironment,
-                    LookUp(
-                        AppUserSetting_UserSettings,
-                        Name = DefaultEnvironmentSettingName
-                    )
-                );
-                If(
-                    IsBlank(DefaultEnvironment) && CountRows(Environments) > 0,
-                    Set(
-                        DefaultEnvironment,
-                        Patch(
-                            'User Settings',
-                            {
-                                'App User Setting': AppUserSetting,
-                                Name: DefaultEnvironmentSettingName,
-                                Value: First(Environments).name
-                            }
-                        )
-                    )
-                );
-                Set(
-                    DefaultEnvironmentToLoad,
-                    LookUp(
-                        Environments,
-                        name = DefaultEnvironment.Value
-                    )
-                );
-                Set(
-                    SelectedEnvironment,
-                    DefaultEnvironmentToLoad
-                );
-                // Set Organization and Project Specific Settings Names
-                Set(
-                    LastSavedBranchesCreatedSettingName,
-                    "LastSavedBranchesCreated - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
-                );
-                Set(
-                    LastSavedPullRequestsSettingName,
-                    "LastSavedPullRequests - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
-                );
-                Set(
-                    LastSavedExportToGitPipelineRunsSettingName,
-                    "LastSavedExportToGitPipelineRuns - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
-                );
-                Set(
-                    LastSavedImportPipelineRunsSettingName,
-                    "LastSavedImportPipelineRuns - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
-                );
-                // Parse the CSV and get it into the LastSavedPullRequests / LastSavedExportToGitPipelineRuns  / LastSavedBranchesCreated collections 
-                Collect(
-                    TempLastSavedBranchesCreated,
-                    Split(
-                        LookUp(
-                            AppUserSetting_UserSettings,
-                            Name = LastSavedBranchesCreatedSettingName
-                        ).Value,
-                        "|"
-                    )
-                );
-                ClearCollect(
-                    LastSavedBranchesCreated,
-                    DropColumns(
-                        AddColumns(
-                            TempLastSavedBranchesCreated,
-                            "solutionUniqueName",
-                            First(
-                                Split(
-                                    ThisRecord.Result,
-                                    ","
-                                )
-                            ).Result,
-                            "branchName",
-                            Last(
-                                FirstN(
-                                    Split(
-                                        ThisRecord.Result,
-                                        ","
-                                    ),
-                                    2
-                                )
-                            ).Result
-                        ),
-                        "Result"
-                    )
-                );
-                RemoveIf(
-                    LastSavedBranchesCreated,
-                    IsBlank(solutionUniqueName)
-                );
-                Clear(TempLastSavedBranchesCreated);
-                ClearCollect(
-                    TempLastSavedExportToGitPipelineRuns,
-                    Split(
-                        LookUp(
-                            AppUserSetting_UserSettings,
-                            Name = LastSavedExportToGitPipelineRunsSettingName
-                        ).Value,
-                        "|"
-                    )
-                );
-                ClearCollect(
-                    LastSavedExportToGitPipelineRuns,
-                    DropColumns(
-                        AddColumns(
-                            TempLastSavedExportToGitPipelineRuns,
-                            "solutionUniqueName",
-                            First(
-                                Split(
-                                    ThisRecord.Result,
-                                    ","
-                                )
-                            ).Result,
-                            "buildId",
-                            Value(
-                                Last(
-                                    FirstN(
-                                        Split(
-                                            ThisRecord.Result,
-                                            ","
-                                        ),
-                                        2
-                                    )
-                                ).Result
-                            )
-                        ),
-                        "Result"
-                    )
-                );
-                RemoveIf(
-                    LastSavedExportToGitPipelineRuns,
-                    IsBlank(solutionUniqueName)
-                );
-                Clear(TempLastSavedExportToGitPipelineRuns);
-                ClearCollect(
-                    TempLastSavedImportPipelineRuns,
-                    Split(
-                        LookUp(
-                            AppUserSetting_UserSettings,
-                            Name = LastSavedImportPipelineRunsSettingName
-                        ).Value,
-                        "|"
-                    )
-                );
-                ClearCollect(
-                    LastSavedImportPipelineRuns,
-                    DropColumns(
-                        AddColumns(
-                            TempLastSavedImportPipelineRuns,
-                            "solutionUniqueName",
-                            First(
-                                Split(
-                                    ThisRecord.Result,
-                                    ","
-                                )
-                            ).Result,
-                            "buildId",
-                            Value(
-                                Last(
-                                    FirstN(
-                                        Split(
-                                            ThisRecord.Result,
-                                            ","
-                                        ),
-                                        2
-                                    )
-                                ).Result
-                            )
-                        ),
-                        "Result"
-                    )
-                );
-                RemoveIf(
-                    LastSavedImportPipelineRuns,
-                    IsBlank(solutionUniqueName)
-                );
-                Clear(TempLastSavedImportPipelineRuns);
-                Collect(
-                    TempLastSavedPullRequests,
-                    Split(
-                        LookUp(
-                            AppUserSetting_UserSettings,
-                            Name = LastSavedPullRequestsSettingName
-                        ).Value,
-                        "|"
-                    )
-                );
-                ClearCollect(
-                    LastSavedPullRequests,
-                    DropColumns(
-                        AddColumns(
-                            TempLastSavedPullRequests,
-                            "solutionUniqueName",
-                            First(
-                                Split(
-                                    ThisRecord.Result,
-                                    ","
-                                )
-                            ).Result,
-                            "pullRequestId",
-                            Value(
-                                Last(
-                                    FirstN(
-                                        Split(
-                                            ThisRecord.Result,
-                                            ","
-                                        ),
-                                        2
-                                    )
-                                ).Result
-                            ),
-                            "targetBranchName",
-                            Last(
-                                FirstN(
-                                    Split(
-                                        ThisRecord.Result,
-                                        ","
-                                    ),
-                                    3
-                                )
-                            ).Result
-                        ),
-                        "Result"
-                    )
-                );
-                RemoveIf(
-                    LastSavedPullRequests,
-                    IsBlank(solutionUniqueName)
-                );
-                Clear(TempLastSavedPullRequests);
-                Select(fncCollectSelectedRepoBranches);
-                Select(fncLoadSolutions);
-                Select(fncResetCheckBuildStatuses);
-                Select(fncRefreshPipelineRuns);
-                Set(
-                    gblAzureDevOpsUserId,
-                    First(
-                        CustomAzureDevOps.GetIdentities(
-                            drpAdoOrganizations.Selected.AccountName,
-                            {
-                                searchFilter: "MailAddress",
-                                filterValue: gblUser.Email
-                            }
-                        ).value
-                    ).id
-                );
-                UpdateContext({locIsSaveSettingsEnabled: true});
-            PressedBorderColor: =fncInitializeHome.Fill
-            PressedColor: =fncInitializeHome.Fill
-            PressedFill: =fncInitializeHome.Color
-            Text: ="fncInitializeHome"
-            Width: =560
-            X: =2
-            Y: =191
-            ZIndex: =5
-
         fncReloadSolutions As button:
             Height: =50
             HoverBorderColor: =ColorFade(fncReloadSolutions.BorderColor, 20%)
@@ -3071,7 +2648,7 @@ Home As screen:
             Width: =562
             X: =2
             Y: =40
-            ZIndex: =6
+            ZIndex: =5
 
         fncRefreshStatuses As button:
             Height: =50
@@ -3299,7 +2876,7 @@ Home As screen:
             Width: =562
             X: =2
             Y: =60
-            ZIndex: =7
+            ZIndex: =6
 
         fncRefreshPipelineRuns As button:
             Height: =50
@@ -3326,6 +2903,453 @@ Home As screen:
             Width: =562
             X: =2
             Y: =80
+            ZIndex: =7
+
+        fncInitializeHome As button:
+            HoverBorderColor: =ColorFade(fncInitializeHome.BorderColor, 20%)
+            HoverColor: =ColorFade(fncInitializeHome.Color, 20%)
+            HoverFill: =ColorFade(fncInitializeHome.Fill, 20%)
+            OnSelect: |
+                =UpdateContext({showLoader: true});
+                UpdateContext({locStartCheckBuildStatusTimer: false});
+                UpdateContext({locIsSaveSettingsEnabled: false});
+                //Set Global user, Global CDS user and get App User Settings
+                Set(
+                    gblUser,
+                    User()
+                );
+                Set(
+                    gblCdsUser,
+                    LookUp(
+                        Users,
+                        domainname = gblUser.Email
+                    )
+                );
+                // Get user settings for this App.   
+                Set(
+                    AppUserSetting,
+                    LookUp(
+                        'App User Settings',
+                        AppName = ApplicationName && Owner = gblCdsUser
+                    )
+                );
+                // If App User Setting record doesn't exist, it is the first time the user has used this app, so create it and force user to save initial values
+                If(
+                    IsBlank(AppUserSetting),
+                    Set(
+                        AppUserSetting,
+                        Patch(
+                            'App User Settings',
+                            {cat_appname: ApplicationName}
+                        )
+                    );
+                    UpdateContext(
+                        {
+                            showDialogOverlay: true,
+                            showSettingsDialog: true
+                        }
+                    );
+                    
+                );
+                //Store User Settings in a collection
+                ClearCollect(
+                    AppUserSetting_UserSettings,
+                    Filter(
+                        'User Settings',
+                        'App User Setting'.'App User Setting' = AppUserSetting.'App User Setting'
+                    )
+                );
+                //Pull the Orgs, Projects and Project Repos.
+                Set(
+                    Orgs,
+                    CustomAzureDevOps.GetOrganizations()
+                );
+                Set(
+                    DefaultOrg,
+                    LookUp(
+                        AppUserSetting_UserSettings,
+                        Name = DefaultOrgSettingName
+                    )
+                );
+                Set(
+                    DefaultOrgValue,// Required to force explicit column selection, otherwise the Value field won't be returned in the result
+                    LookUp(
+                        AppUserSetting_UserSettings,
+                        Name = DefaultOrgSettingName
+                    ).Value
+                );
+                If(
+                    IsBlank(DefaultOrg) && CountRows(Orgs) > 0,
+                    Set(
+                        DefaultOrg,
+                        Patch(
+                            'User Settings',
+                            {
+                                'App User Setting': AppUserSetting,
+                                Name: DefaultOrgSettingName,
+                                Value: First(Orgs).AccountName
+                            }
+                        )
+                    )
+                );
+                ClearCollect(
+                    SelectedOrgProjects,
+                    CustomAzureDevOps.GetProjects(DefaultOrg.Value).value
+                );
+                Set(
+                    DefaultProject,
+                    LookUp(
+                        AppUserSetting_UserSettings,
+                        Name = DefaultProjectSettingName
+                    )
+                );
+                If(
+                    IsBlank(DefaultProject) && CountRows(SelectedOrgProjects) > 0,
+                    Set(
+                        DefaultProject,
+                        Patch(
+                            'User Settings',
+                            {
+                                'App User Setting': AppUserSetting,
+                                Name: DefaultProjectSettingName,
+                                Value: First(SelectedOrgProjects).name
+                            }
+                        )
+                    )
+                );
+                ClearCollect(
+                    SelectedProjectRepos,
+                    CustomAzureDevOps.GetGitRepos(
+                        drpAdoOrganizations.Selected.AccountName,
+                        drpAdoProjects.Selected.name
+                    ).value
+                );
+                Set(
+                    DefaultRepo,
+                    LookUp(
+                        AppUserSetting_UserSettings,
+                        Name = DefaultRepoSettingName
+                    )
+                );
+                Set(
+                    RepoOverridden,
+                    IsBlank(
+                        LookUp(
+                            SelectedProjectRepos,
+                            name = DefaultRepo.Value
+                        )
+                    ) And EnablePreviewFeatures
+                );
+                If(
+                    IsBlank(DefaultRepo) && CountRows(SelectedProjectRepos) > 0,
+                    Set(
+                        DefaultRepo,
+                        Patch(
+                            'User Settings',
+                            {
+                                'App User Setting': AppUserSetting,
+                                Name: DefaultRepoSettingName,
+                                Value: First(SelectedProjectRepos).name
+                            }
+                        )
+                    )
+                );
+                ClearCollect(
+                    AdoServiceEndpoints,
+                    Filter(
+                        CustomAzureDevOps.GetServiceEndpoints(
+                            DefaultOrg.Value,
+                            DefaultProject.Value
+                        ).value,
+                        ".dynamics.com" in name
+                    )
+                );
+                ClearCollect(
+                    Environments,
+                    Filter(
+                        PowerAppsforMakers.GetEnvironments().value,
+                        properties.linkedEnvironmentMetadata.instanceUrl in AdoServiceEndpoints.name
+                    )
+                );
+                Set(
+                    DefaultEnvironment,
+                    LookUp(
+                        AppUserSetting_UserSettings,
+                        Name = DefaultEnvironmentSettingName
+                    )
+                );
+                If(
+                    IsBlank(DefaultEnvironment) && CountRows(Environments) > 0,
+                    Set(
+                        DefaultEnvironment,
+                        Patch(
+                            'User Settings',
+                            {
+                                'App User Setting': AppUserSetting,
+                                Name: DefaultEnvironmentSettingName,
+                                Value: First(Environments).name
+                            }
+                        )
+                    )
+                );
+                Set(
+                    DefaultEnvironmentToLoad,
+                    LookUp(
+                        Environments,
+                        name = DefaultEnvironment.Value
+                    )
+                );
+                Set(
+                    SelectedEnvironment,
+                    DefaultEnvironmentToLoad
+                );
+                ClearCollect(
+                    SelectedProjectPipelines,
+                    CustomAzureDevOps.GetPipelines(
+                        DefaultOrg.Value,
+                        DefaultProject.Value
+                    ).value
+                );
+                ClearCollect(
+                    ImportSolutions,
+                    AddColumns(
+                        Filter(
+                            SelectedProjectPipelines,
+                            StartsWith(
+                                name,
+                                "deploy-validation-"
+                            )
+                        ),
+                        "DisplayName",
+                        Substitute(
+                            name,
+                            "deploy-validation-",
+                            ""
+                        )
+                    )
+                );
+                // Set Organization and Project Specific Settings Names
+                Set(
+                    LastSavedBranchesCreatedSettingName,
+                    "LastSavedBranchesCreated - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
+                );
+                Set(
+                    LastSavedPullRequestsSettingName,
+                    "LastSavedPullRequests - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
+                );
+                Set(
+                    LastSavedExportToGitPipelineRunsSettingName,
+                    "LastSavedExportToGitPipelineRuns - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
+                );
+                Set(
+                    LastSavedImportPipelineRunsSettingName,
+                    "LastSavedImportPipelineRuns - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
+                );
+                // Parse the CSV and get it into the LastSavedPullRequests / LastSavedExportToGitPipelineRuns  / LastSavedBranchesCreated collections 
+                Collect(
+                    TempLastSavedBranchesCreated,
+                    Split(
+                        LookUp(
+                            AppUserSetting_UserSettings,
+                            Name = LastSavedBranchesCreatedSettingName
+                        ).Value,
+                        "|"
+                    )
+                );
+                ClearCollect(
+                    LastSavedBranchesCreated,
+                    DropColumns(
+                        AddColumns(
+                            TempLastSavedBranchesCreated,
+                            "solutionUniqueName",
+                            First(
+                                Split(
+                                    ThisRecord.Result,
+                                    ","
+                                )
+                            ).Result,
+                            "branchName",
+                            Last(
+                                FirstN(
+                                    Split(
+                                        ThisRecord.Result,
+                                        ","
+                                    ),
+                                    2
+                                )
+                            ).Result
+                        ),
+                        "Result"
+                    )
+                );
+                RemoveIf(
+                    LastSavedBranchesCreated,
+                    IsBlank(solutionUniqueName)
+                );
+                Clear(TempLastSavedBranchesCreated);
+                ClearCollect(
+                    TempLastSavedExportToGitPipelineRuns,
+                    Split(
+                        LookUp(
+                            AppUserSetting_UserSettings,
+                            Name = LastSavedExportToGitPipelineRunsSettingName
+                        ).Value,
+                        "|"
+                    )
+                );
+                ClearCollect(
+                    LastSavedExportToGitPipelineRuns,
+                    DropColumns(
+                        AddColumns(
+                            TempLastSavedExportToGitPipelineRuns,
+                            "solutionUniqueName",
+                            First(
+                                Split(
+                                    ThisRecord.Result,
+                                    ","
+                                )
+                            ).Result,
+                            "buildId",
+                            Value(
+                                Last(
+                                    FirstN(
+                                        Split(
+                                            ThisRecord.Result,
+                                            ","
+                                        ),
+                                        2
+                                    )
+                                ).Result
+                            )
+                        ),
+                        "Result"
+                    )
+                );
+                RemoveIf(
+                    LastSavedExportToGitPipelineRuns,
+                    IsBlank(solutionUniqueName)
+                );
+                Clear(TempLastSavedExportToGitPipelineRuns);
+                ClearCollect(
+                    TempLastSavedImportPipelineRuns,
+                    Split(
+                        LookUp(
+                            AppUserSetting_UserSettings,
+                            Name = LastSavedImportPipelineRunsSettingName
+                        ).Value,
+                        "|"
+                    )
+                );
+                ClearCollect(
+                    LastSavedImportPipelineRuns,
+                    DropColumns(
+                        AddColumns(
+                            TempLastSavedImportPipelineRuns,
+                            "solutionUniqueName",
+                            First(
+                                Split(
+                                    ThisRecord.Result,
+                                    ","
+                                )
+                            ).Result,
+                            "buildId",
+                            Value(
+                                Last(
+                                    FirstN(
+                                        Split(
+                                            ThisRecord.Result,
+                                            ","
+                                        ),
+                                        2
+                                    )
+                                ).Result
+                            )
+                        ),
+                        "Result"
+                    )
+                );
+                RemoveIf(
+                    LastSavedImportPipelineRuns,
+                    IsBlank(solutionUniqueName)
+                );
+                Clear(TempLastSavedImportPipelineRuns);
+                Collect(
+                    TempLastSavedPullRequests,
+                    Split(
+                        LookUp(
+                            AppUserSetting_UserSettings,
+                            Name = LastSavedPullRequestsSettingName
+                        ).Value,
+                        "|"
+                    )
+                );
+                ClearCollect(
+                    LastSavedPullRequests,
+                    DropColumns(
+                        AddColumns(
+                            TempLastSavedPullRequests,
+                            "solutionUniqueName",
+                            First(
+                                Split(
+                                    ThisRecord.Result,
+                                    ","
+                                )
+                            ).Result,
+                            "pullRequestId",
+                            Value(
+                                Last(
+                                    FirstN(
+                                        Split(
+                                            ThisRecord.Result,
+                                            ","
+                                        ),
+                                        2
+                                    )
+                                ).Result
+                            ),
+                            "targetBranchName",
+                            Last(
+                                FirstN(
+                                    Split(
+                                        ThisRecord.Result,
+                                        ","
+                                    ),
+                                    3
+                                )
+                            ).Result
+                        ),
+                        "Result"
+                    )
+                );
+                RemoveIf(
+                    LastSavedPullRequests,
+                    IsBlank(solutionUniqueName)
+                );
+                Clear(TempLastSavedPullRequests);
+                Select(fncCollectSelectedRepoBranches);
+                Select(fncLoadSolutions);
+                Select(fncResetCheckBuildStatuses);
+                Select(fncRefreshPipelineRuns);
+                Set(
+                    gblAzureDevOpsUserId,
+                    First(
+                        CustomAzureDevOps.GetIdentities(
+                            drpAdoOrganizations.Selected.AccountName,
+                            {
+                                searchFilter: "MailAddress",
+                                filterValue: gblUser.Email
+                            }
+                        ).value
+                    ).id
+                );
+                UpdateContext({locIsSaveSettingsEnabled: true});
+            PressedBorderColor: =fncInitializeHome.Fill
+            PressedColor: =fncInitializeHome.Fill
+            PressedFill: =fncInitializeHome.Color
+            Text: ="fncInitializeHome"
+            Width: =560
+            X: =2
+            Y: =191
             ZIndex: =8
 
     tmrCheckBuildAndPullRequestStatuses As timer:
