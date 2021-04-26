@@ -28,6 +28,8 @@ The GETTINGSTARTED.md is structured into 7 main sections
   - [Prerequisites](#prerequisites)
     - [Environments](#environments)
     - [Users and Permissions](#users-and-permissions)
+    - [Connectors and DLPs](#connectors-and-dlps)
+
   - [Foundational Setup](#foundational-setup)
     - [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
     - [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
@@ -73,6 +75,14 @@ In order to complete the steps below you will need the following users and permi
 - A licensed **Azure user** with Permissions to **create and view AAD Groups**, **create App Registrations** and **Grant Admin consent** to App Registrations in Azure Active Directory.
 - A licensed **Azure DevOps** user with Permissions to **create and manage Pipelines, Service Connections, Repos and Extensions**.
 - A licensed **Power Platform** user with Permissions to **create Application Users** and **grant Administrative Permissions** to the Application User
+
+### Connectors and DLPs
+
+For the ALM Accelerator for Advanced Makers Canvas App to work as expected the following connectors must be available to be used together in the environment into which the ALM Accelerator solution is imported.
+
+- Dataverse
+- Power Apps for Makeres
+- ALM Accelerator Custom Azure DevOps
 
 ## Foundational Setup
 
