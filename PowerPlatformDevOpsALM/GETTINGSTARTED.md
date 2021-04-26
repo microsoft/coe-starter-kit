@@ -29,6 +29,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
     - [Environments](#environments)
     - [Users and Permissions](#users-and-permissions)
     - [Connectors and DLPs](#connectors-and-dlps)
+
   - [Foundational Setup](#foundational-setup)
     - [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
     - [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
@@ -159,7 +160,7 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 1. Install the following Extensions
    - **Power Platform Build Tools**: This extension contains the first-party build tasks for Dataverse. (https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
 
-   - **Power DevOps Tools**: This extension contains several build tasks not currently supported by the first party build tools. (<https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks> | <https://github.com/WaelHamze/dyn365-ce-vsts-tasks>)
+   - **Power DevOps Tools**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
 
    - **Colin's ALM Corner Build & Release Tools**: This extension is used by the pipelines to tag builds based on the solution name so they can be identified by the specific solution that ran the general purpose export pipeline when deploying to environments. (https://marketplace.visualstudio.com/items?itemName=colinsalmcorner.colinsalmcorner-buildtasks | https://github.com/colindembovsky/cols-agent-tasks)
 
