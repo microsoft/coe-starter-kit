@@ -60,10 +60,10 @@ The Pipelines handle the following.
 The AA4AM App provides a convenience layer on top of the AA4AM Pipelines that allows Power Platform Makers to easily invoke the Azure DevOps pipelines to perform their complex tasks without context switching between the Power Apps environment and the Azure DevOps environment. The goal of the App is to provider Makers with a friction free way of performing common traditional Development and ALM tasks such as
 
 1. Target multiple Organization / Projects and Repos in Azure DevOps
-1. Getting the latest version of a solution into their development environment (i.e. Import Solution)
-1. Removing existing work that needs to be rebased from source control (i.e. Delete Unmanaged Solution)
-1. Pushing the their latest changes from their development environment to source control (i.e. Export to Git)
-1. Submitting their changes tied to a Work Item for Review (i.e. Create Pull Request)
+1. Get the latest version of a solution into their development environment (i.e. Import Solution)
+1. Remove existing work that needs to be rebased from source control (i.e. Delete Unmanaged Solution)
+1. Push the their latest changes from their development environment to source control (i.e. Export to Git)
+1. Submit their changes tied to a Work Item for Review (i.e. Create Pull Request)
 1. Monitor the progress of their changes between environments (i.e. Deployment to Environment)
 
 NOTE: While all of these processes can be achieved directly from Azure DevOps the App provides a more push-button interface for performing these tasks
