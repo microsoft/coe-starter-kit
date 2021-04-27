@@ -331,74 +331,15 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 > [!IMPORTANT] The pipeline YAML for your solution pipeline will always be stored in the same repo to which you will be source controlling your solution. However, the pipeline templates (i.e. the folder Pipeline\Templates) can exist in either the same repo as your solution pipeline YAML or in a separate repo and/or project. 
 
-### Create the Build Pipeline
+### Create the Solution Pipeline(s)
 
-The build pipeline is used to build a previously exported and unpacked solution to be deployed using the deployment pipelines created in the next step. 
+Solution Pipelines are used to build and deploy your source controlled solutions to environments in your tenant. You can create as many solution pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers. The sample deployment pipelines trigger off of changes to a branch or as a part of a branch policy in Azure DevOps.
 
-1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
-
-1. Open the sample build pipeline (i.e. **build-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
-
-   ![image-20210408143713699](.attachments/GETTINGSTARTED/image-20210408143713699.png)
-
-1. Navigate to the **Repo where you want to source control your solution**.
-
-1. Select **New** from the top menu and then **Folder**
-
-   ![image-20210408144230561](.attachments/GETTINGSTARTED/image-20210408144230561.png)
-
-1. Give the new **Folder the same name as your solution** (e.g. MyNewSolution) and the new Pipeline YAML file a name (e.g. build-MyNewSolution.yml). Select **Create**
-
-   ![image-20210408144634619](.attachments/GETTINGSTARTED/image-20210408144634619.png)
-
-1. Paste the YAML from **build-SampleSolution.yml** into your new Pipeline YAML file.
-
-   ![image-20210408155252306](.attachments/GETTINGSTARTED/image-20210408155252306.png)
-
-1. Update the following values in your new Pipeline YAML.
-
-   - Change the **resources -> repositories -> name**  to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **coe-alm-accelerator-templates** and it exists in the same project as our MyNewSolution repo. Additionally, you can specify a branch for where your templates live using the **ref** parameter if required.
-   ![image-20210408155550482](.attachments/GETTINGSTARTED/image-20210408155550482.png)
-
-   - Change or remove the branch name(s) under **trigger -> branches -> include** depending on your branching strategy. The branch(es) you specify here will be the branch(es) on which the build triggers. Depending on your branching strategy you may want to specify something **other than main**. We're specifying **MyNewSolution-main and main** here for demonstration purposes based on our branching strategy. In our case we pull our development branches into a branch specific to the solution (i.e. **MyNewSolution-main**) prior to merging into our **main** branch for release.
-
-   - Update the **include** and **exclude** paths for the trigger as needed. In the sample we are only triggering when the folder for our specific solution is changed and certain sub-folders that contain buildable assets.
-
-   - Change any value that references **SampleSolutionName** to the unique name of your Solution (e.g. MySolutionName).
-
-     ![image-20210408161211168](.attachments/GETTINGSTARTED/image-20210408161211168.png)
-
-   - **Commit** your changes.
-
-1. In Azure DevOps go to **Pipelines** and **Create a New Pipeline**
-
-1. Select **Azure Repos Git** for your code Repository.
-   ![image.png](.attachments/GETTINGSTARTED/image-b27c7dc5-7fe7-449f-99bc-73b9b351cc94.png)
-
-1. Select the **Azure DevOps repo** which contains the Pipeline YAML you created in step 4.
-
-   ![image-20210409083425392](.attachments/GETTINGSTARTED/image-20210409083425392.png)
-
-1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file**, point to the **YAML File in your repo that you created in step 5** and Select **Continue**.
-
-![image-20210409083527099](.attachments/GETTINGSTARTED/image-20210409083527099.png)
-
-1. On the next screen Select **Save** and then Select the 3 dots next to Run Pipeline and Select **Rename/Move**.
-   ![image-20210301103145498](.attachments/GETTINGSTARTED/image-20210301103145498.png)
-
-1. Update the pipeline name to **build-MyNewSolution** (where 'MyNewSolution' is the name of your solution) and select **Save**.
-
-   ![image-20210409083640130](.attachments/GETTINGSTARTED/image-20210409083640130.png)
-
-### Create the Deployment Pipeline(s)
-
-Deployment Pipelines are used to deploy builds created by the build pipeline to environments in your tenant. You can create as many deployment pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers. The sample deployment pipelines trigger off of build completion and the specific branches associated with the builds.
-
-The following steps show how to create a pipeline from the sample pipeline YAML (**deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
+The following steps show how to create a pipeline from the sample pipeline YAML (**build-deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
-1. Open the sample deployment pipeline (i.e. **deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml or deploy-prod-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
+1. Open the sample deployment pipeline (i.e. **build-deploy-validation-SampleSolution.yml, build-deploy-test-SampleSolution.yml or build-deploy-prod-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
 
    ![image-20210408172106137](.attachments/GETTINGSTARTED/image-20210408172106137.png)
 
@@ -408,7 +349,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
    ![image-20210408172425370](.attachments/GETTINGSTARTED/image-20210408172425370.png)
 
-1. Give the new Pipeline YAML file a name (e.g. **deploy-validation-SampleSolution.yml**, **deploy-test-SampleSolution.yml** or **deploy-prod-SampleSolution.yml**). Select **Create**
+1. Give the new Pipeline YAML file a name (e.g. **build-deploy-validation-SampleSolution.yml**, **build-deploy-test-SampleSolution.yml** or **build-deploy-prod-SampleSolution.yml**). Select **Create**
 
    ![image-20210408172718885](.attachments/GETTINGSTARTED/image-20210408172718885.png)
 
@@ -800,11 +741,11 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
 
     > [!NOTE] When you first launch the app you may need to consent to the app using your connections.
 1. Select the **Cog** in the top right to select your **Azure DevOps Environment**, **Project** and **Repo** to which you'll push your changes and submit your pull requests and select **Save**
-![image-20210303085854533](.attachments/GETTINGSTARTED/image-20210303085854533.png)
+   ![image-20210303085854533](.attachments/GETTINGSTARTED/image-20210303085854533.png)
 
    > [!NOTE] If you don't see your DevOps Organization / Project in the dropdown double check that the Custom connector is working correctly after updating it's Security settings.
 1. From the Environment Drop Down **Select the Dataverse Environment** in which you will be doing your development work.
-![image-20210303085806618](.attachments/GETTINGSTARTED/image-20210303085806618.png)
+   ![image-20210303085806618](.attachments/GETTINGSTARTED/image-20210303085806618.png)
 
    > [!NOTE] In order for your Environment to show up in this drop down a service connection in the Azure DevOps project you just selected is required (see [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform). Additionally, verify that you've followed the steps to reconnect the flow above if you do not see any environments in the list.
 1. By default the **unmanaged solutions** in your Environment should be displayed in the main window with buttons to **Push Changes** and **Create Pull Requests**.
@@ -840,5 +781,9 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
 1. When you setup your pipelines such that the pipeline templates are stored in a different repository than the solution pipeline you may get the following message when trying to run your pipeline for the first time. To eliminate the error select the **Permit** button to grant the repo running the pipeline access to the template repository.
 
    ![image-20210311114131170](.attachments/GETTINGSTARTED/image-20210311114131170.png)
- 
+
+   Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in Project -> Settings -> General. This setting is turned on by default when you create a new project.
+
+   ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png) 
+
 1. Build completion triggers not firing. There a few reasons the pipeline completion triggers may not fire depending on how you have setup your branches and build pipelines. **For troubleshooting tips see here https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers**
