@@ -1,10 +1,8 @@
 ## Read Me
 
-[Readme.md]: README.md	"Link to Readme Guide"
-
-
+[Readme.md](README.md)
 
 ## Setup Guide
 
-[Setupguide.md]: SETUPGUIDE.md	"Link to Setup Guide"
+[Setupguide.md](SETUPGUIDE.md)
 
