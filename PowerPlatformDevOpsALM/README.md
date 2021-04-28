@@ -6,6 +6,8 @@ The ALM Accelerator for Advanced Makers is a Canvas App that sits on top of Azur
 
 Underlying, the entire solution is the Dataverse Solution System. All Application Lifecycle Management in the Power Platform is based on makers creating components within the scope of a Solution. In order to use the AA4AM your components (Apps, Flows, Customizations etc.) must first be included in a solution. A solution in Dataverse is intended to be a deployable package of components that AA4AM will unpack and store the source files in a Git source control (e.g. Azure DevOps Git or GitHub).
 
+
+
 The target end user for AA4AM is the Power Platform Maker who is comfortable with Solutions as well as Git, Azure DevOps and ALM concepts (e.g. Source Control Pushes, Pull Requests, Merging and Pipelines). 
 
 The target user for setting up AA4AM would generally be an Administrator with a deeper understanding of Power Platform Environments and Solutions, Azure DevOps Pipelines and Administration as well as familiarity with Azure Active Directory and Dataverse Admininstration.
@@ -55,9 +57,11 @@ The Pipelines handle the following.
    - Create Teams in Dataverse for Azure Active Directory Groups
    - Update Solution Component Ownership
 
-## AA4AM App
+## ALM Accelerator App
 
-The AA4AM App provides a convenience layer on top of the AA4AM Pipelines that allows Power Platform Makers to easily invoke the Azure DevOps pipelines to perform their complex tasks without context switching between the Power Apps environment and the Azure DevOps environment. The goal of the App is to provider Makers with a friction free way of performing common traditional Development and ALM tasks such as
+The AA4AM Canvas App provides a convenience layer on top of the AA4AM Pipelines that allows Power Platform Makers to easily invoke the Azure DevOps pipelines to perform their complex tasks without context switching between the Power Apps environment and the Azure DevOps environment. The goal of the App is to provider Makers with a friction free way of performing common traditional Development and ALM tasks as follows. 
+
+> [!NOTE] While all of these processes can be achieved directly from Azure DevOps the App provides a more push-button interface for performing these tasks
 
 1. Target multiple Organization / Projects and Repos in Azure DevOps
 1. Get the latest version of a solution into their development environment (i.e. Import Solution)
@@ -65,9 +69,3 @@ The AA4AM App provides a convenience layer on top of the AA4AM Pipelines that al
 1. Push the their latest changes from their development environment to source control (i.e. Export to Git)
 1. Submit their changes tied to a Work Item for Review (i.e. Create Pull Request)
 1. Monitor the progress of their changes between environments (i.e. Deployment to Environment)
-
-NOTE: While all of these processes can be achieved directly from Azure DevOps the App provides a more push-button interface for performing these tasks
-
-
-
-## 
