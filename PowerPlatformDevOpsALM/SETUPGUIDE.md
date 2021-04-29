@@ -22,7 +22,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
 
 ## Table of Contents
 
-- - [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
+- [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
   * [Document structure](#document-structure)
   * [Table of Contents](#table-of-contents)
   * [Prerequisites](#prerequisites)
@@ -42,7 +42,8 @@ The GETTINGSTARTED.md is structured into 7 main sections
     + [Create an App User in your Dataverse Environments](#create-an-app-user-in-your-dataverse-environments)
     + [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
   * [Solution Setup](#solution-setup)
-    + [Create the Solution Pipeline(s)](#create-the-solution-pipelines)
+    + [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
+    + [Create the Solution Deployment Pipeline(s) (Optional)](#create-the-solution-deployment-pipelines-optional)
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
     + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
     + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
@@ -57,6 +58,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
     + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
   * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
   * [Troubleshooting](#troubleshooting)
+
 
 
 ## Prerequisites
@@ -330,11 +332,13 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 > [!IMPORTANT] The pipeline YAML for your solution pipeline will always be stored in the same repo to which you will be source controlling your solution. However, the pipeline templates (i.e. the folder Pipeline\Templates) can exist in either the same repo as your solution pipeline YAML or in a separate repo and/or project. 
 
-### Create the Solution Pipeline(s)
+### Create the Solution Build and Deployment Pipeline(s)
 
-Solution Pipelines are used to build and deploy your source controlled solutions to environments in your tenant. You can create as many solution pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers in the pipelines or without triggers that can be run manually as well. The sample deployment pipelines trigger off of changes to a branch (i.e. Test and Production) or as a part of a branch policy in Azure DevOps (i.e. Validation).
+Solution Pipelines are used to build and deploy your source controlled solutions to environments in your tenant. You can create as many solution pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers in the pipelines or without triggers that can be run manually as well. The sample deployment pipelines trigger off of changes to a branch (i.e. Test and Production) or as a part of a branch policy in Azure DevOps (i.e. Validation). See [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation) below for more information on Branch Policies.
 
 The following steps show how to create a pipeline from the sample pipeline YAML (**build-deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
+
+> [NOTE!] The following steps will create pipelines that build and deploy for each environment (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in the next section are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for only the Validation and Test environment and then skip to the next section to see how to configure your release pipeline.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -348,7 +352,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
    
    ![image-20210408144230561](.attachments/GETTINGSTARTED/image-20210408144230561.png)
    
-1. Give the new **Folder the same name as your solution** (e.g. MyNewSolution) and the new Pipeline YAML file a name (e.g. **deploy-validation-SampleSolution.yml**, **deploy-test-SampleSolution.yml** or **deploy-prod-SampleSolution.yml**). Select **Create**.
+1. Give the new **Folder the same name as your solution** (e.g. MyNewSolution) and the new Pipeline YAML file a name (e.g. **build-deploy-validation-SampleSolution.yml**, **build-deploy-test-SampleSolution.yml** or **build-deploy-prod-SampleSolution.yml**). Select **Create**.
 
    ![image-20210408144634619](.attachments/GETTINGSTARTED/image-20210408144634619.png)
 
@@ -390,6 +394,48 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
    > [!NOTE] If your new pipeline was not created in the default branch of the repo you may need to update the **Default branch for manual and scheduled builds**. See the following link for setting the **Default branch for manual and scheduled builds**. [Configure pipeline triggers - Azure Pipelines | Microsoft Docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers)
 
 1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline yaml from the **coe-alm-accelerator-templates repo** (i.e. deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml and deploy-prod-SampleSolution.yml).
+
+### Create the Solution Deployment Pipeline(s) (Optional)
+
+As mentioned in the note above the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
+
+1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
+
+1. Open the sample deployment pipeline (i.e. **deploy-prod-pipelineartifact-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
+
+   ![image-20210429113205147](.attachments/SETUPGUIDE/image-20210429113205147.png)
+
+1. Navigate to the **Repo where you want to source control your solution**.
+
+1. Select **New** from the top menu and then **File**
+
+   ![image-20210429113559672](.attachments/SETUPGUIDE/image-20210429113559672.png)
+
+5. Give the new Pipeline YAML file a name (e.g. **deploy-prod-MyNewSolution.yml**). Select **Create**
+
+   ![image-20210429120113505](.attachments/SETUPGUIDE/image-20210429120113505.png)
+
+6. Paste the YAML from **deploy-prod-pipelineartifact-SampleSolution.yml** into your new Pipeline YAML file.
+
+   ![image-20210429130240109](.attachments/SETUPGUIDE/image-20210429130240109.png)
+
+7. Update the following values in your new Pipeline YAML.
+
+   - Update the **trigger -> branches -> include** to the branch(es) for which changes would trigger a deployment to production. 
+
+   - Change the **resources -> repositories -> name** to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **coe-alm-accelerator-templates** and it exists in the same project as our MyNewSolution repo. Additionally, you can specify a branch for where your templates live using the **ref** parameter if required.
+
+     ![image-20210429131636443](.attachments/SETUPGUIDE/image-20210429131636443.png)
+
+   - Update **resources -> pipelines -> source** to specify **the build pipeline that contains the artifacts to be deployed** by this pipeline. In this case we are going to deploy the artifacts from our Test pipeline, created above, that built and deployed our Solution to the Test environment.
+
+     ![image-20210429132004303](.attachments/SETUPGUIDE/image-20210429132004303.png)
+
+   - Change any value that references **SampleSolutionName** to the unique name of your Solution (e.g. MySolutionName).
+
+     ![image-20210429132557463](.attachments/SETUPGUIDE/image-20210429132557463.png)
+
+   
 
 ### Importing Data from your Pipeline
 
