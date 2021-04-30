@@ -321,10 +321,11 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 
 ## Solution Setup
 
-When you create a solution in Dataverse you'll need to create a pipeline specifically for that solution. Follow these steps for creating a pipeline for your solution in Azure DevOps. There are sample pipelines included in the Pipeline directory in the CoE ALM Templates repo
+When you create a solution in Dataverse you'll need to create pipelines specifically for that solution. Follow these steps for creating pipelines for your solution in Azure DevOps. There are sample pipelines included in the Pipeline directory in the CoE ALM Templates repo.
 
-- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-SampleSolution.yml
-- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-validation-SampleSolution.yml
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-validation-SampleSolution.yml
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-test-SampleSolution.yml
+- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-prod-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-test-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-prod-SampleSolution.yml
 
@@ -332,13 +333,19 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 > [!IMPORTANT] The pipeline YAML for your solution pipeline will always be stored in the same repo to which you will be source controlling your solution. However, the pipeline templates (i.e. the folder Pipeline\Templates) can exist in either the same repo as your solution pipeline YAML or in a separate repo and/or project. 
 
+### Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)
+
+There is a tutorial
+
+
+
 ### Create the Solution Build and Deployment Pipeline(s)
 
 Solution Pipelines are used to build and deploy your source controlled solutions to environments in your tenant. You can create as many solution pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers in the pipelines or without triggers that can be run manually as well. The sample deployment pipelines trigger off of changes to a branch (i.e. Test and Production) or as a part of a branch policy in Azure DevOps (i.e. Validation). See [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation) below for more information on Branch Policies.
 
 The following steps show how to create a pipeline from the sample pipeline YAML (**build-deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
 
-> [NOTE!] The following steps will create pipelines that build and deploy for each environment (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in the next section are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for only the Validation and Test environment and then skip to the next section to see how to configure your release pipeline.
+> [NOTE!] The following steps will create pipelines that build and deploy for each environment (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for only the Validation and Test environment and then skip to the next section to see how to configure your release pipeline.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -397,7 +404,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
 ### Create the Solution Deployment Pipeline(s) (Optional)
 
-As mentioned in the note above the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
+As mentioned in the note above, the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -561,7 +568,7 @@ The connection reference variable is **ConnectionReferences**. This pipeline var
 
 1. Once you've gathered the connection reference schema names and connection ids go to the pipeline for your solution that you created above Select **Edit -> Variables**
 
-1. On the **Pipeline Variables** screen create the **ValidationConnectionReferences**, **TestConnectionReferences** and **ProdConnectionReferences** pipeline variables.
+1. On the **Pipeline Variables** screen create the **ConnectionReferences** pipeline variables.
 
 1. Set the value to the json formatted array of connection reference schema and connection ids.
 
@@ -596,7 +603,7 @@ The environment variable pipeline variable is **EnvironmentVariables**. This pip
 
 1. Click Edit -> Variables
 
-1. On the Pipeline Variables screen create the **ValidationEnvironmentVariables**, **TestEnvironmentVariables** and **ProdEnvironmentVariables** pipeline variables.
+1. On the Pipeline Variables screen create the **EnvironmentVariables** pipeline variables.
 
 1. Set the value to the json formatted array of environment variable schema and values.
 
@@ -641,7 +648,7 @@ The aad group canvas configuration pipeline variable is **AadGroupCanvasConfigur
 
 1. Click Edit -> Variables
 
-1. On the Pipeline Variables screen create the **ValidationAadGroupCanvasConfiguration**, **TestAadGroupCanvasConfiguration** and **ProdAadGroupCanvasConfiguration** pipeline variables.
+1. On the Pipeline Variables screen create the **AadGroupCanvasConfiguration** pipeline variables.
 
 1. Set the value to the json formatted array of objects per the sample above.
 
@@ -683,7 +690,7 @@ The pipeline variable is **AadGroupTeamConfiguration**. This pipeline variable i
    - The **Dataverse role** can be any **Security Role in Dataverse** that would be applied to the **existing or newly created Team** after the solution is imported via the pipeline. The role should have permissions to the resources required by the solution (e.g. Tables and Processes)
 
 1. Once you've gathered the team names, aad group ids and roles go to the pipeline for your solution that you created above. Click Edit -> Variables
-1. On the Pipeline Variables screen create the **ValidationAadGroupTeamConfiguration**, **TestAadGroupTeamConfiguration** and **ProdAadGroupTeamConfiguration** pipeline variables.
+1. On the Pipeline Variables screen create the **AadGroupTeamConfiguration** pipeline variables.
 1. Set the value to the json formatted array of environment variable schema and values.
 1. For the example above the values look like the following
    ![image.png](.attachments/GETTINGSTARTED/aadteamgroupvariables.png)
@@ -722,7 +729,7 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
 
 1. Click Edit -> Variables
 
-1. On the Pipeline Variables screen create the **ValidationSolutionComponentOwnershipConfiguration**, **TestSolutionComponentOwnershipConfiguration** and **ProdSolutionComponentOwnershipConfiguration** pipeline variables.
+1. On the Pipeline Variables screen create the **SolutionComponentOwnershipConfiguration** pipeline variables.
 
 1. Set the value to the json formatted array of environment variable schema and values.
 
