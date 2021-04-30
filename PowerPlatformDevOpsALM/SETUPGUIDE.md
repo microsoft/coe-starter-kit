@@ -448,6 +448,8 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
 In many cases there will be configuration or seed data that you will want to import into your Dataverse environment initially after deploying your solution to the target environment. The pipelines are configured to import data using the **Configuration Migration tool** available via nuget https://www.nuget.org/packages/Microsoft.CrmSdk.XrmTooling.ConfigurationMigration.Wpf. To add configuration data for your pipeline use the following steps. For more information on the **Configuration Migration tool** see here https://docs.microsoft.com/en-us/power-platform/admin/manage-configuration-data
 
+1. Clone the AzDO Repo where your solution is to be source controlled and where you created your solution pipeline YAML to your local machine.
+
 1. Install the **Configuration Migration tool** per the instructions here https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/download-tools-nuget
 
 1. Open the **Configuration Migration tool** select **Create schema** and select **Continue**
@@ -745,12 +747,22 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
 > [!NOTE] As of January 2021, before installing the solutions you will need to **enable Power Apps Component Framework for Canvas apps** from the Power Platform Admin Center by going to https://admin.powerplatform.microsoft.com/ selecting your environment and selecting **Settings** - **Product** - **Features**. From here select the toggle for **Power Apps component framework for canvas apps** to turn it on.
 ![image.png](.attachments/GETTINGSTARTED/image-717c0f47-d496-4d3c-aa14-59feeb822268.png)
 
-1. Download the **latest managed solution** from GitHub (https://github.com/microsoft/coe-starter-kit/releases)
+1. Download the **latest managed solution** from GitHub (https://github.com/microsoft/coe-starter-kit/releases).
+
+   > [NOTE!] The screenshot below is for reference as to where the managed solution exists under a release. The actual version should be the most recent release.
+
+   ![image-20210430150752479](.attachments/SETUPGUIDE/image-20210430150752479.png)
+
 2. Go to https://make.powerapps.com and select the environment you want to use to host the ALM Accelerator App
+
 3. Select **Solutions** from the left navigation.
+
 4. Click **Import** and Browse to the location of the managed solution you downloaded.
+
 5. Click **Next** and **Next** again.
+
 6. On the Connections page select or create a new connection to use to connect to Dataverse for the **CDS DevOps connection**.
+
 7. Click **Import** and wait for the solution to complete the import process.
 
 ### Configure the Azure DevOps Custom Connector.
