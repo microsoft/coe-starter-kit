@@ -17,7 +17,7 @@
     + [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
   * [Creating a Pipeline for your Solution](#creating-a-pipeline-for-your-solution)
     + [Create the Build Pipeline](#create-the-build-pipeline)
-    + [Create the Deployment Pipeline(s)](#create-the-deployment-pipeline-s-)
+    + [Create the Deployment Pipeline(s)](#create-the-deployment-pipelines)
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
     + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
     + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
