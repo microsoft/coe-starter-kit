@@ -69,3 +69,6 @@ The AA4AM Canvas App provides a convenience layer on top of the AA4AM Pipelines 
 1. Push the their latest changes from their development environment to source control (i.e. Export to Git)
 1. Submit their changes tied to a Work Item for Review (i.e. Create Pull Request)
 1. Monitor the progress of their changes between environments (i.e. Deployment to Environment)
+
+## ALM Accelerator for Advanced Makers Setup Guide
+To get started setting up AA4AM Pipelines and the App go here [Setupguide.md](SETUPGUIDE.md)
