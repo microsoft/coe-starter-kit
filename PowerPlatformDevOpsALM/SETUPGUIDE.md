@@ -278,6 +278,8 @@ The following section will guide you through the setup steps required for each o
 
 Each Dataverse environment (i.e. Development, Validation, Test and Production) will need to have a **Power Platform service connection in DevOps**. For each of your environments follow the steps below to setup the service connection.
 
+>[!NOTE] Users of the ALM Accelerator for Advanced Makers app will only see environments for which they have either User or Administrator role on the Service Connection in Azure DevOps. If using personal development environments all developers should have User or Administrator role for the Service Connection for their own development environment.
+
 1. Go to https://dev.azure.com and select your **Project**
 
 1. Under **Project Settings** in your Azure DevOps project select the **Service connections** menu item.
