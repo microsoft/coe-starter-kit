@@ -326,8 +326,6 @@ When you create a solution in Dataverse you'll need to create pipelines specific
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-validation-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-test-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-prod-SampleSolution.yml
-- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-test-SampleSolution.yml
-- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-prod-SampleSolution.yml
 
 The sample pipelines provides flexibility for organizations to store their pipeline templates in a separate project or repo from the specific solution pipeline YAML. Follow the steps below to configure your **solution pipeline**. Repeat the steps for each of the solutions you will be source controlling with the ALM Accelerator.
 
@@ -343,7 +341,7 @@ Solution Pipelines are used to build and deploy your source controlled solutions
 
 The following steps show how to create a pipeline from the sample pipeline YAML (**build-deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
 
-> [NOTE!] The following steps will create pipelines that build and deploy for each environment (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for only the Validation and Test environment and then skip to the next section to see how to configure your release pipeline.
+> [NOTE!] The following steps will create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for **only the Validation and Test environment** and then skip to the next section to see how to configure your release pipeline.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -402,7 +400,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
 ### Create the Solution Deployment Pipeline(s) (Optional)
 
-As mentioned in the note above, the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
+As mentioned in the note above, the previous section allows you to create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
