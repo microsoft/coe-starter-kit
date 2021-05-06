@@ -69,5 +69,7 @@ The AA4AM Canvas App provides a convenience layer on top of the AA4AM Pipelines 
 1. Monitor the progress of their changes between environments (i.e. Deployment to Environment)
 
 ## Video Walkthrough
-
 [![ALM Accelerator for Advanced Makers Overview Video](http://img.youtube.com/vi/-P3uSUTdsSY/0.jpg)](http://www.youtube.com/watch?v=-P3uSUTdsSY "ALM Accelerator for Advanced Makers Overview Video")
+
+## ALM Accelerator for Advanced Makers Setup Guide
+To get started setting up ALM Accelerator For Advanced Makers Pipelines and the App go here [Setupguide.md](SETUPGUIDE.md)
