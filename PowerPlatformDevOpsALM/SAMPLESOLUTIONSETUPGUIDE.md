@@ -6,6 +6,22 @@ When you create a solution in Dataverse you'll need to create pipelines specific
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-test-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-prod-pipelineartifact-SampleSolution.yml 
 
+### Table of Contents
+- [ALM Accelerator Sample Solution Setup](#alm-accelerator-sample-solution-setup)
+  * [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
+    + [Create the Validation and Test Pipelines](#create-the-validation-and-test-pipelines)
+    + [Create the Production Solution Deployment Pipeline](#create-the-production-solution-deployment-pipeline)
+  * [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
+  * [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
+    + [Create Environment and Service Connection](#create-environment-and-service-connection)
+    + [Create CDS Connection Reference Pipeline Variable](#create-cds-connection-reference-pipeline-variable)
+    + [Create Environment Variable Pipeline Variable](#create-environment-variable-pipeline-variable)
+    + [Create AAD Group Canvas Configuration Pipeline Variable](#create-aad-group-canvas-configuration-pipeline-variable)
+    + [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
+- [Importing the Solution and Configuring the ALM Accelerator App](#importing-the-solution-and-configuring-the-alm-accelerator-app)
+- [Test the ALM Accelerator App](#test-the-alm-accelerator-app)
+
+
 ### Create the Solution Build and Deployment Pipeline(s)
 
 Solution Pipelines are used to build and deploy your source controlled solutions to environments in your tenant. The sample pipelines provided assume 3 environments (Validation, Test and Production). Repeat the steps in the next section for the Validation and Test environments and then move to the following section to configure the Production pipeline.
