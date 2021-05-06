@@ -410,19 +410,23 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
 1. Navigate to the **Repo where you want to source control your solution**.
 
-1. Select **New** from the top menu and then **File**
+4. Create a new Branch based on **your default branch** in the Repo with the name of your solution (e.g. **MyNewSolution**) 
+
+   > [NOTE!] This branch will be your v-next branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
+
+5. Select **New** from the top menu and then **File**
 
    ![image-20210429113559672](.attachments/SETUPGUIDE/image-20210429113559672.png)
 
-5. Give the new Pipeline YAML file a name (e.g. **deploy-prod-MyNewSolution.yml**). Select **Create**
+6. Give the new Pipeline YAML file a name (e.g. **deploy-prod-MyNewSolution.yml**). Select **Create**
 
    ![image-20210429120113505](.attachments/SETUPGUIDE/image-20210429120113505.png)
 
-6. Paste the YAML from **deploy-prod-pipelineartifact-SampleSolution.yml** into your new Pipeline YAML file.
+7. Paste the YAML from **deploy-prod-pipelineartifact-SampleSolution.yml** into your new Pipeline YAML file.
 
    ![image-20210429130240109](.attachments/SETUPGUIDE/image-20210429130240109.png)
 
-7. Update the following values in your new Pipeline YAML.
+8. Update the following values in your new Pipeline YAML.
 
    - Update the **trigger -> branches -> include** to the branch(es) for which changes would trigger a deployment to production. 
 
@@ -438,7 +442,7 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
      ![image-20210429132557463](.attachments/SETUPGUIDE/image-20210429132557463.png)
 
-   
+9. Repeat the same steps performed for **deploy-validation-ALMAcceleratorSampleSolution** and **deploy-test-ALMAcceleratorSampleSolution** to create a pipeline from the new production pipeline YAML called **deploy-prod-ALMAcceleratorSampleSolution**.
 
 ### Importing Data from your Pipeline
 
@@ -547,7 +551,8 @@ The connection reference variable is **ConnectionReferences**. This pipeline var
 1. The format of the JSON for these variables take the form of an array of name/value pairs.
 
    ```json
-      [
+   [
+      [ 
         "connection reference1 schema name",
         "my environment connection ID1"
       ],
