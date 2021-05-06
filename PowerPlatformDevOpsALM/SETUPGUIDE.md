@@ -320,8 +320,6 @@ When you create a solution in Dataverse you'll need to create pipelines specific
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-validation-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-test-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-prod-SampleSolution.yml
-- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-test-SampleSolution.yml
-- https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/deploy-prod-SampleSolution.yml
 
 The sample pipelines provides flexibility for organizations to store their pipeline templates in a separate project or repo from the specific solution pipeline YAML. Follow the steps below to configure your **solution pipeline**. Repeat the steps for each of the solutions you will be source controlling with the ALM Accelerator.
 
@@ -329,9 +327,7 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 ### Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)
 
-There is a tutorial
-
-
+The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SampleSolutionSetupGuide.md).
 
 ### Create the Solution Build and Deployment Pipeline(s)
 
@@ -339,7 +335,7 @@ Solution Pipelines are used to build and deploy your source controlled solutions
 
 The following steps show how to create a pipeline from the sample pipeline YAML (**build-deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines.
 
-> [NOTE!] The following steps will create pipelines that build and deploy for each environment (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for only the Validation and Test environment and then skip to the next section to see how to configure your release pipeline.
+> [NOTE!] The following steps will create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for **only the Validation and Test environment** and then skip to the next section to see how to configure your release pipeline.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -398,7 +394,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
 ### Create the Solution Deployment Pipeline(s) (Optional)
 
-As mentioned in the note above, the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
+As mentioned in the note above, the previous section allows you to create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -408,19 +404,23 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
 1. Navigate to the **Repo where you want to source control your solution**.
 
-1. Select **New** from the top menu and then **File**
+4. Create a new Branch based on **your default branch** in the Repo with the name of your solution (e.g. **MyNewSolution**) 
+
+   > [NOTE!] This branch will be your v-next branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
+
+5. Select **New** from the top menu and then **File**
 
    ![image-20210429113559672](.attachments/SETUPGUIDE/image-20210429113559672.png)
 
-5. Give the new Pipeline YAML file a name (e.g. **deploy-prod-MyNewSolution.yml**). Select **Create**
+6. Give the new Pipeline YAML file a name (e.g. **deploy-prod-MyNewSolution.yml**). Select **Create**
 
    ![image-20210429120113505](.attachments/SETUPGUIDE/image-20210429120113505.png)
 
-6. Paste the YAML from **deploy-prod-pipelineartifact-SampleSolution.yml** into your new Pipeline YAML file.
+7. Paste the YAML from **deploy-prod-pipelineartifact-SampleSolution.yml** into your new Pipeline YAML file.
 
    ![image-20210429130240109](.attachments/SETUPGUIDE/image-20210429130240109.png)
 
-7. Update the following values in your new Pipeline YAML.
+8. Update the following values in your new Pipeline YAML.
 
    - Update the **trigger -> branches -> include** to the branch(es) for which changes would trigger a deployment to production. 
 
@@ -436,7 +436,7 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
      ![image-20210429132557463](.attachments/SETUPGUIDE/image-20210429132557463.png)
 
-   
+9. Repeat the same steps performed for **deploy-validation-ALMAcceleratorSampleSolution** and **deploy-test-ALMAcceleratorSampleSolution** to create a pipeline from the new production pipeline YAML called **deploy-prod-ALMAcceleratorSampleSolution**.
 
 ### Importing Data from your Pipeline
 
@@ -545,7 +545,8 @@ The connection reference variable is **ConnectionReferences**. This pipeline var
 1. The format of the JSON for these variables take the form of an array of name/value pairs.
 
    ```json
-      [
+   [
+      [ 
         "connection reference1 schema name",
         "my environment connection ID1"
       ],
