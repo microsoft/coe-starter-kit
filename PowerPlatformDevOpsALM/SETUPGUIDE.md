@@ -23,41 +23,42 @@ The GETTINGSTARTED.md is structured into 7 main sections
 ## Table of Contents
 
 - [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
-  * [Document structure](#document-structure)
-  * [Table of Contents](#table-of-contents)
-  * [Prerequisites](#prerequisites)
-    + [Environments](#environments)
-    + [Users and Permissions](#users-and-permissions)
-    + [Connectors and DLPs](#connectors-and-dlps)
-  * [Foundational Setup](#foundational-setup)
-    + [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
-    + [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
-    + [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
-    + [Copy the YAML Pipelines from GitHub to your Azure DevOps instance](#copy-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
-    + [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import--delete-and-export-of-solutions)
-    + [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
-    + [Create Pipeline global variables](#create-pipeline-global-variables)
-    + [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
-  * [Development Project Setup](#development-project-setup)
-    + [Create an App User in your Dataverse Environments](#create-an-app-user-in-your-dataverse-environments)
-    + [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
-  * [Solution Setup](#solution-setup)
-    + [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
-    + [Create the Solution Deployment Pipeline(s) (Optional)](#create-the-solution-deployment-pipelines-optional)
-    + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
-    + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
-    + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
+  - [Document structure](#document-structure)
+  - [Table of Contents](#table-of-contents)
+  - [Prerequisites](#prerequisites)
+    - [Environments](#environments)
+    - [Users and Permissions](#users-and-permissions)
+    - [Connectors and DLPs](#connectors-and-dlps)
+  - [Foundational Setup](#foundational-setup)
+    - [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
+    - [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
+    - [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
+    - [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
+    - [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
+    - [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
+    - [Create Pipeline global variables](#create-pipeline-global-variables)
+    - [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
+  - [Development Project Setup](#development-project-setup)
+    - [Create an App User in your Dataverse Environments](#create-an-app-user-in-your-dataverse-environments)
+    - [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
+  - [Solution Setup](#solution-setup)
+    - [Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)](#validate-your-setup-using-the-alm-accelerator-sample-solution-optional)
+    - [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
+    - [Create the Solution Deployment Pipeline(s) (Optional)](#create-the-solution-deployment-pipelines-optional)
+    - [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
+    - [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
+    - [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
       - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
       - [Create Connection Reference Pipeline Variable (Optional)](#create-connection-reference-pipeline-variable-optional)
       - [Create Environment Variable Pipeline Variable (Optional)](#create-environment-variable-pipeline-variable-optional)
       - [Create AAD Group Canvas Configuration Pipeline Variable (Optional)](#create-aad-group-canvas-configuration-pipeline-variable-optional)
-      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group---team-configuration-pipeline-variable-optional)
+      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
       - [Create Solution Component Ownership Pipeline Variable (Optional)](#create-solution-component-ownership-pipeline-variable-optional)
-  * [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
-    + [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
-    + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
-  * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
-  * [Troubleshooting](#troubleshooting)
+  - [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
+    - [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
+    - [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
+  - [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
+  - [Troubleshooting](#troubleshooting)
 
 
 
@@ -173,25 +174,17 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 
      ![image-20210217102344719](.attachments/GETTINGSTARTED/image-20210217102344719.png)
 
-### Copy the YAML Pipelines from GitHub to your Azure DevOps instance
+### Clone the YAML Pipelines from GitHub to your Azure DevOps instance
 
-> [!NOTE] You could also clone the GitHub repo directly into a new repo in Azure DevOps if you choose. However, the steps below will ensure that only the assets required are copied to your Azure DevOps repo.
-
-1. Go to https://github.com/microsoft/coe-alm-accelerator-templates/ and clone the repo to a local folder.
-
-1. Now go to https://dev.azure.com/ and **sign in to Azure DevOps (AzDO)**.
-
+1. Go to https://dev.azure.com/ and **sign in to Azure DevOps (AzDO)**.
 1. Create a **new project** or select an **existing project**.
+1. Go to **Repos** and select **Import repository** from the repository dropdown
 
-1. Go to **Repos** and **create a new Repo** for the ALM Accelerator Components or **use the default repo** created with the project. ![Creating a new Azure DevOps Repo](.attachments/GETTINGSTARTED/image-20210408135110844.png)
+   ![clone-template-repository](.attachments/SETUPGUIDE/clone-template-repository-1.png)
 
-1. **Clone** the AzDO repo to a new local folder
+1. Enter https://github.com/microsoft/coe-alm-accelerator-templates as the **Clone URL** and click **Import**
 
-1. Copy the **Pipelines** folder cloned from GitHub to the solution folder for the AzDO repo you created.
-
-1. Commit the source code to your AzDO repo and push the code to AzDO.
-
-   > [!NOTE] The AzDO repo you choose above will be where the Solution Pipeline Templates and the Export / Import Pipelines will run. Later when you create the Pipelines for your solutions you may need to reference this specific Project/Repo if you choose to source control your solutions in another repo in AzDO.
+   > [!NOTE] The AzDO repo you created above will be where the Solution Pipeline Templates and the Export / Import Pipelines will run. Later when you create the Pipelines for your solutions you may need to reference this specific Project/Repo if you choose to source control your solutions in another repo in AzDO.
 
 ### Create Pipelines for Import, Delete and Export of Solutions
 
@@ -233,8 +226,7 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
     | ClientSecret | [The Application (client) Secret you copied when creating the App Registration] NOTE: It's recommeded that you secure this value by clicking the lock next to the value so others can't see your secret. |
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
     | PipelineIdToLoadJsonValuesFrom  | [The pipeline ID for export-solution-to-git copied in the previous step] |
-    | ProductionSourceBranch         | [The branch you want to use to trigger a **Production Release**] NOTE: Generally this would be the **main** branch but could be setup to only release when merging to another branch of your choosing. When changes are made to the branch specified in this variable a release to Production will begin. |
-    | ValidationServiceConnection | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. This environment will be used to run solution checker during the build process. |
+    | ValidationServiceConnection    | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. This environment will be used to run solution checker during the build process. |
 
 ### Update Permissions for the Project Build Service
 
@@ -285,6 +277,8 @@ The following section will guide you through the setup steps required for each o
 ### Create Service Connections for DevOps to access Power Platform
 
 Each Dataverse environment (i.e. Development, Validation, Test and Production) will need to have a **Power Platform service connection in DevOps**. For each of your environments follow the steps below to setup the service connection.
+
+>[!NOTE] Users of the ALM Accelerator for Advanced Makers app will only see environments for which they have either User or Administrator role on the Service Connection in Azure DevOps. If using personal development environments all developers should have User or Administrator role for the Service Connection for their own development environment.
 
 1. Go to https://dev.azure.com and select your **Project**
 
