@@ -10,6 +10,8 @@ The target end user for AA4AM is the Power Platform Maker who is comfortable wit
 
 The target user for setting up AA4AM would generally be an Administrator with a deeper understanding of Power Platform Environments and Solutions, Azure DevOps Pipelines and Administration as well as familiarity with Azure Active Directory and Dataverse Admininstration.
 
+![The Maker Team](.attachments/README/TheMakerTeam.png)
+
 ## Pipelines
 
 The AA4AM Pipelines are a set of YAML pipelines intended to be used with Azure DevOps. Eventually, these pipelines will be ported to support GitHub workflows, but currently only support Azure DevOps pipelines. These reference pipelines were written to demonstrate an end to end ALM process for Power Platform solutions. The pipelines utilize first-party tasks provided by Microsoft as well as some third party and low level PowerShell scripts in order to automate all of the ALM scenarios related to unpacking / source controlling / building and deploying a solution from a development environment. The pipelines support the ability to deploy to many environments, but only currently demonstrate deployment from a Development environment to a Build Validation to Test and ultimately to Production based on the ALM process used by the CoE Starter Kit development team. 
@@ -68,6 +70,10 @@ The AA4AM Canvas App provides a convenience layer on top of the AA4AM Pipelines 
 1. Submit their changes tied to a Work Item for Review (i.e. Create Pull Request)
 1. Monitor the progress of their changes between environments (i.e. Deployment to Environment)
 
+
+## ALM Accelerator Flow and Advanced Maker Experience
+
+![ALM Accelerator Flow](.attachments/README/AdvancedMakerExprerience.png)
 ## Video Walkthrough
 
 [![ALM Accelerator for Advanced Makers Overview Video](http://img.youtube.com/vi/-P3uSUTdsSY/0.jpg)](http://www.youtube.com/watch?v=-P3uSUTdsSY "ALM Accelerator for Advanced Makers Overview Video")
