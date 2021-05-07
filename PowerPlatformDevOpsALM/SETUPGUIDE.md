@@ -345,6 +345,14 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
 1. Navigate to the **Repo where you want to source control your solution**.
    
+1. Create a new Branch based on **your default branch** in the Repo with the name of your solution (e.g. **MyNewSolution**) 
+
+    > [NOTE!] This branch will be your 'v-next' branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
+
+    ![image-20210507110620258](.attachments/SETUPGUIDE/image-20210507110620258.png)
+
+    ![image-20210507110801961](.attachments/SETUPGUIDE/image-20210507110801961.png)
+
 1. Select **New** from the top menu and then **Folder**
    
    ![image-20210408144230561](.attachments/GETTINGSTARTED/image-20210408144230561.png)
@@ -403,10 +411,6 @@ As mentioned in the note above, the previous section allows you to create pipeli
    ![image-20210429113205147](.attachments/SETUPGUIDE/image-20210429113205147.png)
 
 1. Navigate to the **Repo where you want to source control your solution**.
-
-4. Create a new Branch based on **your default branch** in the Repo with the name of your solution (e.g. **MyNewSolution**) 
-
-   > [NOTE!] This branch will be your v-next branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
 
 5. Select **New** from the top menu and then **File**
 
