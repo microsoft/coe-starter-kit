@@ -295,7 +295,7 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 
 1. Enter the **Tenant ID**, **Application (client) ID** and **Client Secret** you copied from AAD when you created your App Registration and select **Save**.
 
-1. In order for users to be able to use the service connection from the ALM Accelerator App the Service Connections must provide permissions to all users to be able to **Read** the Service Connections. Update Permissions as follows:
+1. In order for users to be able to use the service connection from the ALM Accelerator App the Service Connections must provide **User** permissions to all users to be able to **use** the Service Connections. Update Permissions as follows:
 
     - Select the **Service Connection** to be **shared with users** from the **Service Connections** list.
 
@@ -305,11 +305,11 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 
       ![image-20210401084807231](.attachments/GETTINGSTARTED/image-20210401084807231.png)
 
-    - Select the **Group or User** you want to provide Read permissions to in the Dropdown.
+    - Select the **Group or User** you want to provide User permissions to in the Dropdown.
 
-    - Select the **Reader** **Role** and Select **Add**
+    - Select the **User** **Role** and Select **Add**
 
-      ![image-20210401093313321](.attachments/GETTINGSTARTED/image-20210401093313321.png)
+      ![image-20210401093313321](.attachments/SETUPGUIDE/SetServiceConnectionPermissions.png)
 
 1. Repeat these steps as needed for each of your environments (i.e. Development, Validation, Test and Production).
 
