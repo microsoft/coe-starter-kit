@@ -9,6 +9,7 @@ Underlying, the entire solution is the Dataverse Solution System. All Applicatio
 The target end user for AA4AM is the Power Platform Maker who is comfortable with Solutions as well as Git, Azure DevOps and ALM concepts (e.g. Source Control Pushes, Pull Requests, Merging and Pipelines).  Using the AA4AM requires foundational knowledge about Git, Azure DevOps, and Solutions. If you are not already familiar with these technologies and concepts, you should consider taking the following courses.
 
 1. [Introduction to version control with Git](https://docs.microsoft.com/en-us/learn/paths/intro-to-vc-git/)
+1. [Use Git version-control tools in Visual Studio Code](https://docs.microsoft.com/en-us/learn/modules/use-git-from-vs-code/)
 1. [Build applications with Azure DevOps](https://docs.microsoft.com/en-us/learn/paths/build-applications-with-azure-devops/)
 1. [Manage solutions in Power Apps and Power Automate](https://docs.microsoft.com/en-us/learn/modules/manage-solutions-power-automate/)
 
