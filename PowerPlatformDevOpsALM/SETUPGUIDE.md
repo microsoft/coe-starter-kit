@@ -396,9 +396,27 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
    ![image-20210409083958467](.attachments/GETTINGSTARTED/image-20210409083958467.png)
 
-   > [!NOTE] If your new pipeline was not created in the default branch of the repo you may need to update the **Default branch for manual and scheduled builds**. See the following link for setting the **Default branch for manual and scheduled builds**. [Configure pipeline triggers - Azure Pipelines | Microsoft Docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers)
+1. Update the **Default branch for manual and scheduled builds** for more information see the documentation here 
+
+      > [!NOTE] If your new pipeline was not created in the default branch of the repo you may need to update the **Default branch for manual and scheduled builds**. See the following link for more information on **Default branch for manual and scheduled builds**. [Configure pipeline triggers - Azure Pipelines | Microsoft Docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers)
+
+      - Select Edit on your new Pipeline
+
+      - **Select the 3 dots** on the top right and **Select Triggers**
+
+        ![image-20210510163520532](.attachments/SETUPGUIDE/image-20210510163520532.png)
+
+      - **Select the YAML tab** and **Select Get Sources**. 
+
+      - Update the **Default branch for manual and scheduled builds** to point to your **Solution branch**
+
+        ![image-20210510163722833](.attachments/SETUPGUIDE/image-20210510163722833.png)
 
 1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline yaml from the **coe-alm-accelerator-templates repo** (i.e. deploy-validation-SampleSolution.yml, deploy-test-SampleSolution.yml and deploy-prod-SampleSolution.yml).
+
+1. **Select Save and Queue** and **Select Save**
+
+     ![image-20210510163834521](.attachments/SETUPGUIDE/image-20210510163834521.png)
 
 ### Create the Solution Deployment Pipeline(s) (Optional)
 
@@ -845,5 +863,3 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
    Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in Project -> Settings -> General. This setting is turned on by default when you create a new project.
 
    ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png) 
-
-1. Build completion triggers not firing. There a few reasons the pipeline completion triggers may not fire depending on how you have setup your branches and build pipelines. **For troubleshooting tips see here https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=yaml#branch-considerations-for-pipeline-completion-triggers**
