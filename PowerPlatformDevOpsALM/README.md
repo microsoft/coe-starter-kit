@@ -6,7 +6,12 @@ The ALM Accelerator for Advanced Makers is a Canvas App that sits on top of Azur
 
 Underlying, the entire solution is the Dataverse Solution System. All Application Lifecycle Management in the Power Platform is based on makers creating components within the scope of a Solution. In order to use the AA4AM your components (Apps, Flows, Customizations etc.) must first be included in a solution. A solution in Dataverse is intended to be a deployable package of components that AA4AM will unpack and store the source files in a Git source control (e.g. Azure DevOps Git or GitHub).
 
-The target end user for AA4AM is the Power Platform Maker who is comfortable with Solutions as well as Git, Azure DevOps and ALM concepts (e.g. Source Control Pushes, Pull Requests, Merging and Pipelines).
+The target end user for AA4AM is the Power Platform Maker who is comfortable with Solutions as well as Git, Azure DevOps and ALM concepts (e.g. Source Control Pushes, Pull Requests, Merging and Pipelines). If you are not already familiar with these technologies and concepts, you should consider taking the following courses.
+
+1. [Introduction to version control with Git](https://docs.microsoft.com/en-us/learn/paths/intro-to-vc-git/)
+1. [Use Git version-control tools in Visual Studio Code](https://docs.microsoft.com/en-us/learn/modules/use-git-from-vs-code/)
+1. [Build applications with Azure DevOps](https://docs.microsoft.com/en-us/learn/paths/build-applications-with-azure-devops/)
+1. [Manage solutions in Power Apps and Power Automate](https://docs.microsoft.com/en-us/learn/modules/manage-solutions-power-automate/)
 
 The target user for setting up AA4AM would generally be an Administrator with a deeper understanding of Power Platform Environments and Solutions, Azure DevOps Pipelines and Administration as well as familiarity with Azure Active Directory and Dataverse Admininstration.
 
