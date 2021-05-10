@@ -1,0 +1,72 @@
+# This pipeline gets triggered manually or via an API call.  
+# The pipeline is designed to synchronize a github repository into an Azure DevOps git repositiory.
+# It facilitates:
+# -Synchronization of main branch from source git repository into the Azure DevOps git repository
+# -Create a Pull Request to merge changes
+# -Assign Pull Request to the user that requested the pipeline to run.
+
+# The following variables need to be set when the pipeline is queued to run:
+# Template-repo: The source github repository to be synced into the Azure DevOps git repository that this pipeline is in.
+#                Example: https://github.com/microsoft/coe-alm-accelerator-templates
+
+# The following parameters are required for pipeline to run:
+# BranchToCreate: The name of the new Azure DevOps Branch to create in the Repo above to which we are pulling main branch from Template-repo.
+# TargetBranch: The name of the Azure DevOps Branch to target for the Pull Request.
+
+parameters:
+- name: BranchToCreate
+  type: string
+  default: 'update-from-original-repo'
+- name: TargetBranch
+  type: string
+  default: 'main'
+  
+trigger: none
+pr: none
+
+stages:
+- stage: sync
+  displayName: Sync
+  jobs:
+  - job: syncjob
+    pool:
+      vmImage: 'windows-2019'
+    steps:
+      - checkout: self
+        persistCredentials: true
+
+        # add Azure DevOps extension
+      - script: az extension add -n azure-devops
+        displayName: 'Install Azure DevOps Extension'
+
+        # sign in to Azure DevOps
+      - script: echo $(System.AccessToken) | az devops login
+        env:
+          AZURE_DEVOPS_CLI_PAT: $(System.AccessToken)
+        displayName: 'Login Azure DevOps Extension'
+
+        # Configure email/name
+      - script: |
+          git config --global user.email "$(Build.RequestedForEmail)"
+          git config --global user.name "$(Build.RequestedFor)"
+        displayName: 'Set git user info'
+
+        # Add remote and fetch main
+      - script: | 
+          git remote add template-repo $(TEMPLATE-REPO)
+          git fetch template-repo main
+        displayName: 'Fetch main branch from cloned repository'
+
+        # Create new branch and push to origin
+      - script: |
+          git checkout -b ${{parameters.BranchToCreate}} template-repo/main
+          git push origin +${{parameters.BranchToCreate}}
+        displayName: 'Push ${{parameters.BranchToCreate}} to AzDO repo'
+
+        # Set default org and project
+      - powershell: az devops configure --defaults organization=$(System.CollectionUri) project=$(System.TeamProject)
+        displayName: 'Set az devops defaults'
+
+        # Create Pull Requests
+      - powershell: az repos pr create --source-branch ${{parameters.BranchToCreate}} --target-branch ${{parameters.TargetBranch}} --reviewers="$(Build.RequestedForEmail)" --title 'Sync from cloned repository'
+        displayName: 'Create PR - ${{parameters.BranchToCreate}} to ${{parameters.TargetBranch}}'

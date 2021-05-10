@@ -1,6 +1,8 @@
 # This pipeline gets triggered manually or via an API call.  
 # It is a general purpose automation that allows you to delete or "clean up" an unmanaged solution from a Dataverse environment.
 # It is a destructive action and will remove everything in the solution from the environment.
+# If there are dependencies in other solutions on components in the solution you are trying to clean up / delete, the pipeline will fail.
+# You need to clean up dependencies before running this pipeline.
 
 # The following variables need to be set when the pipeline is queued to run:
 # ServiceConnName
@@ -13,45 +15,88 @@ name: delete-unmanaged-$(SolutionName)-and-components-from-environment
 
 variables:
 - group: global-variable-group
+- name: vmImage
+  value: 'windows-2019'
 
-pool:
-  vmImage: 'windows-2019'
+stages:
+- stage: exportAndDeleteUnmanaged
+  jobs:
+    - job: exportAndDeleteUnmanaged  
+      pool:
+        vmImage: ${{ variables.vmImage }}
+      steps:
+      - checkout: none
 
-steps:
-- checkout: none
+      - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@0
+        displayName: 'Power Platform Tool Installer '
 
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@0
-  displayName: 'Power Platform Tool Installer '
+      - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@0
+        displayName: 'Export Solution as Managed'
+        inputs:
+          authenticationType: PowerPlatformSPN
+          PowerPlatformSPN: '$(ServiceConnName)'
+          SolutionName: '$(SolutionName)'
+          Managed: true
+          SolutionOutputFile: '$(Pipeline.Workspace)\exported\$(SolutionName).zip'
 
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@0
-  displayName: 'Export Solution as Managed'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '$(ServiceConnName)'
-    SolutionName: '$(SolutionName)'
-    Managed: true
-    SolutionOutputFile: '$(build.binariesdirectory)\$(SolutionName).zip'
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: '$(Pipeline.Workspace)\exported'
+          artifact: 'drop'
+          publishLocation: 'pipeline'
 
-- task: PowerPlatformDeleteSolution@0
-  displayName: 'Power Platform Delete Unmanaged Solution'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '$(ServiceConnName)'
-    SolutionName: '$(SolutionName)'
+      - task: PowerPlatformDeleteSolution@0
+        displayName: 'Power Platform Delete Unmanaged Solution (DOES NOT DELETE SOLUTION COMPONENTS)'
+        inputs:
+          authenticationType: PowerPlatformSPN
+          PowerPlatformSPN: '$(ServiceConnName)'
+          SolutionName: '$(SolutionName)'
 
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.import-solution.PowerPlatformImportSolution@0
-  displayName: 'Import Managed Solution'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '$(ServiceConnName)'
-    SolutionInputFile: '$(build.binariesdirectory)\$(SolutionName).zip'
-    OverwriteUnmanagedCustomizations: true
-    PublishWorkflows: false
-    ConvertToManaged: true
+# If the import failed, we can't continue with the cleanup process. 
+# A common cause of this is that a canvas app is still open in the studio and therefore import is blocked.
+# To accomodate for import failures, we separate into two stages so we can rerun the import stage if it fails.
+# This gives the maker an opportunity to resolve the issue, and rerun the second stage which will try to import/delete the managed solution again.
+# Maker can continute to rerun the stage (trial/error) until there are no more import errors.
 
-- task: PowerPlatformDeleteSolution@0
-  displayName: 'Power Platform Delete Managed Solution'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '$(ServiceConnName)'
-    SolutionName: '$(SolutionName)'
+- stage: importAndDeleteManaged
+  jobs:
+    - job: importAndDeleteManaged  
+      pool:
+        vmImage: ${{ variables.vmImage }}
+      steps:
+      - checkout: none
+
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          buildType: 'current'
+          artifactName: 'drop'
+          targetPath: '$(Pipeline.Workspace)\'
+
+      - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@0
+        displayName: 'Power Platform Tool Installer '
+
+      - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.import-solution.PowerPlatformImportSolution@0
+        displayName: 'Import Managed Solution'
+        inputs:
+          authenticationType: PowerPlatformSPN
+          PowerPlatformSPN: '$(ServiceConnName)'
+          SolutionInputFile: '$(Pipeline.Workspace)\$(SolutionName).zip'
+          OverwriteUnmanagedCustomizations: true
+          PublishWorkflows: false
+          ConvertToManaged: true
+
+      - powershell: |
+          $errorMessage = "Since the import failed, your environment is in an unhealthy state. "
+          $errorMessage = $errorMessage + "The unmanaged container is gone, but the unmanaged solution components still exist in the environment. "
+          $errorMessage = $errorMessage + "Fix whatever is causing the import to fail, then you can rerun this stage."
+          Write-Host "##vso[task.logissue type=error]$errorMessage"
+          Write-Host "##[task.complete result=Failed]DONE"
+        displayName: 'Log error'
+        condition: failed()
+
+      - task: PowerPlatformDeleteSolution@0
+        displayName: 'Power Platform Delete Managed Solution'
+        inputs:
+          authenticationType: PowerPlatformSPN
+          PowerPlatformSPN: '$(ServiceConnName)'
+          SolutionName: '$(SolutionName)'
