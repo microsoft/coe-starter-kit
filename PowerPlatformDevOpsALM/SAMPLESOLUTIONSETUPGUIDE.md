@@ -14,7 +14,7 @@ When you create a solution in Dataverse you'll need to create pipelines specific
   * [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
   * [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
     + [Create Environment and Service Connection](#create-environment-and-service-connection)
-    + [Create CDS Connection Reference Pipeline Variable](#create-cds-connection-reference-pipeline-variable)
+    + [Create the Connection Reference Pipeline Variable](#create-the-connection-reference-pipeline-variable)
     + [Create Environment Variable Pipeline Variable](#create-environment-variable-pipeline-variable)
     + [Create AAD Group Canvas Configuration Pipeline Variable](#create-aad-group-canvas-configuration-pipeline-variable)
     + [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
@@ -85,9 +85,21 @@ Solution Pipelines are used to build and deploy your source controlled solutions
    
 1. Update the pipeline name to **deploy-validation-ALMAcceleratorSampleSolution** or **deploy-test-ALMAcceleratorSampleSolution** (where 'ALMAcceleratorSampleSolution' is the name of the ALM Accelerator Sample Solution) and select **Save**.
 
-   ![image-20210505164834987](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505164834987.png)
+    ![image-20210505164834987](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505164834987.png)
 
-   > [!NOTE] If your new pipeline was not created in the default branch of the repo you may need to update the **Default branch for manual and scheduled builds**. See the following link for setting the **Default branch for manual and scheduled builds**. [Configure pipeline triggers - Azure Pipelines | Microsoft Docs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/pipeline-triggers?view=azure-devops&tabs=YAML#branch-considerations-for-pipeline-completion-triggers)
+1. Update the **Default branch for manual and scheduled builds**
+
+   - Select Edit on your new Pipeline
+
+   - **Select the 3 dots** on the top right and **Select Triggers**
+
+   ![image-20210510163520532](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210510163520532.png)
+
+   - **Select the YAML tab** and **Select Get Sources**. 
+
+   - Update the **Default branch for manual and scheduled builds** to point to your **Solution branch**
+
+   ![image-20210510163722833](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210510163722833.png)
 
 1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline YAML from the **coe-alm-accelerator-templates repo** (i.e. deploy-test-SampleSolution.yml).
 
@@ -201,7 +213,7 @@ The **EnvironmentName** variable is used to specify the Azure DevOps environment
 
 6. Repeat adding the **EnvironmentName** and **ServiceConnection** for each of the pipelines created above (i.e. **deploy-test-ALMAcceleratorSampleSolution** and **deploy-production-ALMAcceleratorSampleSolution**)
 
-#### Create CDS Connection Reference Pipeline Variable
+#### Create the Connection Reference Pipeline Variable
 
 The connection reference variable is **ConnectionReferences**. This pipeline variable is used for setting connection references in the ALM Accelerator Sample Solution to specific connections configured in a target environment after the solution is imported into an environment. Additionally, the **ConnectionReferences** variable is used to enable flows after the solution is imported based on owner of the connection specified in the variable.
 
