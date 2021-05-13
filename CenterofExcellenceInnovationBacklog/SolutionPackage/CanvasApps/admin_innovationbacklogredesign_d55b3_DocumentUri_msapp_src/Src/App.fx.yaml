@@ -1,0 +1,209 @@
+App As appinfo:
+    BackEnabled: =false
+    OnStart: |-
+        =/***********LOAD COLLECTIONS & VARIABLES THAT DONT CHANGE BASED ON WORKITEM OR IDEA**********/
+        //all pain points
+        ClearCollect(AllPainPoints, 
+               AddColumns('Innovation Backlog Pain Points',
+               "PPDisplayName", admin_displayname,
+               "PPID", admin_innovationbacklogpainpointsid
+               ));
+        
+        //all pain points Measures
+        ClearCollect(AllPainPointsMeasures, 
+               AddColumns('Innovation Backlog Pain Points Measures',
+               "PPMDisplayName", admin_defaultdisplayname,
+               "PPMEASURE_ID", admin_innovationbacklogpainpointsmeasuresid 
+               ));
+        
+        //Collect available tools
+        ClearCollect(AvailableToolsAll,
+                AddColumns(
+                    'Innovation Backlog Tools',
+                    "isSelected", false, 
+                    "colAllToolGUID", admin_innovationbacklogtoolid,
+                    "colAllToolID", admin_id)
+        );
+        
+        //Links
+        Set(VisioLink, "https://www.office.com/launch/visio");
+        Set(ProcessAdvisorLink, "https://flow.microsoft.com/manage/processadvisor/create");
+        Set(ThisAppLink, LookUp('Environment Variable Definitions', 'Schema Name'="admin_InnovationBacklogAppURL").'Default Value');
+        
+        //VARIABLES
+        Set(UserEmail, User().Email);
+        Set(UserGUID, LookUp(Users, 'User Name'=UserEmail).User);
+        Set(UserObject, LookUp(Users, 'User Name'=UserEmail));
+        ClearCollect(StateFilterDefaultColl, [BacklogStatusOptions.New, BacklogStatusOptions.'In Progress', BacklogStatusOptions.'Partially Complete']);
+        ClearCollect(ThisSolutionPPTypes, [SolutionTechPPOptions.App]);
+        Set(ActionStatus, "");
+        Set(ActionSuccess, true);
+        Set(NavigatonGUIDidea, "");
+        Set(SortIdeasBy, "Money");
+        Set(AssignNewDev, false);
+        Set(NewStatusDefault, BacklogStatusOptions.New);
+        Set(SolutionFromScreen, HomeScreen);
+        Set(SentFromAddMeasure, false);
+        
+        /*********LOAD NAVIGATION PANE**********/
+        Set(CurrentStep, 6);
+        
+        /***********COLOR SCHEME FOR CF**********/
+        Set(NumChunks, 4);
+        
+        /***********INNITIALIZE COLLECTIONS THAT HAVE ADDED COLUMNS AND ARE CREATED IN MULTIPLE PLACES**********/
+        //MyTools
+        ClearCollect(MyTools, AddColumns(FirstN('Innovation Backlog Tools', 1),"colSelectedToolID", admin_id, "colSelectedToolGUID", admin_innovationbacklogtoolid));
+        Clear(MyTools);
+        
+        //MyPersonas
+        ClearCollect(MyPersonas, "colPersonaName", "abc");
+        Clear(MyPersonas);
+        
+        //MyWorklow
+        ClearCollect(MyWorkflow, {rowIndex: 1, curSelected:false, rowTool: " ", rowToolID: "", rowToolGUID: "", rowPersonaSearch: "", rowPersonaDisplay: "", rowNote: "", rowToolIcon: "", rowToolIconNonURL: SampleImage, rowRecording: ""});
+        Clear(MyWorkflow);
+        
+        //MyStarterMeasures
+        ClearCollect(MyStarterMeasures, First('Innovation Backlog Pain Points Measures'));
+        Clear(MyStarterMeasures);
+        
+        /***********LOAD INITIAL DATA FOR BROWSE SCREEN**********/
+        //Collect Votes
+        ClearCollect(AllVotes, Filter('Backlog Idea Votes', IdeaStatus in StateFilterDefaultColl));
+        
+        //load toolset
+        ClearCollect(
+            ToolsetMap, 
+            AddColumns(
+                Filter('Backlog Item Toolsets', admin_ideastatus in StateFilterDefaultColl),
+                "ToolSetGUID", GUID(),
+                "ToolSetWorkitemGUID", GUID(),
+                "ToolSetWorkitemIdeaGUID", GUID()));
+        
+        UpdateIf(ToolsetMap, true, 
+        {
+                ToolSetGUID: admin_BacklogTool.admin_innovationbacklogtoolid,
+                ToolSetWorkitemGUID: admin_BacklogItem.'Innovation Backlog Workitem'
+        }
+        );
+        UpdateIf(ToolsetMap, true, 
+        {
+                ToolSetWorkitemIdeaGUID: LookUp('Innovation Backlog Workitems', 'Innovation Backlog Workitem'= ToolSetWorkitemGUID).BacklogIdea.'Innovation Backlog Idea'
+        }
+        );
+        
+        ForAll('Innovation Backlog Workitems',     
+            UpdateIf(ToolsetMap, ToolSetWorkitemGUID='Innovation Backlog Workitem', 
+            {ToolSetWorkitemIdeaGUID: BacklogIdea.'Innovation Backlog Idea'}));
+        
+        
+        
+        //get complexities
+        ClearCollect(AllComplexity, Filter('Backlog Item Complexities', IdeaStatus in StateFilterDefaultColl));
+        
+        ClearCollect(PainPointMap, Filter('Backlog Item PainPointSets', IdeaStatus in StateFilterDefaultColl));
+        //BUGBUG why need? 
+        
+        //load up measures
+        ClearCollect(ActualizedMeasures, AddColumns(
+                 Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910001' && IdeaStatus in StateFilterDefaultColl),
+                 "MeasureGUID", 'Backlog Item MeasureSet',
+                 "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                 "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                 "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                      If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+        
+        //load up measures
+        ClearCollect(AllMeasures, AddColumns(
+                 Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910000' && IdeaStatus in StateFilterDefaultColl),
+                 "MeasureGUID", 'Backlog Item MeasureSet',
+                 "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                 "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                 "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                      If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+        
+        ClearCollect(AllSolutions, 
+            AddColumns(
+            Filter('Backlog Item Solutions', IdeaStatus in StateFilterDefaultColl), 
+            "ThisSolutionMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+            "ThisSolutionTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+            "ThisSolutionOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+            
+        ClearCollect(AllTestimony, 
+            AddColumns(
+            Filter('Backlog Item Testimonials', IdeaStatus in StateFilterDefaultColl),
+            "ThisTestimonyMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+            "ThisTestimonyTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+            "ThisTestimonyOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+        
+        //load up workitems
+        ClearCollect(AllWorkItems, 
+             AddColumns(
+             Filter('Innovation Backlog Workitems', IdeaStatus in StateFilterDefaultColl),
+             "ThisWorkitemGUID", 'Innovation Backlog Workitem',
+             "ThisWorkitemIdeaGUID", BacklogIdea.'Innovation Backlog Idea',
+             "ThisWorkitemMoneyMeasures", 
+                  Sum(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem' 
+                  && MeasureType=MeasureTypeOptions.'597910001' && BenefitType=BenefitTypeOptions.'597910000'), MoneySavings),
+             "ThisWorkitemTimeMeasures", 
+                  Sum(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem' && MeasureType=MeasureTypeOptions.'597910000' 
+                  && BenefitType=BenefitTypeOptions.'597910000'),TimeSavings),  
+             "ThisWorkitemNumOtherMeasures", 
+                  CountRows(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem'  && BenefitType=BenefitTypeOptions.'597910000'
+                  && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003'))),
+             "ThisWorkitemComplexity", LookUp(AllComplexity, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem').ComplexityScore,     
+             "ThisWorkitemPPs", Concat(Distinct(Filter(PainPointMap, BackLogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem').Name, Name), Result & Char(10))
+             ));
+        
+        //load up ideas
+        ClearCollect(AllIdeas, 
+             AddColumns(
+             Filter('Innovation Backlog Ideas', IdeaStatus in StateFilterDefaultColl),
+             "ThisIdeaGUID", 'Innovation Backlog Idea',
+             "ThisIdeaWorkItems", Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'),
+             "ThisIdeaToolGUIDs", Distinct(Filter(ToolsetMap, ToolSetWorkitemIdeaGUID='Innovation Backlog Idea').ToolSetGUID, ToolSetGUID),
+             "ThisIdeaToolNames", Concat(Filter(ToolsetMap, ToolSetWorkitemIdeaGUID='Innovation Backlog Idea'), Lower(LookUp(AvailableToolsAll, colAllToolGUID=ToolSetGUID).admin_displayname) & " " & Char(10)),
+             "ThisIdeaSearchTerms", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), 'Search Keywords' & " " & Char(10)),
+             "ThisIdeaTeams", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), 'Impacted Team' & " " & Char(10)),
+             "ThisIdeaWorkItemCreators", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), CreatedBy.'Full Name' & " "),
+             "ThisIdeaWorkItemCreatorsEmail", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), CreatedBy.'Primary Email' & "; "),
+             "ThisIdeaVotersEmail", Concat(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'), UserVoting.'Primary Email' & "; "),
+             "ThisIdeaMoneyMeasures", 
+                  Sum(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && MeasureType=MeasureTypeOptions.'597910001' 
+                  && BenefitType=BenefitTypeOptions.'597910000'),MoneySavings),
+             "ThisIdeaTimeMeasures", 
+                  Sum(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && MeasureType=MeasureTypeOptions.'597910000'  
+                  && BenefitType=BenefitTypeOptions.'597910000'),TimeSavings),  
+             "ThisIdeaNumOtherMeasures", 
+                  CountRows(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'  
+                  && BenefitType=BenefitTypeOptions.'597910000' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003'))),
+             "ThisIdeaComplexity", Average(Filter(AllComplexity, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'),ComplexityScore),
+             "ThisIdeaPPs", Concat(Distinct(Filter(PainPointMap, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea').Name, Name), Result & ", "),
+             "ThisIdeaNumberVotes", CountRows(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea')),
+             "ThisIdeaUserVotedYes", If(CountRows(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && UserVoting.User=UserGUID))=0, false, true),
+             "ThisIdeaNumSolns", CountRows(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'))
+             ));
+        
+        //BUGBUG Cannot set user to blank except through CDS UX
+        UpdateIf(AllIdeas, IdeaStatus<>BacklogStatusOptions.'In Progress', {CurrentDevOwner:Blank()});
+        
+        //NAVIGATE BASED ON PARAMS
+        //if no idea given, browse to main screen
+        If(IsBlank(Param("InputIdeaGUID")), Navigate(HomeScreen));
+        //if idea given but not soln, browse to idea screen
+        If(IsBlank(Param("InputSolnGUID"))&&!IsBlank(Param("InputIdeaGUID")), 
+           Set(isNewIdea, false);
+           Set(OurIdeaGUID, GUID(Param("InputIdeaGUID")));
+           Set(OurIdea, LookUp(AllIdeas, ThisIdeaGUID=OurIdeaGUID));
+           Set(NavigatonGUIDidea, Param("InputIdeaGUID"));
+           Navigate(HomeScreen));
+        //if soln given, browse to solution feedback
+        If(!IsBlank(Param("InputSolnGUID")), 
+           Set(isNewIdea, false);
+           Set(OurIdeaGUID, GUID(Param("InputIdeaGUID")));
+           Set(OurIdea, LookUp(AllIdeas, ThisIdeaGUID=OurIdeaGUID));
+           Set(SolnForFeedbackGUID, GUID(Param("InputSolnGUID")));
+           Navigate([@AddTestimoney]));
+           
+
