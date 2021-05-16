@@ -327,7 +327,7 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 ### Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)
 
-The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SampleSolutionSetupGuide.md).
+The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SAMPLESOLUTIONSETUPGUIDE.md).
 
 ### Create the Solution Build and Deployment Pipeline(s)
 
