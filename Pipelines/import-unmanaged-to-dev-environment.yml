@@ -2,8 +2,11 @@ trigger: none
 pr: none
 
 # variables passed in by API:
+# - Project
+# - Repo
+# - Branch
 # - SolutionName
-# - ServiceConnName
+# - ServiceConnection
 # - BuildDefinitionId
 # - PipelineId
 #
@@ -13,28 +16,31 @@ variables:
 
 name: import-$(SolutionName)
 
+resources:
+  repositories:
+  - repository: PipelineRepo  # repository name (DO NOT CHANGE THIS VALUE) 
+    type: git
+    name: coe-alm-accelerator-templates  #This is the name of the repo in the current project in Azure Devops that has the pipeline templates. If the repo is in a different project you can specify the project and repo using the format ProjectContainingTheBuildTemplates/RepositoryContainingTheBuildTemplates (https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema%2Cparameter-schema#type)
+
 pool:
   vmImage: 'windows-2019'
 
 steps:
-- checkout: none
+- powershell: |
+    Write-Host "##vso[task.setvariable variable=RepoName]$(Repo)"
+  displayName: 'Set Source Repo Name'
+
+# Checkout our Branch
+- checkout: git://$(Project)/$(Repo)@$(Branch)
+  displayName: 'Checkout Source Branch'
 
 # Get the solution package from artifact uploaded by the build pipeline
-- task: DownloadPipelineArtifact@2
-  displayName: 'Download Pipeline Artifact'
-  inputs:
-    buildType: specific
-    project: '$(System.TeamProjectId)'
-    definition: $(BuildDefinitionId)
-    artifactName: drop
-    pipelineId: $(PipelineId)
-    buildVersionToDownload: specific
-    allowPartiallySucceededBuilds: true
-    path: '$(Pipeline.Workspace)/drop'
+- template: Templates\build-Solution.yml #The @PipelineRepo tells the pipeline where to look for the templates based on the name of the repo you specified above
+  parameters:
+    buildUnmanaged: 'true'
 
 - powershell: |
-   Write-Host "$(System.TeamProjectId)-$(BuildDefinitionId)-$(PipelineId)"
-   Get-ChildItem -Path "$(Pipeline.Workspace)/drop" -Filter "$(SolutionName)*.zip" | 
+   Get-ChildItem -Path "$(Build.ArtifactStagingDirectory)" -Filter "$(SolutionName)*.zip" | 
    ForEach-Object {
        If (-Not $_.FullName.Contains("_managed")) 
        { 
@@ -47,7 +53,7 @@ steps:
 
 - template: Templates\deploy-Solution.yml
   parameters:
-    serviceConnection: '$(ServiceConnName)'
+    serviceConnection: '$(ServiceConnection)'
     environmentVariables: '$(DevEnvironmentVariables)'
     connectionReferences: '$(DevConnectionReferences)'
     aadGroupTeamConfiguration: '$(DevAadGroupTeamConfiguration)'
@@ -56,4 +62,4 @@ steps:
     importUnmanaged: 'true'
 - template: Templates\update-canvas-app-ownership.yml
   parameters:
-    serviceConnection: '$(ServiceConnName)'
+    serviceConnection: '$(ServiceConnection)'
