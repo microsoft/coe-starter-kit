@@ -1,0 +1,431 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedcommondataserviceforapps_06411"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforappmakers_1": {
+        "api": {
+          "name": "shared_powerappsforappmakers"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedpowerappsforappmakers_87b9a"
+        },
+        "runtimeSource": "invoker"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Catch": {
+          "actions": {
+            "Apply_to_each": {
+              "actions": {
+                "Append_to_string_variable": {
+                  "inputs": {
+                    "name": "ErrorDetails",
+                    "value": "@{body('Fetch_Localized_Error_Message')?['Body']?['localizedtext']}\n"
+                  },
+                  "runAfter": {
+                    "Fetch_Localized_Error": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable"
+                },
+                "Fetch_Localized_Error": {
+                  "actions": {
+                    "Compose_4": {
+                      "inputs": "@concat('name==',items('Apply_to_each')?['name'],'##code==',items('Apply_to_each')?['code'],'##errorName==',items('Apply_to_each')?['outputs']?['body'])",
+                      "runAfter": {},
+                      "type": "Compose"
+                    },
+                    "Fetch_Localized_Error_Message": {
+                      "inputs": {
+                        "body": {
+                          "text": "errorMessageFlow",
+                          "text_2": "@outputs('Compose_4')"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose_4": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "Scope"
+                }
+              },
+              "foreach": "@body('Filter_array')",
+              "runAfter": {
+                "Filter_array": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Filter_array": {
+              "inputs": {
+                "from": "@result('Try')",
+                "where": "@or(equals(item()?['status'], 'Failed'), equals(item()?['status'], 'TimedOut'))"
+              },
+              "runAfter": {},
+              "type": "Query"
+            }
+          },
+          "runAfter": {
+            "Try": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_error_details": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ErrorDetails",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "Separator",
+                "type": "string",
+                "value": "@@"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_error_details": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "inputs": {
+            "body": {
+              "apps": "@{outputs('Apps_Output')}",
+              "issuccess": "true"
+            },
+            "schema": {
+              "properties": {
+                "apps": {
+                  "title": "apps",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                },
+                "issuccess": {
+                  "title": "isSuccess",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "runAfter": {
+            "Try": [
+              "Succeeded"
+            ]
+          },
+          "type": "Response"
+        },
+        "Response": {
+          "inputs": {
+            "body": "@variables('ErrorDetails')",
+            "statusCode": 500
+          },
+          "kind": "Http",
+          "runAfter": {
+            "Catch": [
+              "Succeeded"
+            ]
+          },
+          "type": "Response"
+        },
+        "Try": {
+          "actions": {
+            "Apps_Output": {
+              "inputs": "@replace(replace(replace(body('Create_Apps_Output'), '&lt;', '<'), '&quot;', '\"'), '&gt;', '>')",
+              "runAfter": {
+                "Create_Apps_Output": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Compose_2": {
+              "inputs": "@body('Get_Apps')?['value']",
+              "runAfter": {
+                "Get_Apps": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Compose_3": {
+              "inputs": "@outputs('Get_Client_Id')?['Body']?['envvalue']",
+              "runAfter": {
+                "Get_Client_Id": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Create_Apps_Output": {
+              "inputs": {
+                "columns": [
+                  {
+                    "header": "Name",
+                    "value": "@item()?['msdyn_displayname']"
+                  },
+                  {
+                    "header": "Link",
+                    "value": "<a href=\"https://apps.powerapps.com/play/@{item()['msdyn_canvasappuniqueid']}\"> Play App </a>"
+                  }
+                ],
+                "format": "HTML",
+                "from": "@body('Get_Apps')['value']"
+              },
+              "runAfter": {
+                "Edit_Permission_for_App": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Table"
+            },
+            "Edit_Permission_for_App": {
+              "actions": {
+                "Compose": {
+                  "inputs": "@item()",
+                  "runAfter": {},
+                  "type": "Compose"
+                },
+                "Edit_App_Role_Assignment": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforappmakers",
+                      "connectionName": "shared_powerappsforappmakers_1",
+                      "operationId": "Edit-AppRoleAssignment"
+                    },
+                    "parameters": {
+                      "$filter": "environment eq '@{triggerBody()['text_2']}'",
+                      "Content-Type": "application/json",
+                      "api-version": "2016-11-01",
+                      "app": "@item()?['msdyn_canvasappuniqueid']",
+                      "body/put": [
+                        {
+                          "properties/NotifyShareTargetOption": "Notify",
+                          "properties/principal/email": "@outputs('Get_a_record')?['body/domainname']",
+                          "properties/principal/id": "@outputs('Get_a_record')?['body/azureactivedirectoryobjectid']",
+                          "properties/principal/type": "User",
+                          "properties/roleName": "CanView"
+                        }
+                      ]
+                    }
+                  },
+                  "runAfter": {
+                    "Compose": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_Error_Code": {
+                  "inputs": "@outputs('Edit_App_Role_Assignment')?['body']?['error']?['code']",
+                  "runAfter": {
+                    "Edit_App_Role_Assignment": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "Compose"
+                }
+              },
+              "foreach": "@body('Get_Apps')['value']",
+              "runAfter": {
+                "Compose_2": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Get_Apps": {
+              "inputs": {
+                "headers": {
+                  "authorization": "Bearer @{body('Get_Token')?['access_token']}"
+                },
+                "method": "GET",
+                "uri": "@{triggerBody()['text']}api/data/v9.0/msdyn_solutioncomponentsummaries?$filter=(msdyn_solutionid eq '@{triggerBody()['text_1']}' and msdyn_componentlogicalname eq 'canvasapp')"
+              },
+              "runAfter": {
+                "Get_Token": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http"
+            },
+            "Get_Client_Id": {
+              "inputs": {
+                "body": {
+                  "text": "cat_clientId"
+                },
+                "host": {
+                  "workflowReferenceName": "b2b37f18-27e8-ea11-a817-000d3a56b702"
+                }
+              },
+              "runAfter": {},
+              "type": "Workflow"
+            },
+            "Get_Token": {
+              "inputs": {
+                "body": "client_id=@{outputs('Get_Client_Id')?['Body']?['envvalue']}&resource=@{triggerBody()['text']}&grant_type=password&username=@{triggerBody()['text_3']}&password=@{triggerBody()['text_4']}",
+                "headers": {
+                  "Content-Type": "application/x-www-form-urlencoded"
+                },
+                "method": "POST",
+                "uri": "https://login.microsoftonline.com/common/oauth2/token"
+              },
+              "runAfter": {
+                "Get_a_record": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http"
+            },
+            "Get_a_record": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem"
+                },
+                "parameters": {
+                  "entityName": "systemusers",
+                  "recordId": "@triggerBody()['text_5']"
+                }
+              },
+              "runAfter": {
+                "Compose_3": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "envUrl",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "solutionId",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_2": {
+                  "description": "Please enter your input",
+                  "title": "envName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_3": {
+                  "description": "Please enter your input",
+                  "title": "username",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_4": {
+                  "description": "Please enter your input",
+                  "title": "password",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_5": {
+                  "description": "Please enter your input",
+                  "title": "userId",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2",
+                "text_3",
+                "text_4",
+                "text_5"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
