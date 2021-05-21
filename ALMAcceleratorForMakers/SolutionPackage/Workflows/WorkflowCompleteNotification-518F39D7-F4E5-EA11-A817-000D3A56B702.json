@@ -1,0 +1,1226 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "cat_CDSConnection"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "cat_AdminConnection"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Catch": {
+          "actions": {
+            "Apply_to_each": {
+              "actions": {
+                "Append_to_string_variable": {
+                  "inputs": {
+                    "name": "ErrorDetails",
+                    "value": "@{outputs('Fetch_Localized_Error_Message')?['Body']?['localizedtext']}\n"
+                  },
+                  "runAfter": {
+                    "Fetch_Localized_Error": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable"
+                },
+                "Fetch_Localized_Error": {
+                  "actions": {
+                    "Compose_2": {
+                      "inputs": "@concat('name==',items('Apply_to_each')?['name'],'##code==',items('Apply_to_each')?['code'],'##errorName==',items('Apply_to_each')?['outputs']?['body'])",
+                      "runAfter": {},
+                      "type": "Compose"
+                    },
+                    "Fetch_Localized_Error_Message": {
+                      "inputs": {
+                        "body": {
+                          "text": "errorMessageFlow",
+                          "text_2": "@outputs('Compose_2')"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "Scope"
+                },
+                "Log_Telemetry": {
+                  "inputs": {
+                    "body": {
+                      "text": "@workflow()?['run']?['name']",
+                      "text_1": "Error",
+                      "text_12": "@workflow()?['run']?['name']",
+                      "text_13": "@body('Parse_Request')?['requestid']",
+                      "text_2": "@body('Parse_Request')?['projectid']",
+                      "text_3": "Project Creation",
+                      "text_4": "@string(if(equals(null, items('Apply_to_each')?['outputs']?['body']), items('Apply_to_each')?['error'], items('Apply_to_each')?['outputs']?['body']))",
+                      "text_6": "@workflow()?['tags']?['flowDisplayName']",
+                      "text_8": "@items('Apply_to_each')?['name']"
+                    },
+                    "host": {
+                      "workflowReferenceName": "05dc414d-78eb-ea11-a817-000d3a56b702"
+                    }
+                  },
+                  "runAfter": {
+                    "Append_to_string_variable": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Workflow"
+                }
+              },
+              "foreach": "@body('Filter_array')",
+              "runAfter": {
+                "Filter_array": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Filter_array": {
+              "inputs": {
+                "from": "@result('Try')",
+                "where": "@or(equals(item()?['status'], 'Failed'), equals(item()?['status'], 'TimedOut'))"
+              },
+              "runAfter": {
+                "Parse_Request": [
+                  "Succeeded",
+                  "Failed",
+                  "Skipped",
+                  "TimedOut"
+                ]
+              },
+              "type": "Query"
+            },
+            "If_Project_Build_Request_updated": {
+              "actions": {},
+              "else": {
+                "actions": {
+                  "Condition_4": {
+                    "actions": {
+                      "Mark_Build_Request_Failed_2": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "cat_buildrequests",
+                            "item/cat_buildstatus": 809060003,
+                            "item/cat_error": "@concat('RunID: ', workflow()?['run']?['name'], '\nFlow: ' ,workflow()['tags']?['flowDisplayName'], '\nError Details: ', variables('ErrorDetails'))",
+                            "recordId": "@body('Parse_Request')?['requestid']"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      },
+                      "Set_EnvironmentToDelete_3": {
+                        "inputs": {
+                          "name": "EnvironmentToDelete",
+                          "value": "@outputs('Mark_Build_Request_Failed_2')?['body/cat_buildenvironment']"
+                        },
+                        "runAfter": {
+                          "Update_Build_Status_in_Project_as_Failed_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      },
+                      "Update_Build_Status_in_Project_as_Failed_2": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "cat_projects",
+                            "item/cat_deploymentstatus": 809060008,
+                            "item/cat_errormessage": "@concat('RunID: ', workflow()?['run']?['name'], '\nFlow: ' ,workflow()['tags']?['flowDisplayName'], '\nError Details: ', variables('ErrorDetails'))",
+                            "recordId": "@outputs('Mark_Build_Request_Failed_2')?['body/_cat_project_value']"
+                          }
+                        },
+                        "runAfter": {
+                          "Mark_Build_Request_Failed_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      }
+                    },
+                    "else": {
+                      "actions": {
+                        "Condition_5": {
+                          "actions": {
+                            "Update_Project_Error": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "cat_projects",
+                                  "item/cat_deploymentstatus": 809060007,
+                                  "item/cat_errormessage": "@concat('RunID: ', workflow()?['run']?['name'], '\nFlow: ' ,workflow()['tags']?['flowDisplayName'], '\nError Details: ', variables('ErrorDetails'))",
+                                  "recordId": "@body('Parse_Request')?['projectid']"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(body('Parse_Request')?['projectid'])",
+                              0
+                            ]
+                          },
+                          "runAfter": {},
+                          "type": "If"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "greater": [
+                        "@length(body('Parse_Request')?['requestid'])",
+                        0
+                      ]
+                    },
+                    "runAfter": {},
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@variables('ProjectBuildRequestUpdated')",
+                  true
+                ]
+              },
+              "runAfter": {
+                "Apply_to_each": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Parse_Request": {
+              "inputs": {
+                "content": "@triggerBody()",
+                "schema": {
+                  "properties": {
+                    "projectid": {
+                      "type": "string"
+                    },
+                    "requestid": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "runAfter": {},
+              "type": "ParseJson"
+            }
+          },
+          "runAfter": {
+            "Try": [
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Finally": {
+          "actions": {
+            "Environment_Deletion_:_Condition": {
+              "actions": {
+                "Delete_Environment": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins",
+                      "operationId": "Remove-AdminEnvironment"
+                    },
+                    "parameters": {
+                      "api-version": "2018-10-01",
+                      "environment": "@variables('EnvironmentToDelete')"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(variables('EnvironmentToDelete'))",
+                  0
+                ]
+              },
+              "runAfter": {},
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Catch": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_EnvironmentToDelete": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "EnvironmentToDelete",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_ProjectbuildRequestUpdated_variable": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_ProjectbuildRequestUpdated_variable": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ProjectBuildRequestUpdated",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_error_details": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_error_details": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ErrorDetails",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Read_Admin_Email": {
+          "inputs": {
+            "body": {
+              "text": "admin_AdminMail"
+            },
+            "host": {
+              "workflowReferenceName": "b2b37f18-27e8-ea11-a817-000d3a56b702"
+            }
+          },
+          "runAfter": {
+            "Initialize_EnvironmentToDelete": [
+              "Succeeded"
+            ]
+          },
+          "type": "Workflow"
+        },
+        "Try": {
+          "actions": {
+            "Condition_3": {
+              "actions": {
+                "Compose": {
+                  "inputs": "@body('Parse_JSON')?['data']?['requestid']",
+                  "runAfter": {},
+                  "type": "Compose"
+                },
+                "Condition:_Check_if_Status_is_Cancelled": {
+                  "actions": {
+                    "Terminate": {
+                      "inputs": {
+                        "runStatus": "Cancelled"
+                      },
+                      "runAfter": {},
+                      "type": "Terminate"
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@outputs('Get_Build_Request')?['body/cat_buildstatus']",
+                      809060006
+                    ]
+                  },
+                  "runAfter": {
+                    "Get_Build_Request": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Condition_:_Check_deployment_status": {
+                  "actions": {
+                    "Compose_Body_2": {
+                      "inputs": "@concat('firstName==',outputs('Get_Build_Request_Owner')?['body/firstname'],'##projectName==',outputs('Update_Project_Status')?['body/cat_name'],'##buildStageName==',outputs('Get_Build_Stage')?['body/cat_name'],'##targetEnvironment==',outputs('Mark_Build_Request_Completed')?['body/cat_targetenvironment'],'##solutionId==',outputs('GetSolution')?['Body']?['solutionid'])",
+                      "runAfter": {
+                        "GetAppsAndFlows": [
+                          "Failed",
+                          "TimedOut"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "Compose_Body_3": {
+                      "inputs": "@concat('firstName==',outputs('Get_Build_Request_Owner')?['body/firstname'],'##projectName==',outputs('Update_Project_Status')?['body/cat_name'],'##buildStageName==',outputs('Get_Build_Stage')?['body/cat_name'],'##targetEnvironment==',outputs('Mark_Build_Request_Completed')?['body/cat_targetenvironment'],'##solutionId==',outputs('GetSolution')?['Body']?['solutionid'],'##getApps==',if(equals(outputs('GetAppsAndFlows')?['Body']?['apps'], null), '', outputs('GetAppsAndFlows')?['Body']?['apps']))",
+                      "runAfter": {
+                        "GetAppsAndFlows": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "Compose_Subject_2": {
+                      "inputs": "@concat('projectName==',outputs('Update_Project_Status')?['body/cat_name'],'##buildStageName==',outputs('Get_Build_Stage')?['body/cat_name'])",
+                      "runAfter": {
+                        "GetSolution": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "Fetch_Localized_Body_2": {
+                      "inputs": {
+                        "body": {
+                          "text": "workflowCompleteNotificationFlow4",
+                          "text_2": "@outputs('Compose_Body_2')"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose_Body_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    },
+                    "Fetch_Localized_Body_3": {
+                      "inputs": {
+                        "body": {
+                          "text": "workflowCompleteNotificationFlow5",
+                          "text_2": "@outputs('Compose_Body_3')"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose_Body_3": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    },
+                    "Fetch_Localized_Subject_2": {
+                      "inputs": {
+                        "body": {
+                          "text": "workflowCompleteNotificationFlow3",
+                          "text_2": "@outputs('Compose_Subject_2')"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose_Subject_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    },
+                    "GetAppsAndFlows": {
+                      "inputs": {
+                        "body": {
+                          "text": "@outputs('Mark_Build_Request_Completed')?['body/cat_targetenvironmenturl']",
+                          "text_1": "@outputs('GetSolution')?['Body']?['solutionid']",
+                          "text_2": "@outputs('Mark_Build_Request_Completed')?['body/cat_targetenvironment']",
+                          "text_3": "@outputs('Get_Build_Stage')?['body/cat_username']",
+                          "text_4": "@outputs('Get_Build_Stage')?['body/cat_password']",
+                          "text_5": "@outputs('Mark_Build_Request_Completed')?['body/_ownerid_value']"
+                        },
+                        "host": {
+                          "workflowReferenceName": "73024dfe-53f2-ea11-a815-000d3a56b702"
+                        },
+                        "retryPolicy": {
+                          "type": "none"
+                        }
+                      },
+                      "runAfter": {
+                        "Fetch_Localized_Subject_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    },
+                    "GetSolution": {
+                      "inputs": {
+                        "body": {
+                          "text": "@outputs('Mark_Build_Request_Completed')?['body/cat_targetenvironmenturl']",
+                          "text_1": "@outputs('Update_Project_Status')?['body/cat_solutionuniquename']",
+                          "text_2": "@outputs('Get_Build_Stage')?['body/cat_username']",
+                          "text_3": "@outputs('Get_Build_Stage')?['body/cat_password']"
+                        },
+                        "host": {
+                          "workflowReferenceName": "b4ea7f57-d0ee-ea11-a817-000d3a1abe26"
+                        },
+                        "retryPolicy": {
+                          "type": "none"
+                        }
+                      },
+                      "runAfter": {
+                        "Get_Build_Stage": [
+                          "Succeeded"
+                        ]
+                      },
+                      "runtimeConfiguration": {
+                        "secureData": {
+                          "properties": [
+                            "inputs"
+                          ]
+                        }
+                      },
+                      "type": "Workflow"
+                    },
+                    "Get_Build_Request_Owner": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem"
+                        },
+                        "parameters": {
+                          "entityName": "systemusers",
+                          "recordId": "@outputs('Mark_Build_Request_Completed')?['body/_ownerid_value']"
+                        }
+                      },
+                      "runAfter": {
+                        "Set_EnvironmentToDelete": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Get_Build_Stage": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem"
+                        },
+                        "parameters": {
+                          "entityName": "cat_deploymentstages",
+                          "recordId": "@outputs('Mark_Build_Request_Completed')?['body/_cat_stage_value']"
+                        }
+                      },
+                      "runAfter": {
+                        "Get_Build_Request_Owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "runtimeConfiguration": {
+                        "secureData": {
+                          "properties": [
+                            "outputs"
+                          ]
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Mark_Build_Request_Completed": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "cat_buildrequests",
+                          "item/cat_buildstatus": 809060002,
+                          "recordId": "@body('Parse_JSON')?['requestid']"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    },
+                    "Send_Email_Notification_for_Build_Completed": {
+                      "inputs": {
+                        "body": {
+                          "text": "@outputs('Get_Build_Request_Owner')?['body/domainname']",
+                          "text_1": "@outputs('Fetch_Localized_Subject_2')?['Body']?['localizedtext']",
+                          "text_2": "@outputs('Fetch_Localized_Body_3')?['Body']?['localizedtext']"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4528dfaf-782e-eb11-a813-000d3a33febe"
+                        }
+                      },
+                      "runAfter": {
+                        "Fetch_Localized_Body_3": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    },
+                    "Send_Email_Notification_for_Build_Completed_2": {
+                      "inputs": {
+                        "body": {
+                          "text": "@outputs('Get_Build_Request_Owner')?['body/domainname']",
+                          "text_1": "@outputs('Fetch_Localized_Subject_2')?['Body']?['localizedtext']",
+                          "text_2": "@outputs('Fetch_Localized_Body_2')?['Body']?['localizedtext']"
+                        },
+                        "host": {
+                          "workflowReferenceName": "4528dfaf-782e-eb11-a813-000d3a33febe"
+                        }
+                      },
+                      "runAfter": {
+                        "Fetch_Localized_Body_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow"
+                    },
+                    "Set_EnvironmentToDelete": {
+                      "inputs": {
+                        "name": "EnvironmentToDelete",
+                        "value": "@outputs('Mark_Build_Request_Completed')?['body/cat_buildenvironment']"
+                      },
+                      "runAfter": {
+                        "Set_ProjectBuildRequestUpdated_:_true": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    },
+                    "Set_ProjectBuildRequestUpdated_:_true": {
+                      "inputs": {
+                        "name": "ProjectBuildRequestUpdated",
+                        "value": true
+                      },
+                      "runAfter": {
+                        "Update_Project_Status": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    },
+                    "Update_Project_Status": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "cat_projects",
+                          "item/cat_deploymentstatus": 809060011,
+                          "recordId": "@outputs('Mark_Build_Request_Completed')?['body/_cat_project_value']"
+                        }
+                      },
+                      "runAfter": {
+                        "Mark_Build_Request_Completed": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "ErrorFromGH": {
+                        "inputs": "@string(body('Parse_JSON')?['errors'])",
+                        "runAfter": {},
+                        "type": "Compose"
+                      },
+                      "Fetch_Localized_Notification_4": {
+                        "actions": {
+                          "Compose_Body_4": {
+                            "inputs": "@concat('projectName==',outputs('Update_Build_Status_in_Project_as_Failed')?['body/cat_name'],'##repoName==',body('Parse_JSON')?['repo'],'##runId==',body('Parse_JSON')?['run'],'##errorDetails==',body('Parse_JSON')?['errors'])",
+                            "runAfter": {
+                              "Fetch_Localized_Subject_4": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Compose"
+                          },
+                          "Compose_Subject_4": {
+                            "inputs": "@concat('projectName==',outputs('Update_Build_Status_in_Project_as_Failed')?['body/cat_name'],'##buildStageName==',outputs('Get_Build_Stage_2')?['body/cat_name'])",
+                            "runAfter": {},
+                            "type": "Compose"
+                          },
+                          "Fetch_Localized_Body_4": {
+                            "inputs": {
+                              "body": {
+                                "text": "workflowCompleteNotificationFlow7",
+                                "text_2": "@outputs('Compose_Body_4')"
+                              },
+                              "host": {
+                                "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                              }
+                            },
+                            "runAfter": {
+                              "Compose_Body_4": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Workflow"
+                          },
+                          "Fetch_Localized_Subject_4": {
+                            "inputs": {
+                              "body": {
+                                "text": "workflowCompleteNotificationFlow6",
+                                "text_2": "@outputs('Compose_Subject_4')"
+                              },
+                              "host": {
+                                "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                              }
+                            },
+                            "runAfter": {
+                              "Compose_Subject_4": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Workflow"
+                          }
+                        },
+                        "runAfter": {
+                          "Get_Build_Stage_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Scope"
+                      },
+                      "Get_Build_Request_Owner_2": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "GetItem"
+                          },
+                          "parameters": {
+                            "entityName": "systemusers",
+                            "recordId": "@outputs('Mark_Build_Request_Failed')?['body/_ownerid_value']"
+                          }
+                        },
+                        "runAfter": {
+                          "Set_EnvironmentToDelete_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "Get_Build_Stage_2": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "GetItem"
+                          },
+                          "parameters": {
+                            "entityName": "cat_deploymentstages",
+                            "recordId": "@outputs('Mark_Build_Request_Failed')?['body/_cat_stage_value']"
+                          }
+                        },
+                        "runAfter": {
+                          "Get_Build_Request_Owner_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "runtimeConfiguration": {
+                          "secureData": {
+                            "properties": [
+                              "outputs"
+                            ]
+                          }
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "Mark_Build_Request_Failed": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "cat_buildrequests",
+                            "item/cat_buildstatus": 809060003,
+                            "item/cat_error": "@substring(outputs('ErrorFromGH'),0,min(length(outputs('ErrorFromGH')),3999))",
+                            "recordId": "@body('Parse_JSON')?['requestid']"
+                          }
+                        },
+                        "runAfter": {
+                          "ErrorFromGH": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "Send_Email_Notification_for_Build_Failed:_Admin_and_Stage_Owner": {
+                        "inputs": {
+                          "body": {
+                            "text": "@{outputs('Read_Admin_Email')?['Body']?['envvalue']};@{outputs('Get_Build_Stage_2')?['body/cat_stageowner']}",
+                            "text_1": "@outputs('Fetch_Localized_Subject_4')?['Body']?['localizedtext']",
+                            "text_2": "@outputs('Fetch_Localized_Body_4')?['Body']?['localizedtext']"
+                          },
+                          "host": {
+                            "workflowReferenceName": "4528dfaf-782e-eb11-a813-000d3a33febe"
+                          }
+                        },
+                        "runAfter": {
+                          "Fetch_Localized_Notification_4": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Workflow"
+                      },
+                      "Set_EnvironmentToDelete_2": {
+                        "inputs": {
+                          "name": "EnvironmentToDelete",
+                          "value": "@outputs('Mark_Build_Request_Failed')?['body/cat_buildenvironment']"
+                        },
+                        "runAfter": {
+                          "Set_ProjectBuildRequestUpdated_:_true_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      },
+                      "Set_ProjectBuildRequestUpdated_:_true_2": {
+                        "inputs": {
+                          "name": "ProjectBuildRequestUpdated",
+                          "value": true
+                        },
+                        "runAfter": {
+                          "Update_Build_Status_in_Project_as_Failed": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      },
+                      "Update_Build_Status_in_Project_as_Failed": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "cat_projects",
+                            "item/cat_deploymentstatus": 809060008,
+                            "item/cat_errormessage": "@substring(outputs('ErrorFromGH'),0,min(length(outputs('ErrorFromGH')),3999))",
+                            "recordId": "@outputs('Mark_Build_Request_Failed')?['body/_cat_project_value']"
+                          }
+                        },
+                        "runAfter": {
+                          "Mark_Build_Request_Failed": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "contains": [
+                      "@body('Parse_JSON')?['status']",
+                      "success"
+                    ]
+                  },
+                  "runAfter": {
+                    "Condition:_Check_if_Status_is_Cancelled": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Get_Build_Request": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "entityName": "cat_buildrequests",
+                      "recordId": "@body('Parse_JSON')?['requestid']"
+                    }
+                  },
+                  "runAfter": {
+                    "Compose": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Fetch_Localized_Notification": {
+                    "actions": {
+                      "Compose_Body": {
+                        "inputs": "@concat('projectName==',outputs('Get_a_Project')?['body/cat_name'],'##statusName==',body('Parse_JSON')?['status'],'##solutionName==',body('Parse_JSON_with_solutionname')?['solutionname'],'##runId==',body('Parse_JSON')?['run'],'##errorMessage==',body('Parse_JSON')?['errors'])",
+                        "runAfter": {
+                          "Fetch_Subject": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Compose"
+                      },
+                      "Compose_Subject": {
+                        "inputs": "@concat('statusName==',string(body('Parse_JSON')?['status']),'##projectName==',outputs('Get_a_Project')?['body/cat_name'])",
+                        "runAfter": {},
+                        "type": "Compose"
+                      },
+                      "Fetch_Body": {
+                        "inputs": {
+                          "body": {
+                            "text": "workflowCompleteNotificationFlow2",
+                            "text_2": "@outputs('Compose_Body')"
+                          },
+                          "host": {
+                            "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                          }
+                        },
+                        "runAfter": {
+                          "Compose_Body": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Workflow"
+                      },
+                      "Fetch_Subject": {
+                        "inputs": {
+                          "body": {
+                            "text": "workflowCompleteNotificationFlow1",
+                            "text_2": "@outputs('Compose_Subject')"
+                          },
+                          "host": {
+                            "workflowReferenceName": "4ada345e-9007-eb11-a813-000d3aa3e751"
+                          }
+                        },
+                        "runAfter": {
+                          "Compose_Subject": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Workflow"
+                      }
+                    },
+                    "runAfter": {
+                      "Parse_JSON_with_solutionname": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Scope"
+                  },
+                  "Get_a_Project": {
+                    "inputs": {
+                      "authentication": "@parameters('$authentication')",
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "GetItem"
+                      },
+                      "parameters": {
+                        "entityName": "cat_projects",
+                        "recordId": "@body('Parse_JSON')?['projectid']"
+                      }
+                    },
+                    "runAfter": {
+                      "Set_ProjectBuildRequestUpdated_:_true_3": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "OpenApiConnection"
+                  },
+                  "Get_a_Stage": {
+                    "inputs": {
+                      "authentication": "@parameters('$authentication')",
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "GetItem"
+                      },
+                      "parameters": {
+                        "entityName": "cat_deploymentstages",
+                        "recordId": "@outputs('Get_a_Project')?['body/_cat_stage_value']"
+                      }
+                    },
+                    "runAfter": {
+                      "Get_a_Project": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "OpenApiConnection"
+                  },
+                  "Get_a_record": {
+                    "inputs": {
+                      "authentication": "@parameters('$authentication')",
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "GetItem"
+                      },
+                      "parameters": {
+                        "entityName": "systemusers",
+                        "recordId": "@outputs('Get_a_Stage')?['body/_cat_stageowner_value']"
+                      }
+                    },
+                    "runAfter": {
+                      "Get_a_Stage": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "OpenApiConnection"
+                  },
+                  "Notify_Owner_and_Admin": {
+                    "inputs": {
+                      "body": {
+                        "text": "@{outputs('Read_Admin_Email')?['Body']?['envvalue']};@{outputs('Get_a_Stage')?['body/cat_stageowner']};@{outputs('Get_a_record')?['body/domainname']}",
+                        "text_1": "@outputs('Fetch_Subject')?['Body']?['localizedtext']",
+                        "text_2": "@outputs('Fetch_Body')?['Body']?['localizedtext']"
+                      },
+                      "host": {
+                        "workflowReferenceName": "4528dfaf-782e-eb11-a813-000d3a33febe"
+                      }
+                    },
+                    "runAfter": {
+                      "Fetch_Localized_Notification": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "Workflow"
+                  },
+                  "Parse_JSON_with_solutionname": {
+                    "inputs": {
+                      "content": "@triggerBody()",
+                      "schema": {
+                        "properties": {
+                          "branch": {
+                            "type": "string"
+                          },
+                          "errors": {
+                            "type": "string"
+                          },
+                          "projectid": {
+                            "type": "string"
+                          },
+                          "repo": {
+                            "type": "string"
+                          },
+                          "requestid": {
+                            "type": "string"
+                          },
+                          "run": {
+                            "type": "integer"
+                          },
+                          "solutionname": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "workflow": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "runAfter": {
+                      "Get_a_record": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "ParseJson"
+                  },
+                  "Set_ProjectBuildRequestUpdated_:_true_3": {
+                    "inputs": {
+                      "name": "ProjectBuildRequestUpdated",
+                      "value": true
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "not": {
+                  "equals": [
+                    "@body('Parse_JSON')?['workflow']",
+                    "Deploy solution to dev environment"
+                  ]
+                }
+              },
+              "runAfter": {
+                "Parse_Headers": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Parse_Headers": {
+              "inputs": {
+                "content": "@triggerOutputs()['headers']",
+                "schema": {
+                  "properties": {
+                    "Accept": {
+                      "type": "string"
+                    },
+                    "Connection": {
+                      "type": "string"
+                    },
+                    "Content-Length": {
+                      "type": "string"
+                    },
+                    "Content-Type": {
+                      "type": "string"
+                    },
+                    "Host": {
+                      "type": "string"
+                    },
+                    "User-Agent": {
+                      "type": "string"
+                    },
+                    "x-github-event": {
+                      "type": "string"
+                    },
+                    "x-hub-signature": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "runAfter": {
+                "Parse_JSON": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ParseJson"
+            },
+            "Parse_JSON": {
+              "inputs": {
+                "content": "@triggerBody()",
+                "schema": {
+                  "properties": {
+                    "branch": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "string"
+                    },
+                    "projectid": {
+                      "type": "string"
+                    },
+                    "repo": {
+                      "type": "string"
+                    },
+                    "requestid": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "workflow": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "runAfter": {},
+              "type": "ParseJson"
+            }
+          },
+          "runAfter": {
+            "Read_Admin_Email": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {}
+          },
+          "kind": "Http",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
