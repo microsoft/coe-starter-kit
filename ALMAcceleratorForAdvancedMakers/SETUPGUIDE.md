@@ -15,7 +15,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
 - **Prequisites** - Considerations and requirements in order to complete the setup.
 - **Foundational Setup** - This sections walks through the base setup of the ALM Accelerator for Advanced Makers. The base setup consist of the steps and configurations required.
 - **Development Project Setup** - This sections includes the steps required to set up a new Development Project covering project specific setup of Azure DevOps, generic build and deployment pipelines, Service Connections, Power Platform Environments and Application Users
-- **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing.
+- **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing. Also included are steps to setup a sample solution that we've provided to provide context for the first time you setup a solution.
 - **Importing the Solution and Configuring the App** - This section takes you through the steps required to import the actual ALM Accelerator for Advanced Makers canvas app and configuring the included custom connector.
 - **Using the ALM Accelerator App** - A short introduction to using the AA4AM canvas app
 - **Troubleshooting** - A few pointers on some know issues and how to remediate these.
@@ -35,7 +35,6 @@ The GETTINGSTARTED.md is structured into 7 main sections
     - [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
     - [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
     - [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
-    - [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
     - [Create Pipeline global variables](#create-pipeline-global-variables)
     - [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
   - [Development Project Setup](#development-project-setup)
@@ -160,15 +159,11 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 1. Select **General** > **Extension**
 ![image.png](.attachments/GETTINGSTARTED/image-3ccc9c10-4cd7-4188-9881-952bba2701dc.png)
 1. Install the following Extensions
-   - **Power Platform Build Tools**: This extension contains the first-party build tasks for Dataverse. (https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
+   - **Power Platform Build Tools (required)**: This extension contains the first-party build tasks for Dataverse. (https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
 
-   - **Power DevOps Tools**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
+   - **Power DevOps Tools (required)**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
 
-   - **Colin's ALM Corner Build & Release Tools**: This extension is used by the pipelines to tag builds based on the solution name so they can be identified by the specific solution that ran the general purpose export pipeline when deploying to environments. (https://marketplace.visualstudio.com/items?itemName=colinsalmcorner.colinsalmcorner-buildtasks | https://github.com/colindembovsky/cols-agent-tasks)
-
-   - **RegexReplace Azure Pipelines Task**: This extension is used by the pipelines to replace strings in files by matching them against a regular expression. (https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task | https://github.com/knom/vsts-regex-tasks)
-
-   - **Variable Tools for Azure DevOps Services**: This extension is used by the pipelines to save variables passed to a pipeline for use in other pipelines. Specifically, this tool is used to determine if an upgrade or update should be performed when solutions are imported to the various environments. (https://marketplace.visualstudio.com/items?itemName=nkdagility.variablehydration | https://github.com/nkdAgility/azure-devops-variable-tools)
+   - **RegexReplace Azure Pipelines Task (required)**: This extension is used by the pipelines to replace strings in files by matching them against a regular expression. (https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task | https://github.com/knom/vsts-regex-tasks)
 
    - **SARIF SAST Scans Tab (optional)**: This extension can be used to visualize the .**sarif files** that get generated by the **Solution Checker** during a build. ([SARIF SAST Scans Tab - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sariftools.scans))
 
@@ -205,12 +200,6 @@ Following the steps below to create the following pipelines based on the YAML in
 ![image.png](.attachments/GETTINGSTARTED/image-c4e3cc16-3abd-453b-a420-9366ef587e8c.png)
 1. Update the pipeline name to **export-solution-to-git**, **import-unmanaged-to-dev-environment** or **delete-unmanaged-solution-and-components** and select **Save**.
 
-### Get the Pipeline ID for the Export Solution Pipeline to use for global variables
-
-For the next step you will need to get the **Pipeline ID** that the build pipelines use to find resources required for the build process.
-
- 1. Open the **export-solution-to-git** pipeline and **copy the pipeline ID** from the address bar (e.g. If the URL for the Pipeline is (https://dev.azure.com/org/project/_build?definitionId=**39**) the **Pipeline ID** for this pipeline would be **39**)
-
 ### Create Pipeline global variables
 
 1. In Azure DevOps Select **Pipelines** > **Library** > **Create a new Variable Group**
@@ -225,8 +214,6 @@ For the next step you will need to get the **Pipeline ID** that the build pipeli
     | ClientId  | [The Application (client) ID you copied when creating the App Registration] |
     | ClientSecret | [The Application (client) Secret you copied when creating the App Registration] NOTE: It's recommeded that you secure this value by clicking the lock next to the value so others can't see your secret. |
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
-    | PipelineIdToLoadJsonValuesFrom  | [The pipeline ID for export-solution-to-git copied in the previous step] |
-    | ValidationServiceConnection    | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. This environment will be used to run solution checker during the build process. |
 
 ### Update Permissions for the Project Build Service
 
@@ -327,7 +314,7 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 ### Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)
 
-The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SampleSolutionSetupGuide.md).
+The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SAMPLESOLUTIONSETUPGUIDE.md).
 
 ### Create the Solution Build and Deployment Pipeline(s)
 
