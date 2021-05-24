@@ -12,7 +12,7 @@ This solution uses Azure DevOps for source control and deployments. You can sign
 
 The GETTINGSTARTED.md is structured into 7 main sections
 
-- **Prequisites** - Considerations and requirements in order to complete the setup.
+- **Prerequisites** - Considerations and requirements in order to complete the setup.
 - **Foundational Setup** - This sections walks through the base setup of the ALM Accelerator for Advanced Makers. The base setup consist of the steps and configurations required.
 - **Development Project Setup** - This sections includes the steps required to set up a new Development Project covering project specific setup of Azure DevOps, generic build and deployment pipelines, Service Connections, Power Platform Environments and Application Users
 - **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing.
