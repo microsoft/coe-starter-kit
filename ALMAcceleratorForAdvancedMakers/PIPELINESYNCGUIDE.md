@@ -1,6 +1,6 @@
 # ALM Accelerator for Advanced Makers Pipeline Sync
 
-## Introduction
+## Pipeline Sync Setup
 
 The Pipeline Sync script was created to make synchronizing the ALM Accelerator for Advanced Makers' (AA4AM) pipeline templates simpler. As the pipeline templates grow and change users are required to update the pipelines with each release of AA4AM. To simplify this process we created another pipeline template that will automatically sync your Azure DevOps repo with the pipeline template repo in GitHub. Follow the steps below to get started using the Pipeline Sync pipeline.
 
