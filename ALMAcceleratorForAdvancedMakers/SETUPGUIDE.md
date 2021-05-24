@@ -10,12 +10,12 @@ This solution uses Azure DevOps for source control and deployments. You can sign
 
 ## Document structure
 
-The SETUPGUIDE.md is structured into 7 main sections
+The GETTINGSTARTED.md is structured into 7 main sections
 
-- **Prerequisites** - Considerations and requirements in order to complete the setup.
+- **Prequisites** - Considerations and requirements in order to complete the setup.
 - **Foundational Setup** - This sections walks through the base setup of the ALM Accelerator for Advanced Makers. The base setup consist of the steps and configurations required.
 - **Development Project Setup** - This sections includes the steps required to set up a new Development Project covering project specific setup of Azure DevOps, generic build and deployment pipelines, Service Connections, Power Platform Environments and Application Users
-- **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing. Also included are steps to setup a sample solution that we've provided to provide context for the first time you setup a solution.
+- **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing.
 - **Importing the Solution and Configuring the App** - This section takes you through the steps required to import the actual ALM Accelerator for Advanced Makers canvas app and configuring the included custom connector.
 - **Using the ALM Accelerator App** - A short introduction to using the AA4AM canvas app
 - **Troubleshooting** - A few pointers on some know issues and how to remediate these.
@@ -35,6 +35,7 @@ The SETUPGUIDE.md is structured into 7 main sections
     - [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
     - [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
     - [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
+    - [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
     - [Create Pipeline global variables](#create-pipeline-global-variables)
     - [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
   - [Development Project Setup](#development-project-setup)
@@ -153,17 +154,21 @@ New-PowerAppManagementApp -ApplicationId [the Application (client) ID you copied
 
 ### Install Azure DevOps Extensions.
 
-The ALM Accelerator uses several Azure DevOps extensions, including some third-party extensions that are available in the Azure DevOps marketplace. Under Organization Settings in Azure DevOps install the following extensions. For more information regarding Microsoft and third-party Azure DevOps extensions see here https://docs.microsoft.com/en-us/azure/devops/marketplace/trust?view=azure-devops. In addition, each of the third-party extensions web pages and the link to their source code are provided below.
+The ALM Accelerator uses several Azure DevOps extensions, including some third-party Extensions that are available in the Azure DevOps marketplace. Under Organization Settings in Azure DevOps install the following extensions. For more information regarding Microsoft and third-party Azure DevOps extensions see here https://docs.microsoft.com/en-us/azure/devops/marketplace/trust?view=azure-devops. In addition, each of the thrid-party extensions web pages and the link to their source code are provided below.
 
 1. Go to https://dev.azure.com and select **Organization settings**
 1. Select **General** > **Extension**
 ![image.png](.attachments/GETTINGSTARTED/image-3ccc9c10-4cd7-4188-9881-952bba2701dc.png)
 1. Install the following Extensions
-   - **Power Platform Build Tools (required)**: This extension contains the first-party build tasks for Dataverse. (https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
+   - **Power Platform Build Tools**: This extension contains the first-party build tasks for Dataverse. (https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
 
-   - **Power DevOps Tools (required)**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
+   - **Power DevOps Tools**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
 
-   - **RegexReplace Azure Pipelines Task (required)**: This extension is used by the pipelines to replace strings in files by matching them against a regular expression. (https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task | https://github.com/knom/vsts-regex-tasks)
+   - **Colin's ALM Corner Build & Release Tools**: This extension is used by the pipelines to tag builds based on the solution name so they can be identified by the specific solution that ran the general purpose export pipeline when deploying to environments. (https://marketplace.visualstudio.com/items?itemName=colinsalmcorner.colinsalmcorner-buildtasks | https://github.com/colindembovsky/cols-agent-tasks)
+
+   - **RegexReplace Azure Pipelines Task**: This extension is used by the pipelines to replace strings in files by matching them against a regular expression. (https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task | https://github.com/knom/vsts-regex-tasks)
+
+   - **Variable Tools for Azure DevOps Services**: This extension is used by the pipelines to save variables passed to a pipeline for use in other pipelines. Specifically, this tool is used to determine if an upgrade or update should be performed when solutions are imported to the various environments. (https://marketplace.visualstudio.com/items?itemName=nkdagility.variablehydration | https://github.com/nkdAgility/azure-devops-variable-tools)
 
    - **SARIF SAST Scans Tab (optional)**: This extension can be used to visualize the .**sarif files** that get generated by the **Solution Checker** during a build. ([SARIF SAST Scans Tab - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sariftools.scans))
 
@@ -200,6 +205,12 @@ Following the steps below to create the following pipelines based on the YAML in
 ![image.png](.attachments/GETTINGSTARTED/image-c4e3cc16-3abd-453b-a420-9366ef587e8c.png)
 1. Update the pipeline name to **export-solution-to-git**, **import-unmanaged-to-dev-environment** or **delete-unmanaged-solution-and-components** and select **Save**.
 
+### Get the Pipeline ID for the Export Solution Pipeline to use for global variables
+
+For the next step you will need to get the **Pipeline ID** that the build pipelines use to find resources required for the build process.
+
+ 1. Open the **export-solution-to-git** pipeline and **copy the pipeline ID** from the address bar (e.g. If the URL for the Pipeline is (https://dev.azure.com/org/project/_build?definitionId=**39**) the **Pipeline ID** for this pipeline would be **39**)
+
 ### Create Pipeline global variables
 
 1. In Azure DevOps Select **Pipelines** > **Library** > **Create a new Variable Group**
@@ -214,6 +225,8 @@ Following the steps below to create the following pipelines based on the YAML in
     | ClientId  | [The Application (client) ID you copied when creating the App Registration] |
     | ClientSecret | [The Application (client) Secret you copied when creating the App Registration] NOTE: It's recommeded that you secure this value by clicking the lock next to the value so others can't see your secret. |
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
+    | PipelineIdToLoadJsonValuesFrom  | [The pipeline ID for export-solution-to-git copied in the previous step] |
+    | ValidationServiceConnection    | [The url of the validation instance of Dataverse e.g. https://deploy.crm.dynamics.com/] NOTE: This must be **identical** to the Azure DevOps **Validation Environment** **Service Connection** name you specified previously including any trailing forward slash. This environment will be used to run solution checker during the build process. |
 
 ### Update Permissions for the Project Build Service
 
@@ -314,7 +327,7 @@ The sample pipelines provides flexibility for organizations to store their pipel
 
 ### Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)
 
-The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SAMPLESOLUTIONSETUPGUIDE.md).
+The steps below provide generic step-by-step instructions on how to create pipelines to handle the application lifecycle of your solution. Since these steps are generic and can be difficult to follow without context. We've create a similar step-by-step setup guide for getting started with a Sample Solution that we've created. This will provide specific context for when you are ready to create and configure your own pipelines for your solution and validate the setup steps performed above. To validate your setup and complete the Sample Solution walkthrough follow the steps in the [Sample Solution Setup Guide](SampleSolutionSetupGuide.md).
 
 ### Create the Solution Build and Deployment Pipeline(s)
 
@@ -541,7 +554,7 @@ The **EnvironmentName** variable is used to specify the Azure DevOps environment
 
 ![image-20210414170154479](.attachments/GETTINGSTARTED/image-20210414170154479.png)
 
-The **ServiceConnection** variable is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created above [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
+ The **ServiceConnection** variable is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created above [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
 
 ![image-20210414170210916](.attachments/GETTINGSTARTED/image-20210414170210916.png)
 
@@ -802,60 +815,7 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
 
 ## Using the ALM Accelerator App
 
-1. Once the app is installed and configured launch it from your Environment under Apps.
-
-    > [!NOTE] When you first launch the app you may need to consent to the app using your connections.
-    
-1. Select the **Cog** in the top right to select your **Azure DevOps Environment**, **Project** and **Repo** to which you'll push your changes and submit your pull requests and select **Save**
-   ![image-20210303085854533](.attachments/GETTINGSTARTED/image-20210303085854533.png)
-
-   > [!NOTE] If you don't see your DevOps Organization / Project in the dropdown double check that the Custom connector is working correctly after updating it's Security settings.
-   
-1. From the Environment Drop Down **Select the Dataverse Environment** in which you will be doing your development work.
-   ![image-20210303085806618](.attachments/GETTINGSTARTED/image-20210303085806618.png)
-
-   > [!NOTE] In order for your Environment to show up in this drop down a service connection in the Azure DevOps project you just selected is required (see [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform). Additionally, verify that you've followed the steps to reconnect the flow above if you do not see any environments in the list.
-   
-1. By default the **unmanaged solutions** in your Environment should be displayed in the main window with buttons to **Push Changes** and **Create Pull Requests**.
-
-1. To import an unmanaged solution from an existing Azure DevOps project to begin making changes select the **+ Import Solutions** button and select a Repo and Folder.
-
-   > [!NOTE] The solutions available are based on the selected Repo and SolutionPackage folders in the selected Repo.
-
-   ![image-20210524110307135](.attachments/SETUPGUIDE/image-20210524110307135.png)
-   
-1. Once your solution is imported into Dataverse, or you've created a new unmanaged solution and made your customizations, you can push your changes to Git using the **Push Changes to Git** button for your solution.
-   >[!NOTE]: Be sure to publish your changes before initiating the push. If a newly created solution doesn't show in your list immediately. Click the Refresh button to reload all solutions.
-   - Select an **existing branch** or **create a new branch** based on an existing branch and enter a **comment**. Use the hashtag notation e.g. `#123` to link the changes to a specific work item in Azure DevOps and Select **Commit**.
-   ![image-20210303085710535](.attachments/GETTINGSTARTED/image-20210303085710535.png)
-   >[!NOTE]: There is an option to specify if the latest changes contain Delete Components. This allows the user to specify whether to perform an **update** or an **upgrade** of the solution when it is deployed. The former will increase the performance of the pipelines and reduce the overall time to deploy.
-   - When the push begins a waiting indicator will appear. If the push is successful a checkbox will appear otherwise a red x will appear. In order to see the progress of your push select the progress indicator which will take you to the running pipeline in Azure DevOps.
-   - Repeat the pushes as you iterate on your solution.
-   
-1. When you are ready to create a pull request for the changes to your branch select the Create Pull Request button.
-   >[!NOTE]: Be sure to publish your changes before initiating the push.
-   - Specify the Source and Target branch and enter a Title and Comment for your Pull Request and Select Create.**
-   ![image-20210303085543943](.attachments/GETTINGSTARTED/image-20210303085409740.png)
-
-1. Once a Pull Request is created for your changes the remaining steps to Merge and Release to Test occur in Azure DevOps. Depending on the Branch Policies and Triggers configured for your Target Branch, an Azure DevOps user can approve or reject your Pull Request based on their findings in the submitted changes and that status will appear in the App. Approving the PR will initiate the deployment of your solution to the Test environment. If the Pull Request is approved you will see the progress move to Test and a status based on the pipeline's success or failure in that stage.
-
-   ![image-20210303085132733](.attachments/GETTINGSTARTED/image-20210303085132733.png)
-
-1. The final step is to deploy your Solution to the **production environment**.
-
-    - Create a new Pull Request in Azure DevOps that will pull the changes from your branch into the main branch and enter any required information.
-
-      ![image-20210506151302121](.attachments/SETUPGUIDE/image-20210506151302121.png)
-
-    - This time you will notice that there is **no Build Validation Policy enforcement** since we are only running the build validation for the test branch and **not the main branch**.
-
-      ![image-20210506151536128](.attachments/SETUPGUIDE/image-20210506151536128.png)
-
-    - **Approve and Complete** the Pull Request as before and verify that the **deploy-prod** pipeline runs to push your changes to Production.
-
-      ![image-20210506152930801](.attachments/SETUPGUIDE/image-20210506152930801.png)
-
-    - Once the pipeline for deploying to Production is finished you will see the status of the deployment in the App similar to the other stages.
+See the [User Guide](USERGUIDE.md) for using the ALM Accelerator App
 
 ## Troubleshooting
 
