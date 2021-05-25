@@ -5,24 +5,6 @@
         If(policyScope = "AllEnvironments", ClearCollect(SelectedEnvironments, col_environments), policyScope = "OnlyEnvironments",
          ClearCollect(SelectedEnvironments,col_environmentsInPolicy), policyScope = "ExcludeEnvironments", ClearCollect(SelectedEnvironments, Filter(col_environments, !(name in col_environmentsInPolicy.name))));
         
-        Concurrent(
-        
-        ClearCollect(
-            col_loadedEnvironmentApps,
-            Filter(
-                'PowerApps Apps',
-                 'App Environment ID' in SelectedEnvironments.name
-            )
-        )
-        ,
-        ClearCollect(
-            col_loadedEnvironmentFlows,
-            Filter(
-                Flows,
-                'Flow Environment ID' in SelectedEnvironments.name
-            )
-        ));
-        
         ClearCollect(ConfidentialConnectorGroups, LookUp(
                             col_connectorGroups,
                             classification = "Confidential"
@@ -42,7 +24,10 @@
         ClearCollect(
             col_loadedReviewApps,
             AddColumns(
-                col_loadedEnvironmentApps,
+                Filter(
+                'PowerApps Apps',
+                 'App Environment ID' in SelectedEnvironments.name
+            ),
                 "lastModified",
                 'App Modified On',
                 "environmentName",
@@ -56,22 +41,22 @@
                 "hasConfidential",
                 !IsEmpty(
                     Filter(
-                        ThisRecord.'Connection References',
-                        'Display Name' in ConfidentialConnectorGroups.name
+                        Split('App Connections', ","),
+                        Result in ConfidentialConnectorGroups.name
                     )
                 ),
                 "hasGeneral",
                 !IsEmpty(
                     Filter(
-                        ThisRecord.'Connection References',
-                        'Display Name' in GeneralConnectorGroups.name
+                        Split('App Connections', ","),
+                        Result in GeneralConnectorGroups.name
                     )
                 ),
                 "hasBlocked",
                 !IsEmpty(
                     Filter(
-                        ThisRecord.'Connection References',
-                        'Display Name' in BlockedConnectorGroups.name
+                        Split('App Connections', ","),
+                        Result in BlockedConnectorGroups.name
                     )
                 )
             )
@@ -81,7 +66,10 @@
         ClearCollect(
             col_loadedReviewFlows,
             AddColumns(
-                col_loadedEnvironmentFlows,
+                Filter(
+                Flows,
+                'Flow Environment ID' in SelectedEnvironments.name
+            ),
                 "lastModified",
                 'Flow Modified On',
                 "environmentName",
@@ -93,31 +81,22 @@
                 "hasConfidential",
                 !IsEmpty(
                     Filter(
-                        ThisRecord.'Connection References',
-                        'Display Name' in LookUp(
-                            col_connectorGroups,
-                            classification = "Confidential"
-                        ).connectors.name
+                        Split('Flow Connections', ","),
+                        Result in ConfidentialConnectorGroups.name
                     )
                 ),
                 "hasGeneral",
-                !IsEmpty(
+        !IsEmpty(
                     Filter(
-                        ThisRecord.'Connection References',
-                        'Display Name' in LookUp(
-                            col_connectorGroups,
-                            classification = "General"
-                        ).connectors.name
+                        Split('Flow Connections', ","),
+                        Result in GeneralConnectorGroups.name
                     )
                 ),
                 "hasBlocked",
-                !IsEmpty(
+        !IsEmpty(
                     Filter(
-                        ThisRecord.'Connection References',
-                        'Display Name' in LookUp(
-                            col_connectorGroups,
-                            classification = "Blocked"
-                        ).connectors.name
+                        Split('Flow Connections', ","),
+                        Result in BlockedConnectorGroups.name
                     )
                 )
             )
@@ -171,6 +150,19 @@
                 Size: =13
                 Text: ="> Edit Policy"
                 ZIndex: =2
+
+            Label1 As label:
+                BorderColor: =RGBA(0, 0, 0, 0)
+                BorderStyle: =BorderStyle.None
+                BorderThickness: =2
+                Color: =RGBA(51, 51, 51, 1)
+                DisabledBorderColor: =RGBA(0, 0, 0, 0)
+                DisabledColor: =RGBA(166, 166, 166, 1)
+                FocusedBorderThickness: =4
+                Font: =Font.'Segoe UI'
+                Size: =13
+                Text: =
+                ZIndex: =3
 
         MainSectionContainer3_1 As groupContainer.verticalAutoLayoutContainer:
             AlignInContainer: =AlignInContainer.SetByContainer
@@ -273,13 +265,13 @@
                                             col_loadedReviewApps,
                                             (hasConfidential && hasGeneral) || hasBlocked
                                         )
-                                    ) & " of " & CountRows(col_loadedReviewApps) & ")",
+                                    ) & " of " & CountRows('PowerApps Apps') & ")",
                                     " (" & CountRows(
                                         Filter(
                                             col_loadedReviewFlows,
                                             (hasConfidential && hasGeneral) || hasBlocked
                                         )
-                                    ) & " of " & CountRows(col_loadedReviewFlows) & ")"
+                                    ) & " of " & CountRows('Flows') & ")"
                                 )
                             Width: =320
                             ZIndex: =1
@@ -793,8 +785,8 @@
                             Height: =400
                             Items: |-
                                 =Filter(
-                                    galApps.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                    Split(galApps.Selected.'App Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Confidential"
                                     ).connectors.name
@@ -817,7 +809,7 @@
                                 Height: =30
                                 OnSelect: =Select(Parent)
                                 Size: =11
-                                Text: =ThisItem.'Display Name'
+                                Text: =ThisItem.Result
                                 Width: =367
                                 X: =48
                                 ZIndex: =2
@@ -847,7 +839,7 @@
                                 Height: =30
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
-                                Image: =LookUp(col_connectors, id = ThisItem.Connector.admin_id).properties.iconUri
+                                Image: =LookUp(col_connectors, name = ThisItem.Result).properties.iconUri
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -861,8 +853,8 @@
                             Height: =400
                             Items: |-
                                 =Filter(
-                                    galFlows.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                Split(galFlows.Selected.'Flow Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Confidential"
                                     ).connectors.name
@@ -885,7 +877,7 @@
                                 Height: =30
                                 OnSelect: =Select(Parent)
                                 Size: =11
-                                Text: =ThisItem.'Display Name'
+                                Text: =ThisItem.Result
                                 Width: =367
                                 X: =34
                                 ZIndex: =2
@@ -915,7 +907,7 @@
                                 Height: =30
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
-                                Image: =LookUp(col_connectors, id = ThisItem.Connector.admin_id).properties.iconUri
+                                Image: =LookUp(col_connectors, name = ThisItem.Result).properties.iconUri
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -943,8 +935,8 @@
                             Height: =200
                             Items: |-
                                 =Filter(
-                                    galApps.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                   Split(galApps.Selected.'App Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "General"
                                     ).connectors.name
@@ -967,7 +959,7 @@
                                 Height: =30
                                 OnSelect: =Select(Parent)
                                 Size: =11
-                                Text: =ThisItem.'Display Name'
+                                Text: =ThisItem.Result
                                 Width: =377
                                 X: =48
                                 ZIndex: =1
@@ -997,7 +989,7 @@
                                 Height: =30
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
-                                Image: =LookUp(col_connectors, id = ThisItem.Connector.admin_id).properties.iconUri
+                                Image: =LookUp(col_connectors, name = ThisItem.Result).properties.iconUri
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -1011,8 +1003,8 @@
                             Height: =200
                             Items: |-
                                 =Filter(
-                                    galFlows.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                   Split(galFlows.Selected.'Flow Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "General"
                                     ).connectors.name
@@ -1035,7 +1027,7 @@
                                 Height: =30
                                 OnSelect: =Select(Parent)
                                 Size: =11
-                                Text: =ThisItem.'Display Name'
+                                Text: =ThisItem.Result
                                 Width: =377
                                 X: =30
                                 ZIndex: =1
@@ -1065,7 +1057,7 @@
                                 Height: =30
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
-                                Image: =LookUp(col_connectors, id = ThisItem.Connector.admin_id).properties.iconUri
+                                Image: =LookUp(col_connectors, name = ThisItem.Result).properties.iconUri
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -1093,8 +1085,8 @@
                             Height: =200
                             Items: |-
                                 =Filter(
-                                    galApps.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                    Split(galApps.Selected.'App Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Blocked"
                                     ).connectors.name
@@ -1117,7 +1109,7 @@
                                 Height: =28
                                 OnSelect: =Select(Parent)
                                 Size: =11
-                                Text: =ThisItem.'Display Name'
+                                Text: =ThisItem.Result
                                 Width: =274
                                 X: =48
                                 Y: =1
@@ -1148,7 +1140,7 @@
                                 Height: =30
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
-                                Image: =LookUp(col_connectors, id = ThisItem.Connector.admin_id).properties.iconUri
+                                Image: =LookUp(col_connectors, name = ThisItem.Result).properties.iconUri
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -1160,10 +1152,10 @@
                             BorderThickness: =1
                             FillPortions: =0.5
                             Height: =200
-                            Items: |-
+                            Items: |
                                 =Filter(
-                                    galFlows.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                    Split(galFlows.Selected.'Flow Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Blocked"
                                     ).connectors.name
@@ -1186,7 +1178,7 @@
                                 Height: =28
                                 OnSelect: =Select(Parent)
                                 Size: =11
-                                Text: =ThisItem.'Display Name'
+                                Text: =ThisItem.Result
                                 Width: =274
                                 X: =48
                                 Y: =2
@@ -1217,7 +1209,7 @@
                                 Height: =30
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
-                                Image: =LookUp(col_connectors, id = ThisItem.Connector.admin_id).properties.iconUri
+                                Image: =LookUp(col_connectors, name = ThisItem.Result).properties.iconUri
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -1255,50 +1247,50 @@
                                 galApps.Selected.appMaker &", <br><br>Your Power Apps called <b>'" & galApps.Selected.'App Display Name' &"'</b> does not comply with the environment's DLP Policy requirements. Please adjust the connectors used in your app to continue development. The current connections that conflict are:<br>
                                 <br>
                                 <u>Business data:</u> <br>" 
-                                & Concat(Filter(galApps.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                & Concat(Filter(Split(galApps.Selected.'App Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Confidential"
-                                    ).connectors.name), 'Display Name', ",")
+                                    ).connectors.name), Result, ",")
                                 &"<br> 
                                 <br>
                                 <u>Non-business data</u> <br>"
-                                & Concat(Filter(galApps.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                & Concat(Filter(Split(galApps.Selected.'App Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "General"
-                                    ).connectors.name), 'Display Name', ",")
+                                    ).connectors.name), Result, ",")
                                 &"<br> 
                                 <br><u>Blocked</u> <br>"
-                                & Concat(Filter(galApps.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                & Concat(Filter(Split(galApps.Selected.'App Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Blocked"
-                                    ).connectors.name), 'Display Name', ","), 
+                                    ).connectors.name), Result, ","), 
                                     
                                     galFlows.Selected.flowMaker &", <br><br>Your Power Automate cloud flow called <b>'" & galFlows.Selected.'Display Name' &"'</b> does not comply with the environment's DLP Policy requirements. Please adjust the connectors used in your flow to continue development. The current connections that conflict are:<br>
                                 <br>
                                 <u>Business data:</u> <br>" 
-                                & Concat(Filter(galFlows.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                & Concat(Filter(Split(galFlows.Selected.'Flow Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Confidential"
-                                    ).connectors.name), 'Display Name', ",")
+                                    ).connectors.name), Result, ",")
                                 &"<br> 
                                 <br>
                                 <u>Non-business data</u> <br>"
-                                & Concat(Filter(galFlows.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                & Concat(Filter(Split(galFlows.Selected.'Flow Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "General"
-                                    ).connectors.name), 'Display Name', ",")
+                                    ).connectors.name), Result, ",")
                                 &"<br> 
                                 <br><u>Blocked</u> <br>"
-                                & Concat(Filter(galFlows.Selected.'Connection References',
-                                    'Display Name' in LookUp(
+                                & Concat(Filter(Split(galFlows.Selected.'Flow Connections', ","),
+                                    Result in LookUp(
                                         col_connectorGroups,
                                         classification = "Blocked"
-                                    ).connectors.name), 'Display Name', ","))
+                                    ).connectors.name), Result, ","))
                             FillPortions: =2
                             Height: =500
                             Width: =150
