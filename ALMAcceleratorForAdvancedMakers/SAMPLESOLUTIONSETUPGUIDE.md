@@ -28,6 +28,15 @@ Solution Pipelines are used to build and deploy your source controlled solutions
 
 #### Create the Validation and Test Pipelines
 
+In this step you'll be creating the Validation and Test Pipelines for reference your pipelines will follow this configuration
+
+| Pipeline YAML File Name                    | Pipeline Name                    | Branch Policy Enabled |
+| ------------------------------------------ | -------------------------------- | --------------------- |
+| build-deploy-validation-SampleSolution.yml | deploy-validation-SampleSolution | Yes                   |
+| build-deploy-test-SampleSolution.yml       | deploy-test-SampleSolution       | No                    |
+
+
+
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](SETUPGUIDE.md#copy-the-YAML-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
 1. Open the sample deployment pipeline (i.e. **build-deploy-validation-SampleSolution.yml or build-deploy-test-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
@@ -105,7 +114,11 @@ Solution Pipelines are used to build and deploy your source controlled solutions
 
 #### Create the Production Solution Deployment Pipeline
 
-As mentioned in the note above, the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above.
+As mentioned in the note above, the previous section allows you to create pipelines that build and deploy for each environment (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above. For reference your pipeline will be configured as follows.
+
+| Pipeline YAML File Name                      | Pipeline Name                            | Branch Policy Enabled |
+| -------------------------------------------- | ---------------------------------------- | --------------------- |
+| deploy-prod-ALMAcceleratorSampleSolution.yml | deploy-prod-ALMAcceleratorSampleSolution | No                    |
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-YAML-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -143,7 +156,7 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
      ![image-20210505172803107](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505172803107.png)
 
-8. Repeat the same steps performed for **deploy-validation-ALMAcceleratorSampleSolution** and **deploy-test-ALMAcceleratorSampleSolution** to create a pipeline from the new production pipeline YAML called **deploy-prod-ALMAcceleratorSampleSolution**.
+8. Repeat the same steps 9-15, performed above, for **deploy-validation-ALMAcceleratorSampleSolution** and **deploy-test-ALMAcceleratorSampleSolution** to create a pipeline from the new production pipeline YAML called **deploy-prod-ALMAcceleratorSampleSolution**.
 
 ### Setting Branch Policies for Pull Request Validation
 
