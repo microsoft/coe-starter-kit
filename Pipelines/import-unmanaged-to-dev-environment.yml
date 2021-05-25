@@ -1,13 +1,17 @@
-trigger: none
-pr: none
-
 # variables passed in by API:
+# - Project
+# - Repo
+# - Branch
 # - SolutionName
-# - ServiceConnName
+# - ServiceConnection
 # - BuildDefinitionId
 # - PipelineId
 #
 # NOTE: If you want to use different values for these variables, you can remove the variable group and attach them directly to this pipeline.
+
+trigger: none
+pr: none
+
 variables:
 - group: global-variable-group
 
@@ -17,43 +21,22 @@ pool:
   vmImage: 'windows-2019'
 
 steps:
-- checkout: none
-
-# Get the solution package from artifact uploaded by the build pipeline
-- task: DownloadPipelineArtifact@2
-  displayName: 'Download Pipeline Artifact'
-  inputs:
-    buildType: specific
-    project: '$(System.TeamProjectId)'
-    definition: $(BuildDefinitionId)
-    artifactName: drop
-    pipelineId: $(PipelineId)
-    buildVersionToDownload: specific
-    allowPartiallySucceededBuilds: true
-    path: '$(Pipeline.Workspace)/drop'
-
 - powershell: |
-   Write-Host "$(System.TeamProjectId)-$(BuildDefinitionId)-$(PipelineId)"
-   Get-ChildItem -Path "$(Pipeline.Workspace)/drop" -Filter "$(SolutionName)*.zip" | 
-   ForEach-Object {
-       If (-Not $_.FullName.Contains("_managed")) 
-       { 
-         $unmanagedSolutionPath = $_.FullName 
-       }
-   }
-   Write-Host "##vso[task.setVariable variable=UnmanagedSolutionPath]$unmanagedSolutionPath"
-   Write-Host $unmanagedSolutionPath
-  displayName: 'Get unmanaged solution zip path'
+    Write-Host "##vso[task.setvariable variable=RepoName]$(Repo)"
+  displayName: 'Set Source Repo Name'
+
+- template: Templates\build-unmanaged-Solution.yml
 
 - template: Templates\deploy-Solution.yml
   parameters:
-    serviceConnection: '$(ServiceConnName)'
+    serviceConnection: '$(ServiceConnection)'
     environmentVariables: '$(DevEnvironmentVariables)'
     connectionReferences: '$(DevConnectionReferences)'
     aadGroupTeamConfiguration: '$(DevAadGroupTeamConfiguration)'
     aadGroupCanvasConfiguration: '$(DevAadGroupCanvasConfiguration)'
     solutionComponentOwnershipConfiguration: '$(DevSolutionComponentOwnershipConfiguration)'
     importUnmanaged: 'true'
+
 - template: Templates\update-canvas-app-ownership.yml
   parameters:
-    serviceConnection: '$(ServiceConnName)'
+    serviceConnection: '$(ServiceConnection)'
