@@ -66,21 +66,37 @@ steps:
   condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
 
 - powershell: |
-    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\ConfigurationMigrationData"
-    $configurationMigrationExists = Test-Path $path
-    Write-Host "##vso[task.setvariable variable=ConfigurationMigrationExists]$configurationMigrationExists"
-  displayName: 'Check if Configuration Migration Data exists'
+   $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\ConfigurationMigrationData"
+   if(Test-Path $path) {
+       $compress = @{
+         Path = $path + '\*.*'
+         CompressionLevel = 'Fastest'
+         DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
+       }
+       Compress-Archive @compress
+   }
 
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/$(RepoName)/$(SolutionName)/ConfigurationMigrationData'
-    includeRootFolder: false
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
-    replaceExistingArchive: true
-  displayName: 'Zip Configuration Migration Data'
-  condition: and(succeeded(), eq(variables['ConfigurationMigrationExists'], 'True'))
-  #skip task if there is no ConfigurationMigrationData in source control
+   if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
+       Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
+       ForEach-Object {
+           $environment = $_.Name
+           $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
+           if(Test-Path $path) {
+                $compress = @{
+                    Path = $path + '\*.*'
+                    CompressionLevel = 'Fastest'
+                    DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData-' + $environment + '.zip'
+                }
+                Compress-Archive @compress
+           }
+           $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\deploymentSettings.json"
+           if(Test-Path $path) {
+                Copy-Item $path "$(Build.ArtifactStagingDirectory)/deploymentSettings-$environment.json"
+           }
+       }
+   }
+
+  displayName: 'Archive Configuration Migration Data'
 
 - task: PublishPipelineArtifact@1
   displayName: 'Publish Artifacts'

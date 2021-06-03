@@ -180,7 +180,7 @@ steps:
     SolutionInputFile: $(ManagedSolutionPath)
     PublishWorkflows: true
     OverwriteUnmanagedCustomizations: ${{parameters.overwriteUnmanagedCustomizations}}
-  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), or(eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'false'), eq(variables['SolutionExists'], 'False')))
+  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), or(eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'false'), eq(variables['SolutionExists'], 'false')))
 
 # If the TriggerSolutionUpgrade variable is true, then import the solution as an Upgrade, staging it as a holding solution, so we can apply a solution Upgrade.
 # Doing this will ensure that items removed from the solution in development are also removed from the solution in the target environment after the Upgrade is applied.
@@ -192,7 +192,7 @@ steps:
     SolutionInputFile: $(ManagedSolutionPath)
     HoldingSolution: true
     OverwriteUnmanagedCustomizations: ${{parameters.overwriteUnmanagedCustomizations}}
-  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'True'))
+  condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'true'))
 
 # NOTE: Sometimes you need to perform intermediary steps between staging the upgrade and applying it.  
 # An example would be moving data from one entity to another before deleting the entity.
@@ -205,7 +205,7 @@ steps:
     PowerPlatformSPN: '${{parameters.serviceConnection}}'
     SolutionName: '$(SolutionName)'
     AsyncOperation: true
-  condition: and(succeeded(), eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'True'))
+  condition: and(succeeded(), eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'true'))
 
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.publish-customizations.PowerPlatformPublishCustomizations@0
   displayName: 'Power Platform Publish Customizations '
@@ -215,20 +215,34 @@ steps:
   condition: and(succeeded(), eq('${{parameters.importUnmanaged}}', 'true'))
   # Only publish customizations for when importing unmanaged solutions into a dev environment.
 
+  #Check for deployment settings for this environment
 - powershell: |
-    # The try / catch below isn't ideal. However, passing runtime variables as parameters, which should resolve to empty strings if they don't exist, don't work as expected in AzDO. Runtime variables passed as strings 
-    # are sent over with their variable name as opposed to their value. Only variables referenced with macro notation seem to resolve properly.
-    $ErrorActionPreference = "Stop"
-    Try
+    $deploymentSettingsPath = ''
+    $path = "$(Pipeline.Workspace)/drop/deploymentSettings-$(EnvironmentName).json"
+    if(Test-Path $path)
     {
-      echo "##vso[task.setvariable variable=outEnvironmentVariables;isOutput=true]${{parameters.environmentVariables}}"
+        $deploymentSettingsPath = $path
     }
-    Catch 
-    {
-        echo "##vso[task.setvariable variable=outEnvironmentVariables;isOutput=true]"
-    }
-  name: setEnvironmentVariablesOutput
-  displayName: 'Set Environment Variables for Condition'
+    Write-Host "##vso[task.setVariable variable=DeploymentSettingsPath]$deploymentSettingsPath"
+  displayName: 'Check if Deployment Settings Exist'
+
+# Update appsettings.json via FileTransform task.
+- task: FileTransform@1
+  displayName: 'File transformation: deploymentSettings.json'
+  inputs:
+    folderPath: '$(Pipeline.Workspace)/drop/'
+    targetFiles: "deploymentSettings-$(EnvironmentName).json"
+    fileType: json
+  condition: and(succeeded(), ne(variables['DeploymentSettingsPath'], ''))
+
+
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outEnvironmentVariables'
+    pipelineVariableValue: '${{parameters.environmentVariables}}'
+    deploymentSettingsPath: $(DeploymentSettingsPath)
+    deploymentSettingsNode: 'EnvironmentVariables'
+    displayName: 'Retrieve Environment Variable Config'
 
 # WORKAROUND: We were using parameters in the condition, but it was not evaluating.  Reviewed: https://docs.microsoft.com/en-us/azure/devops/pipelines/process/conditions?view=azure-devops&tabs=yaml#use-a-template-parameter-as-part-of-a-condition
 # Current workaround is to set an output variable in the step above and use that in the condition below.
@@ -238,89 +252,60 @@ steps:
   displayName: 'Update Environment Variables'
   inputs:
     crmConnectionString: '$(CdsBaseConnectionString)${{parameters.serviceConnection}}'
-    environmentVariablesJson: '${{parameters.environmentVariables}}'
-  condition: and(succeeded(), ne(variables['setEnvironmentVariablesOutput.outEnvironmentVariables'], ''))
+    environmentVariablesJson: '$(outEnvironmentVariables.outEnvironmentVariables)'
+  condition: and(succeeded(), ne(variables['outEnvironmentVariables.outEnvironmentVariables'], ''))
 
-- powershell: |
-    # The try / catch below isn't ideal. However, passing runtime variables as parameters, which should resolve to empty strings if they don't exist, don't work as expected in AzDO. Runtime variables passed as strings 
-    # are sent over with their variable name as opposed to their value. Only variables referenced with macro notation seem to resolve properly.
-    $ErrorActionPreference = "Stop"
-    Try
-    {
-      echo "##vso[task.setvariable variable=outConnectionReferences;isOutput=true]${{parameters.connectionReferences}}"
-    }
-    Catch 
-    {
-        echo "##vso[task.setvariable variable=outConnectionReferences;isOutput=true]"
-    }
-
-  name: setConnectionReferencesOutput
-  displayName: 'Set Connection References for Condition'
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outConnectionReferences'
+    pipelineVariableValue: '${{parameters.connectionReferences}}'
+    deploymentSettingsPath: $(DeploymentSettingsPath)
+    deploymentSettingsNode: 'ConnectionReferences'
+    displayName: 'Retrieve Connection Reference Config'
 
 - template: update-connection-references.yml
   parameters:
     serviceConnection: '${{parameters.serviceConnection}}'
-    connectionReferences: '${{parameters.connectionReferences}}'
+    connectionReferences: '$(outConnectionReferences.outConnectionReferences)'
 
-- powershell: |
-    # The try / catch below isn't ideal. However, passing runtime variables as parameters, which should resolve to empty strings if they don't exist, don't work as expected in AzDO. Runtime variables passed as strings 
-    # are sent over with their variable name as opposed to their value. Only variables referenced with macro notation seem to resolve properly.
-    $ErrorActionPreference = "Stop"
-    Try
-    {
-      echo "##vso[task.setvariable variable=outAadGroupTeamConfiguration;isOutput=true]${{parameters.aadGroupTeamConfiguration}}"
-    }
-    Catch 
-    {
-        echo "##vso[task.setvariable variable=outAadGroupTeamConfiguration;isOutput=true]"
-    }
-  name: setAadGroupTeamConfigurationOutput
-  displayName: 'Set AAD Group Team Configuration for Condition'
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outAadGroupTeamConfiguration'
+    pipelineVariableValue: '${{parameters.aadGroupTeamConfiguration}}'
+    deploymentSettingsPath: $(DeploymentSettingsPath)
+    deploymentSettingsNode: 'AadGroupTeamConfiguration'
+    displayName: 'Retrieve AAD Group Team Config'
 
 - template: set-dataverse-aad-group-teams.yml
   parameters:
     serviceConnection: '${{parameters.serviceConnection}}'
-    aadGroupTeamConfiguration: '${{parameters.aadGroupTeamConfiguration}}'
+    aadGroupTeamConfiguration: '$(outAadGroupTeamConfiguration.outAadGroupTeamConfiguration)'
 
-- powershell: |
-    # The try / catch below isn't ideal. However, passing runtime variables as parameters, which should resolve to empty strings if they don't exist, don't work as expected in AzDO. Runtime variables passed as strings 
-    # are sent over with their variable name as opposed to their value. Only variables referenced with macro notation seem to resolve properly.
-    $ErrorActionPreference = "Stop"
-    Try
-    {
-      echo "##vso[task.setvariable variable=outAadGroupCanvasConfiguration;isOutput=true]${{parameters.aadGroupCanvasConfiguration}}"
-    }
-    Catch 
-    {
-        echo "##vso[task.setvariable variable=outAadGroupCanvasConfiguration;isOutput=true]"
-    }
-  name: setAadGroupCanvasConfigurationOutput
-  displayName: 'Set AAD Group Canvas Configuration for Condition'
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outAadGroupCanvasConfiguration'
+    pipelineVariableValue: '${{parameters.aadGroupCanvasConfiguration}}'
+    deploymentSettingsPath: $(DeploymentSettingsPath)
+    deploymentSettingsNode: 'AadGroupCanvasConfiguration'
+    displayName: 'Retrieve AAD Group Canvas Config'
 
 - template: share-canvas-app-with-aad-group.yml
   parameters:
     serviceConnection: '${{parameters.serviceConnection}}'
-    aadGroupCanvasConfiguration: '${{parameters.aadGroupCanvasConfiguration}}'
+    aadGroupCanvasConfiguration: '$(outAadGroupCanvasConfiguration.outAadGroupCanvasConfiguration)'
 
-- powershell: |
-    # The try / catch below isn't ideal. However, passing runtime variables as parameters, which should resolve to empty strings if they don't exist, don't work as expected in AzDO. Runtime variables passed as strings 
-    # are sent over with their variable name as opposed to their value. Only variables referenced with macro notation seem to resolve properly.
-    $ErrorActionPreference = "Stop"
-    Try
-    {
-      echo "##vso[task.setvariable variable=outSolutionComponentOwnershipConfiguration;isOutput=true]${{parameters.solutionComponentOwnershipConfiguration}}"
-    }
-    Catch 
-    {
-        echo "##vso[task.setvariable variable=outSolutionComponentOwnershipConfiguration;isOutput=true]"
-    }
-  name: setSolutionComponentOwnershipConfigurationOutput
-  displayName: 'Set Solution Component Ownership Configuration for Condition'
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outSolutionComponentOwnershipConfiguration'
+    pipelineVariableValue: '${{parameters.solutionComponentOwnershipConfiguration}}'
+    deploymentSettingsPath: $(DeploymentSettingsPath)
+    deploymentSettingsNode: 'SolutionComponentOwnershipConfiguration'
+    displayName: 'Retrieve Solution Component Onwership Config'
 
 - template: update-solution-component-ownership.yml
   parameters:
     serviceConnection: '${{parameters.serviceConnection}}'
-    solutionComponentOwnershipConfiguration: '${{parameters.solutionComponentOwnershipConfiguration}}'
+    solutionComponentOwnershipConfiguration: '$(outSolutionComponentOwnershipConfiguration.outSolutionComponentOwnershipConfiguration)'
 
 - template: import-configuration-migration-data.yml
   parameters:
