@@ -1152,7 +1152,8 @@ Home As screen:
                                     ServiceConnection: {value: lblAzureDevOpsServiceConnectionValue.Text},
                                     BuildDefinitionId: {value: ""},
                                     PipelineId: {value: piplineIdToRun},
-                                    ImportUnmanaged: {value: ""}
+                                    ImportUnmanaged: {value: ""},
+                                    EnvironmentName: {value: ""}
                                 }
                             }
                         ).id
@@ -1578,7 +1579,8 @@ Home As screen:
                                     TriggerSolutionUpgrade: {value: ""},
                                     BuildDefinitionId: {value: ""},
                                     PipelineId: {value: ""},
-                                    ImportUnmanaged: {value: "true"}
+                                    ImportUnmanaged: {value: "true"},
+                                    EnvironmentName: { value: drpConfigFolders.Selected.DisplayName }
                                 }
                             }
                         ).id
@@ -1674,11 +1676,11 @@ Home As screen:
         drpSolutionFolders As dropdown:
             ChevronHoverBackground: =ColorFade(drpSolutionFolders.ChevronBackground, 20%)
             ChevronHoverFill: =ColorFade(drpSolutionFolders.ChevronFill, 20%)
-            Default: =
+            Default: =DefaultBranchSolutionFolder
             HoverBorderColor: =ColorFade(drpSolutionFolders.BorderColor, 20%)
             HoverColor: =ColorFade(drpSolutionFolders.Color, 20%)
             HoverFill: =ColorFade(drpSolutionFolders.SelectionFill, 20%)
-            Items: =BranchFolders
+            Items: =BranchSolutionFolders
             OnChange: =Select(fncRefreshBranchFolders)
             PressedBorderColor: =drpSolutionFolders.HoverBorderColor
             PressedColor: =drpSolutionFolders.Fill
@@ -1723,7 +1725,7 @@ Home As screen:
             ZIndex: =17
 
         "glrSolutionImportHistory As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
-            Height: =722
+            Height: =620
             Items: =Search(SolutionsImportLatestBuildStatuses, drpSolutionFolders.Selected.DisplayName,"uniquename")
             Layout: =Layout.Vertical
             TemplatePadding: =0
@@ -1731,7 +1733,7 @@ Home As screen:
             Visible: =CountRows(glrSolutionImportHistory.AllItems) > 0
             Width: =500
             X: =32
-            Y: =273
+            Y: =374
             ZIndex: =18
 
             lblPipelineName As label:
@@ -1850,8 +1852,8 @@ Home As screen:
             PaddingLeft: =0
             Text: =Concatenate(drpSolutionFolders.SelectedText.'data-ADB4D7A662F548B49FAC2B986E348A1BDisplayName', " Import History")
             Width: =497
-            X: =32
-            Y: =234
+            X: =30
+            Y: =335
             ZIndex: =19
 
         lblSolutionImportHistoryEmpty As label:
@@ -1861,8 +1863,34 @@ Home As screen:
             Visible: =CountRows(glrSolutionImportHistory.AllItems) = 0
             Width: =497
             X: =32
-            Y: =271
+            Y: =374
             ZIndex: =20
+
+        drpConfigFolders As dropdown:
+            ChevronHoverBackground: =ColorFade(drpConfigFolders.ChevronBackground, 20%)
+            ChevronHoverFill: =ColorFade(drpConfigFolders.ChevronFill, 20%)
+            Default: =
+            HoverBorderColor: =ColorFade(drpConfigFolders.BorderColor, 20%)
+            HoverColor: =ColorFade(drpConfigFolders.Color, 20%)
+            HoverFill: =ColorFade(drpConfigFolders.SelectionFill, 20%)
+            Items: =BranchConfigFolders
+            OnChange: =
+            PressedBorderColor: =drpConfigFolders.HoverBorderColor
+            PressedColor: =drpConfigFolders.Fill
+            PressedFill: =drpConfigFolders.Color
+            Width: =506
+            X: =30
+            Y: =274
+            ZIndex: =21
+
+        lblConfigFolder As label:
+            FontWeight: =FontWeight.Semibold
+            PaddingLeft: =0
+            Text: ="Configuration"
+            Width: =200
+            X: =30
+            Y: =234
+            ZIndex: =22
 
     SettingsDialog As groupContainer:
         DisplayMode: =DisplayMode.Edit
@@ -2877,11 +2905,7 @@ Home As screen:
             OnSelect: |
                 =If(
                     Not IsBlank(drpAdoOrganizations.Selected.AccountName) And Not IsBlank(drpAdoProjects.Selected.name) And Not IsBlank(dpBranchName.Selected.name),
-                    ClearCollect(
-                        BranchFolders,
-                        AddColumns(
-                            Filter(
-                                CustomAzureDevOps.ListItems(
+                    ClearCollect(BranchFolders, CustomAzureDevOps.ListItems(
                                     drpAdoOrganizations.Selected.AccountName,
                                     drpAdoProjects.Selected.name,
                                     drpRepos.Selected.id,
@@ -2890,7 +2914,12 @@ Home As screen:
                                         'versionDescriptor.versionType': "branch",
                                         'versionDescriptor.version': dpBranchName.Selected.DisplayName
                                     }
-                                ).value,
+                                ).value);
+                    ClearCollect(
+                        BranchSolutionFolders,
+                        AddColumns(
+                            Filter(
+                                BranchFolders,
                                 isFolder = true && "SolutionPackage" in path && Not("SolutionPackage/" in path)
                             ),
                             "DisplayName",
@@ -2900,7 +2929,23 @@ Home As screen:
                             ).name;
                         )
                     );
-                    
+                    Set(DefaultBranchSolutionFolder, First(BranchSolutionFolders).DisplayName);
+                    ClearCollect(BranchConfigFolders, {DisplayName: Char(160)});
+                    Collect(
+                        BranchConfigFolders,
+                        AddColumns(
+                            Filter(
+                                BranchFolders,
+                                isFolder = true && "config/" in path && Not("/ConfigurationMigrationData" in path)
+                            ),
+                            "DisplayName",
+                            Match(
+                                path,
+                                "\/config\/(?<environment>.+)"
+                            ).environment;
+                        )
+                    );
+                
                 );
             PressedBorderColor: =fncRefreshBranchFolders.Fill
             PressedColor: =fncRefreshBranchFolders.Fill
@@ -3466,7 +3511,8 @@ Home As screen:
                                     TriggerSolutionUpgrade: {value: false},
                                     BuildDefinitionId: {value: ""},
                                     PipelineId: {value: piplineIdToRun},
-                                    ImportUnmanaged: { value: "" }
+                                    ImportUnmanaged: { value: "" },
+                                    EnvironmentName: { value: "" }
                                 }
                             }
                         ).id
