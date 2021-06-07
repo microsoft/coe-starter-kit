@@ -1,0 +1,866 @@
+"use strict";
+import * as azdev from "azure-devops-node-api"
+import { IHeaders, IRequestHandler } from "azure-devops-node-api/interfaces/common/VsoBaseInterfaces";
+import util from "util"
+import * as CoreInterfaces from 'azure-devops-node-api/interfaces/CoreInterfaces';
+import { GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus } from 'azure-devops-node-api/interfaces/GitInterfaces';
+import * as gitm from "azure-devops-node-api/GitApi"
+import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces';
+
+import axios from 'axios';
+import open = require('open');
+import { GitRepository, ItemContent } from "azure-devops-node-api/interfaces/TfvcInterfaces";
+import { IBuildApi } from "azure-devops-node-api/BuildApi";
+import { PolicyConfiguration } from "azure-devops-node-api/interfaces/PolicyInterfaces";
+
+import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
+import yesno from 'yesno'; 
+import path = require('path');
+import httpm = require('typed-rest-client/HttpClient');
+
+import { AADAppInstallArguments, AADCommand } from "./aad";
+import { EndpointAuthorization, ServiceEndpoint, TaskAgentPool, VariableGroupParameters } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
+import { ProjectReference, VariableGroupProjectReference, VariableValue } from "azure-devops-node-api/interfaces/ReleaseInterfaces";
+
+/**
+ * Install Arguments
+ */
+class DevOpsInstallArguments {
+    constructor() {
+        this.extensions = [
+            <DevOpsExtension> {
+                name: "PowerPlatform-BuildTools",
+                publisher: "microsoft-IsvExpTools"
+            },
+            <DevOpsExtension> {
+                name: "xrm-ci-framework-build-tasks",
+                publisher: "WaelHamze"
+            },
+            <DevOpsExtension> {
+                name: "variablehydration",
+                publisher: "nkdagility"
+            },
+            <DevOpsExtension> {
+                name: "scans",
+                publisher: "sariftools"
+            }
+        ]
+        this.environments = {}
+        this.azureActiveDirectoryServicePrincipal = 'ALMAcceleratorServicePrincipal'
+        this.accessTokens = {}
+        this.createSecretIfNoExist = true
+    }
+
+    /**
+     * The Bearer Auth access token
+     */
+     accessToken: string
+
+
+     /**
+      * Audance scoped access tokens
+      */
+     accessTokens: { [id: string] : string }
+
+     /**
+      * The name of the Azure DevOps Organization
+      */
+     organizationName:string
+     /**
+      * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
+      */
+     repositoryName: string
+     /**
+      * The name of the project that the Accelerator has been deployed to
+      */
+     projectName: string
+
+     /**
+      * The name of the Azure account. Required if access to more than one Azure account
+      */
+    account: string
+
+    /**
+     * The client id to use for authentication
+     */
+    clientId:string
+
+    /**
+     * The Azure Active directory application name will use to integrate with Azure DevOps
+     */
+    azureActiveDirectoryServicePrincipal:string
+
+     /**
+      * The DevOps extension to install
+      */
+     extensions: DevOpsExtension[]
+
+     /**
+      * Create secret if not exist
+      */
+    createSecretIfNoExist: boolean
+
+    /**
+     * The Azure DevOps environment
+     */
+    environment: string
+
+     /**
+     * The Azure DevOps environments
+     */
+    environments: { [id: string] : string }
+}
+
+type DevOpsExtension = {
+    /**
+     * The extension name
+     */
+     name: string
+
+    /**
+     * The publisher name
+     */
+     publisher: string
+}
+
+/**
+ * Branch Arguments
+ */
+class DevOpsBranchArguments {
+    /**
+     * The Bearer Auth access token
+     */
+    accessToken: string
+    
+    /**
+     * Scoped access tokens
+     */
+    accessTokens: { [id: string] : string }
+    
+    /**
+     * The name of the Azure DevOps Organization
+     */
+    organizationName:string
+    /**
+     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
+     */
+    repositoryName: string
+    /**
+     * The name of the project that the Accelerator has been deployed to
+     */
+    projectName: string
+    /**
+     * The source branch to branch from (Optional). If not defined will use default branch
+     */
+    sourceBranch: string
+
+    /**
+     * The source build name to copy setup from> if not defained will create initial values that will need to be updated
+     */
+    sourceBuildName: string
+
+    /**
+     * The name of the branch to create
+     */
+    destinationBranch: string
+
+    /**
+     * Open default web configuration pages
+     */
+    openDefaultPages: boolean
+}
+
+ /**
+ * Azure DevOps Commands
+ */
+class DevOpsCommand {
+    createWebApi: (orgUrl: string, authHandler: IRequestHandler) => azdev.WebApi
+    createAADCommand: () => AADCommand
+    getUrl: (url: string) => Promise<string>
+    runCommand: (command: string, displayOutput: boolean) => string 
+    prompt: (text: string) => Promise<boolean>
+    getHttpClient: (connection: azdev.WebApi) => httpm.HttpClient
+
+    constructor() {
+        this.createWebApi = (orgUrl: string, authHandler: IRequestHandler) => new azdev.WebApi(orgUrl, authHandler)
+        this.createAADCommand = () => new AADCommand
+        this.getUrl = async (url: string) => {
+            return (await (axios.get<string>(url))).data
+        }
+        this.runCommand = (command: string, displayOutput: boolean) => {
+            if (displayOutput) {
+              return execSync(command, <ExecSyncOptionsWithStringEncoding> { stdio: 'inherit', encoding: 'utf8' })
+            } else {
+              return execSync(command, <ExecSyncOptionsWithStringEncoding> { encoding: 'utf8' })
+            }
+        }
+        this.prompt = async (text: string) => await yesno({question:text})
+        this.getHttpClient = (connection: azdev.WebApi) => connection.rest.client
+    }
+
+    /**
+     * 
+     * @param args Install components required to run AA4AM using Azure CLI commands
+     * @returns 
+     */
+    async install(args: DevOpsInstallArguments): Promise<void> {
+        try {
+            this.runCommand('pwsh --version', false)
+        } catch {
+            console.log('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+            return
+        }
+
+        let script = path.join( __dirname, '..', '..', '..' , 'scripts', 'Install-AzureDevOpsExtensions.ps1')
+        let extensions = path.join(__dirname, '..', '..', '..', 'config', 'AzureDevOpsExtensionsDetails.json')
+
+        let orgUrl = `https://dev.azure.com/${args.organizationName}`
+
+        console.debug('Installing DevOps Extensions')
+
+        // Call powershell script to register a new Azure active directory Application
+        let command = `pwsh -c ". '${script}'; Install-AzureDevOpsExtensions -OrganizationUrl '${orgUrl}' -ExtensionsFilePath '${extensions}'"`
+        this.runCommand(command, true)
+
+        let authHandler = azdev.getBearerHandler(typeof args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] !== "undefined" ? args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] : args.accessToken); 
+        let connection = this.createWebApi(orgUrl, authHandler); 
+
+        let repo = await this.importPipelineRepository(args, connection)
+
+        await this.createAdvancedMakersBuildPipelines(args, connection, repo)
+
+        await this.createAdvancedMakersBuildVariables(args, connection)
+
+        await this.createAdvancedMakersServiceConnections(args, connection)
+    }
+
+    async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<GitRepository> {
+        let gitApi = await connection.getGitApi()
+        let repo = await this.getRepository(args, gitApi)
+
+        let refs = await gitApi.getRefs(repo.id, args.projectName)
+
+        if (refs.length == 0) {
+            console.debug(`Importing ${args.repositoryName}`)
+            repo.defaultBranch = "refs/heads/main"
+            let importRequest = await gitApi.createImportRequest(<GitImportRequest>{ 
+                parameters: <GitImportRequestParameters>{ gitSource: <GitImportGitSource>{ url:"https://github.com/microsoft/coe-alm-accelerator-templates.git" }},
+                repository: repo
+            }, args.projectName, repo.id)
+
+            
+            while (true) {
+                let requests = await gitApi.queryImportRequests(args.projectName, repo.id)
+                let current = requests.filter(r => r.importRequestId == importRequest.importRequestId)[0] 
+                if ( current.status ==  GitAsyncOperationStatus.Completed || current.status ==  GitAsyncOperationStatus.Abandoned || current.status ==  GitAsyncOperationStatus.Failed ) {
+                    break;
+                }
+                await this.sleep(500)
+            }
+
+            console.debug('Setting default branch')
+            let headers = <IHeaders>{ };
+            headers["Content-Type"] = "application/json"
+            await this.getHttpClient(connection).patch(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
+        }
+
+        return repo;
+    }
+
+    private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi) : Promise<GitRepository> {
+        let repos = await gitApi.getRepositories(args.projectName);
+        if (repos.filter(r => r.name == args.repositoryName).length == 0) {
+            console.debug(`Creating repository ${args.repositoryName}`)
+            return await gitApi.createRepository(<GitRepositoryCreateOptions>{name: args.repositoryName}, args.projectName)
+        } else {
+            return repos.filter(r => r.name == args.repositoryName)[0]
+        }
+    }
+
+    sleep(ms: number)  {
+        return new Promise(resolve => setTimeout(resolve, ms))
+    }
+
+    /**
+     * Create Build pipelines required by the ALM Accelerator for Advanced Makers (AA4AM)
+     * @param args The installation paramaters
+     * @param connection The authenticated connection
+     * @param repo The pipeline repo to a create builds for
+     */
+    async createAdvancedMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository) : Promise<void> {
+        connection = await this.createConnectionIfExists(args, connection)
+
+        if (repo == null) {
+            let gitApi = await connection.getGitApi()
+            repo = await this.getRepository(args, gitApi)
+        }
+
+        let buildApi = await connection.getBuildApi();
+
+        if (typeof buildApi == "undefined") {
+            console.log("Build API missing")
+            return
+        }
+
+        let taskApi = await connection.getTaskAgentApi()
+
+        let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
+        let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
+
+        let builds = await buildApi.getDefinitions(args.projectName)
+
+        let buildNames = ['export-solution-to-git', 'import-unmanaged-to-dev-environment', 'delete-unmanaged-solution-and-components']
+
+        for ( var i = 0; i < buildNames.length; i++ ) {
+            let exportBuild = builds.filter(b => b.name == buildNames[i])
+
+            if (exportBuild.length == 0) {
+                console.debug(`Creating build ${buildNames[i]}`)
+                await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentPool)
+            } else {
+                let build = await buildApi.getDefinition(args.projectName, exportBuild[0].id)
+                let changes = false
+
+                if ( typeof build.queue === "undefined" ) {
+                    console.debug(`Missing build queue for ${build.name}`)
+                    build.queue = <BuildInterfaces.BuildDefinitionReference> { queue: defaultAgentPool }
+                    changes = true
+                }
+
+                if (changes) {
+                    console.debug(`Updating ${build.name}`)
+                    await buildApi.updateDefinition(build, args.projectName, exportBuild[0].id)
+                } else {
+                    console.debug(`No changes to ${buildNames[i]}`)
+                }
+                
+            }
+        }
+    }
+
+    async createAdvancedMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi) {
+        connection = await this.createConnectionIfExists(args, connection)
+
+        let taskApi = await connection.getTaskAgentApi()
+
+        let groups = await taskApi?.getVariableGroups(args.projectName);
+
+        let global = groups?.filter(g => g.name == "global-variable-group")
+        if ( global?.length == 0) {
+            let aadCommand = this.createAADCommand()
+
+            let aadArgs = new AADAppInstallArguments()
+            aadArgs.account = args.account
+            aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            aadArgs.createSecret = args.createSecretIfNoExist
+
+            let secretInfo = await aadCommand.addSecret(aadArgs, "COE-AA4AM")
+
+            if (!aadArgs.createSecret) {
+                console.warn('Client secret not added for variable group global-variable-group it wil need to be added manually')
+            }
+
+            let buildApi = await connection.getBuildApi();
+            let builds = await buildApi.getDefinitions(args.projectName)
+            let exportBuild = builds.filter(b => b.name == "export-solution-to-git")
+            let buildId = exportBuild.length == 1 ? exportBuild[0].id.toString() : ""
+
+            let validationConnection = 'TODO'
+            if (typeof args.environments["validation"] != "undefined" ) {
+                validationConnection = args.environments["validation"] 
+            }
+            if (args.environment?.length > 0 && validationConnection == "TODO") {
+                validationConnection = args.environment
+            }
+           
+            let paramemeters = <VariableGroupParameters>{ }
+            paramemeters.variableGroupProjectReferences = [
+                <VariableGroupProjectReference>{
+                    name:  'global-variable-group',
+                    projectReference:<ProjectReference>{
+                        name: args.projectName,
+                    }
+                }]
+            paramemeters.name = 'global-variable-group'
+            paramemeters.description = 'ALM Accelerator for Advanced Makers'
+            paramemeters.variables = {
+                "CdsBaseConnectionString": <VariableValue>{ 
+                    value: "AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
+                }, 
+                "ClientId": <VariableValue>{ 
+                    value: secretInfo.clientId
+                }, 
+                "ClientSecret": <VariableValue>{ 
+                    isSecret: true,
+                    value: secretInfo.clientSecret
+                }, 
+                "TenantID": <VariableValue>{ 
+                    value: secretInfo.tenantId
+                }, 
+                "PipelineIdToLoadJsonValuesFrom": <VariableValue>{ 
+                    value: buildId
+                },
+                "ValidationServiceConnection": <VariableValue>{ 
+                    value: `https://${validationConnection}.crm.dynamics.com/`
+                }
+            }
+
+            taskApi.addVariableGroup(paramemeters);
+        }
+        
+    }
+
+    async createAdvancedMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi) {
+        connection = await this.createConnectionIfExists(args, connection)
+
+        let endpoints = await this.getServiceConnections(args, connection)
+        let coreApi = await connection.getCoreApi();
+
+        let projects = await coreApi.getProjects()
+        let project = projects.filter(p => p.name == args.projectName)
+
+        let aadCommand = this.createAADCommand()
+        let aadArgs = new AADAppInstallArguments()
+        aadArgs.account = args.account
+        aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+        aadArgs.createSecret = args.createSecretIfNoExist
+
+        let keys = Object.keys(args.environments)
+
+        let environments : string[] = []
+
+        if ( args.environment?.length > 0 ) {
+            environments.push(args.environment)
+        }
+
+        let mapping : { [id: string] : string } = {}
+
+        for ( var i = 0; i < keys.length; i++) {
+            let environmentName = args.environments[keys[i]]
+            mapping[environmentName] = keys[i]
+            environments.push(environmentName)
+        }
+
+        for ( var i = 0; i < environments.length; i++) {
+            let environmentName = environments[i]
+            let endpointUrl = `https://${environmentName}.crm.dynamics.com/`
+
+            let secretInfo = await aadCommand.addSecret(aadArgs, environmentName)
+
+            if (endpoints.filter(e => e.name == endpointUrl).length == 0) {
+                let ep = <ServiceEndpoint>{
+                    authorization: <EndpointAuthorization> {
+                        parameters: {
+                            tenantId: secretInfo.tenantId,
+                            clientSecret: secretInfo.clientSecret,
+                            applicationId: secretInfo.clientId
+                        },
+                        scheme: "None"
+                    },
+                    name: endpointUrl,
+                    type: "powerplatform-spn",
+                    url: endpointUrl,
+                    description: typeof mapping[environmentName] !== "undefined" ? `Environment ${mapping[environmentName]}` : '',
+                    serviceEndpointProjectReferences: [
+                        {
+                            projectReference: <ProjectReference> {
+                                id: project[0].id,
+                                name: args.projectName
+                            },
+                            name: endpointUrl
+                        }
+                    ]
+                }
+
+                let headers = <IHeaders>{ };
+                headers["Content-Type"] = "application/json"
+                let webClient = this.getHttpClient(connection);
+                let create = await webClient.post(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
+
+                if (create.message.statusCode != 200) {
+                    console.log(await create.readBody())
+                } else {
+                    console.log(`Create service connection ${endpointUrl}`)
+                }
+            }
+        }
+    }
+
+    /**
+     * Retrieve laray of current service connections
+     * @param connection The authenticated connection
+     * @returns 
+     */
+    async getServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<ServiceEndpoint[]> {
+        let webClient = this.getHttpClient(connection);
+        let request = await webClient.get(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
+        let data = await request.readBody()
+        return <ServiceEndpoint[]>(JSON.parse(data).value)
+    }
+
+    private async createConnectionIfExists( args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<azdev.WebApi> {
+        if ( connection == null) {
+            let authHandler = azdev.getBearerHandler(args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"], true); 
+            let orgUrl = `https://dev.azure.com/${args.organizationName}`
+            return this.createWebApi(orgUrl, authHandler); 
+        }
+        return connection
+    }
+
+    async createBuild(buildApi: IBuildApi, repo: GitRepository, name: string, yamlFilename: string, defaultPool: TaskAgentPool) : Promise<BuildInterfaces.BuildDefinition> {
+        let newBuild = <BuildInterfaces.BuildDefinition>{};
+        newBuild.name = name
+        newBuild.repository = <BuildInterfaces.BuildRepository>{}
+        newBuild.repository.defaultBranch = "refs/heads/main"
+        newBuild.repository.id = repo.id
+        newBuild.repository.name = repo.name
+        newBuild.repository.url = repo.url
+        newBuild.repository.type = 'TfsGit'
+        let process = <BuildInterfaces.YamlProcess>{};
+        process.yamlFilename = yamlFilename
+        newBuild.process = process
+        newBuild.queue = <BuildInterfaces.BuildDefinitionReference> { queue: defaultPool }
+       
+        return buildApi.createDefinition(newBuild, repo.project.name)
+    }
+    
+
+    /**
+     * Create new branch in Azure DevOps repository
+     *
+     * @param args {DevOpsBranchArguments} - The branch request
+     * @return {Promise} aync outcome
+     *
+     */
+    async branch(args: DevOpsBranchArguments) : Promise<void> {
+        let orgUrl = util.format("https://dev.azure.com/%s",args.organizationName);
+        let authHandler = azdev.getBearerHandler(args.accessToken); 
+        let connection = this.createWebApi(orgUrl, authHandler); 
+
+        let core = await connection.getCoreApi()
+        let project : CoreInterfaces.TeamProject = await core.getProject(args.projectName)
+
+        if (typeof project !== "undefined") {
+            console.debug(util.format("Found project %s", project.name))
+
+            let gitApi = await connection.getGitApi()
+
+            let repo = await this.createBranch(args, project, gitApi);
+
+            await this.createBuildForBranch(args, project, repo, connection);
+
+            await this.setBranchPolicy(args, repo, connection);
+        }
+    }
+
+    /**
+     * Create branch in Azure Devops Repo
+     * @param args - The branch arguments
+     * @param project Th project to create the project in
+     * @param gitApi The open git API connection to create the 
+     * @returns 
+     */
+    async createBranch(args: DevOpsBranchArguments, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi) : Promise<GitRepository> {
+        var repos = await gitApi.getRepositories(project.id);
+        var matchingRepo: GitRepository;
+
+        let repositoryName = args.repositoryName
+        if ( typeof repositoryName === "undefined" || repositoryName?.length == 0) {
+            // No repository defined assume it is the project name
+            repositoryName = args.projectName
+        }
+
+        let foundRepo = false
+        for ( let i = 0; i < repos.length; i++ ) {
+            let repo = repos[i]
+
+            if ( repo.name == repositoryName ) {
+                foundRepo = true
+                matchingRepo = repo
+
+                console.debug(`Found matching repo ${repositoryName}`)
+
+                let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
+
+                let sourceBranch = args.sourceBranch;
+                if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
+                    sourceBranch = this.withoutRefsPrefix(repo.defaultBranch)
+                }
+
+                let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
+                if (sourceRef.length == 0) {
+                    console.error(util.format("Source branch [%s] not found", sourceBranch))
+                    console.debug('Existing branches')
+                    for ( var refIndex = 0; refIndex < refs.length; refIndex++ ) {
+                        console.debug(refs[refIndex].name)
+                    }
+                    return matchingRepo;
+                }
+
+                let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
+                if (destinationRef.length > 0) {
+                    console.error("Destination branch already exists")
+                    return matchingRepo;
+                }
+
+                let newRef = <GitRefUpdate> {};
+                newRef.repositoryId = repo.id
+                newRef.oldObjectId = sourceRef[0].objectId
+                newRef.name = util.format("refs/heads/%s", args.destinationBranch)
+
+                let newGitCommit = <GitCommitRef> {}
+                newGitCommit.comment = "Add DevOps Pipeline"
+                newGitCommit.changes = await this.getGitCommitChanges(args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
+
+                let gitPush = <GitPush> {}
+                gitPush.refUpdates = [ newRef ]
+                gitPush.commits = [ newGitCommit ]
+
+                console.debug(util.format('Pushing new branch %s',args.destinationBranch))
+                await gitApi.createPush(gitPush, repo.id, project.name)
+            }
+        }
+
+        if (!foundRepo && repositoryName?.length > 0 ) {
+            console.debug(util.format("Repo %s not found", repositoryName))
+            console.debug('Did you mean?')
+            repos.forEach( repo => {
+                if ( repo.name.startsWith(repositoryName[0]) ) {
+                    console.debug(repo.name)
+                }
+            });
+        }
+
+        return matchingRepo;
+    }
+
+    /**
+     * 
+     * @param args Set the default vlidation branch policy to a branch
+     * @param repo The repository that the branch belongs to
+     * @param connection The authentcated connection to the Azure DevOps WebApi
+     */
+    async setBranchPolicy(args: DevOpsBranchArguments, repo: GitRepository, connection: azdev.WebApi) : Promise<void> {
+        let policyApi = await connection.getPolicyApi();
+        if (policyApi == null) {
+            return
+        }
+
+        let policyTypes = await policyApi.getPolicyTypes(args.projectName)
+        let buildTypes = policyTypes.filter(p => { if (p.displayName == 'Build') { return true } })
+
+        let buildApi = await connection.getBuildApi();
+        let builds = await buildApi.getDefinitions(args.projectName)
+        let buildMatch = builds.filter ( b => { if ( b.name == `deploy-validation-${args.destinationBranch}` ) { return true } } )
+
+        if ( buildTypes.length > 0 )
+        {
+            let existingConfigurations = await policyApi.getPolicyConfigurations(args.projectName);
+            let existingPolices = existingConfigurations.filter( (policy: PolicyConfiguration) => 
+                {
+                    if ( policy.settings.scope?.length == 1
+                    && policy.settings.scope[0].refName == `ref/heads/${args.destinationBranch}`
+                    && policy.settings.scope[0].repositorytId == repo.id
+                    && policy.type.id == policyTypes[0].id ) {
+                        return true
+                    }
+                })
+
+            if ((existingPolices.length == 0) && (buildMatch.length > 0)) {
+                let newPolicy = <PolicyConfiguration>{}
+                newPolicy.settings = {}
+                newPolicy.settings.buildDefinitionId = buildMatch[0].id
+                newPolicy.settings.displayName = 'Build Validation'
+                newPolicy.settings.filenamePatterens = [`/${args.destinationBranch}/*`]
+                newPolicy.settings.manualQueueOnly = false
+                newPolicy.settings.queueOnSourceUpdateOnly = false
+                newPolicy.settings.validDuration = 0
+                let repoRef = { refName: `refs/heads/${args.destinationBranch}`, matchKind: 'Exact',  repositoryId:  repo.id }
+                newPolicy.settings.scope = [repoRef]
+                newPolicy.type = buildTypes[0]
+                newPolicy.isBlocking = true
+                newPolicy.isEnabled = true
+                newPolicy.isEnterpriseManaged = false
+
+                console.debug('Checking branch policy')
+                await policyApi.createPolicyConfiguration(newPolicy, args.projectName)
+            } else {
+                console.debug('Branch policy already created')
+            }
+        }
+    }
+
+    withoutRefsPrefix(refName: string): string
+    {
+        if (!refName.startsWith("refs/heads/"))
+        {
+            throw Error("The ref name should have started with 'refs/heads/' but it didn't.");
+        }
+        return refName.substr("refs/heads/".length, refName.length - "refs/heads/".length);
+    }
+
+    /**
+     * Create Azure DevOps builds for branch
+     * @param args - The branch to optionally copy from and and destination branch to apply the builds to
+     * @param project - The project to add the build to
+     * @param connection - The authenticated connection to Azure DevOp WebApi
+     */
+    async createBuildForBranch(args: DevOpsBranchArguments, project: CoreInterfaces.TeamProject, repo: GitRepository, connection: azdev.WebApi) : Promise<void> {
+        let buildClient = await connection.getBuildApi()
+
+        let definitions = await buildClient.getDefinitions(project.name)
+
+        let taskApi  = await connection.getTaskAgentApi()
+        let defaultAgent : TaskAgentPool[] = []
+        defaultAgent = (await taskApi?.getAgentPools())?.filter(a => a.name == "Default");
+
+        let baseUrl = `https://dev.azure.com/${args.organizationName}/${args.projectName}`
+
+        let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
+
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, false, defaultAgentPool);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, false, defaultAgentPool);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, false, defaultAgentPool);
+    }
+
+    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, template: string, createInBranch: string, required: boolean, defaultPool: TaskAgentPool) : Promise<void> {
+
+        let source = args.sourceBuildName
+        let destination =args.destinationBranch
+
+        var destinationBuildName = util.format("deploy-%s-%s", template, destination);
+        var destinationBuilds = pipelines.filter(p => p.name == destinationBuildName);
+
+        var sourceBuildName =  util.format("deploy-%s-%s", template, source);
+        var sourceBuilds = pipelines.filter(p => p.name == sourceBuildName);
+
+        let destinationBuild = destinationBuilds.length > 0 ? await client.getDefinition(destinationBuilds[0].project.name, destinationBuilds[0].id) : null
+        let sourceBuild = sourceBuilds.length > 0 ? await client.getDefinition(sourceBuilds[0].project?.name, sourceBuilds[0].id) : null
+
+        if (destinationBuild != null && sourceBuild != null) {
+            let destinationKeys = Object.keys(destinationBuild.variables)
+            let sourceKeys = Object.keys(sourceBuild.variables)
+            if (destinationKeys.length==0 && sourceKeys.length >0) {
+                destinationBuild.variables = sourceBuild.variables
+                
+                console.debug(util.format("Updating %s environment variables", destinationBuildName))
+                await client.updateDefinition(destinationBuild, destinationBuild.project.name, destinationBuild.id)
+                return;
+            }
+        }
+
+        if (destinationBuild != null) {
+            return;
+        }
+
+        let defaultSettings = false
+        if ( sourceBuild == null ) {
+            if ( required ) {
+                throw Error(util.format("Source build %s not found, but required", sourceBuildName))
+            } 
+
+            console.debug(`Source build ${sourceBuildName} not found`)
+            let possibles =  pipelines.filter(p => p.name?.startsWith(`deploy-${template}`))
+            if ( possibles.length > 0 ) {
+                sourceBuildName = possibles[0].name
+                sourceBuild = possibles.length > 0 ? await client.getDefinition(possibles[0].project?.name, possibles[0].id) : null
+                console.debug(`Selecting ${sourceBuildName} to copy settings from`)
+            }
+
+            if (sourceBuild == null) {
+                //let endpoints = await this.getServiceConnections(connection)
+
+                defaultSettings = true
+                console.debug(`Matching ${template} build not found, will apply default settings`)
+                console.debug(`Applying default service connection. You will need to update settings with you environment teams`)
+                sourceBuild = <BuildInterfaces.BuildDefinition>{};
+                sourceBuild.repository = <BuildInterfaces.BuildRepository>{}
+                sourceBuild.repository.id = repo.id
+                sourceBuild.repository.name = repo.name
+                sourceBuild.repository.url = repo.url
+                sourceBuild.repository.type = 'TfsGit'
+                let environmentName = ''
+                let seviceConnection = ''
+
+                switch (template?.toLowerCase()) {
+                    case "validation": {
+                        environmentName = 'Validation'
+                        seviceConnection = 'https://yourenviromenthere-validation.crm.dynamics.com'
+                        break;
+                    }
+                    case "test": {
+                        environmentName = 'Test'
+                        seviceConnection = 'https://yourenviromenthere-test.crm.dynamics.com'
+                        break;
+                    }
+                    case "prod": {
+                        environmentName = 'Production'
+                        seviceConnection = 'https://yourenviromenthere-production.crm.dynamics.com'
+                        break;
+                    }
+                }
+                sourceBuild.variables = {
+                    EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
+                    ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
+                }
+                sourceBuild.variables.EnvironmentName.value = environmentName
+                sourceBuild.variables.ServiceConnection.value = seviceConnection
+            }
+        }
+
+        console.debug(util.format("Creating new build %s", destinationBuildName));
+        var newBuild = <BuildInterfaces.BuildDefinition>{};
+        newBuild.name = destinationBuildName;
+        let process = <BuildInterfaces.YamlProcess>{};
+        process.yamlFilename = util.format("/%s/%s.yml", destination, destinationBuildName)
+        newBuild.process = process
+        newBuild.path = "/" + destination;
+        newBuild.repository = sourceBuild.repository;
+        newBuild.repository.defaultBranch = createInBranch;
+        newBuild.variables = sourceBuild.variables
+        if (sourceBuild.triggers != null) {
+            newBuild.triggers = sourceBuild.triggers
+        }
+        if (sourceBuild.queue != null) {
+            newBuild.queue = sourceBuild.queue
+        } else {
+            newBuild.queue = <BuildInterfaces.BuildDefinitionReference> {
+                 queue: defaultPool
+            }
+        }
+        
+        let result = await client.createDefinition(newBuild, project.name);
+
+        if (defaultSettings && args.openDefaultPages) {
+            await open(`${baseUrl}/_build/${result?.id}`)
+        }
+    }
+
+    async getGitCommitChanges(destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
+        let results : GitChange[] = []
+        for ( let i = 0; i < names.length; i++ ) {
+            let url = util.format("https://raw.githubusercontent.com/microsoft/coe-alm-accelerator-templates/main/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]);
+            
+            let response = await this.getUrl(url)
+
+            let commit = <GitChange>{}
+            commit.changeType = VersionControlChangeType.Add
+            commit.item = <GitItem>{}
+            commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+            commit.newContent = <ItemContent>{}
+            commit.newContent.content = (response)?.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+            commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, 'pipelines')
+            commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+            commit.newContent.contentType = ItemContentType.RawText
+
+            results.push(commit)
+        }
+        return results;
+    }
+}
+
+export { 
+    DevOpsBranchArguments,
+    DevOpsInstallArguments,
+    DevOpsCommand 
+};

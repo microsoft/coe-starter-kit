@@ -1,0 +1,137 @@
+"use strict";
+import * as path from 'path'
+import * as fs from 'fs';
+import { Project, ts } from "ts-morph";
+import pascalcase = require('pascalcase');
+import open = require('open');
+const fsPromises = fs.promises;
+
+/**
+ * CLI Command Arguments
+ */
+class CLIArguments {
+    /**
+     * Some text argument
+     */
+    name: string
+}
+
+/**
+ * CLI commands
+ */
+class CLICommand {
+    public writeFile: (name: string, content: string) => Promise<void>
+
+    constructor() {
+        this.writeFile = async (name: string, content: string) => await fsPromises.writeFile(name, content)
+    }
+
+     /**
+     * Open the about page for the cli
+     */
+    async about() : Promise<void> {
+        await open('https://github.com/microsoft/coe-starter-kit/blob/main/coe-cli/readme.md')
+    }
+
+    /**
+     * Add a new script command
+     * @param args 
+     * @returns 
+     */
+    async add(args: CLIArguments) : Promise<void> {
+        await this.createScript('source', args.name);
+        await this.createScript('test', args.name);
+
+        // TODO: Update commands.ts to include new command
+        const project = new Project({ compilerOptions: { outDir: "dist", declaration: true, target: ts.ScriptTarget.Latest } });
+        project.addSourceFilesAtPaths("src/**/*{.d.ts,.ts}");
+        const sourceFile = project.getSourceFileOrThrow(path.join(process.cwd(), 'src/commands/commands.ts'));
+
+        // TODO: Update commands.spec.ts to test new comamnd
+
+        var imports = sourceFile.getImportDeclarations()
+
+        await sourceFile.emit(); 
+    }
+
+    async createScript(type: string, name: string) : Promise<void> {
+        let newCommandName = pascalcase(name)
+    
+        if (type == 'source')
+        {
+            let commmandScript = path.join(process.cwd(), `src/commands/${name.toLowerCase()}.ts`)
+    
+            if (!fs.existsSync(commmandScript)) {
+                console.log(`Creating ${commmandScript}`)
+                await this.writeFile(commmandScript, `"use strict";
+
+/**
+ * ${newCommandName} Command Arguments
+ */
+class ${newCommandName}Arguments {
+    /**
+     * Some text argument
+     */
+    comments: string
+}
+
+/**
+ * ${newCommandName} commands
+ */
+class ${newCommandName}Command {
+
+    /**
+     * Execute the command
+     * @param args 
+     * @returns 
+     */
+    async execute(args: ${newCommandName}Arguments) : Promise<void> {
+        console.log(args.comments)
+        return Promise.resolve();
+    }
+}
+
+export { 
+    ${newCommandName}Arguments,
+    ${newCommandName}Command
+};`)
+            } else {
+                console.log('Script file already exists')
+            }    
+        }
+    
+        if (type == 'test')
+        {
+            let commmandScript = path.join(process.cwd(), `test/commands/${name.toLowerCase()}.spec.ts`)
+            
+            if (!fs.existsSync(commmandScript)) {
+                console.log(`Creating ${commmandScript}`)
+                await this.writeFile(commmandScript, `"use strict";
+import { ${newCommandName}Arguments, ${newCommandName}Command } from '../../src/commands/${name.toLowerCase()}';
+            
+describe('Related Tests', () => {
+    test('Default', async () => {
+        // Arrange
+        var command = new ${newCommandName}Command;
+        let args = new ${newCommandName}Arguments();
+    
+        // Act
+        
+        await command.execute(args)
+
+        // Assert
+    })
+});
+    `)
+            } else {
+                console.log('Test script file already exists')
+            }    
+        }
+    }
+    
+}
+
+export { 
+    CLIArguments,
+    CLICommand
+};
