@@ -65,7 +65,7 @@ class CoeCliCommands {
             .description('Initialize a new ALM Accelerators for Makers instance')
             .addOption(componentOption)
             .option('-a, --account <name>', 'The Azure Active directory account')
-            .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('-d, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-o, --devopsOrg <organization>', 'The Azure DevOps environment to create the user in')
             .option('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines")

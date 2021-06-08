@@ -23,22 +23,3 @@ describe('Import', () => {
         // Assert
     })
 });
-
-describe('Connectors', () => {
-    test('Update', async () => {
-        // Arrange
-        var command = new PowerPlatformCommand;
-        command.getUrl = (url: string) => Promise.resolve("[]")
-
-        command.getAxios = () => mock<AxiosStatic>();
-
-        let update = new PowerPlatformConectorUpdate();
-
-        // Act
-        
-        await command.updateConnector(update)
-
-        // Assert
-    })
-});
-    

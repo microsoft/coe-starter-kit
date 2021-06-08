@@ -1,11 +1,11 @@
-import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
+import { exec, execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import yesno from 'yesno';
 
 export class CommandLineHelper {
     async validateAzCliReady(args: any): Promise<boolean> {
         let pwshVersion = ''
         try {
-            pwshVersion = this.runCommand('pwsh --version', false)
+            pwshVersion = await this.runCommand('pwsh --version', false)
         } catch {
 
         }
@@ -18,7 +18,7 @@ export class CommandLineHelper {
         while (!validated) {
             let accounts: any[]
             try {
-                accounts = <any[]>JSON.parse(this.runCommand('az account list', false))
+                accounts = <any[]>JSON.parse(await this.runCommand('az account list', false))
             } catch {
                 accounts = []
             }
@@ -29,7 +29,7 @@ export class CommandLineHelper {
                     // No accounts are available probably not logged in ... prompt to login
                     let ok = await this.prompt('You are not logged into an account. Try login now (y/n)?')
                     if (ok) {
-                        this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
+                        await this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
                     } else {
                         return Promise.resolve(false);
                     }
@@ -69,13 +69,54 @@ export class CommandLineHelper {
         }
     }
     
-    runCommand(command: string, displayOutput: boolean) {
-        if (displayOutput) {
-            return execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
-        } else {
-            return execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
-        }
+    runCommand(command: string, displayOutput: boolean) : Promise<string> {
+        return new Promise((resolve, reject) => {
+            let child = exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`exec error: ${error}`);
+                    reject(error);
+                }
+
+                if (displayOutput) {
+                    console.log(stdout)
+                }
+
+                let text = stdout.replace(/^\s*[\r\n]/gm,"\n");
+                var array = text.split("\n");
+                let data = ''
+                for ( var i = 0; i < array.length; i++) {
+                    let line = array[i]
+                    if (!line.startsWith("WARNING")) {
+                        data = data + '\n' + line
+                    }
+                }
+    
+                resolve(data);
+            });
+
+            child.on("error", () => reject)
+        })
     }
+
+        // this.execCommand = function(cmd, callback) {
+        //     exec(cmd, (error, stdout, stderr) => {
+        //         if (error) {
+        //             console.error(`exec error: ${error}`);
+        //             return;
+        //         }
+    
+        //         callback(stdout);
+        //     });
+        // }
+
+        // let data = ''
+        // if (displayOutput) {
+        //     data = execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
+        // } else {
+        //     data = execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
+        // }
+        // return data;
+    //}
 
     async prompt(text: string) : Promise<boolean> {
         return await yesno({ question: text })
