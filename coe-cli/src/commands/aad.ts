@@ -47,6 +47,16 @@ class AADCommand {
         this.prompt = async (text: string) => await yesno({ question: text })
     }
 
+    getAADApplication(args: AADAppInstallArguments): string {
+        let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
+
+        if (app.length == 1) {
+            return app[0].appId
+        }
+
+        return null
+    }
+
     /**
      * Create the service principal required to manage solutions between Azure DevOps and the Power Platform environments
      * @param args 
@@ -62,10 +72,10 @@ class AADCommand {
             this.runCommand(command, true)
 
             // Find the created application and register the management application 
-            // https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp?view=pa-ps-latest
             let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
             if (app.length == 1) {
+                // https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp?view=pa-ps-latest
                 let administrationScript = path.join(__dirname, '..', '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.psm1')
                 command = `pwsh -c "Import-Module '${administrationScript}' -Force; New-PowerAppManagementApp  -ApplicationId ${app[0].appId}"`
                 this.runCommand(command, true)
@@ -122,7 +132,7 @@ class AADCommand {
 
                     name = name.replace('-', '')
                     let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substr(0,15) : name
-                    console.log(`Createing secret for ${newName}`)
+                    console.log(`Creating secret for ${newName}`)
                     let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --credential-description ${newName}`, false))
                     result.clientSecret = creds.password
                     result.tenantId = creds.tenant

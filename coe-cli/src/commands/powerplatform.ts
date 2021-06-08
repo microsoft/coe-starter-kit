@@ -4,6 +4,7 @@ import axios, { AxiosStatic } from 'axios';
 import fs from 'fs' 
 import path from 'path' 
 import { CommandLineHelper } from '../common/cli'
+import { AADAppInstallArguments, AADCommand } from './aad';
 
 /**
  * Powerplatform Command Arguments
@@ -33,6 +34,16 @@ class PowerPlatformImportSolutionArguments {
      * Import method
      */
     importMethod: string
+
+    /**
+     * The Azure Active Directory Service principal to assign to the custom connector
+     */
+    azureActiveDirectoryServicePrincipal: string
+
+    /**
+     * Create a new secret for 
+     */
+    createSecret: boolean
 }
 
 class PowerPlatformConectorUpdate {
@@ -68,6 +79,7 @@ class PowerPlatformCommand {
     deleteIfExists: (name: string) => Promise<void>
     writeFile: (name: string, data: Buffer) =>Promise<void>
     cli: CommandLineHelper
+    createAADCommand: () => AADCommand
   
     constructor() {
         this.getAxios = () => axios
@@ -86,6 +98,7 @@ class PowerPlatformCommand {
         }
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.cli = new CommandLineHelper
+        this.createAADCommand = () => { return new AADCommand() }
     }
 
     /**
@@ -97,12 +110,15 @@ class PowerPlatformCommand {
         switch ( args.importMethod ) {
             case 'api': {
                 await this.importViaApi(args)
+                break;
             }
             case 'pac': {
                 await this.importViaPacCli(args)
+                break;
             }
             default: {
                 await this.importViaBrowser(args)
+                break;
             }
         }
     }
@@ -127,7 +143,7 @@ class PowerPlatformCommand {
         await this.deleteIfExists('release.zip')
         await this.writeFile('release.zip', base64CustomizationFile)
 
-        this.cli.runCommand('pac solution import --path release.zip', true)
+        await this.cli.runCommand('pac solution import --path release.zip', true)
     }
 
     /**
@@ -149,80 +165,98 @@ class PowerPlatformCommand {
                 "HoldingSolution": false
             };
     
-            // NOTE: This import process does not work as it does not reconnect Canvas to Flow connections
+            console.debug('Importing managed solution')
             await this.getAxios().post( `https://${args.environment}.crm.dynamics.com/api/data/v9.0/ImportSolution`, importData, {
                 headers: {
                     'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
-            solutions = JSON.parse(await this.getUrl(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`))
+            solutions = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
         } else {
             console.debug('Solution already exists')
         }  
-        
-        await this.fixConnectionReferences(solutions, args)
-    }
 
-    async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
         if (!await this.cli.validateAzCliReady(args)) {
             return Promise.resolve()
         }
-
-        let solutionId = solutions.value[0].solutionid
         
-        let connectionReferences = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences`, args.accessToken)).value
+        await this.fixConnectionReferences(solutions, args)
 
-        let connectionMatch = connectionReferences?.filter( (c:any) => c.connectionreferencedisplayname == "Microsoft Dataverse (legacy)")
+        await this.fixFlows(solutions, args)
+    }
 
-        if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
-            console.log('Dataverse Connection not found')
-            return Promise.resolve();
-        }
+    async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+        let whoAmI = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/WhoAmI`, args.accessToken)
 
-        let connectionCorrect = false
-        if (connectionMatch[0].connectionreferenceid?.length > 0) {
-            console.debug('Dataverse connection connected')
-            connectionCorrect = true 
-        }
+        let aadInfo = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
-        if (!connectionCorrect)
-        {
-            let organizationid = JSON.parse(await this.getUrl(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/organizations?$select=organizationid`)).value.organizationid
-
-            let script = path.join(__dirname, '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.ps1')
+        let script = path.join(__dirname, '..', '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.psm1')
                 
-            let connections = JSON.parse(this.cli.runCommand(`Import-Module ${script} -Force; Get-AdminPowerAppConnection | ConvertTo-Json`, false))
-    
-            let current = JSON.parse(this.cli.runCommand('az accout show', false)).user?.name.toLowerCase()
-    
-            let connection = connections.filter((c: any) => c.EnvironmentName == organizationid && c.CreatedBy?.userPrincipalName.toLowerCase() && c.ConnectorName == 'shared_commondataservice' )
+        let command = `pwsh -c "try{ Import-Module '${script}' -Force; Get-AdminPowerAppConnection | ConvertTo-Json } catch {}"`
+        let data = await this.cli.runCommand(command, false)
+        let connections = JSON.parse(data)
+
+        let connection = connections.filter((c: any) => c.CreatedBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.ConnectorName == 'shared_commondataservice' )
         
-            if (connection.length == 0) {
-                console.log('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
+        if (connection.length == 0) {
+            console.log('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
+            return Promise.resolve();
+        } else {
+            let connectionReferences = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
+            let connectionMatch = connectionReferences?.filter( (c:any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps') )
+
+            if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
+                console.log('Dataverse Connection not found')
                 return Promise.resolve();
+            } else {
+                if (connectionMatch[0].connectionid == null) {
+                    let update = {
+                        "connectionid": `${connection[0].ConnectionName}`
+                    }
+                     try{
+                        await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, { headers: {
+                            'Authorization': 'Bearer ' + args.accessToken,
+                            'Content-Type': 'application/json',
+                            'OData-MaxVersion': '4.0',
+                            'OData-Version': '4.0',
+                            'If-Match': '*'  
+                        }})
+                     } catch (err) {
+                         console.log(err)
+                     }
+                } else {
+                    console.debug("Connection already connected")
+                }
             }
-
-            //TODO update connection
         }
-        
-        //TODO check if flow on
     }
 
-    async updateConnector(args: PowerPlatformConectorUpdate): Promise<void> {
-        let solutions : any = JSON.parse(await this.getUrl(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`))
-        if ( solutions.value?.length == 1 )
-        {
-            let connectors = JSON.parse(await this.getUrl(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectors`))
-            let aa4amConnector = connectors.value.filter( (c:any) => c.solutionId == solutions.value[0].solutionId)
-            if ( aa4amConnector.length == 1) {
-                let existingConnection = JSON.parse(aa4amConnector[0].connectionparameters)
-                //TODO
-                await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectors(${aa4amConnector[0].connectorid})`, {})
+    /**
+     * Start any closed flows for the solution
+     * @param solutions 
+     * @param args 
+     */
+    async fixFlows(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+        let flows = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/workflows?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken))
+        for ( let i = 0; i < flows.value?.length; i++ ) {
+            let flow = flows.value[i]
+            if (flow.statecode == 0 && flow.statuscode == 1) {
+                let flowUpdate = {
+                    statecode: 1,
+                    statuscode: 2
+                }
+                console.debug(`Enabling flow ${flow.name}`)
+                await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/workflows(${flow.workflowid})`, flowUpdate, { headers: {
+                            'Authorization': 'Bearer ' + args.accessToken,
+                            'Content-Type': 'application/json',
+                            'OData-MaxVersion': '4.0',
+                            'OData-Version': '4.0',
+                            'If-Match': '*'  
+                        }})
             }
         }
     }
-
 }
 
 export {

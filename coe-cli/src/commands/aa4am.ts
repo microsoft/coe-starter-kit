@@ -264,6 +264,8 @@ class AA4AMCommand {
     let importArgs = new PowerPlatformImportSolutionArguments()
     importArgs.accessToken = args.accessTokens[`https://${args.environment}.crm.dynamics.com`]
     importArgs.environment = args.environment
+    importArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    importArgs.createSecret = args.createSecretIfNoExist
 
     let github = this.createGitHubCommand();
     let gitHubArguments = new GitHubReleaseArguments();
