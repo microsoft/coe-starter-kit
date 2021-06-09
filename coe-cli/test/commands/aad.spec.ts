@@ -1,10 +1,13 @@
 "use strict";
 import { AADAppInstallArguments, AADCommand } from '../../src/commands/aad';
+import { mock } from 'jest-mock-extended';
+import winston = require('winston');
 
 describe('Install - AAD User', () => {
     test('Error - Powershell Not Installed', async () => {
         // Arrange
-        var command = new AADCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
             if (command.startsWith("pwsh --version")) {
                 throw Error("pwsh not found")
@@ -22,7 +25,8 @@ describe('Install - AAD User', () => {
 
     test('Error - AAD No Account', async () => {
         // Arrange
-        var command = new AADCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
             if (command.startsWith("pwsh --version")) {
                 return "PowerShell X.XX"
@@ -46,7 +50,9 @@ describe('Install - AAD User', () => {
 
     test('Single AAD Account', async () => {
         // Arrange
-        var command = new AADCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
+
         let accountList =  '[{"id":"A1", "isDefault": true}]'
 
         expect(JSON.parse(accountList).length).toBe(1)
@@ -76,7 +82,8 @@ describe('Install - AAD User', () => {
 describe('AAD User Secret', () => {
     test('App Exists', async () => {
         // Arrange
-        var command = new AADCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
         let accountList =  '[{"id":"A1", "isDefault": true}]'
 
         expect(JSON.parse(accountList).length).toBe(1)

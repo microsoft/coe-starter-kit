@@ -10,6 +10,7 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import yesno from 'yesno'; 
 import { GitHubCommand, GitHubReleaseArguments } from './github';
 import axios, { AxiosStatic } from 'axios';
+import * as winston from 'winston';
 
 /**
  * ALM Accelerator for Advanced Makers User Arguments
@@ -176,14 +177,16 @@ class AA4AMCommand {
   runCommand: (command: string, displayOutput: boolean) => string 
   prompt: (text: string) => Promise<boolean>
   getAxios: () => AxiosStatic
+  logger: winston.Logger
 
-  constructor() {
-      this.createAADCommand = () => new AADCommand
-      this.createLoginCommand = () => new LoginCommand
+  constructor(logger: winston.Logger) {
+      this.logger = logger
+      this.createAADCommand = () => new AADCommand(this.logger)
+      this.createLoginCommand = () => new LoginCommand(this.logger)
       this.createDynamicsWebApi = (config:DynamicsWebApi.Config) => new DynamicsWebApi(config)
-      this.createDevOpsCommand = () => new DevOpsCommand
-      this.createGitHubCommand = () => new GitHubCommand
-      this.createPowerPlatformCommand = () => new PowerPlatformCommand
+      this.createDevOpsCommand = () => new DevOpsCommand(this.logger)
+      this.createGitHubCommand = () => new GitHubCommand(this.logger)
+      this.createPowerPlatformCommand = () => new PowerPlatformCommand(this.logger)
       this.runCommand = (command: string, displayOutput: boolean) => {
         if (displayOutput) {
           return execSync(command, <ExecSyncOptionsWithStringEncoding> { stdio: 'inherit', encoding: 'utf8' })
@@ -197,9 +200,14 @@ class AA4AMCommand {
 
   async create(type:string) {
     switch (type.toLowerCase()) {
+      case "development": {
+          this.logger?.info("To create a community edition developer environment")
+          this.logger?.info("https://web.powerapps.com/community/signup")
+          break
+      }
       case "devops": {
-          console.log("You can start with 'Start Free' and login with your organization account")
-          open("https://azure.microsoft.com/en-us/services/devops/")
+          this.logger?.info("You can start with 'Start Free' and login with your organization account")
+          this.logger?.info("https://azure.microsoft.com/en-us/services/devops/")
       }
     }
   }
@@ -232,6 +240,8 @@ class AA4AMCommand {
   async installAADApplication(args: AA4AMInstallArguments) : Promise<void> {
     let aad = this.createAADCommand()
 
+    this.logger?.info("Install AAD application")
+
     let install = new AADAppInstallArguments()
     install.account = args.account
     install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
@@ -240,6 +250,7 @@ class AA4AMCommand {
   }
 
   async installDevOpsComponents(args: AA4AMInstallArguments) : Promise<void> {
+    this.logger?.info("Install DevOps Components")
 
     let command = this.createDevOpsCommand();
     let devOpsInstall = new DevOpsInstallArguments()
@@ -260,6 +271,8 @@ class AA4AMCommand {
    * @param args 
    */
   async installPowerPlatformComponents(args: AA4AMInstallArguments) : Promise<void> {
+    this.logger?.info("Install PowerPlatform Components")
+
     let command = this.createPowerPlatformCommand();
     let importArgs = new PowerPlatformImportSolutionArguments()
     importArgs.accessToken = args.accessTokens[`https://${args.environment}.crm.dynamics.com`]
@@ -287,6 +300,9 @@ class AA4AMCommand {
    async addUser(args: AA4AMUserArguments) : Promise<void> {    
       let accessTokens = await this.getAccessTokens(args)
 
+      this.logger?.info("Adding user")
+
+      this.logger?.verbose("Checking user")
       var dynamicsWebApi = this.createDynamicsWebApi({
         webApiUrl: `https://${args.environment}.crm.dynamics.com/api/data/v9.1/`,
         onTokenRefresh: (dynamicsWebApiCallback) => dynamicsWebApiCallback(accessTokens[`https://${args.environment}.crm.dynamics.com`])
@@ -298,7 +314,7 @@ class AA4AMCommand {
         businessUnitId = response.BusinessUnitId
       })
       .catch(error => {
-          console.error(error)
+        this.logger?.error(error)
       });
       
       let query = `<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" no-lock="true">
@@ -310,20 +326,21 @@ class AA4AMCommand {
       </entity>
       </fetch>`
       
+      this.logger?.verbose("Query system users")
       let match : DynamicsWebApi.MultipleResponse<any> 
       await dynamicsWebApi.executeFetchXmlAll("systemusers", query).then(function (response) {
           match = response
       }).catch(error => {
-          console.error(error)
+        this.logger?.error(error)
       });
 
       if (match?.value.length > 0) {
-        console.debug('User exists')
+        this.logger?.debug('User exists')
       } else {
         try{
-          console.debug('Creating application user')
+          this.logger?.debug('Creating application user')
           let user = { "applicationid": args.id, "businessunitid@odata.bind": `/businessunits(${businessUnitId})`}
-          console.log('Creating system user')
+          this.logger?.info('Creating system user')
           await this.getAxios().post(`https://${args.environment}.crm.dynamics.com/api/data/v9.1/systemusers`, user, {
             headers: {
               "Authorization": `Bearer ${accessTokens[`https://${args.environment}.crm.dynamics.com`]}`,
@@ -331,7 +348,7 @@ class AA4AMCommand {
             }
           })
         } catch (err) {
-          console.error(err)
+          this.logger?.error(err)
           throw err
         }
       }
@@ -351,17 +368,17 @@ class AA4AMCommand {
       await dynamicsWebApi.executeFetchXmlAll("roles", roleQuery).then(function (response) {
           roles = response
       }).catch(error => {
-          console.debug(error)
+        this.logger?.error(error)
       });
 
       if (roles?.value.length == 0) { 
-        console.debug(`Role ${roleName} does not exist`)
+        this.logger?.debug(`Role ${roleName} does not exist`)
         return Promise.resolve();
       } 
 
-      console.debug(`Associating application user ${args.id} with role ${roleName}`)
+      this.logger?.info(`Associating application user ${args.id} with role ${roleName}`)
       await dynamicsWebApi.associate("systemusers", match?.value[0].systemuserid, "systemuserroles_association", "roles", roles.value[0].roleid )
-        .catch(err => { console.error(err)})    
+        .catch(err => { this.logger?.error(err)})    
    }
 
   /**
@@ -373,6 +390,9 @@ class AA4AMCommand {
    */
   async branch(args: AA4AMBranchArguments) : Promise<void> {
     let tokens = await this.getAccessTokens(args)
+
+    this.logger?.info("Setup branch")
+    this.logger?.verbose(JSON.stringify(args))
 
     let branchArgs = new DevOpsBranchArguments();
     branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];

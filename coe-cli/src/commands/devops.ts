@@ -22,6 +22,8 @@ import { AADAppInstallArguments, AADCommand } from "./aad";
 import { EndpointAuthorization, ServiceEndpoint, TaskAgentPool, VariableGroupParameters } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
 import { ProjectReference, VariableGroupProjectReference, VariableValue } from "azure-devops-node-api/interfaces/ReleaseInterfaces";
 
+import * as winston from 'winston';
+
 /**
  * Install Arguments
  */
@@ -180,10 +182,12 @@ class DevOpsCommand {
     runCommand: (command: string, displayOutput: boolean) => string 
     prompt: (text: string) => Promise<boolean>
     getHttpClient: (connection: azdev.WebApi) => httpm.HttpClient
+    logger: winston.Logger
 
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger
         this.createWebApi = (orgUrl: string, authHandler: IRequestHandler) => new azdev.WebApi(orgUrl, authHandler)
-        this.createAADCommand = () => new AADCommand
+        this.createAADCommand = () => new AADCommand(this.logger)
         this.getUrl = async (url: string) => {
             return (await (axios.get<string>(url))).data
         }
@@ -206,8 +210,9 @@ class DevOpsCommand {
     async install(args: DevOpsInstallArguments): Promise<void> {
         try {
             this.runCommand('pwsh --version', false)
-        } catch {
-            console.log('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+        } catch (error) {
+            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+            this.logger?.error(error)
             return
         }
 
@@ -216,7 +221,7 @@ class DevOpsCommand {
 
         let orgUrl = `https://dev.azure.com/${args.organizationName}`
 
-        console.debug('Installing DevOps Extensions')
+        this.logger?.debug('Installing DevOps Extensions')
 
         // Call powershell script to register a new Azure active directory Application
         let command = `pwsh -c ". '${script}'; Install-AzureDevOpsExtensions -OrganizationUrl '${orgUrl}' -ExtensionsFilePath '${extensions}'"`
@@ -241,7 +246,7 @@ class DevOpsCommand {
         let refs = await gitApi.getRefs(repo.id, args.projectName)
 
         if (refs.length == 0) {
-            console.debug(`Importing ${args.repositoryName}`)
+            this.logger?.debug(`Importing ${args.repositoryName}`)
             repo.defaultBranch = "refs/heads/main"
             let importRequest = await gitApi.createImportRequest(<GitImportRequest>{ 
                 parameters: <GitImportRequestParameters>{ gitSource: <GitImportGitSource>{ url:"https://github.com/microsoft/coe-alm-accelerator-templates.git" }},
@@ -258,7 +263,7 @@ class DevOpsCommand {
                 await this.sleep(500)
             }
 
-            console.debug('Setting default branch')
+            this.logger?.debug('Setting default branch')
             let headers = <IHeaders>{ };
             headers["Content-Type"] = "application/json"
             await this.getHttpClient(connection).patch(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
@@ -270,7 +275,7 @@ class DevOpsCommand {
     private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi) : Promise<GitRepository> {
         let repos = await gitApi.getRepositories(args.projectName);
         if (repos.filter(r => r.name == args.repositoryName).length == 0) {
-            console.debug(`Creating repository ${args.repositoryName}`)
+            this.logger?.debug(`Creating repository ${args.repositoryName}`)
             return await gitApi.createRepository(<GitRepositoryCreateOptions>{name: args.repositoryName}, args.projectName)
         } else {
             return repos.filter(r => r.name == args.repositoryName)[0]
@@ -298,7 +303,7 @@ class DevOpsCommand {
         let buildApi = await connection.getBuildApi();
 
         if (typeof buildApi == "undefined") {
-            console.log("Build API missing")
+            this.logger?.info("Build API missing")
             return
         }
 
@@ -315,23 +320,23 @@ class DevOpsCommand {
             let exportBuild = builds.filter(b => b.name == buildNames[i])
 
             if (exportBuild.length == 0) {
-                console.debug(`Creating build ${buildNames[i]}`)
+                this.logger?.debug(`Creating build ${buildNames[i]}`)
                 await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentPool)
             } else {
                 let build = await buildApi.getDefinition(args.projectName, exportBuild[0].id)
                 let changes = false
 
                 if ( typeof build.queue === "undefined" ) {
-                    console.debug(`Missing build queue for ${build.name}`)
+                    this.logger?.debug(`Missing build queue for ${build.name}`)
                     build.queue = <BuildInterfaces.BuildDefinitionReference> { queue: defaultAgentPool }
                     changes = true
                 }
 
                 if (changes) {
-                    console.debug(`Updating ${build.name}`)
+                    this.logger?.debug(`Updating ${build.name}`)
                     await buildApi.updateDefinition(build, args.projectName, exportBuild[0].id)
                 } else {
-                    console.debug(`No changes to ${buildNames[i]}`)
+                    this.logger?.debug(`No changes to ${buildNames[i]}`)
                 }
                 
             }
@@ -357,7 +362,7 @@ class DevOpsCommand {
             let secretInfo = await aadCommand.addSecret(aadArgs, "COE-AA4AM")
 
             if (!aadArgs.createSecret) {
-                console.warn('Client secret not added for variable group global-variable-group it wil need to be added manually')
+                this.logger?.warn('Client secret not added for variable group global-variable-group it wil need to be added manually')
             }
 
             let buildApi = await connection.getBuildApi();
@@ -478,9 +483,9 @@ class DevOpsCommand {
                 let create = await webClient.post(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
 
                 if (create.message.statusCode != 200) {
-                    console.log(await create.readBody())
+                    this.logger?.info(await create.readBody())
                 } else {
-                    console.log(`Create service connection ${endpointUrl}`)
+                    this.logger?.info(`Create service connection ${endpointUrl}`)
                 }
             }
         }
@@ -541,7 +546,7 @@ class DevOpsCommand {
         let project : CoreInterfaces.TeamProject = await core.getProject(args.projectName)
 
         if (typeof project !== "undefined") {
-            console.debug(util.format("Found project %s", project.name))
+            this.logger?.debug(util.format("Found project %s", project.name))
 
             let gitApi = await connection.getGitApi()
 
@@ -578,7 +583,7 @@ class DevOpsCommand {
                 foundRepo = true
                 matchingRepo = repo
 
-                console.debug(`Found matching repo ${repositoryName}`)
+                this.logger?.debug(`Found matching repo ${repositoryName}`)
 
                 let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
 
@@ -589,17 +594,17 @@ class DevOpsCommand {
 
                 let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
                 if (sourceRef.length == 0) {
-                    console.error(util.format("Source branch [%s] not found", sourceBranch))
-                    console.debug('Existing branches')
+                    this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
+                    this.logger?.debug('Existing branches')
                     for ( var refIndex = 0; refIndex < refs.length; refIndex++ ) {
-                        console.debug(refs[refIndex].name)
+                        this.logger?.debug(refs[refIndex].name)
                     }
                     return matchingRepo;
                 }
 
                 let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
                 if (destinationRef.length > 0) {
-                    console.error("Destination branch already exists")
+                    this.logger?.error("Destination branch already exists")
                     return matchingRepo;
                 }
 
@@ -616,17 +621,17 @@ class DevOpsCommand {
                 gitPush.refUpdates = [ newRef ]
                 gitPush.commits = [ newGitCommit ]
 
-                console.debug(util.format('Pushing new branch %s',args.destinationBranch))
+                this.logger?.debug(util.format('Pushing new branch %s',args.destinationBranch))
                 await gitApi.createPush(gitPush, repo.id, project.name)
             }
         }
 
         if (!foundRepo && repositoryName?.length > 0 ) {
-            console.debug(util.format("Repo %s not found", repositoryName))
-            console.debug('Did you mean?')
+            this.logger?.info(util.format("Repo %s not found", repositoryName))
+            this.logger?.info('Did you mean?')
             repos.forEach( repo => {
                 if ( repo.name.startsWith(repositoryName[0]) ) {
-                    console.debug(repo.name)
+                    this.logger?.info(repo.name)
                 }
             });
         }
@@ -682,10 +687,10 @@ class DevOpsCommand {
                 newPolicy.isEnabled = true
                 newPolicy.isEnterpriseManaged = false
 
-                console.debug('Checking branch policy')
+                this.logger?.debug('Checking branch policy')
                 await policyApi.createPolicyConfiguration(newPolicy, args.projectName)
             } else {
-                console.debug('Branch policy already created')
+                this.logger?.debug('Branch policy already created')
             }
         }
     }
@@ -743,7 +748,7 @@ class DevOpsCommand {
             if (destinationKeys.length==0 && sourceKeys.length >0) {
                 destinationBuild.variables = sourceBuild.variables
                 
-                console.debug(util.format("Updating %s environment variables", destinationBuildName))
+                this.logger?.debug(util.format("Updating %s environment variables", destinationBuildName))
                 await client.updateDefinition(destinationBuild, destinationBuild.project.name, destinationBuild.id)
                 return;
             }
@@ -759,20 +764,20 @@ class DevOpsCommand {
                 throw Error(util.format("Source build %s not found, but required", sourceBuildName))
             } 
 
-            console.debug(`Source build ${sourceBuildName} not found`)
+            this.logger?.debug(`Source build ${sourceBuildName} not found`)
             let possibles =  pipelines.filter(p => p.name?.startsWith(`deploy-${template}`))
             if ( possibles.length > 0 ) {
                 sourceBuildName = possibles[0].name
                 sourceBuild = possibles.length > 0 ? await client.getDefinition(possibles[0].project?.name, possibles[0].id) : null
-                console.debug(`Selecting ${sourceBuildName} to copy settings from`)
+                this.logger?.debug(`Selecting ${sourceBuildName} to copy settings from`)
             }
 
             if (sourceBuild == null) {
                 //let endpoints = await this.getServiceConnections(connection)
 
                 defaultSettings = true
-                console.debug(`Matching ${template} build not found, will apply default settings`)
-                console.debug(`Applying default service connection. You will need to update settings with you environment teams`)
+                this.logger?.debug(`Matching ${template} build not found, will apply default settings`)
+                this.logger?.debug(`Applying default service connection. You will need to update settings with you environment teams`)
                 sourceBuild = <BuildInterfaces.BuildDefinition>{};
                 sourceBuild.repository = <BuildInterfaces.BuildRepository>{}
                 sourceBuild.repository.id = repo.id
@@ -808,7 +813,7 @@ class DevOpsCommand {
             }
         }
 
-        console.debug(util.format("Creating new build %s", destinationBuildName));
+        this.logger?.debug(util.format("Creating new build %s", destinationBuildName));
         var newBuild = <BuildInterfaces.BuildDefinition>{};
         newBuild.name = destinationBuildName;
         let process = <BuildInterfaces.YamlProcess>{};

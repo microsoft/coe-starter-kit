@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path' 
 import { CommandLineHelper } from '../common/cli'
 import { AADAppInstallArguments, AADCommand } from './aad';
+import * as winston from 'winston';
 
 /**
  * Powerplatform Command Arguments
@@ -80,8 +81,11 @@ class PowerPlatformCommand {
     writeFile: (name: string, data: Buffer) =>Promise<void>
     cli: CommandLineHelper
     createAADCommand: () => AADCommand
+    logger: winston.Logger
   
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger
+        
         this.getAxios = () => axios
         this.getBinaryUrl = async (url: string) => {
             return Buffer.from((await axios.get(url, { responseType: 'arraybuffer' })).data, 'binary')
@@ -98,7 +102,7 @@ class PowerPlatformCommand {
         }
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.cli = new CommandLineHelper
-        this.createAADCommand = () => { return new AADCommand() }
+        this.createAADCommand = () => { return new AADCommand(this.logger) }
     }
 
     /**
@@ -129,12 +133,12 @@ class PowerPlatformCommand {
         await this.deleteIfExists('release.zip')
         await this.writeFile('release.zip', base64CustomizationFile)
 
-        console.log('Complete import in you browser. Steps')
-        console.log('1. Open https://make.powerapps.com')
-        console.log('2. Select environment you want to import solution into')
-        console.log('3. Select Solutions')
-        console.log('4. Select Import')
-        console.log('5. Select Browse and select release.zip downloaded')
+        this.logger?.info('Complete import in you browser. Steps')
+        this.logger?.info('1. Open https://make.powerapps.com')
+        this.logger?.info('2. Select environment you want to import solution into')
+        this.logger?.info('3. Select Solutions')
+        this.logger?.info('4. Select Import')
+        this.logger?.info('5. Select Browse and select release.zip downloaded')
     }
 
     private async importViaPacCli(args: PowerPlatformImportSolutionArguments): Promise<void> {
@@ -165,7 +169,7 @@ class PowerPlatformCommand {
                 "HoldingSolution": false
             };
     
-            console.debug('Importing managed solution')
+            this.logger?.info('Importing managed solution')
             await this.getAxios().post( `https://${args.environment}.crm.dynamics.com/api/data/v9.0/ImportSolution`, importData, {
                 headers: {
                     'Content-Type': 'application/json', 
@@ -174,7 +178,7 @@ class PowerPlatformCommand {
             })
             solutions = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
         } else {
-            console.debug('Solution already exists')
+            this.logger?.info('Solution already exists')
         }  
 
         if (!await this.cli.validateAzCliReady(args)) {
@@ -192,7 +196,7 @@ class PowerPlatformCommand {
         let aadInfo = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
         let script = path.join(__dirname, '..', '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.psm1')
-                
+
         let command = `pwsh -c "try{ Import-Module '${script}' -Force; Get-AdminPowerAppConnection | ConvertTo-Json } catch {}"`
         let data = await this.cli.runCommand(command, false)
         let connections = JSON.parse(data)
@@ -200,14 +204,14 @@ class PowerPlatformCommand {
         let connection = connections.filter((c: any) => c.CreatedBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.ConnectorName == 'shared_commondataservice' )
         
         if (connection.length == 0) {
-            console.log('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
+            this.logger?.info('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
             return Promise.resolve();
         } else {
             let connectionReferences = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
             let connectionMatch = connectionReferences?.filter( (c:any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps') )
 
             if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
-                console.log('Dataverse Connection not found')
+                this.logger?.info('Dataverse Connection not found')
                 return Promise.resolve();
             } else {
                 if (connectionMatch[0].connectionid == null) {
@@ -223,10 +227,10 @@ class PowerPlatformCommand {
                             'If-Match': '*'  
                         }})
                      } catch (err) {
-                         console.log(err)
+                        this.logger?.error(err)
                      }
                 } else {
-                    console.debug("Connection already connected")
+                    this.logger?.debug("Connection already connected")
                 }
             }
         }
@@ -246,7 +250,7 @@ class PowerPlatformCommand {
                     statecode: 1,
                     statuscode: 2
                 }
-                console.debug(`Enabling flow ${flow.name}`)
+                this.logger?.debug(`Enabling flow ${flow.name}`)
                 await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/workflows(${flow.workflowid})`, flowUpdate, { headers: {
                             'Authorization': 'Bearer ' + args.accessToken,
                             'Content-Type': 'application/json',

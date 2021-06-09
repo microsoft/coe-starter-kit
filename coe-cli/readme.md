@@ -127,15 +127,27 @@ cd coe-cli
 docker build -t coe-cli . 
 ```
 
-2. Run the docker image
+NOTE: If you receive an error about unable to download packages your system time may eb out of sync from the docker host. Restarting you system may resolve this issue
+
+2. Run the docker image which will start a powershell session
 
  ```bash
-docker run -it --rm coe-cli coe --help
+docker run -it --rm coe-cli
 ```
 
--o is the Azure Devops organization name
--p is the Azure DevOps Project name
--e is the Dataverse Environment to install the Administration application to
+**-it** run docker command interactive with terminal input
+**--rm** remove the docker image when exit. Ensure any temp files or credentials are removed when sesion ends
+coe-cli is the docker image name
+**-v "c:\temp":/tmp** map local c:\temp to the /temp folder inside the docker container
+**coe --help** os the command to run
+
+Notes:
+1. Once the docker container starts youc an use coe command inside the powershell e.g. coe --help
+1. You can run a single command from the command line e.g. 
+
+```bash
+docker run -it --rm coe-cli coe --help
+```
 
 #### Local Run
 
@@ -168,6 +180,7 @@ Will install Managed application the AAD application and Azure DevOps components
 ```bash
 coe aa4am install -c aad
 ```
+
 Will login using the Azure CLI user and attempt to install the Azure Active Directory application required for Azure DevOps and the Application User that wil be used to interact Power Platform environments.
 
 Steps by performed by the command:

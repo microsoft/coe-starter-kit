@@ -2,6 +2,7 @@
 import path = require('path');
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import yesno from 'yesno';
+import * as winston from 'winston';
 
 /**
  * Azure Active Directory User Arguments
@@ -35,8 +36,10 @@ type AADAppSecret = {
 class AADCommand {
     runCommand: (command: string, displayOutput: boolean) => string
     prompt: (text: string) => Promise<boolean>
+    logger: winston.Logger
 
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger
         this.runCommand = (command: string, displayOutput: boolean) => {
             if (displayOutput) {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
@@ -63,6 +66,7 @@ class AADCommand {
      * @returns 
      */
     async installAADApplication(args: AADAppInstallArguments): Promise<void> {
+
         if (await this.validateAzCliReady(args)) {
             let script = path.join(__dirname, '..', '..', '..', 'scripts', 'New-AzureAdAppRegistration.ps1')
             let manifest = path.join(__dirname, '..', '..', '..', 'config', 'manifest.json')
@@ -88,11 +92,11 @@ class AADCommand {
                 })
 
                 if ( app[0].replyUrls.length == 0 || match == 0) {
-                    console.log('Adding reply url https://global.consent.azure-apim.net/redirect')
+                    this.logger?.debug('Adding reply url https://global.consent.azure-apim.net/redirect')
                     this.runCommand(`az ad app update --id ${app[0].appId} --reply-urls https://global.consent.azure-apim.net/redirect`, true)
                 }
             } else {
-                console.log(`Application ${args.azureActiveDirectoryServicePrincipal} not found`)
+                this.logger?.info(`Application ${args.azureActiveDirectoryServicePrincipal} not found`)
                 return Promise.resolve()
             }
         }
@@ -128,11 +132,11 @@ class AADCommand {
                 }
 
                 if (args.createSecret) {
-                    console.log(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
+                    this.logger?.info(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
 
                     name = name.replace('-', '')
                     let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substr(0,15) : name
-                    console.log(`Creating secret for ${newName}`)
+                    this.logger?.info(`Creating secret for ${newName}`)
                     let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --credential-description ${newName}`, false))
                     result.clientSecret = creds.password
                     result.tenantId = creds.tenant
@@ -151,7 +155,7 @@ class AADCommand {
 
         }
         if (pwshVersion?.length == 0 || typeof pwshVersion == "undefined") {
-            console.log('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
             return Promise.resolve(false)
         }
 
@@ -191,7 +195,7 @@ class AADCommand {
                         }
                     }
                     if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
-                        console.log("Missing account, run az account list to and it -a argument to assign the account")
+                        this.logger?.info("Missing account, run az account list to and it -a argument to assign the account")
                         return Promise.resolve(false);
                     }
                 }
@@ -200,8 +204,8 @@ class AADCommand {
             if (accounts.length > 0) {
                 let match = accounts.filter((a: any) => (a.id == args.account || a.name == args.account) && (a.isDefault));
                 if (match.length != 1) {
-                    console.log(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
-                    console.log('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
+                    this.logger?.info(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
+                    this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
                     return Promise.resolve(true)
