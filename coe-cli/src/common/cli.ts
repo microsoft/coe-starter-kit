@@ -1,7 +1,10 @@
 import { exec, execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import yesno from 'yesno';
+import * as winston from 'winston';
 
 export class CommandLineHelper {
+    logger: winston.Logger
+
     async validateAzCliReady(args: any): Promise<boolean> {
         let pwshVersion = ''
         try {
@@ -10,7 +13,7 @@ export class CommandLineHelper {
 
         }
         if (pwshVersion?.length == 0 || typeof pwshVersion == "undefined") {
-            console.log('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
             return Promise.resolve(false)
         }
 
@@ -50,7 +53,7 @@ export class CommandLineHelper {
                         }
                     }
                     if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
-                        console.log("Missing account, run az account list to and it -a argument to assign the account")
+                        this.logger?.info("Missing account, run az account list to and it -a argument to assign the account")
                         return Promise.resolve(false);
                     }
                 }
@@ -59,8 +62,8 @@ export class CommandLineHelper {
             if (accounts.length > 0) {
                 let match = accounts.filter((a: any) => (a.id == args.account || a.name == args.account) && (a.isDefault));
                 if (match.length != 1) {
-                    console.log(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
-                    console.log('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
+                    this.logger?.info(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
+                    this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
                     return Promise.resolve(true)
@@ -73,20 +76,22 @@ export class CommandLineHelper {
         return new Promise((resolve, reject) => {
             let child = exec(command, (error, stdout, stderr) => {
                 if (error) {
-                    console.error(`exec error: ${error}`);
+                    this.logger?.error(`exec error: ${error}`);
                     reject(error);
                 }
 
                 if (displayOutput) {
-                    console.log(stdout)
+                    this.logger?.info(stdout)
                 }
 
                 let text = stdout.replace(/^\s*[\r\n]/gm,"\n");
+                text = text.replace(/^\s*[\n]/gm,"\n");
+
                 var array = text.split("\n");
                 let data = ''
                 for ( var i = 0; i < array.length; i++) {
                     let line = array[i]
-                    if (!line.startsWith("WARNING")) {
+                    if (!line?.trim().startsWith("WARNING")) {
                         data = data + '\n' + line
                     }
                 }
@@ -97,26 +102,6 @@ export class CommandLineHelper {
             child.on("error", () => reject)
         })
     }
-
-        // this.execCommand = function(cmd, callback) {
-        //     exec(cmd, (error, stdout, stderr) => {
-        //         if (error) {
-        //             console.error(`exec error: ${error}`);
-        //             return;
-        //         }
-    
-        //         callback(stdout);
-        //     });
-        // }
-
-        // let data = ''
-        // if (displayOutput) {
-        //     data = execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
-        // } else {
-        //     data = execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
-        // }
-        // return data;
-    //}
 
     async prompt(text: string) : Promise<boolean> {
         return await yesno({ question: text })

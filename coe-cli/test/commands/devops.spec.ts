@@ -18,12 +18,14 @@ import httpm = require('typed-rest-client/HttpClient');
 import { ITaskAgentApi } from 'azure-devops-node-api/TaskAgentApi';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
 import { TeamProjectReference } from 'azure-devops-node-api/interfaces/CoreInterfaces';
-import { ITaskApi } from 'azure-devops-node-api/TaskApi';
+import winston from 'winston';
 
 describe('Install', () => {
     test('Error - Powershell Not Installed', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
+        
         command.runCommand = (command: string, displayOutput: boolean) => {
             if (command.startsWith("pwsh --version")) {
                 throw Error("pwsh not found")
@@ -41,7 +43,8 @@ describe('Install', () => {
 
     test('Import Repo', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
             return ""
         }
@@ -76,7 +79,8 @@ describe('Install', () => {
 
     test('Repo alredy exists', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
             return ""
         }
@@ -111,7 +115,8 @@ describe('Install', () => {
 describe('Install Build', () => {
     test('Error - Powershell Not Installed', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let args = new DevOpsInstallArguments();
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
@@ -142,7 +147,8 @@ describe('Branch', () => {
 
     test('Create new branch if project exists and source build exists', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockCoreApi = mock<corem.ICoreApi>(); 
         
@@ -194,7 +200,8 @@ describe('Branch', () => {
 
     test('Clone existing source build - validation', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
 
@@ -239,7 +246,8 @@ describe('Branch', () => {
 
     test('Clone existing source build - match validation', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
 
@@ -284,7 +292,8 @@ describe('Branch', () => {
 
     test('Clone existing source build - validation using default', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
         let mockTaskApi = mock<ITaskAgentApi>();
@@ -355,7 +364,8 @@ describe('Build', () => {
 
     test('Clone existing source build - validation using default', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let args = new DevOpsBranchArguments();
         let project = <CoreInterfaces.TeamProject>{}
         let gitMock = mock<gitm.GitApi>()
@@ -402,7 +412,8 @@ describe('Policy', () => {
 
     test('Do nothing policy exists', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let args = new DevOpsBranchArguments();
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockPolicyApi = mock<IPolicyApi>();
@@ -449,7 +460,8 @@ describe('Build Variables', () => {
 
     test('Create', async () => {
         // Arrange
-        var command = new DevOpsCommand();
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
         let mockAADCommand = mock<AADCommand>()
         command.createAADCommand= () => mockAADCommand
         let args = new DevOpsInstallArguments();

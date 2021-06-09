@@ -6,11 +6,13 @@ import { mock } from 'jest-mock-extended';
 import DynamicsWebApi = require('dynamics-web-api');
 import { AADCommand } from '../../src/commands/aad';
 import { AxiosStatic } from 'axios';
+import winston = require('winston');
 
 describe('Install - AAD', () => {
     test('No command', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
         
         // Act
         let args = new AA4AMInstallArguments();
@@ -22,7 +24,9 @@ describe('Install - AAD', () => {
 
     test('Called', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+
         const mockedLoginCommand = mock<LoginCommand>();
         command.createLoginCommand = () => mockedLoginCommand
         let mockAADCommand = mock<AADCommand>()
@@ -48,7 +52,9 @@ describe('Install - AAD', () => {
 describe('Install - DevOps', () => {
     test('Default', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+
         const mockedLoginCommand = mock<LoginCommand>();
         const mockedDevOpsCommand= mock<DevOpsCommand>();
         
@@ -72,7 +78,8 @@ describe('Install - DevOps', () => {
 describe('Add User', () => {
     test('Default', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
 
         const mockedLoginCommand= mock<LoginCommand>();
         const mockedDynamicsWebApi= mock<DynamicsWebApi>();
@@ -117,7 +124,8 @@ describe('Add User', () => {
 describe('Branch', () => {
     test('Default', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
 
         const mockedLoginCommand= mock<LoginCommand>();
         const mockedDevOpsCommand= mock<DevOpsCommand>();

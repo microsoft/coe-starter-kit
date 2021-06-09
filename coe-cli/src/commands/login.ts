@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import { promisify } from 'util';
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import yesno from 'yesno'; 
+import winston from 'winston';
 
 const readFile = promisify(fs.readFile);
 
@@ -37,8 +38,11 @@ class LoginCommand {
     createClientApp: (config: Configuration) => PublicClientApplication
     runCommand: (command: string, displayOutput: boolean) => string
     prompt: (text: string) => Promise<boolean>
+    logger: winston.Logger
 
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger 
+
         this.createClientApp = (config) => {
             return new PublicClientApplication(config)
         } 
@@ -173,7 +177,7 @@ class LoginCommand {
             self.accessToken = response.accessToken
             return response;
         }).catch((error) => {
-            console.log(error)
+            this.logger?.error(error)
             return error;
         });
     }

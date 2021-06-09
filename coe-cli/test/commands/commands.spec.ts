@@ -4,16 +4,16 @@ import { LoginCommand } from '../../src/commands/login'
 import { AA4AMCommand } from '../../src/commands/aa4am'
 import { RunCommand } from '../../src/commands/run'
 import { CLICommand } from '../../src/commands/cli'
-import * as msal from '@azure/msal-node';
 import { mock } from 'jest-mock-extended';
 import { DevOpsCommand } from '../../src/commands/devops';
-
+import winston from 'winston';
 
 describe('AA4AM', () => {
 
     test('Install aad', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -31,7 +31,8 @@ describe('AA4AM', () => {
 
     test('User', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -49,7 +50,8 @@ describe('AA4AM', () => {
 
     test('Install', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -70,7 +72,8 @@ describe('AA4AM', () => {
 
     test('Install - Multi Environment', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -93,7 +96,8 @@ describe('AA4AM', () => {
 
     test('Add Connection', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
@@ -114,7 +118,8 @@ describe('AA4AM', () => {
 describe('Run', () => {
     test('Execute', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockRunCommand = mock<RunCommand>(); 
 
         commands.createRunCommand = () => mockRunCommand
@@ -131,7 +136,8 @@ describe('Run', () => {
 describe('CLI', () => {
     test('Execute', async () => {
         // Arrange
-        var commands = new CoeCliCommands();
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
         let mockCliCommand = mock<CLICommand>(); 
 
         commands.createCliCommand = () => mockCliCommand

@@ -1,11 +1,12 @@
 import { LoginArguments, LoginCommand } from '../../src/commands/login';
 import * as msal from '@azure/msal-node';
 import { mock } from 'jest-mock-extended';
-
+import winston from 'winston';
 
 test('Init', async () => {
     // Arrange
-    var command = new LoginCommand();
+    let logger = mock<winston.Logger>()
+    var command = new LoginCommand(logger);
     
     let mockResult = mock<msal.AuthenticationResult>();
     mockResult.accessToken= "ABC"

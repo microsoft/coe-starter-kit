@@ -5,6 +5,7 @@ import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMC
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
 import { RunArguments, RunCommand } from './run';
 import { CLIArguments, CLICommand } from './cli';
+import * as winston from 'winston';
 
 /**
  * Define supported commands across COE Toolkit
@@ -15,13 +16,17 @@ class CoeCliCommands {
     createDevOpsCommand: () => DevOpsCommand
     createRunCommand: () => RunCommand
     createCliCommand: () => CLICommand
+    logger: winston.Logger
   
-    constructor() {
-        this.createLoginCommand = () => new LoginCommand()
-        this.createAA4AMCommand = () => new AA4AMCommand()
-        this.createDevOpsCommand = () => new DevOpsCommand()
-        this.createRunCommand = () => new RunCommand()
-        this.createCliCommand = () => new CLICommand()
+    constructor(logger: winston.Logger) {
+        if (typeof logger === "undefined") {
+            this.logger = logger
+        }
+        this.createLoginCommand = () => new LoginCommand(this.logger)
+        this.createAA4AMCommand = () => new AA4AMCommand(this.logger)
+        this.createDevOpsCommand = () => new DevOpsCommand(this.logger)
+        this.createRunCommand = () => new RunCommand(this.logger)
+        this.createCliCommand = () => new CLICommand(this.logger)
     }
 
     /**
@@ -39,7 +44,29 @@ class CoeCliCommands {
         this.AddRunCommand(program);
         this.AddCliCommand(program);
        
-        await program.parseAsync(argv);
+        await program
+            .parseAsync(argv);
+    }
+
+    setupLogger(args: any) {
+        this.logger = winston.createLogger({
+            format: winston.format.combine(
+                winston.format.splat(),
+                winston.format.simple()
+            ),
+            transports: [new winston.transports.Console({ level: typeof args.log === "string" ? args.log : 'info' }),
+                new winston.transports.File({
+                filename: 'combined.log',
+                level: 'verbose',
+                format: winston.format.combine(
+                    winston.format.timestamp({
+                      format: 'YYYY-MM-DD hh:mm:ss A ZZ'
+                    }),
+                    winston.format.json()
+                  ),
+                  handleExceptions: true
+                })]
+            });
     }
 
     AddALMAcceleratorForAdvancedMakerCommands(program: commander.Command) {
@@ -51,12 +78,13 @@ class CoeCliCommands {
 
         let installOption = new Option('-m, --importMethod <method>', 'The import method').default("browser").choices(['browser', 'pac', 'api']);
 
-        let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops']);
+        let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops', 'development']);
 
         aa4am.command('create')
             .description('Create key services')
             .addOption(createTypeOption)
             .action((options:any) => {
+                this.setupLogger(options)
                 let command = this.createAA4AMCommand()
                 command.create(options.type);
             });
@@ -73,6 +101,7 @@ class CoeCliCommands {
             .option('-s, --settings', 'Optional settings', "createSecret=true")
             .addOption(installOption)
             .action(async (options:any) => {
+                this.setupLogger(options)
                 let command = this.createAA4AMCommand()
                 let args = new AA4AMInstallArguments()
                 args.components = options.components
@@ -102,6 +131,7 @@ class CoeCliCommands {
             .option('-o, --devopsOrg <organization>', 'The Azure DevOps environment validate')
             .option('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines").action(async (options:any) => {
+                this.setupLogger(options)
                 let login = this.createLoginCommand()
                 let command = this.createDevOpsCommand()
                 let args = new DevOpsInstallArguments()
@@ -123,6 +153,7 @@ class CoeCliCommands {
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .action(async (options:any) => {
+                this.setupLogger(options)
                 let login = this.createLoginCommand()
                 let command = this.createDevOpsCommand()
                 let args = new DevOpsInstallArguments()
@@ -139,7 +170,7 @@ class CoeCliCommands {
                 try {
                     await command.createAdvancedMakersServiceConnections(args, null)
                 } catch (err) {
-                    console.error(err)
+                    this.logger?.error(err)
                 }
                 
             })
@@ -152,6 +183,7 @@ class CoeCliCommands {
             .requiredOption('-i, --id <id>', 'The unique identifier of the user')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
             .action((options: any) => {
+                this.setupLogger(options)
                 let command = this.createAA4AMCommand()
                 let args = new AA4AMUserArguments();
                 args.command = options.command
@@ -170,6 +202,7 @@ class CoeCliCommands {
             .option('-sb, --source-build <name>', 'The source build to copy from')
             .option('-d, --destination <name>', 'The branch to create')
             .action(async (options: any) : Promise<void> => {
+                this.setupLogger(options)
                 let args = new AA4AMBranchArguments();
                 args.organizationName = options.organization
                 args.repositoryName = options.repository
@@ -191,6 +224,7 @@ class CoeCliCommands {
             .description('Run a set of commands')
             .option('-f, --file <filename>', 'The run configuration json file')
             .action(async (options: any) : Promise<void> => {
+                this.setupLogger(options)
                 let args = new RunArguments();
                 args.file = options.file;
                 let command = this.createRunCommand();
@@ -204,6 +238,7 @@ class CoeCliCommands {
         run.command("about")
             .description('Open web page to discover more about COE cli')
             .action(async (options: any) : Promise<void> => {
+                this.setupLogger(options)
                 let command = this.createCliCommand()
                 await command.about()
             })
@@ -211,6 +246,7 @@ class CoeCliCommands {
             .description('Add a new command to the cli application')
             .requiredOption('-n, --name <name>', 'The name of the new command to add')
             .action(async (options: any) : Promise<void> => {
+                this.setupLogger(options)
                 let args = new CLIArguments();
                 args.name = options.name;
                 let command = this.createCliCommand();
