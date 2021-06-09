@@ -30,6 +30,12 @@ Any code (documentation, solution components, yaml pipelines etc.) contribution 
 To create a copy of the repository you should fork the CoE Starter Kit repository to your own github account.
 Any contributions you make should be made in your own fork.
 
+> [!NOTE]To learn about GitHub forks visit the GitHub docs: [Working with forks](https://docs.github.com/en/github/collaborating-with-pull-requests/working-with-forks/about-forks)
+
+You should always ensure that your fork is up-to-date with the upstream repository by regularly synchronizing your fork.
+
+The simplest way to synchronize your fork with the upstream repository is via the **Fetch upstream** feature on your fork github page
+
 ## Local branch strategy
 
 When implementing your contributions in your forked repository it is recommended that you employ a feature branch strategy. This means that you will have a branch for each feature or bug fix that your contribute. This approach helps keep the review process as simple as possible.
