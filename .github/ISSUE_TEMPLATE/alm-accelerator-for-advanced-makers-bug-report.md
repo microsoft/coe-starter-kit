@@ -12,7 +12,6 @@ A clear and concise description of what the bug is.
 
 **Component (please tell us which part you are experiencing issues with):**
 
-- Solution [e.g. App, Flow, Pipeline, Docs]
 - Version [e.g. 1.29]
 - Component [e.g. ALM Accelerator Canvas App]
 
