@@ -1,6 +1,6 @@
 ---
 name: "[ALM Accelerator] Bug report"
-about: Create a report to help us improve the ALM Accelerator for Advanced Makers
+about: Create a report to help us improve the ALM Accelerator
 title: "[ALM Accelerator - BUG]: issue title"
 labels: alm-accelerator
 assignees: 
@@ -13,7 +13,7 @@ A clear and concise description of what the bug is.
 **Component (please tell us which part you are experiencing issues with):**
 
 - Version [e.g. 1.29]
-- Component [e.g. ALM Accelerator Canvas App]
+- Component [e.g. ALM Accelerator Canvas App, ALM Accelerator Pipelines, ALM Accelerator Custom Conenctor]
 
 **To Reproduce**
 Steps to reproduce the behavior:
