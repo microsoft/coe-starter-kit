@@ -34,7 +34,15 @@ Any contributions you make should be made in your own fork.
 
 You should always ensure that your fork is up-to-date with the upstream repository by regularly synchronizing your fork.
 
-The simplest way to synchronize your fork with the upstream repository is via the **Fetch upstream** feature on your fork github page
+The simplest way to synchronize your fork with the upstream repository is via the **Fetch upstream** feature on your fork github page as in below screenshot.
+
+![fetch upstream changes](.attachments/HOW_TO_CONTRIBUTE/fetch-upstream-changes.png)
+
+Selecting **Compare** will allow you to compare the changes in the upstream repository agains your own fork and create a pull request to merge these into your own fork.
+
+Selecting **Fetch and merge** will fetch all upstream changes and merge into your own fork without a pull request work flow.
+
+To manage the synchronization of upstream changes on the command line please refer to the GitHub documentation on [Syncing a fork](https://docs.github.com/en/github/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)
 
 ## Local branch strategy
 
