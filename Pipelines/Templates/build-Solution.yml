@@ -49,6 +49,7 @@ steps:
   displayName: 'pack msapp files'
   enabled: true
 
+#Pack the solution based on the build type parameter (Unmanaged, Managed or Both)
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.pack-solution.PowerPlatformPackSolution@0
   displayName: 'Pack Solutions (Unmanaged and/or Managed)'
   inputs:
@@ -56,6 +57,7 @@ steps:
     SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\$(SolutionName)_$(Build.BuildNumber).zip'
     SolutionType: ${{parameters.buildType}}
 
+#Run Solution Checker against our solution. This is currently only triggered for pipelines that trigger for Pull Requests
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.checker.PowerPlatformChecker@0
   displayName: 'Run Solution Checker'
   inputs:
@@ -65,37 +67,47 @@ steps:
     RuleSet: '0ad12346-e108-40b8-a956-9a8f95ea18c9'
   condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
 
+# We'll store configuration data as artifacts on the build pipeline to be used during deployment. This includes configuration data created via Configuration data migration tool and deploymentSettings.json and customDeploymentSettings.json 
 - powershell: |
-   $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\ConfigurationMigrationData"
-   if(Test-Path $path) {
-       $compress = @{
-         Path = $path + '\*.*'
-         CompressionLevel = 'Fastest'
-         DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
-       }
-       Compress-Archive @compress
-   }
+    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\ConfigurationMigrationData"
+    if(Test-Path $path) {
+        $compress = @{
+            Path = $path + '\*.*'
+            CompressionLevel = 'Fastest'
+            DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
+        }
+        Compress-Archive @compress
+    }
+    $settingFiles = @("deploymentSettings","customDeploymentSettings")
 
-   if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
-       Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
-       ForEach-Object {
-           $environment = $_.Name
-           $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
-           if(Test-Path $path) {
+    foreach ($settingFile in $settingFiles) {
+        $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$settingFile.json"
+        if(Test-Path $path) {
+            Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile.json"
+        }
+    }
+
+    if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
+        Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
+        ForEach-Object {
+            $environment = $_.Name
+            $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
+            if(Test-Path $path) {
                 $compress = @{
                     Path = $path + '\*.*'
                     CompressionLevel = 'Fastest'
                     DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData-' + $environment + '.zip'
                 }
                 Compress-Archive @compress
-           }
-           $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\deploymentSettings.json"
-           if(Test-Path $path) {
-                Copy-Item $path "$(Build.ArtifactStagingDirectory)/deploymentSettings-$environment.json"
-           }
-       }
-   }
-
+            }
+            foreach ($settingFile in $settingFiles) {
+                $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\$settingFile.json"
+                if(Test-Path $path) {
+                    Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile-$environment.json"
+                }
+            }
+        }
+    }
   displayName: 'Archive Configuration Migration Data'
 
 - task: PublishPipelineArtifact@1
