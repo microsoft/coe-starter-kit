@@ -33,7 +33,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
     - [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
     - [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
     - [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
-    - [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-YAML-pipelines-from-github-to-your-azure-devops-instance)
+    - [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
     - [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
     - [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
     - [Create Pipeline global variables](#create-pipeline-global-variables)
@@ -256,17 +256,16 @@ The following section will guide you through the setup steps required for each o
 
 **Each environment (i.e. Development, Validation, Test and Production) will need to have an Application User.** For each of your environments follow the steps below to setup the Application User.
 
-1. Go to https://make.powerapps.com and select your environment
-1. Select the **COG** in the upper right hand corner and select **Advanced Settings**.
-![image.png](.attachments/GETTINGSTARTED/image-5f17d96c-3f2f-4ea4-8e6b-7b5f921a7dcb.png)
-1. Select **Settings** > **Security** > **Users.**
-![image.png](.attachments/GETTINGSTARTED/image-7767a85b-dabb-48c2-b151-16bc19aad809.png)
-1. Under System Views select the **Application User view**.
-![image-20210216172510237](.attachments/GETTINGSTARTED/image-20210216172510237.png)
-1. Select **New** then select the **Application User form** when the user form loads
-![image-20210216172532444](.attachments/GETTINGSTARTED/image-20210216172532444.png)
-1. In the **Application ID** field copy and paste the **Application (client) ID** you copied when [creating your App Registration](#appid) then select **Save**.
-1. After the user is created assign the user a Security Role.
+1. Go to Power Platform Admin Center [https://aka.ms/ppac](https://aka.ms/ppac)
+1. Select your environment
+1. Click **Settings**
+   ![Click environment settings](.attachments/SETUPGUIDE/environment-settings.png)
+1. Click **Users + permissions** > **Application users**
+   ![Click application users](.attachments/SETUPGUIDE/environment-settings-applications-users.png)
+1. Click **New app user** to add a new Application user
+   ![Click new app user](.attachments/SETUPGUIDE/environment-new-app-user.png)
+1. Select the **Azure App Registration** you created, **Business Unit** and **Security Role**
+   ![Select app regsitration, business unit and security role](.attachments/SETUPGUIDE/create-new-app-user.png)
 
     >[!NOTE] It's recommended you give this user System Administrator rights to be able to perform the required functions in each of the environments.
 1. Repeat these steps as needed for each of your environments (i.e. Development, Validation, Test and Production).
