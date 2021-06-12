@@ -1,6 +1,22 @@
 # Microsoft Power Platform Center of Excellence (CoE) Starter Kit
 The Center of Excellence (CoE) Starter Kit is a set of templates that are designed to help develop a strategy for adopting, maintaining and supporting the Power Platform, with a focus on Power Apps and Power Automate. The kit includes multiple Power Apps and Power BI analytics reports to view and interact with the data collected.  The kit also provides several assets that provide templates and suggested patterns and practices for implementing CoE efforts. The assets part of the CoE Starter Kit should be seen as a template from which you inherit your individual solution or can serve as inspiration for implementing your own apps and flows.
 
+## About this GitHub repo
+
+The CoE Starter Kit GitHub Repo contains the source, releases, issues and backlog items of [all components](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit-explained) that are part of the CoE Starter Kit.
+
+1. The latest shipped version is available via **[Releases](https://github.com/microsoft/coe-starter-kit/releases)**. From there, you can download the latest version of all managed solutions that have been tested and are ready for use. 
+2. Stay up to date with our releases by **subscribing** to them: 
+  1. Select Watch 
+      ![image](https://user-images.githubusercontent.com/55705669/121772447-4ede5700-cb6d-11eb-91a7-fe41715fc431.png)
+  2. Select Custom > Releases > Apply to receive notifications about our releases
+     ![image](https://user-images.githubusercontent.com/55705669/121772469-661d4480-cb6d-11eb-8a24-1c53c8d9e8bd.png)
+3. Raise an issue with a CoE Starter Kit solutions using the **Issues** tab > New Issue. Make sure to select the right bug report template, which makes sure the issue is assigned to the right person and labelled correctly for us to quickly get back to you.
+![image](https://user-images.githubusercontent.com/55705669/121772488-8cdb7b00-cb6d-11eb-8420-27fe122483ea.png)
+4. If you want to learn more about what's in the latest release of the CoE Starter Kit, you can check our closed **Milestones**: https://github.com/microsoft/coe-starter-kit/milestones?state=closed. This will list both bug fixes as new features that were introduced with the latest version.
+4. If you want to learn more about what the CoE Starter Kit team is planning, check our open **Milestones**: https://github.com/microsoft/coe-starter-kit/milestones?state=open. We use CoE Starter Kit - _Month_ 2021 to plan our next release, and CoE Starter Kit - Backlog for our unprioritized feature requests. Please comment or upvote feature requests by liking them
+![image](https://user-images.githubusercontent.com/55705669/121772577-070bff80-cb6e-11eb-94af-4573622ce073.png)
+
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
