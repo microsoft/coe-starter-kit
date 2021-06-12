@@ -7,9 +7,9 @@ The CoE Starter Kit GitHub Repo contains the source, releases, issues and backlo
 
 1. The latest shipped version is available via **[Releases](https://github.com/microsoft/coe-starter-kit/releases)**. From there, you can download the latest version of all managed solutions that have been tested and are ready for use. 
 2. Stay up to date with our releases by **subscribing** to them: 
-  1. Select Watch 
-      ![image](https://user-images.githubusercontent.com/55705669/121772447-4ede5700-cb6d-11eb-91a7-fe41715fc431.png)
-  2. Select Custom > Releases > Apply to receive notifications about our releases
+  - Select Watch
+    ![image](https://user-images.githubusercontent.com/55705669/121772447-4ede5700-cb6d-11eb-91a7-fe41715fc431.png)
+    - Select Custom > Releases > Apply to receive notifications about our releases
      ![image](https://user-images.githubusercontent.com/55705669/121772469-661d4480-cb6d-11eb-8a24-1c53c8d9e8bd.png)
 3. Raise an issue with a CoE Starter Kit solutions using the **Issues** tab > New Issue. Make sure to select the right bug report template, which makes sure the issue is assigned to the right person and labelled correctly for us to quickly get back to you.
 ![image](https://user-images.githubusercontent.com/55705669/121772488-8cdb7b00-cb6d-11eb-8420-27fe122483ea.png)
