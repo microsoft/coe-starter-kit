@@ -3,11 +3,28 @@ import path = require('path');
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import yesno from 'yesno';
 import * as winston from 'winston';
+import { PowerPlatformCommand } from './powerplatform';
+import axios, { AxiosResponse, AxiosStatic } from 'axios';
 
 /**
  * Azure Active Directory User Arguments
  */
 class AADAppInstallArguments {
+    
+    constructor() {
+        this.accessTokens = {}
+    }
+
+    /** 
+     * The power platform endpoint to interact with
+     */
+    endpoint: string;
+
+    /**
+    * Audiance scoped access tokens
+    */
+    accessTokens: { [id: string] : string }
+
     /**
     * The name of the Azure account
     */
@@ -37,6 +54,7 @@ class AADCommand {
     runCommand: (command: string, displayOutput: boolean) => string
     prompt: (text: string) => Promise<boolean>
     logger: winston.Logger
+    getAxios: () => AxiosStatic
 
     constructor(logger: winston.Logger) {
         this.logger = logger
@@ -47,6 +65,7 @@ class AADCommand {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
             }
         }
+        this.getAxios = () => axios
         this.prompt = async (text: string) => await yesno({ question: text })
     }
 
@@ -79,10 +98,26 @@ class AADCommand {
             let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
             if (app.length == 1) {
-                // https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp?view=pa-ps-latest
-                let administrationScript = path.join(__dirname, '..', '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.psm1')
-                command = `pwsh -c "Import-Module '${administrationScript}' -Force; New-PowerAppManagementApp  -ApplicationId ${app[0].appId}"`
-                this.runCommand(command, true)
+                let pp = new PowerPlatformCommand(this.logger)
+                let bapUrl = pp.mapEndpoint("bap", args.endpoint)
+                let apiVersion = "2020-06-01"
+                let accessToken = args.accessTokens[bapUrl]
+                let results: AxiosResponse<any>
+                try{
+                    // Reference
+                    // Source: Microsoft.PowerApps.Administration.PowerShell
+                    results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${app[0].appId}?api-version=${apiVersion}`, {
+                        headers: {
+                            "Authorization": `Bearer ${accessToken}`,
+                            "Content-Type": "application/json"
+                        }
+                    })
+                    this.logger?.info("Added Admin Application for Azure Application")
+                } catch (err) {
+                    this.logger?.info("Error adding Admin Application for Azure Application")
+                    this.logger?.error(err.response.data.error)
+                    throw err
+                }
 
                 let match = 0
                 app[0].replyUrls?.forEach( (u:string) => {
