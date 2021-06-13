@@ -248,35 +248,8 @@ class PowerPlatformCommand {
     }
 
     async fixCustomConnectors(args: PowerPlatformImportSolutionArguments) : Promise<void> {
-        
-        let bapUrl = this.mapEndpoint("bap", args.endpoint)
-        let apiVersion = "2019-05-01"
-        let accessToken = args.accessTokens[bapUrl]
-        let results: AxiosResponse<any>
-        try{
-            // Reference
-            // https://docs.microsoft.com/en-us/power-platform/admin/list-environments
-            results = await this.getAxios().get<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=${apiVersion}`, {
-                headers: {
-                    "Authorization": `Bearer ${accessToken}`,
-                    "Content-Type": "application/json"
-                }
-            })
-        } catch (err) {
-            this.logger?.error(err.response.data.error)
-            throw err
-        }
-
-        this.logger?.debug('Searching for environment')
-        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName == args.environment )
-        if ( match.length == 1 ) {
-            this.logger?.debug('Found environment')
-        } else {
-            Promise.reject('Environment not found')
-        }
-
-        let environment = match[0].name
-
+        let environment = await this.getEnvironment(args)
+       
         let connectors = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectors`, args.accessToken)).value
         let connectorMatch = connectors?.filter( (c:any) => c.name.startsWith('cat_5Fcustomazuredevops') )
 
@@ -294,6 +267,8 @@ class PowerPlatformCommand {
                 let bapUrl = this.mapEndpoint("bap", args.endpoint)
                 let token = args.accessTokens[bapUrl]
                 let connectorName = connectorMatch[0].connectorinternalid
+
+                // Based on work of paconn update (see below)
                 let url = `${powerAppsUrl}providers/Microsoft.PowerApps/apis/${connectorName}/?$filter=environment eq '${environment}'&api-version=2016-11-01`
                 let secret = await aad.addSecret(addInstallArgs, "Custom")
 
@@ -311,11 +286,11 @@ class PowerPlatformCommand {
 
                 let data = getConnection.data
 
-                // Fetach the exitsing swagger to pass to open api specification below
+                // Fetch the existing swagger to pass to open api specification below
                 let original = await this.getAxios().get(data.properties.apiDefinitions.originalSwaggerUrl)
 
                 url = `${powerAppsUrl}providers/Microsoft.PowerApps/apis/${connectorName}/?$filter=environment eq '${environment}'&api-version=2016-11-01`
-              let updateConnection: AxiosResponse<any>
+                let updateConnection: AxiosResponse<any>
                 try {
                     // Based on work of paconn update of 
                     // https://github.com/microsoft/PowerPlatformConnectors/blob/1b81ada7b083302b59c33d9ed6b14cb2ac8a0785/tools/paconn-cli/paconn/operations/upsert.py
@@ -358,19 +333,53 @@ class PowerPlatformCommand {
         }
     }
 
+    async getEnvironment(args: PowerPlatformImportSolutionArguments) : Promise<string> {
+        let bapUrl = this.mapEndpoint("bap", args.endpoint)
+        let apiVersion = "2019-05-01"
+        let accessToken = args.accessTokens[bapUrl]
+        let results: AxiosResponse<any>
+        try{
+            // Reference
+            // https://docs.microsoft.com/en-us/power-platform/admin/list-environments
+            results = await this.getAxios().get<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=${apiVersion}`, {
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                }
+            })
+        } catch (err) {
+            this.logger?.error(err.response.data.error)
+            throw err
+        }
+
+        this.logger?.debug('Searching for environment')
+        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName == args.environment )
+        if ( match.length == 1 ) {
+            this.logger?.debug('Found environment')
+            return match[0].name
+        } else {
+            Promise.reject('Environment not found')
+            return ""
+        }
+    }
+
     async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
         let whoAmI = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/WhoAmI`, args.accessToken)
 
         let aadInfo = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
-        let script = path.join(__dirname, '..', '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.psm1')
-
-        let command = `pwsh -c "try{ Import-Module '${script}' -Force; Get-AdminPowerAppConnection | ConvertTo-Json } catch {}"`
-        let data = await this.cli.runCommand(command, false)
-        let connections = JSON.parse(data)
-
-        let connection = connections.filter((c: any) => c.CreatedBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.ConnectorName == 'shared_commondataservice' )
-        
+        this.logger?.debug('Query environment connecctions')
+        let environment = await this.getEnvironment(args)
+        let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
+        let bapUrl = this.mapEndpoint("bap", args.endpoint)
+        let token = args.accessTokens[bapUrl]
+        // Source: Microsoft.PowerApps.Administration.PowerShell.psm1
+        let url = `${powerAppsUrl}providers/Microsoft.PowerApps/scopes/admin/environments/${environment}/connections?api-version=2016-11-01`
+        let connectionResults = await this.getAxios().get(url, { headers: {
+            Authorization: `Bearer ${token}`
+        }})
+        let connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId.split('apis/')[1] == 'shared_commondataservice')
+       
         if (connection.length == 0) {
             this.logger?.info('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
             return Promise.resolve();
@@ -384,7 +393,7 @@ class PowerPlatformCommand {
             } else {
                 if (connectionMatch[0].connectionid == null) {
                     let update = {
-                        "connectionid": `${connection[0].ConnectionName}`
+                        "connectionid": `${connection[0].name}`
                     }
                      try{
                         await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, { headers: {
