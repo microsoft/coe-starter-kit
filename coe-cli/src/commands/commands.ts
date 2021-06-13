@@ -76,7 +76,7 @@ class CoeCliCommands {
         let componentOption = new Option('-c, --components <commands>', 'The component(s) to install').default(["all"]).choices(['all', 'aad', 'devops', 'environment']);
         componentOption.variadic = true
 
-        let installOption = new Option('-m, --importMethod <method>', 'The import method').default("browser").choices(['browser', 'pac', 'api']);
+        let installOption = new Option('-m, --importMethod <method>', 'The import method').default("api").choices(['browser', 'pac', 'api']);
 
         let installEndpoint = new Option('--endpoint <name>', 'The endpoint').default("prod").choices(['prod', 'usgov', 'usgovhigh', 'dod', 'china', 'preview', 'tip1', 'tip2']);
 
