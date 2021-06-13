@@ -257,6 +257,8 @@ class AA4AMCommand {
     let install = new AADAppInstallArguments()
     install.account = args.account
     install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    install.accessTokens = args.accessTokens
+    install.endpoint = args.endpoint
 
     await aad.installAADApplication(install)
   }
@@ -275,6 +277,7 @@ class AA4AMCommand {
     devOpsInstall.createSecretIfNoExist = args.createSecretIfNoExist
     devOpsInstall.environment = args.environment
     devOpsInstall.environments = args.environments
+    devOpsInstall.endpoint = args.endpoint
     await command.install(devOpsInstall)
   }
 

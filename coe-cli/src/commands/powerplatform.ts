@@ -258,6 +258,8 @@ class PowerPlatformCommand {
             let addInstallArgs = new AADAppInstallArguments();
             addInstallArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
             addInstallArgs.createSecret = args.createSecret
+            addInstallArgs.accessTokens = args.accessTokens
+            addInstallArgs.endpoint = args.endpoint
 
             let connectionParameters = JSON.parse(connectorMatch[0].connectionparameters)
 

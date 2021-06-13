@@ -134,6 +134,7 @@ class CoeCliCommands {
             .description('Attempt to build components')
             .option('-o, --devopsOrg <organization>', 'The Azure DevOps environment validate')
             .option('-p, --project <name>', 'The Azure DevOps name')
+            .addOption(installEndpoint)
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines").action(async (options:any) => {
                 this.setupLogger(options)
                 let login = this.createLoginCommand()
@@ -143,6 +144,7 @@ class CoeCliCommands {
                 args.projectName = options.project
                 args.repositoryName = options.repository
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
+                args.endpoint = options.endpoint
 
                 await command.createAdvancedMakersBuildPipelines(args, null, null)
             })
@@ -155,6 +157,7 @@ class CoeCliCommands {
             .requiredOption('-o, --organization <name>', 'The Azure DevOps organization')
             .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to')
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
+            .addOption(installEndpoint)
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .action(async (options:any) => {
                 this.setupLogger(options)
@@ -170,6 +173,7 @@ class CoeCliCommands {
                 args.environment = options.environment
                 args.clientId = options.clientid
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
+                args.endpoint = options.endpoint
                                                        
                 try {
                     await command.createAdvancedMakersServiceConnections(args, null)

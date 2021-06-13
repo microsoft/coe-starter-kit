@@ -28,6 +28,7 @@ import * as winston from 'winston';
  * Install Arguments
  */
 class DevOpsInstallArguments {
+    
     constructor() {
         this.extensions = [
             <DevOpsExtension> {
@@ -51,6 +52,7 @@ class DevOpsInstallArguments {
         this.azureActiveDirectoryServicePrincipal = 'ALMAcceleratorServicePrincipal'
         this.accessTokens = {}
         this.createSecretIfNoExist = true
+        this.endpoint = "prod"
     }
 
     /**
@@ -63,6 +65,11 @@ class DevOpsInstallArguments {
       * Audance scoped access tokens
       */
      accessTokens: { [id: string] : string }
+
+    /**
+     * The power platform endpoint type
+     */
+     endpoint: string;
 
      /**
       * The name of the Azure DevOps Organization
@@ -358,6 +365,8 @@ class DevOpsCommand {
             aadArgs.account = args.account
             aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
             aadArgs.createSecret = args.createSecretIfNoExist
+            aadArgs.accessTokens = args.accessTokens
+            aadArgs.endpoint = args.endpoint
 
             let secretInfo = await aadCommand.addSecret(aadArgs, "COE-AA4AM")
 
@@ -429,6 +438,8 @@ class DevOpsCommand {
         aadArgs.account = args.account
         aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
         aadArgs.createSecret = args.createSecretIfNoExist
+        aadArgs.accessTokens = args.accessTokens
+        aadArgs.endpoint = args.endpoint
 
         let keys = Object.keys(args.environments)
 
