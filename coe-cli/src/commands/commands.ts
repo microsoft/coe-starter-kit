@@ -78,6 +78,8 @@ class CoeCliCommands {
 
         let installOption = new Option('-m, --importMethod <method>', 'The import method').default("browser").choices(['browser', 'pac', 'api']);
 
+        let installEndpoint = new Option('--endpoint <name>', 'The endpoint').default("prod").choices(['prod', 'usgov', 'usgovhigh', 'dod', 'china', 'preview', 'tip1', 'tip2']);
+
         let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops', 'development']);
 
         aa4am.command('create')
@@ -100,6 +102,7 @@ class CoeCliCommands {
             .option('-e, --environments [names]', 'The Power Platform environment(s) to configure either single or multiple in the format type=name,type2=name2 e.g. validation=org-validation,test=org-test,prod=org-test')
             .option('-s, --settings', 'Optional settings', "createSecret=true")
             .addOption(installOption)
+            .addOption(installEndpoint)
             .action(async (options:any) => {
                 this.setupLogger(options)
                 let command = this.createAA4AMCommand()
@@ -120,6 +123,7 @@ class CoeCliCommands {
                 let settings = this.parseSettings(options.settings)
                 args.createSecretIfNoExist = typeof settings["createSecret"] == "undefined" || settings["createSecret"]?.toLowerCase() == "true"
                 args.importMethod = options.importMethod
+                args.endpoint = options.endpoint
                 await command.install(args);
             });
 

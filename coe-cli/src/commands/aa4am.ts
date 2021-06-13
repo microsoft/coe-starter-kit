@@ -16,9 +16,12 @@ import * as winston from 'winston';
  * ALM Accelerator for Advanced Makers User Arguments
  */
  class AA4AMInstallArguments {
-   constructor() {
+  constructor() {
      this.environments = {}
-   }
+     this.endpoint = "prod"
+  }
+
+  endpoint: string
 
    /**
    * The components to install
@@ -71,7 +74,7 @@ import * as winston from 'winston';
   createSecretIfNoExist: boolean
 
    /**
-    * Audance scoped access tokens
+    * Audiance scoped access tokens
     */
    accessTokens: { [id: string] : string }
 
@@ -178,6 +181,9 @@ class AA4AMCommand {
   prompt: (text: string) => Promise<boolean>
   getAxios: () => AxiosStatic
   logger: winston.Logger
+  getPowerAppsEndpoint: (endpoint: string) => string
+  getBapEndpoint: (endpoint: string) => string
+
 
   constructor(logger: winston.Logger) {
       this.logger = logger
@@ -196,6 +202,12 @@ class AA4AMCommand {
       }
       this.prompt = async (text: string) => await yesno({question:text})
       this.getAxios = () => axios
+      this.getPowerAppsEndpoint = (endpoint: string) => {
+        return new PowerPlatformCommand(undefined).mapEndpoint('powerapps', endpoint)
+      }
+      this.getBapEndpoint = (endpoint: string) => {
+       return new PowerPlatformCommand(undefined).mapEndpoint('bap', endpoint)
+     }
   }
 
   async create(type:string) {
@@ -286,6 +298,8 @@ class AA4AMCommand {
     gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
     importArgs.sourceLocation = await github.getRelease(gitHubArguments)
     importArgs.importMethod = args.importMethod
+    importArgs.endpoint = args.endpoint
+    importArgs.accessTokens = args.accessTokens
 
     await command.importSolution(importArgs)
   }
@@ -414,13 +428,22 @@ class AA4AMCommand {
 
     if (args.environment?.length) {
       scopes.push(`https://${args.environment}.crm.dynamics.com`)
+      if (typeof args.endpoint === "string") {
+        scopes.push(this.getBapEndpoint(args.endpoint))
+        scopes.push(this.getPowerAppsEndpoint(args.endpoint))
+      }
     }
+
     if ((typeof args.environments === "object") && Object.keys(args.environments).length > 0) {
       let keys = Object.keys(args.environments)
       for ( var i = 0; i < keys.length; i++) {
         scopes.push(`https://${args.environments[keys[i]]}.crm.dynamics.com`)
       }
+      if (typeof args.endpoint === "string") {
+        scopes.push(this.getBapEndpoint(args.endpoint))
+      }
     }
+
     return login?.azureLogin(scopes)
   }
 }

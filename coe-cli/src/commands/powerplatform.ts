@@ -1,6 +1,6 @@
 "use strict";
 import { v4 as uuidv4 } from 'uuid';
-import axios, { AxiosStatic } from 'axios';
+import axios, { AxiosResponse, AxiosStatic } from 'axios';
 import fs from 'fs' 
 import path from 'path' 
 import { CommandLineHelper } from '../common/cli'
@@ -11,10 +11,24 @@ import * as winston from 'winston';
  * Powerplatform Command Arguments
  */
 class PowerPlatformImportSolutionArguments {
+    constructor() {
+        this.accessTokens = {}
+    }
+
     /**
      * The access token with rigts to connect to Power Platform environment
      */
     accessToken: string
+
+    /**
+    * Audiance scoped access tokens
+    */
+    accessTokens: { [id: string] : string }
+
+    /**
+     * The endpoint to connect to
+     */
+    endpoint: string
 
     /**
      * The name of the Power Platform Organization that the solution wil be imported into
@@ -69,6 +83,11 @@ class PowerPlatformConectorUpdate {
      solution: string
 }
 
+type PowerPlatformConnection = {
+    name: string
+    id: string
+}
+
 /**
  * Powerplatform commands
  */
@@ -103,6 +122,42 @@ class PowerPlatformCommand {
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.cli = new CommandLineHelper
         this.createAADCommand = () => { return new AADCommand(this.logger) }
+    }
+
+    /**
+     * Map endpoints to defined power platform endpoints
+     * @param endpoint 
+     * @returns 
+     */
+    mapEndpoint (type: string, endpoint: string) :string {
+        switch ( type ) {
+            case 'powerapps': {
+                    switch ( endpoint ) {
+                        case "prod": { return "https://api.powerapps.com/"}            
+                        case "usgov":     { return "https://gov.api.powerapps.us/" }
+                        case "usgovhigh": { return "https://high.api.powerapps.us/" }
+                        case "dod":       { return "https://api.apps.appsplatform.us/" }
+                        case "china":     { return "https://api.powerapps.cn/" }
+                        case "preview":   { return "https://preview.api.powerapps.com/" }
+                        case "tip1":      { return "https://tip1.api.powerapps.com/"}
+                        case "tip2":      { return "https://tip2.api.powerapps.com/" }
+                        default: { throw Error("Unsupported endpoint '${this.endpoint}'") }
+                    }
+                }
+            case 'bap': {
+                    switch ( endpoint ) {
+                        case "prod": { return "https://api.bap.microsoft.com/"}            
+                        case "usgov":     { return "https://gov.api.bap.microsoft.us/" }
+                        case "usgovhigh": { return "https://high.api.bap.microsoft.us/" }
+                        case "dod":       { return "https://api.bap.appsplatform.us/" }
+                        case "china":     { return "https://api.bap.partner.microsoftonline.cn/" }
+                        case "preview":   { return "https://preview.api.bap.microsoft.com/" }
+                        case "tip1":      { return "https://tip1.api.bap.microsoft.com/"}
+                        case "tip2":      { return "https://tip2.api.bap.microsoft.com/" }
+                        default: { throw Error("Unsupported endpoint '${this.endpoint}'") }
+                    }
+                }
+        }
     }
 
     /**
@@ -184,10 +239,123 @@ class PowerPlatformCommand {
         if (!await this.cli.validateAzCliReady(args)) {
             return Promise.resolve()
         }
+
+        await this.fixCustomConnectors(args)
         
         await this.fixConnectionReferences(solutions, args)
 
         await this.fixFlows(solutions, args)
+    }
+
+    async fixCustomConnectors(args: PowerPlatformImportSolutionArguments) : Promise<void> {
+        
+        let bapUrl = this.mapEndpoint("bap", args.endpoint)
+        let apiVersion = "2019-05-01"
+        let accessToken = args.accessTokens[bapUrl]
+        let results: AxiosResponse<any>
+        try{
+            // Reference
+            // https://docs.microsoft.com/en-us/power-platform/admin/list-environments
+            results = await this.getAxios().get<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=${apiVersion}`, {
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                }
+            })
+        } catch (err) {
+            this.logger?.error(err.response.data.error)
+            throw err
+        }
+
+        this.logger?.debug('Searching for environment')
+        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName == args.environment )
+        if ( match.length == 1 ) {
+            this.logger?.debug('Found environment')
+        } else {
+            Promise.reject('Environment not found')
+        }
+
+        let environment = match[0].name
+
+        let connectors = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectors`, args.accessToken)).value
+        let connectorMatch = connectors?.filter( (c:any) => c.name.startsWith('cat_5Fcustomazuredevops') )
+
+        if (connectorMatch.length == 1 ) {
+            let aad = this.createAADCommand();
+            let addInstallArgs = new AADAppInstallArguments();
+            addInstallArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            addInstallArgs.createSecret = args.createSecret
+
+            let connectionParameters = JSON.parse(connectorMatch[0].connectionparameters)
+
+            let clientid = aad.getAADApplication(addInstallArgs)
+            if (connectionParameters.token.oAuthSettings.clientId != clientid) {
+                let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
+                let bapUrl = this.mapEndpoint("bap", args.endpoint)
+                let token = args.accessTokens[bapUrl]
+                let connectorName = connectorMatch[0].connectorinternalid
+                let url = `${powerAppsUrl}providers/Microsoft.PowerApps/apis/${connectorName}/?$filter=environment eq '${environment}'&api-version=2016-11-01`
+                let secret = await aad.addSecret(addInstallArgs, "Custom")
+
+                let getConnection: AxiosResponse<any>
+                try {
+                    getConnection = await this.getAxios().get(url, {
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+                        }
+                    })
+                } catch (err) {
+                    this.logger?.error(err)
+                }
+
+                let data = getConnection.data
+
+                // Fetach the exitsing swagger to pass to open api specification below
+                let original = await this.getAxios().get(data.properties.apiDefinitions.originalSwaggerUrl)
+
+                url = `${powerAppsUrl}providers/Microsoft.PowerApps/apis/${connectorName}/?$filter=environment eq '${environment}'&api-version=2016-11-01`
+              let updateConnection: AxiosResponse<any>
+                try {
+                    // Based on work of paconn update of 
+                    // https://github.com/microsoft/PowerPlatformConnectors/blob/1b81ada7b083302b59c33d9ed6b14cb2ac8a0785/tools/paconn-cli/paconn/operations/upsert.py
+                    let update = {
+                        properties: {
+                            connectionParameters: {
+                                token: {
+                                    oAuthSettings: {
+                                        clientId: clientid,
+                                        clientSecret: secret.clientSecret,
+                                        customParameters: data.properties.connectionParameters.token.oAuthSettings.customParameters,
+                                        identityProvider: data.properties.connectionParameters.token.oAuthSettings.identityProvider,
+                                        redirectMode: data.properties.connectionParameters.token.oAuthSettings.redirectMode,
+                                        scopes: data.properties.connectionParameters.token.oAuthSettings.scopes
+                                    },
+                                    type: "oAuthSetting"
+                                }
+                            },
+                            backendService: data.properties.backendService,
+                            environment: { name: environment },
+                            description: data.properties.description,
+                            openApiDefinition: original.data,
+                            policyTemplateInstances: data.properties.policyTemplateInstances
+                        }
+
+                    }
+                    updateConnection = await this.getAxios().patch(url, update, {
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json;charset=UTF-8"
+                        }
+                    })
+                } catch (err) {
+                    this.logger?.error(err)
+                }
+                
+              this.logger?.info("Connnection updated")
+                this.logger?.debug(updateConnection.status)
+            }
+        }
     }
 
     async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
@@ -226,6 +394,7 @@ class PowerPlatformCommand {
                             'OData-Version': '4.0',
                             'If-Match': '*'  
                         }})
+                        this.logger?.info("Connection reference updated")
                      } catch (err) {
                         this.logger?.error(err)
                      }
