@@ -1,5 +1,5 @@
 "use strict";
-import CoeCliCommands from '../../src/commands/commands'
+import { CoeCliCommands, TextParseFunction } from '../../src/commands/commands'
 import { LoginCommand } from '../../src/commands/login'
 import { AA4AMCommand } from '../../src/commands/aa4am'
 import { RunCommand } from '../../src/commands/run'
@@ -7,6 +7,9 @@ import { CLICommand } from '../../src/commands/cli'
 import { mock } from 'jest-mock-extended';
 import { DevOpsCommand } from '../../src/commands/devops';
 import winston from 'winston';
+import readline = require('readline');
+import commander, { command, Command, Option } from 'commander';
+import * as fs from 'fs';
 
 describe('AA4AM', () => {
 
@@ -70,6 +73,36 @@ describe('AA4AM', () => {
         expect(mockAA4AMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
     })
 
+    test('Install - File', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger, null, {
+            readFile: () => Promise.resolve(`{
+                "account": "123",
+                "organizationName": "testorg",
+                "project": "alm-sandbox",
+                "environment": "crm-org",
+                "repository": "repo1"
+            }`)
+        });
+        let mockAA4AMCommand = mock<AA4AMCommand>(); 
+        commands.createAA4AMCommand = () => mockAA4AMCommand;
+
+        mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
+
+        // Act
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-f', 'test.json'])
+
+        // Assert
+        expect(mockAA4AMCommand.install).toHaveBeenCalled()
+        expect(mockAA4AMCommand.install.mock.calls[0][0].account).toBe("123")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].repository).toBe("repo1")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
+    })
+
     test('Install - Multi Environment', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
@@ -112,6 +145,86 @@ describe('AA4AM', () => {
         expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].environment).toBe("E1")
         expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].organizationName).toBe("O1")
         expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].projectName).toBe("P1")
+    })
+
+    test('Generate Text property', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        let mockLoginCommand = mock<LoginCommand>(); 
+        let mockDevOpsCommand = mock<DevOpsCommand>(); 
+        commands.createLoginCommand = () => mockLoginCommand;
+        commands.createDevOpsCommand = () => mockDevOpsCommand;
+
+        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
+            callback('foo')
+        })
+
+        const program = new Command();
+        program.command('install')
+            .option("-m, mode <name>", "Mode name")
+
+        // Act
+        let result = await commands.promptForValues(program, 'install', {})
+
+        // Assert
+        expect(result.mode).toBe("foo")
+        expect(readline.close).toBeCalledTimes(1)
+    })
+
+    test('Generate Array property', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        let mockLoginCommand = mock<LoginCommand>(); 
+        let mockDevOpsCommand = mock<DevOpsCommand>(); 
+        commands.createLoginCommand = () => mockLoginCommand;
+        commands.createDevOpsCommand = () => mockDevOpsCommand;
+
+        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
+            callback('1,2')
+        })
+
+        const program = new Command();
+        program.command('install')
+            .option("-m, modes [name]", "Mode name")
+
+        // Act
+        let result = await commands.promptForValues(program, 'install', {})
+
+        // Assert
+        expect(JSON.stringify(result.modes)).toBe(JSON.stringify(["1", "2"]))
+        expect(readline.close).toBeCalledTimes(1)
+    })
+
+    test('Generate Option - Default', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        let mockLoginCommand = mock<LoginCommand>(); 
+        let mockDevOpsCommand = mock<DevOpsCommand>(); 
+        commands.createLoginCommand = () => mockLoginCommand;
+        commands.createDevOpsCommand = () => mockDevOpsCommand;
+
+        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
+            callback('')
+        })
+
+        let componentOption = new Option('-c, --components [component]', 'The component(s) to install').default(["A"]).choices(['A', 'B', 'C', 'D']);
+
+        const program = new Command();
+        program.command('install')
+            .addOption(componentOption)
+
+        // Act
+        let result = await commands.promptForValues(program, 'install', {})
+
+        // Assert
+        expect(JSON.stringify(result.components)).toBe(JSON.stringify(["A"]))
+        expect(readline.close).toBeCalledTimes(1)
     })
 });
 

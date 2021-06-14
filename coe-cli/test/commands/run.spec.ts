@@ -1,5 +1,5 @@
 "use strict";
-import CoeCliCommands from '../../src/commands/commands';
+import { CoeCliCommands } from '../../src/commands/commands';
 import { RunArguments, RunCommand } from '../../src/commands/run';
 import { mock } from 'jest-mock-extended';
 const mockFs = require('mock-fs');
