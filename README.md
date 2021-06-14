@@ -1,6 +1,61 @@
 # Microsoft Power Platform Center of Excellence (CoE) Starter Kit
 The Center of Excellence (CoE) Starter Kit is a set of templates that are designed to help develop a strategy for adopting, maintaining and supporting the Power Platform, with a focus on Power Apps and Power Automate. The kit includes multiple Power Apps and Power BI analytics reports to view and interact with the data collected.  The kit also provides several assets that provide templates and suggested patterns and practices for implementing CoE efforts. The assets part of the CoE Starter Kit should be seen as a template from which you inherit your individual solution or can serve as inspiration for implementing your own apps and flows.
 
+# About this GitHub repo
+
+The CoE Starter Kit GitHub Repo contains the source, releases, issues and backlog items of [all components](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit-explained) that are part of the CoE Starter Kit.
+
+## Latest Release
+
+The latest shipped version is available via **[Releases](https://github.com/microsoft/coe-starter-kit/releases)**. From there, you can download the latest version of all managed solutions that have been tested and are ready for use. 
+
+Stay up to date with our releases by **subscribing** to them: 
+1. Select Watch <br>
+      ![image](https://user-images.githubusercontent.com/55705669/121772447-4ede5700-cb6d-11eb-91a7-fe41715fc431.png)
+2. Select Custom > Releases > Apply to receive notifications about our releases<br>
+      ![image](https://user-images.githubusercontent.com/55705669/121772469-661d4480-cb6d-11eb-8a24-1c53c8d9e8bd.png)
+
+If you want to learn more about what's in the latest release of the CoE Starter Kit, you can check out our  **[closed Milestones](https://github.com/microsoft/coe-starter-kit/milestones?state=closed)**. This will list both bug fixes as new features that were introduced with the latest version.
+
+If you want to learn more about what the CoE Starter Kit team is planning, check out our **[open Milestones](https://github.com/microsoft/coe-starter-kit/milestones?state=open)**. We use CoE Starter Kit - _Month_ 2021 to plan our next release, and CoE Starter Kit - Backlog for our unprioritized feature requests. Please comment or upvote feature requests by using reactions.
+![image](https://user-images.githubusercontent.com/55705669/121772577-070bff80-cb6e-11eb-94af-4573622ce073.png)
+
+## Report a Bug or submit a Feature Request
+
+Have you found a bug in the CoE Starter Kit or do you want to suggest a new feature? Either way, please let us now by filing an issue while observing the following guidelines
+
+### Look for an existing issue
+
+Before submitting your issue please search the [issues](https://github.com/microsoft/coe-starter-kit/issues) to ensure your issue has not already been reported
+
+If your bug or feature request has already been reported, join the conversation by commenting and adding your reaction. Please use reactions to vote and not "+1" comments.
+
+- 👍 - upvote
+- 👎 - downvote
+
+### Submitting your Issue
+
+Select the Issue template that matches the solution for which you want to submit an issue.
+![image](https://user-images.githubusercontent.com/55705669/121772488-8cdb7b00-cb6d-11eb-8420-27fe122483ea.png)
+
+File a single issue per problem and feature request. Do not enumerate multiple bugs or feature requests in the same issue.
+
+Do not add your issue as a comment to an existing issue unless it's for the identical input. Many issues look similar, but have different causes.
+
+The more information you can provide, the more likely someone will be successful at reproducing the issue and finding a fix.
+
+Observe the inline guidelines of the Issue template.
+
+## Asking and Answering Questions
+
+Join the [discussions](https://github.com/microsoft/coe-starter-kit/discussions) and ask your question or contribute by answering questions from others. This is a great way to contribute by helping the CoE Starter Kit community.
+
+If you have general questions about Power Platform Governance, unrelated to the CoE Starter Kit, please raise them in the [Power Apps Community forum](https://powerusers.microsoft.com/t5/Power-Apps-Governance-and/bd-p/Admin_PowerApps)
+
+## Contribute with Code
+
+If you are interested in contributing to the CoE Starter Kit by fixing issues or adding features please read the [How to Contribute](HOW_TO_CONTRIBUTE.md) guide.
+
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
@@ -54,16 +109,3 @@ We prefer all communications to be in English.
 ## Policy
 
 Microsoft follows the principle of [Coordinated Vulnerability Disclosure](https://www.microsoft.com/en-us/msrc/cvd).
-
-## Contributing
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
