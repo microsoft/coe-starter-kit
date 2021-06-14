@@ -13,6 +13,7 @@ The CoE Starter Kit GitHub Repo contains the source, releases, issues and backlo
       ![image](https://user-images.githubusercontent.com/55705669/121772469-661d4480-cb6d-11eb-8a24-1c53c8d9e8bd.png)
 3. Use **[Issues](https://github.com/microsoft/coe-starter-kit/issues)** to raise any bugs you find. Make sure to select the right bug report template, which makes sure the issue is assigned to the right person and labelled correctly for us to quickly get back to you.
 ![image](https://user-images.githubusercontent.com/55705669/121772488-8cdb7b00-cb6d-11eb-8420-27fe122483ea.png)
+4. Use **[Discussions](https://github.com/microsoft/coe-starter-kit/discussions)** for questions and ideas related to the CoE Starter Kit solutions.
 4. If you want to learn more about what's in the latest release of the CoE Starter Kit, you can check our closed **Milestones**: https://github.com/microsoft/coe-starter-kit/milestones?state=closed. This will list both bug fixes as new features that were introduced with the latest version.
 4. If you want to learn more about what the CoE Starter Kit team is planning, check our open **Milestones**: https://github.com/microsoft/coe-starter-kit/milestones?state=open. We use CoE Starter Kit - _Month_ 2021 to plan our next release, and CoE Starter Kit - Backlog for our unprioritized feature requests. Please comment or upvote feature requests by liking them
 ![image](https://user-images.githubusercontent.com/55705669/121772577-070bff80-cb6e-11eb-94af-4573622ce073.png)
