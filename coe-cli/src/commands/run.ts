@@ -1,7 +1,7 @@
 "use strict";
 import * as path from 'path'
 import * as fs from 'fs';
-import CoeCliCommands from './commands'
+import { CoeCliCommands } from './commands'
 import * as winston from 'winston';
 
 /**

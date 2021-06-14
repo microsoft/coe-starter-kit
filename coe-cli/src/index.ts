@@ -1,6 +1,6 @@
 "use strict";
 
-import CoeCliCommands from './commands/commands'
+import { CoeCliCommands } from './commands/commands'
 
 (async function () {
   var commands = new CoeCliCommands(undefined)

@@ -1,5 +1,5 @@
 "use strict";
-import { PowerPlatformImportSolutionArguments, PowerPlatformConectorUpdate, PowerPlatformCommand } from '../../src/commands/powerplatform';
+import { PowerPlatformImportSolutionArguments, PowerPlatformCommand } from '../../src/commands/powerplatform';
 import { mock } from 'jest-mock-extended';
 import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
 import winston from 'winston';
@@ -18,6 +18,7 @@ describe('Import', () => {
         command.getAxios = () => mock<AxiosStatic>();
 
         let args = new PowerPlatformImportSolutionArguments();
+        args.importMethod = 'browser'
 
         // Act
         
@@ -81,6 +82,8 @@ describe('API Import', () => {
             if (response != null ) {
                 return response
             }
+
+            return mockResponse(url, '', { })
         } )
 
         let args = new PowerPlatformImportSolutionArguments();
@@ -165,6 +168,7 @@ describe('API Import', () => {
                     }
                 }
             }] })
+
             if (response != null ) {
                 return response
             }
@@ -188,7 +192,16 @@ describe('API Import', () => {
             if (response != null ) {
                 return response
             }
-        } )
+
+            response = mockResponse(url, 'http://www.microsoft.com/XYZZY', {
+                data: ''
+            })
+            if (response != null ) {
+                return response
+            }
+
+            throw new Error(`Unknown url ${url}`)
+        })
 
         mockAxios.patch.mockImplementation((url: string, config: AxiosRequestConfig) => {
             console.log(url)
@@ -215,7 +228,7 @@ describe('API Import', () => {
 });
 
 function mockResponse(url:string, contains: string, data: any) : Promise<AxiosResponse<any>> {
-    if ( url.indexOf(contains) > 0 ) {
+    if ( url.indexOf(contains) >= 0 || contains.length == 0 ) {
         let response : AxiosResponse<any> = 
                 {
                     data: data,
