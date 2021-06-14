@@ -107,10 +107,10 @@ class PowerPlatformCommand {
         
         this.getAxios = () => axios
         this.getBinaryUrl = async (url: string) => {
-            return Buffer.from((await axios.get(url, { responseType: 'arraybuffer' })).data, 'binary')
+            return Buffer.from((await this.getAxios().get(url, { responseType: 'arraybuffer' })).data, 'binary')
         }
-        this.getUrl = async (url: string) => (await axios.get<string>(url)).data
-        this.getSecureJson = async (url: string, token: string) => (await axios.get<string>(url, { headers: {
+        this.getUrl = async (url: string) => (await this.getAxios().get<string>(url)).data
+        this.getSecureJson = async (url: string, token: string) => (await this.getAxios().get<any>(url, { headers: {
             'Authorization': 'Bearer ' + token,
             'Content-Type': 'appplication/json'
           }})).data
@@ -329,8 +329,8 @@ class PowerPlatformCommand {
                     this.logger?.error(err)
                 }
                 
-              this.logger?.info("Connnection updated")
-                this.logger?.debug(updateConnection.status)
+                this.logger?.info("Connnection updated")
+                this.logger?.debug(updateConnection?.status)
             }
         }
     }
@@ -380,7 +380,7 @@ class PowerPlatformCommand {
         let connectionResults = await this.getAxios().get(url, { headers: {
             Authorization: `Bearer ${token}`
         }})
-        let connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId.split('apis/')[1] == 'shared_commondataservice')
+        let connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId?.split('apis/')[1] == 'shared_commondataservice')
        
         if (connection.length == 0) {
             this.logger?.info('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
@@ -422,6 +422,11 @@ class PowerPlatformCommand {
      * @param args 
      */
     async fixFlows(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+        if (typeof solutions === "undefined" || solutions.value.length == 0) {
+            this.logger?.info("Unable to update flow, solution not found")
+            return Promise.resolve()
+        }
+
         let flows = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/workflows?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken))
         for ( let i = 0; i < flows.value?.length; i++ ) {
             let flow = flows.value[i]
