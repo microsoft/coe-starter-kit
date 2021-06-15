@@ -1,5 +1,5 @@
 "use strict";
-import commander, { command, Command, option, Option } from 'commander';
+import commander, { command, Command, option, Option, opts } from 'commander';
 import { LoginCommand } from './login';
 import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMCommand } from './aa4am';
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
@@ -9,6 +9,7 @@ import * as winston from 'winston';
 import * as readline from 'readline';
 import * as fs from 'fs';
 import { FileHandle } from 'fs/promises';
+import { Environment } from '../common/enviroment';
 
 interface TextParseFunction {
     parse: (text:string) => { [id: string] : string } | string | string[]
@@ -123,7 +124,7 @@ class CoeCliCommands {
             .action(async (options:any) => {
                 let parse : { [id: string] : TextParseFunction } = {}
                 parse["environments"] = { parse: (text) => {
-                    if (text?.length > 0 && text.indexOf('=') == 0) {
+                    if (text?.length > 0 && text.indexOf('=') < 0) {
                         return text;
                     }
                     return this.parseSettings(text)
@@ -137,6 +138,16 @@ class CoeCliCommands {
                         "prod": "contoso-prod"
                     }
                 }
+
+                if (typeof results.settings === "string") {
+                    results.settings = this.parseSettings(results.settings)
+                }
+
+                if (typeof results.settings?.region === "undefined") {
+                    // Set default region https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+                    results.settings.region = "NAM"
+                }
+
                 if (typeof options.output === "string") {
                     this.writeFile(options.output, JSON.stringify(results, null, 2))
                 } else {
@@ -154,7 +165,7 @@ class CoeCliCommands {
             .option('-p, --project <name>', 'The Azure DevOps name', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines")
             .option('-e, --environments [names]', 'The Power Platform environment(s) to configure either single or multiple in the format type=name,type2=name2 e.g. validation=org-validation,test=org-test,prod=org-test')
-            .option('-s, --settings', 'Optional settings', "createSecret=true")
+            .option('-s, --settings <namevalues>', 'Optional settings', "createSecret=true")
             .addOption(installOption)
             .addOption(installEndpoint)
             .action(async (options:any) => {
@@ -167,11 +178,23 @@ class CoeCliCommands {
                     this.logger?.info("Loading configuration")
                     let optionsFile = JSON.parse(await this.readFile(options.file, { encoding: 'utf-8' }))
                     if ( Array.isArray(optionsFile.environments) ) {
-                        optionsFile.environments = optionsFile.environments.join(',')
+                        optionsFile.environments = this.parseSettings(optionsFile.environments.join(','))
+                        if ( optionsFile.environments.length == 1 ) {
+                            optionsFile.environment = optionsFile.environments[0]
+                        }
+                    }
+
+                    if ( typeof optionsFile.environments === "string") {
+                        optionsFile.environments = this.parseSettings(optionsFile.environments)
+                        optionsFile.environment = optionsFile.environments['0']
                     }
                     
-                    this.copyValues(optionsFile, args)   
-                    settings = this.parseSettings(optionsFile.settings)
+                    this.copyValues(optionsFile, args, {
+                        "aad": "azureActiveDirectoryServicePrincipal",
+                        "devopsOrg": "organizationName",
+                        "powerPlatformOrg": "powerPlatformOrganization",
+                    })   
+                    settings = typeof optionsFile.settings === "string" ? this.parseSettings(optionsFile.settings) : optionsFile.settings
                 } else {
                     args.components = options.components
                     args.account = options.account
@@ -188,9 +211,11 @@ class CoeCliCommands {
                     }
                     args.importMethod = options.importMethod
                     args.endpoint = options.endpoint
-                    settings = this.parseSettings(options.settings)
+                    args.settings = this.parseSettings(options.settings)
                 }
-                args.createSecretIfNoExist = typeof settings["createSecret"] == "undefined" || settings["createSecret"]?.toLowerCase() == "true"
+                args.createSecretIfNoExist = typeof settings == "undefined" || typeof settings["createSecret"] == "undefined" || settings["createSecret"]?.toLowerCase() == "true"
+                args.environments = Environment.getEnvironments(args.environments, args.settings)
+
                 await command.install(args);
             });
 
@@ -226,6 +251,7 @@ class CoeCliCommands {
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('-s, --settings <namevalues>', 'Optional settings')
             .action(async (options:any) => {
                 this.setupLogger(options)
                 let login = this.createLoginCommand()
@@ -241,6 +267,7 @@ class CoeCliCommands {
                 args.clientId = options.clientid
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
                 args.endpoint = options.endpoint
+                args.settings = this.parseSettings(options.settings)
                                                        
                 try {
                     await command.createAdvancedMakersServiceConnections(args, null)
@@ -255,17 +282,23 @@ class CoeCliCommands {
         
         user.command("add")
             .requiredOption('-e, --environment <organization>', 'The environment to create the user in')
-            .requiredOption('-i, --id <id>', 'The unique identifier of the user')
+            .option('-i, --id <id>', 'The unique identifier of the user')
+            .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
-            .action((options: any) => {
+            .option('-s, --settings <namevalues>', 'Optional settings')
+            .action(async (options: any) => {
                 this.setupLogger(options)
                 let command = this.createAA4AMCommand()
                 let args = new AA4AMUserArguments();
                 args.command = options.command
                 args.id = options.id
+                if (typeof options.aad !== "undefined") {
+                    args.azureActiveDirectoryServicePrincipal = options.aad
+                }
                 args.environment = options.environment
                 args.role = options.role
-                command.addUser(args);
+                args.settings = this.parseSettings(options.settings)
+                await command.addUser(args);
             });
 
         aa4am.command('branch')
@@ -273,9 +306,10 @@ class CoeCliCommands {
             .option('-o, --organization <name>', 'The Azure DevOps Organization name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
             .option('-p, --project <name>', 'The Azure DevOps name')
-            .option('-s, --source <name>', 'The source branch to copy from')
-            .option('-sb, --source-build <name>', 'The source build to copy from')
+            .option('--source <name>', 'The source branch to copy from')
+            .option('--source-build <name>', 'The source build to copy from')
             .option('-d, --destination <name>', 'The branch to create')
+            .option('-s, --settings <namevalues>', 'Optional settings')
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 let args = new AA4AMBranchArguments();
@@ -285,6 +319,7 @@ class CoeCliCommands {
                 args.sourceBranch = options.source
                 args.sourceBuildName = options.sourceBuild
                 args.destinationBranch = options.destination
+                args.settings = this.parseSettings(options.settings)
 
                 let command = this.createAA4AMCommand()
                 await command.branch(args)
@@ -331,21 +366,32 @@ class CoeCliCommands {
 
     parseSettings(setting: string) : { [id: string] : string } {
         let result : { [id: string] : string } = {}
-        let arr = setting?.split(',');
-        arr?.forEach(el => {
-            if (el.indexOf('=') > -1) {
-              const keyVal = el.split('=');
-              result[keyVal[0].toLowerCase()] = keyVal[1]
+
+        if ( setting?.length > 0) {
+            let arr = setting?.split(',');
+            for ( let i = 0; i < arr.length; i++){
+                if (arr[i].indexOf('=') > -1) {
+                    const keyVal = arr[i].split('=');
+                    result[keyVal[0].toLowerCase()] = keyVal[1]
+                } else {
+                    result[i.toString()] = arr[i]
+                }
             }
-          });
+        }
+
         return result;
     } 
 
-    copyValues(source: any, destination: any) {
+    copyValues(source: any, destination: any, mappings:{ [id: string] : string } ) {
         let sourceKeys = Object.keys(source)
 
+        let mappingKeys = Object.keys(mappings)
+
         for ( let i = 0; i < sourceKeys.length; i++ ) {
-            destination[sourceKeys[i]] = source[sourceKeys[i]]
+            let newName = sourceKeys[i]          
+            let newMappedName = mappingKeys.filter(m => m == newName)
+            newName = newMappedName.length == 1 ? mappings[newMappedName[0]] : newName
+            destination[newName] = source[sourceKeys[i]]
         }
     }
 

@@ -11,6 +11,7 @@ import yesno from 'yesno';
 import { GitHubCommand, GitHubReleaseArguments } from './github';
 import axios, { AxiosStatic } from 'axios';
 import * as winston from 'winston';
+import { Environment } from '../common/enviroment'
 
 /**
  * ALM Accelerator for Advanced Makers User Arguments
@@ -19,6 +20,7 @@ import * as winston from 'winston';
   constructor() {
      this.environments = {}
      this.endpoint = "prod"
+     this.settings = {}
   }
 
   endpoint: string
@@ -82,6 +84,11 @@ import * as winston from 'winston';
     * Solution import method
     */
    importMethod: string
+
+   /**
+    * Optional settings
+    */
+   settings:  { [id: string] : string }
 }
 
 /**
@@ -90,6 +97,7 @@ import * as winston from 'winston';
 class AA4AMUserArguments {
   constructor() {
     this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+    this.settings = {}
   }
 
   /**
@@ -113,9 +121,19 @@ class AA4AMUserArguments {
   id: string
 
   /**
+   * The name of the azure active directory service principal to lookup
+   */
+  azureActiveDirectoryServicePrincipal: string
+
+  /**
   * The usre role
   */
   role: string
+
+  /**
+    * Optional settings
+    */
+   settings:  { [id: string] : string }
 }
 
 /**
@@ -124,6 +142,7 @@ class AA4AMUserArguments {
 class AA4AMBranchArguments {
   constructor() {
     this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+    this.settings = {}
   }
 
   /**
@@ -165,6 +184,11 @@ class AA4AMBranchArguments {
    * The destination branch that will be copied to
    */
   destinationBranch: string
+
+  /**
+    * Optional settings
+    */
+  settings:  { [id: string] : string }
 }
 
 /**
@@ -259,6 +283,7 @@ class AA4AMCommand {
     install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     install.accessTokens = args.accessTokens
     install.endpoint = args.endpoint
+    install.settings = args.settings
 
     await aad.installAADApplication(install)
   }
@@ -278,6 +303,8 @@ class AA4AMCommand {
     devOpsInstall.environment = args.environment
     devOpsInstall.environments = args.environments
     devOpsInstall.endpoint = args.endpoint
+    devOpsInstall.settings = args.settings
+
     await command.install(devOpsInstall)
   }
 
@@ -288,12 +315,16 @@ class AA4AMCommand {
   async installPowerPlatformComponents(args: AA4AMInstallArguments) : Promise<void> {
     this.logger?.info("Install PowerPlatform Components")
 
+    let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+    
     let command = this.createPowerPlatformCommand();
     let importArgs = new PowerPlatformImportSolutionArguments()
-    importArgs.accessToken = args.accessTokens[`https://${args.environment}.crm.dynamics.com`]
-    importArgs.environment = args.environment
+
+    importArgs.accessToken = args.accessTokens[environmentUrl]
+    importArgs.environment = typeof args.environment === "string" ? args.environment : args.environments["0"]
     importArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     importArgs.createSecret = args.createSecretIfNoExist
+    importArgs.settings = args.settings
 
     let github = this.createGitHubCommand();
     let gitHubArguments = new GitHubReleaseArguments();
@@ -303,6 +334,26 @@ class AA4AMCommand {
     importArgs.importMethod = args.importMethod
     importArgs.endpoint = args.endpoint
     importArgs.accessTokens = args.accessTokens
+
+    let environments : string[] = []
+    if ( args.environment?.length > 0 ) {
+      environments.push(args.environment)
+    }
+    let environmentNames = Object.keys(args.environments)
+    for ( var i = 0; i < environmentNames.length; i++ ) {
+      let name = args.environments[environmentNames[i]]
+      if (environments.filter((e : string) => e == name).length == 0) {
+        environments.push(name)
+      }      
+    }
+
+    for ( var i = 0; i < environments.length; i++ ) {
+      let userArgs = new AA4AMUserArguments()
+      userArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+      userArgs.environment = environments[i]
+      userArgs.settings = args.settings
+      await this.addUser(userArgs)
+    }
 
     await command.importSolution(importArgs)
   }
@@ -317,12 +368,24 @@ class AA4AMCommand {
    async addUser(args: AA4AMUserArguments) : Promise<void> {    
       let accessTokens = await this.getAccessTokens(args)
 
-      this.logger?.info("Adding user")
+      let id = args.id
+
+      if (typeof id == "undefined" && args.azureActiveDirectoryServicePrincipal?.length > 0) {
+        let aad = this.createAADCommand();
+        let aadArgs = new AADAppInstallArguments()
+        aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+        aadArgs.settings = args.settings
+
+        this.logger?.info(`Searching for application ${args.azureActiveDirectoryServicePrincipal}`)
+        id = await aad.getAADApplication(aadArgs)
+      }
+
+      let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
       this.logger?.verbose("Checking user")
       var dynamicsWebApi = this.createDynamicsWebApi({
-        webApiUrl: `https://${args.environment}.crm.dynamics.com/api/data/v9.1/`,
-        onTokenRefresh: (dynamicsWebApiCallback) => dynamicsWebApiCallback(accessTokens[`https://${args.environment}.crm.dynamics.com`])
+        webApiUrl: `${enviromentUrl}api/data/v9.1/`,
+        onTokenRefresh: (dynamicsWebApiCallback) => dynamicsWebApiCallback(accessTokens[enviromentUrl])
       });
 
       let businessUnitId = ''
@@ -338,7 +401,7 @@ class AA4AMCommand {
       <entity name="systemuser">
           <attribute name="applicationid" />
           <filter type="and">
-              <condition attribute="applicationid" operator="eq" value="${args.id}" />
+              <condition attribute="applicationid" operator="eq" value="${id}" />
           </filter>
       </entity>
       </fetch>`
@@ -356,11 +419,11 @@ class AA4AMCommand {
       } else {
         try{
           this.logger?.debug('Creating application user')
-          let user = { "applicationid": args.id, "businessunitid@odata.bind": `/businessunits(${businessUnitId})`}
+          let user = { "applicationid": id, "businessunitid@odata.bind": `/businessunits(${businessUnitId})`}
           this.logger?.info('Creating system user')
-          await this.getAxios().post(`https://${args.environment}.crm.dynamics.com/api/data/v9.1/systemusers`, user, {
+          await this.getAxios().post(`${enviromentUrl}api/data/v9.1/systemusers`, user, {
             headers: {
-              "Authorization": `Bearer ${accessTokens[`https://${args.environment}.crm.dynamics.com`]}`,
+              "Authorization": `Bearer ${accessTokens[enviromentUrl]}`,
               "Content-Type": "application/json"
             }
           })
@@ -369,8 +432,11 @@ class AA4AMCommand {
           throw err
         }
       }
-     
+
       let roleName = args.role
+      if ( typeof roleName === "undefined" ) {
+        roleName = typeof args.settings["role"] === "string" ? args.settings["role"] : "System Administrator"
+      }
       let roleQuery = `<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" no-lock="true">
       <entity name="role">
           <attribute name="roleid" />
@@ -393,7 +459,7 @@ class AA4AMCommand {
         return Promise.resolve();
       } 
 
-      this.logger?.info(`Associating application user ${args.id} with role ${roleName}`)
+      this.logger?.info(`Associating application user ${id} with role ${roleName}`)
       await dynamicsWebApi.associate("systemusers", match?.value[0].systemuserid, "systemuserroles_association", "roles", roles.value[0].roleid )
         .catch(err => { this.logger?.error(err)})    
    }
@@ -430,20 +496,28 @@ class AA4AMCommand {
     let scopes = ["499b84ac-1321-427f-aa17-267ca6975798"]
 
     if (args.environment?.length) {
-      scopes.push(`https://${args.environment}.crm.dynamics.com`)
+      let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+      scopes.push(enviromentUrl)
       if (typeof args.endpoint === "string") {
-        scopes.push(this.getBapEndpoint(args.endpoint))
+        let getBapEndpoint = this.getBapEndpoint(args.endpoint)
+        scopes.push(getBapEndpoint)
         scopes.push(this.getPowerAppsEndpoint(args.endpoint))
+        let authEndPoint = Environment.getAuthenticationUrl(getBapEndpoint)
+        scopes.push(authEndPoint)
       }
     }
 
     if ((typeof args.environments === "object") && Object.keys(args.environments).length > 0) {
       let keys = Object.keys(args.environments)
       for ( var i = 0; i < keys.length; i++) {
-        scopes.push(`https://${args.environments[keys[i]]}.crm.dynamics.com`)
+        let enviromentUrl = Environment.getEnvironmentUrl(args.environments[keys[i]], args.settings)
+        scopes.push(enviromentUrl)
       }
       if (typeof args.endpoint === "string") {
-        scopes.push(this.getBapEndpoint(args.endpoint))
+        let getBapEndpoint = this.getBapEndpoint(args.endpoint)
+        scopes.push(getBapEndpoint)
+        let authEndPoint = Environment.getAuthenticationUrl(getBapEndpoint)
+        scopes.push(authEndPoint)
       }
     }
 

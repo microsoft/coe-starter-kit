@@ -2,10 +2,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import axios, { AxiosResponse, AxiosStatic } from 'axios';
 import fs from 'fs' 
-import path from 'path' 
 import { CommandLineHelper } from '../common/cli'
 import { AADAppInstallArguments, AADCommand } from './aad';
 import * as winston from 'winston';
+import { Environment } from '../common/enviroment';
+import * as urlModule from 'url';
 
 /**
  * Powerplatform Command Arguments
@@ -13,6 +14,7 @@ import * as winston from 'winston';
 class PowerPlatformImportSolutionArguments {
     constructor() {
         this.accessTokens = {}
+        this.settings = {}
     }
 
     /**
@@ -59,6 +61,11 @@ class PowerPlatformImportSolutionArguments {
      * Create a new secret for 
      */
     createSecret: boolean
+
+    /**
+    * Optional settings
+    */
+    settings:  { [id: string] : string }
 }
 
 class PowerPlatformConectorUpdate {
@@ -210,7 +217,8 @@ class PowerPlatformCommand {
      * @param args 
      */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let solutions :any = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        let solutions :any = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
 
         if ( solutions.value.length == 0 )
         {
@@ -225,13 +233,13 @@ class PowerPlatformCommand {
             };
     
             this.logger?.info('Importing managed solution')
-            await this.getAxios().post( `https://${args.environment}.crm.dynamics.com/api/data/v9.0/ImportSolution`, importData, {
+            await this.getAxios().post( `${enviromentUrl}api/data/v9.0/ImportSolution`, importData, {
                 headers: {
                     'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
-            solutions = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+            solutions = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
         } else {
             this.logger?.info('Solution already exists')
         }  
@@ -249,8 +257,10 @@ class PowerPlatformCommand {
 
     async fixCustomConnectors(args: PowerPlatformImportSolutionArguments) : Promise<void> {
         let environment = await this.getEnvironment(args)
+
+        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
        
-        let connectors = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectors`, args.accessToken)).value
+        let connectors = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/connectors`, args.accessToken)).value
         let connectorMatch = connectors?.filter( (c:any) => c.name.startsWith('cat_5Fcustomazuredevops') )
 
         if (connectorMatch.length == 1 ) {
@@ -355,7 +365,15 @@ class PowerPlatformCommand {
         }
 
         this.logger?.debug('Searching for environment')
-        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName == args.environment )
+        let domainName = args.environment
+        try {
+            let domainUrl = new urlModule.URL(domainName)
+            domainName = domainUrl.hostname.split(".")[0]
+        } catch {
+
+        }
+
+        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName == domainName )
         if ( match.length == 1 ) {
             this.logger?.debug('Found environment')
             return match[0].name
@@ -366,9 +384,11 @@ class PowerPlatformCommand {
     }
 
     async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let whoAmI = await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/WhoAmI`, args.accessToken)
+        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        let aadInfo = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
+        let whoAmI = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/WhoAmI`, args.accessToken)
+
+        let aadInfo = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
         this.logger?.debug('Query environment connecctions')
         let environment = await this.getEnvironment(args)
@@ -386,7 +406,7 @@ class PowerPlatformCommand {
             this.logger?.info('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
             return Promise.resolve();
         } else {
-            let connectionReferences = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
+            let connectionReferences = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
             let connectionMatch = connectionReferences?.filter( (c:any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps') )
 
             if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
@@ -398,7 +418,7 @@ class PowerPlatformCommand {
                         "connectionid": `${connection[0].name}`
                     }
                      try{
-                        await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, { headers: {
+                        await this.getAxios().patch(`${enviromentUrl}api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, { headers: {
                             'Authorization': 'Bearer ' + args.accessToken,
                             'Content-Type': 'application/json',
                             'OData-MaxVersion': '4.0',
@@ -427,7 +447,9 @@ class PowerPlatformCommand {
             return Promise.resolve()
         }
 
-        let flows = (await this.getSecureJson(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/workflows?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken))
+        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+
+        let flows = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/workflows?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken))
         for ( let i = 0; i < flows.value?.length; i++ ) {
             let flow = flows.value[i]
             if (flow.statecode == 0 && flow.statuscode == 1) {
@@ -436,7 +458,7 @@ class PowerPlatformCommand {
                     statuscode: 2
                 }
                 this.logger?.debug(`Enabling flow ${flow.name}`)
-                await this.getAxios().patch(`https://${args.environment}.crm.dynamics.com/api/data/v9.0/workflows(${flow.workflowid})`, flowUpdate, { headers: {
+                await this.getAxios().patch(`${enviromentUrl}api/data/v9.0/workflows(${flow.workflowid})`, flowUpdate, { headers: {
                             'Authorization': 'Bearer ' + args.accessToken,
                             'Content-Type': 'application/json',
                             'OData-MaxVersion': '4.0',

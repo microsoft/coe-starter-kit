@@ -5,6 +5,7 @@ import yesno from 'yesno';
 import * as winston from 'winston';
 import { PowerPlatformCommand } from './powerplatform';
 import axios, { AxiosResponse, AxiosStatic } from 'axios';
+import { Environment } from '../common/enviroment';
 
 /**
  * Azure Active Directory User Arguments
@@ -13,6 +14,7 @@ class AADAppInstallArguments {
     
     constructor() {
         this.accessTokens = {}
+        this.settings = {}
     }
 
     /** 
@@ -39,6 +41,11 @@ class AADAppInstallArguments {
      * Create secret for application
      */
     createSecret: boolean
+
+    /**
+    * Optional settings
+    */
+    settings:  { [id: string] : string }
 }
 
 type AADAppSecret = {
@@ -101,12 +108,13 @@ class AADCommand {
                 let pp = new PowerPlatformCommand(this.logger)
                 let bapUrl = pp.mapEndpoint("bap", args.endpoint)
                 let apiVersion = "2020-06-01"
-                let accessToken = args.accessTokens[bapUrl]
+                let authService = Environment.getAuthenticationUrl(bapUrl)
+                let accessToken = args.accessTokens[authService]
                 let results: AxiosResponse<any>
                 try{
                     // Reference
                     // Source: Microsoft.PowerApps.Administration.PowerShell
-                    results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${app[0].appId}?api-version=${apiVersion}`, {
+                    results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${app[0].appId}?api-version=${apiVersion}`, {}, {
                         headers: {
                             "Authorization": `Bearer ${accessToken}`,
                             "Content-Type": "application/json"
@@ -116,7 +124,7 @@ class AADCommand {
                 } catch (err) {
                     this.logger?.info("Error adding Admin Application for Azure Application")
                     this.logger?.error(err.response.data.error)
-                    throw err
+                    return Promise.reject(err)
                 }
 
                 let match = 0
