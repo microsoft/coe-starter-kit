@@ -163,7 +163,40 @@ coe aa4am --help
 
 ##### Install
 
-You can install all pre-requites if you are installing to a Dmo tenant or you have rights to Azure Active Directory, Azure Devops and Power Platform System Administrator rights.
+You can install all pre-requites if you are installing to a Dmo tenant or you have rights to Azure Active Directory, Azure DevOps and Power Platform System Administrator rights.
+
+###### Preparing for an Install
+
+You can start by generating a configuration file for you install using the following command
+
+```bash
+coe aa4am generate install -o test.json
+```
+
+This will ask you a series of questions for the values you want to 
+
+```json
+{
+  "components": [
+    "environment"
+  ],
+  "aad": "ALMAcceleratorServicePrincipal",
+  "devopsOrg": "CRM12345",
+  "project": "alm-sandbox",
+  "repository": "pipelines",
+  "environments": "https://orga11111.crm.dynamics.com/",
+  "settings": {
+    "createsecret": "true",
+    "region": "NAM"
+  },
+  "importMethod": "api",
+  "endpoint": "prod"
+}
+```
+
+```bash
+coe aa4am install -f test.json
+```
 
 ###### Install All Pre-requisites
 

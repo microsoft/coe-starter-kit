@@ -26,9 +26,8 @@ class CoeCliCommands {
     createCliCommand: () => CLICommand
     logger: winston.Logger
     readline: readline.ReadLine
-    readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } & fs.Abortable | BufferEncoding) => Promise<string>
-    writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array, options?: fs.BaseEncodingOptions & { mode?: fs.Mode, flag?: fs.OpenMode } & fs.Abortable | BufferEncoding | null) => Promise<void>
-    
+    readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
+    writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array, options?: fs.BaseEncodingOptions & { mode?: fs.Mode, flag?: fs.OpenMode } | BufferEncoding | null) => Promise<void>
     
     constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null, defaultFs: any = null ) {
         if (typeof logger === "undefined") {
