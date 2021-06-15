@@ -200,7 +200,7 @@ describe('API Import', () => {
                 return response
             }
 
-            throw new Error(`Unknown url ${url}`)
+            return mockResponse(url, '', {})
         })
 
         mockAxios.patch.mockImplementation((url: string, config: AxiosRequestConfig) => {

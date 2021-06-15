@@ -7,6 +7,8 @@ import DynamicsWebApi = require('dynamics-web-api');
 import { AADCommand } from '../../src/commands/aad';
 import { AxiosStatic } from 'axios';
 import winston = require('winston');
+import { GitHubCommand } from '../../src/commands/github';
+import { PowerPlatformCommand } from '../../src/commands/powerplatform';
 
 describe('Install - AAD', () => {
     test('No command', async () => {
@@ -75,6 +77,45 @@ describe('Install - DevOps', () => {
     })
 })
 
+describe('Install - Enviroment', () => {
+    test('Default', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+        let addCommand = mock<AADCommand>()
+        
+        command.createAADCommand = () => addCommand
+
+        const mockedPowerPlatformCommand = mock<PowerPlatformCommand>()
+        const mockedGitHubCommand= mock<GitHubCommand>();
+        const mockedDynamicsWebApi = mock<DynamicsWebApi>();
+        const mockAxios = mock<AxiosStatic>();
+        
+        command.createGitHubCommand = () => mockedGitHubCommand    
+        command.createPowerPlatformCommand = () => mockedPowerPlatformCommand
+        command.createDynamicsWebApi = () => mockedDynamicsWebApi
+        command.getAxios = () => mockAxios
+        command.prompt = (text) => Promise.resolve(false)
+
+        addCommand.getAADApplication.mockReturnValue("A123");
+        mockedDynamicsWebApi.executeUnboundFunction.mockResolvedValue({BusinessUnitId:"B1"})
+        mockedDynamicsWebApi.executeFetchXmlAll.mockResolvedValue({value:[{}]})
+        mockedDynamicsWebApi.associate.mockResolvedValue({})
+        mockAxios.post.mockResolvedValue({})
+
+        // Act
+        let args = new AA4AMInstallArguments();
+        args.components = ['environment']
+        args.environment = "1"
+        args.azureActiveDirectoryServicePrincipal = "123"
+        await command.install(args)
+
+        // Assert
+        expect(mockedPowerPlatformCommand.importSolution).toHaveBeenCalled()
+        expect(mockedGitHubCommand.getRelease).toHaveBeenCalled()
+    })
+})
+
 describe('Add User', () => {
     test('Default', async () => {
         // Arrange
@@ -111,6 +152,7 @@ describe('Add User', () => {
         
         // Act
         let args = new AA4AMUserArguments();
+        args.id = "123"
         await command.addUser(args)
 
         // Assert

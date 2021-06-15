@@ -23,6 +23,8 @@ import { EndpointAuthorization, ServiceEndpoint, TaskAgentPool, VariableGroupPar
 import { ProjectReference, VariableGroupProjectReference, VariableValue } from "azure-devops-node-api/interfaces/ReleaseInterfaces";
 
 import * as winston from 'winston';
+import { Environment } from "../common/enviroment";
+import { URL } from "url";
 
 /**
  * Install Arguments
@@ -53,6 +55,7 @@ class DevOpsInstallArguments {
         this.accessTokens = {}
         this.createSecretIfNoExist = true
         this.endpoint = "prod"
+        this.settings = {}
     }
 
     /**
@@ -118,6 +121,11 @@ class DevOpsInstallArguments {
      * The Azure DevOps environments
      */
     environments: { [id: string] : string }
+
+    /**
+    * Optional settings
+    */
+    settings:  { [id: string] : string }
 }
 
 type DevOpsExtension = {
@@ -136,6 +144,10 @@ type DevOpsExtension = {
  * Branch Arguments
  */
 class DevOpsBranchArguments {
+    constructor() {
+        this.settings = {}
+    }
+    
     /**
      * The Bearer Auth access token
      */
@@ -177,6 +189,11 @@ class DevOpsBranchArguments {
      * Open default web configuration pages
      */
     openDefaultPages: boolean
+
+    /**
+    * Optional settings
+    */
+    settings:  { [id: string] : string }
 }
 
  /**
@@ -226,7 +243,7 @@ class DevOpsCommand {
         let script = path.join( __dirname, '..', '..', '..' , 'scripts', 'Install-AzureDevOpsExtensions.ps1')
         let extensions = path.join(__dirname, '..', '..', '..', 'config', 'AzureDevOpsExtensionsDetails.json')
 
-        let orgUrl = `https://dev.azure.com/${args.organizationName}`
+        let orgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
 
         this.logger?.debug('Installing DevOps Extensions')
 
@@ -273,7 +290,10 @@ class DevOpsCommand {
             this.logger?.debug('Setting default branch')
             let headers = <IHeaders>{ };
             headers["Content-Type"] = "application/json"
-            await this.getHttpClient(connection).patch(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
+
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+
+            await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
         }
 
         return repo;
@@ -397,6 +417,9 @@ class DevOpsCommand {
                 }]
             paramemeters.name = 'global-variable-group'
             paramemeters.description = 'ALM Accelerator for Advanced Makers'
+
+            let validationUrl = Environment.getEnvironmentUrl(validationConnection, args.settings)
+
             paramemeters.variables = {
                 "CdsBaseConnectionString": <VariableValue>{ 
                     value: "AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
@@ -415,7 +438,7 @@ class DevOpsCommand {
                     value: buildId
                 },
                 "ValidationServiceConnection": <VariableValue>{ 
-                    value: `https://${validationConnection}.crm.dynamics.com/`
+                    value: validationUrl
                 }
             }
 
@@ -431,7 +454,12 @@ class DevOpsCommand {
         let coreApi = await connection.getCoreApi();
 
         let projects = await coreApi.getProjects()
-        let project = projects.filter(p => p.name == args.projectName)
+        let project = projects.filter(p => p.name?.toLowerCase() == args.projectName?.toLowerCase() )
+
+        if (project.length == 0) {
+            this.logger?.error(`Azure DevOps project ${args.projectName} not found`)
+            return Promise.resolve();
+        }
 
         let aadCommand = this.createAADCommand()
         let aadArgs = new AADAppInstallArguments()
@@ -454,12 +482,14 @@ class DevOpsCommand {
         for ( var i = 0; i < keys.length; i++) {
             let environmentName = args.environments[keys[i]]
             mapping[environmentName] = keys[i]
-            environments.push(environmentName)
+            if ( environments.filter( (e:string) => e == environmentName ).length == 0) {
+                environments.push(environmentName)
+            }
         }
 
         for ( var i = 0; i < environments.length; i++) {
             let environmentName = environments[i]
-            let endpointUrl = `https://${environmentName}.crm.dynamics.com/`
+            let endpointUrl = Environment.getEnvironmentUrl(environmentName, args.settings)
 
             let secretInfo = await aadCommand.addSecret(aadArgs, environmentName)
 
@@ -491,7 +521,10 @@ class DevOpsCommand {
                 let headers = <IHeaders>{ };
                 headers["Content-Type"] = "application/json"
                 let webClient = this.getHttpClient(connection);
-                let create = await webClient.post(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
+
+                let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+
+                let create = await webClient.post(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
 
                 if (create.message.statusCode != 200) {
                     this.logger?.info(await create.readBody())
@@ -509,7 +542,8 @@ class DevOpsCommand {
      */
     async getServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<ServiceEndpoint[]> {
         let webClient = this.getHttpClient(connection);
-        let request = await webClient.get(`https://dev.azure.com/${args.organizationName}/${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
+        let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+        let request = await webClient.get(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
         let data = await request.readBody()
         return <ServiceEndpoint[]>(JSON.parse(data).value)
     }
@@ -517,8 +551,8 @@ class DevOpsCommand {
     private async createConnectionIfExists( args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<azdev.WebApi> {
         if ( connection == null) {
             let authHandler = azdev.getBearerHandler(args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"], true); 
-            let orgUrl = `https://dev.azure.com/${args.organizationName}`
-            return this.createWebApi(orgUrl, authHandler); 
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+            return this.createWebApi(devOpsOrgUrl, authHandler); 
         }
         return connection
     }
@@ -549,9 +583,9 @@ class DevOpsCommand {
      *
      */
     async branch(args: DevOpsBranchArguments) : Promise<void> {
-        let orgUrl = util.format("https://dev.azure.com/%s",args.organizationName);
+        let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let authHandler = azdev.getBearerHandler(args.accessToken); 
-        let connection = this.createWebApi(orgUrl, authHandler); 
+        let connection = this.createWebApi(devOpsOrgUrl, authHandler); 
 
         let core = await connection.getCoreApi()
         let project : CoreInterfaces.TeamProject = await core.getProject(args.projectName)
@@ -730,7 +764,8 @@ class DevOpsCommand {
         let defaultAgent : TaskAgentPool[] = []
         defaultAgent = (await taskApi?.getAgentPools())?.filter(a => a.name == "Default");
 
-        let baseUrl = `https://dev.azure.com/${args.organizationName}/${args.projectName}`
+        let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+        let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
         let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
 
@@ -798,20 +833,24 @@ class DevOpsCommand {
                 let environmentName = ''
                 let seviceConnection = ''
 
+                let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
+                let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
+                let prodName = typeof (args.settings["prod"] === "string") ? args.settings["prod"] : "yourenviromenthere-prod"
+
                 switch (template?.toLowerCase()) {
                     case "validation": {
                         environmentName = 'Validation'
-                        seviceConnection = 'https://yourenviromenthere-validation.crm.dynamics.com'
+                        seviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
                         break;
                     }
                     case "test": {
                         environmentName = 'Test'
-                        seviceConnection = 'https://yourenviromenthere-test.crm.dynamics.com'
+                        seviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
                         break;
                     }
                     case "prod": {
                         environmentName = 'Production'
-                        seviceConnection = 'https://yourenviromenthere-production.crm.dynamics.com'
+                        seviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
                         break;
                     }
                 }
