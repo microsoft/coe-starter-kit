@@ -5,7 +5,7 @@ import * as path from 'path'
 import * as fs from 'fs';
 import { promisify } from 'util';
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno'; 
+import { Prompt } from '../common/prompt';
 import winston from 'winston';
 
 const readFile = promisify(fs.readFile);
@@ -37,8 +37,8 @@ class LoginCommand {
     accessToken: string;
     createClientApp: (config: Configuration) => PublicClientApplication
     runCommand: (command: string, displayOutput: boolean) => string
-    prompt: (text: string) => Promise<boolean>
     logger: winston.Logger
+    prompt: Prompt
 
     constructor(logger: winston.Logger) {
         this.logger = logger 
@@ -53,7 +53,7 @@ class LoginCommand {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
             }
         }
-        this.prompt = async (text: string) => await yesno({question:text})
+        this.prompt = new Prompt()
     }
 
     /**
@@ -135,7 +135,7 @@ class LoginCommand {
             // Check if accounts
             if (accounts.length == 0) {
                 // No accounts are available probably not logged in ... prompt to login
-                let ok = await this.prompt('You are not logged into an account. Try login now (y/n)?')
+                let ok = await this.prompt.yesno('You are not logged into an account. Try login now (Y/n)?', true)
                 if (ok) {
                     this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
                 }

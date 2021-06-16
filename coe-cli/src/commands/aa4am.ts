@@ -7,7 +7,7 @@ import { DeviceCodeRequest, Configuration, AuthenticationResult } from '@azure/m
 import DynamicsWebApi = require('dynamics-web-api');
 import open = require('open');
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno'; 
+
 import { GitHubCommand, GitHubReleaseArguments } from './github';
 import axios, { AxiosStatic } from 'axios';
 import * as winston from 'winston';
@@ -202,12 +202,10 @@ class AA4AMCommand {
   createGitHubCommand: () => GitHubCommand
   createPowerPlatformCommand: () => PowerPlatformCommand
   runCommand: (command: string, displayOutput: boolean) => string 
-  prompt: (text: string) => Promise<boolean>
   getAxios: () => AxiosStatic
   logger: winston.Logger
   getPowerAppsEndpoint: (endpoint: string) => string
   getBapEndpoint: (endpoint: string) => string
-
 
   constructor(logger: winston.Logger) {
       this.logger = logger
@@ -224,7 +222,6 @@ class AA4AMCommand {
           return execSync(command, <ExecSyncOptionsWithStringEncoding> { encoding: 'utf8' })
         }
       }
-      this.prompt = async (text: string) => await yesno({question:text})
       this.getAxios = () => axios
       this.getPowerAppsEndpoint = (endpoint: string) => {
         return new PowerPlatformCommand(undefined).mapEndpoint('powerapps', endpoint)
@@ -320,7 +317,7 @@ class AA4AMCommand {
     let command = this.createPowerPlatformCommand();
     let importArgs = new PowerPlatformImportSolutionArguments()
 
-    importArgs.accessToken = args.accessTokens[environmentUrl]
+    importArgs.accessToken = typeof args.accessTokens !== "undefined" ? args.accessTokens[environmentUrl] : undefined
     importArgs.environment = typeof args.environment === "string" ? args.environment : args.environments["0"]
     importArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     importArgs.createSecret = args.createSecretIfNoExist

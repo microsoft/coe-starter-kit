@@ -1,11 +1,11 @@
 "use strict";
 import path = require('path');
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno';
 import * as winston from 'winston';
 import { PowerPlatformCommand } from './powerplatform';
 import axios, { AxiosResponse, AxiosStatic } from 'axios';
 import { Environment } from '../common/enviroment';
+import { Prompt } from '../common/prompt';
 
 /**
  * Azure Active Directory User Arguments
@@ -59,7 +59,7 @@ type AADAppSecret = {
  */
 class AADCommand {
     runCommand: (command: string, displayOutput: boolean) => string
-    prompt: (text: string) => Promise<boolean>
+    prompt: Prompt
     logger: winston.Logger
     getAxios: () => AxiosStatic
 
@@ -73,7 +73,7 @@ class AADCommand {
             }
         }
         this.getAxios = () => axios
-        this.prompt = async (text: string) => await yesno({ question: text })
+        this.prompt = new Prompt()
     }
 
     getAADApplication(args: AADAppInstallArguments): string {
@@ -215,7 +215,7 @@ class AADCommand {
             if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
                 if (accounts.length == 0) {
                     // No accounts are available probably not logged in ... prompt to login
-                    let ok = await this.prompt('You are not logged into an account. Try login now (y/n)?')
+                    let ok = await this.prompt.yesno('You are not logged into an account. Try login now (y/n)?', true)
                     if (ok) {
                         this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
                     } else {
@@ -231,7 +231,7 @@ class AADCommand {
                     }
                     if (defaultAccount.length == 1 && accounts.length > 1) {
                         // More than one account assigned to this account .. confirm if want to use the current default tenant
-                        let ok = await this.prompt(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`);
+                        let ok = await this.prompt.yesno(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`, true);
                         if (ok) {
                             // Use the default account
                             args.account = defaultAccount[0].id
