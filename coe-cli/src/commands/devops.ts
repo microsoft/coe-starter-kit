@@ -14,7 +14,6 @@ import { IBuildApi } from "azure-devops-node-api/BuildApi";
 import { PolicyConfiguration } from "azure-devops-node-api/interfaces/PolicyInterfaces";
 
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno'; 
 import path = require('path');
 import httpm = require('typed-rest-client/HttpClient');
 
@@ -25,6 +24,7 @@ import { ProjectReference, VariableGroupProjectReference, VariableValue } from "
 import * as winston from 'winston';
 import { Environment } from "../common/enviroment";
 import { URL } from "url";
+import { Prompt } from "../common/prompt";
 
 /**
  * Install Arguments
@@ -204,7 +204,7 @@ class DevOpsCommand {
     createAADCommand: () => AADCommand
     getUrl: (url: string) => Promise<string>
     runCommand: (command: string, displayOutput: boolean) => string 
-    prompt: (text: string) => Promise<boolean>
+    prompt: Prompt
     getHttpClient: (connection: azdev.WebApi) => httpm.HttpClient
     logger: winston.Logger
 
@@ -222,7 +222,7 @@ class DevOpsCommand {
               return execSync(command, <ExecSyncOptionsWithStringEncoding> { encoding: 'utf8' })
             }
         }
-        this.prompt = async (text: string) => await yesno({question:text})
+        this.prompt = new Prompt()
         this.getHttpClient = (connection: azdev.WebApi) => connection.rest.client
     }
 

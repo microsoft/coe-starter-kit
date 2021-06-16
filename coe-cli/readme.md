@@ -129,7 +129,7 @@ docker build -t coe-cli .
 
 NOTE: If you receive an error about unable to download packages your system time may eb out of sync from the docker host. Restarting you system may resolve this issue
 
-2. Run the docker image which will start a powershell session
+2. Run the docker image which will start a PowerShell session
 
  ```bash
 docker run -it --rm coe-cli
@@ -138,8 +138,11 @@ docker run -it --rm coe-cli
 **-it** run docker command interactive with terminal input
 **--rm** remove the docker image when exit. Ensure any temp files or credentials are removed when sesion ends
 coe-cli is the docker image name
-**-v "c:\temp":/tmp** map local c:\temp to the /temp folder inside the docker container
-**coe --help** os the command to run
+
+**Optional Arguments**
+
+**-v "c:\temp":/tmp** map local c:\temp to the /temp folder inside the docker container 
+**coe --help** os the command to run (Optional will start PowerShell by default)
 
 Notes:
 1. Once the docker container starts youc an use coe command inside the powershell e.g. coe --help
@@ -173,7 +176,7 @@ You can start by generating a configuration file for you install using the follo
 coe aa4am generate install -o test.json
 ```
 
-This will ask you a series of questions for the values you want to 
+This will ask you a series of questions for the values which you can then edit and review before starting install
 
 ```json
 {
@@ -193,6 +196,8 @@ This will ask you a series of questions for the values you want to
   "endpoint": "prod"
 }
 ```
+
+To start an install with you configured settings you can use thw following.
 
 ```bash
 coe aa4am install -f test.json
@@ -307,7 +312,7 @@ The [Contribution Guide](./CONTRIBUTING.md) includes technical details on how to
 
 ### Authentication
 
-Authentication for tasks is managed using the Azure CLI. USing standard az cli commands you can login, logout and select accounts
+Authentication for tasks is managed using the Azure CLI. Using standard az cli commands you can login, logout and select accounts.
 
 ```bash
 az login

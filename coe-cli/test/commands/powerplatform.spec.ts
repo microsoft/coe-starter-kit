@@ -4,6 +4,7 @@ import { mock } from 'jest-mock-extended';
 import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
 import winston from 'winston';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
+import { CommandLineHelper } from '../../src/common/cli';
             
 describe('Import', () => {
     test('Default', async () => {
@@ -38,8 +39,12 @@ describe('API Import', () => {
             return Promise.resolve(Buffer.from(''))
         }
         let mockAxios = mock<AxiosStatic>();
+        let mockCli = mock<CommandLineHelper>()
 
         command.getAxios = () => mockAxios
+        command.cli = mockCli
+
+        mockCli.validateAzCliReady.mockResolvedValue(true)
 
         mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
@@ -108,9 +113,12 @@ describe('API Import', () => {
         }
         let mockAxios = mock<AxiosStatic>();
         let mockAad = mock<AADCommand>()
-
+        let mockCli = mock<CommandLineHelper>()
         command.getAxios = () => mockAxios
         command.createAADCommand = () => mockAad
+        command.cli = mockCli 
+
+        mockCli.validateAzCliReady.mockResolvedValue(true)
 
         mockAad.addSecret.mockResolvedValue(<AADAppSecret> {
             clientSecret: "VALUE"

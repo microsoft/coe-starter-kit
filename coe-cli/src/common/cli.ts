@@ -1,9 +1,14 @@
 import { exec, execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno';
 import * as winston from 'winston';
+import { Prompt } from './prompt';
 
 export class CommandLineHelper {
     logger: winston.Logger
+    prompt: Prompt
+
+    constructor() {
+        this.prompt = new Prompt()
+    }
 
     async validateAzCliReady(args: any): Promise<boolean> {
         let pwshVersion = ''
@@ -30,7 +35,7 @@ export class CommandLineHelper {
             if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
                 if (accounts.length == 0) {
                     // No accounts are available probably not logged in ... prompt to login
-                    let ok = await this.prompt('You are not logged into an account. Try login now (y/n)?')
+                    let ok = await this.prompt.yesno('You are not logged into an account. Try login now (Y/n)?', true)
                     if (ok) {
                         await this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
                     } else {
@@ -46,7 +51,7 @@ export class CommandLineHelper {
                     }
                     if (defaultAccount.length == 1 && accounts.length > 1) {
                         // More than one account assigned to this account .. confirm if want to use the current default tenant
-                        let ok = await this.prompt(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`);
+                        let ok = await this.prompt.yesno(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (Y/n)?`, true);
                         if (ok) {
                             // Use the default account
                             args.account = defaultAccount[0].id
@@ -101,9 +106,5 @@ export class CommandLineHelper {
 
             child.on("error", () => reject)
         })
-    }
-
-    async prompt(text: string) : Promise<boolean> {
-        return await yesno({ question: text })
     }
 }

@@ -3,6 +3,7 @@ import { AADAppInstallArguments, AADCommand } from '../../src/commands/aad';
 import { mock } from 'jest-mock-extended';
 import winston = require('winston');
 import { AxiosStatic } from 'axios';
+import { Prompt } from '../../src/common/prompt';
 
 describe('Install - AAD User', () => {
     test('Error - Powershell Not Installed', async () => {
@@ -38,7 +39,10 @@ describe('Install - AAD User', () => {
             }
             return ""
         }
-        command.prompt = (text) => Promise.resolve(false)
+        let mockPrompt = mock<Prompt>()
+        command.prompt = mockPrompt
+
+        mockPrompt.yesno.mockResolvedValue(false)
         
         // Act
         let args = new AADAppInstallArguments();

@@ -15,8 +15,11 @@ describe('Install - AAD', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new AA4AMCommand(logger);
-        
-        // Act
+        let mockLogin = mock<LoginCommand>()
+
+        command.createLoginCommand = () => mockLogin
+
+                // Act
         let args = new AA4AMInstallArguments();
         await command.install(args)
 
@@ -62,7 +65,6 @@ describe('Install - DevOps', () => {
         
         command.createLoginCommand = () => mockedLoginCommand   
         command.createDevOpsCommand = () => mockedDevOpsCommand    
-        command.prompt = (text) => Promise.resolve(false)
 
         mockedLoginCommand.azureLogin.mockResolvedValue({})
 
@@ -83,19 +85,20 @@ describe('Install - Enviroment', () => {
         let logger = mock<winston.Logger>()
         var command = new AA4AMCommand(logger);
         let addCommand = mock<AADCommand>()
-        
-        command.createAADCommand = () => addCommand
+        let mockLogin = mock<LoginCommand>()
+
+        command.createLoginCommand = () => mockLogin
 
         const mockedPowerPlatformCommand = mock<PowerPlatformCommand>()
         const mockedGitHubCommand= mock<GitHubCommand>();
         const mockedDynamicsWebApi = mock<DynamicsWebApi>();
         const mockAxios = mock<AxiosStatic>();
         
+        command.createAADCommand = () => addCommand
         command.createGitHubCommand = () => mockedGitHubCommand    
         command.createPowerPlatformCommand = () => mockedPowerPlatformCommand
         command.createDynamicsWebApi = () => mockedDynamicsWebApi
         command.getAxios = () => mockAxios
-        command.prompt = (text) => Promise.resolve(false)
 
         addCommand.getAADApplication.mockReturnValue("A123");
         mockedDynamicsWebApi.executeUnboundFunction.mockResolvedValue({BusinessUnitId:"B1"})
@@ -107,6 +110,9 @@ describe('Install - Enviroment', () => {
         let args = new AA4AMInstallArguments();
         args.components = ['environment']
         args.environment = "1"
+        args.accessTokens = {
+            'https://1.crm.dynamics.com/': '123'
+        }
         args.azureActiveDirectoryServicePrincipal = "123"
         await command.install(args)
 
