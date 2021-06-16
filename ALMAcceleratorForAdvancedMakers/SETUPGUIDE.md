@@ -835,4 +835,6 @@ See the [User Guide](USERGUIDE.md) for using the ALM Accelerator App
 
    Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in Project -> Settings -> General. This setting is turned on by default when you create a new project.
 
-   ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png) 
+   ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png)
+
+   Note that the project settings can be overridden at the Azure DevOps organization level, so if the option to change this is disabled in project settings, check in Organization Settings.
