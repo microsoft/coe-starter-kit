@@ -1,14 +1,15 @@
 "use strict";
-import CoeCliCommands from '../../src/commands/commands';
+import { CoeCliCommands } from '../../src/commands/commands';
 import { RunArguments, RunCommand } from '../../src/commands/run';
 import { mock } from 'jest-mock-extended';
-import * as fs from 'fs'
 const mockFs = require('mock-fs');
+import winston from 'winston';
 
 describe('Related Tests', () => {
     test('Default', async () => {
         // Arrange
-        var command = new RunCommand;
+        let logger = mock<winston.Logger>()
+        var command = new RunCommand(logger);
         var mockCommand = mock<CoeCliCommands>();
 
         mockFs({

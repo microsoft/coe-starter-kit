@@ -1,5 +1,6 @@
 "use strict";
 const { Octokit } = require("@octokit/rest")
+import * as winston from 'winston';
 
 /**
  * Github Release Command Arguments
@@ -21,8 +22,10 @@ class GitHubReleaseArguments {
  */
 class GitHubCommand {
     createOctoKitRespos: () => any
+    logger: winston.Logger
 
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger
         this.createOctoKitRespos = () => new Octokit().rest.repos
     }
 

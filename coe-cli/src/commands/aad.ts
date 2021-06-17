@@ -1,12 +1,32 @@
 "use strict";
 import path = require('path');
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno';
+import * as winston from 'winston';
+import { PowerPlatformCommand } from './powerplatform';
+import axios, { AxiosResponse, AxiosStatic } from 'axios';
+import { Environment } from '../common/enviroment';
+import { Prompt } from '../common/prompt';
 
 /**
  * Azure Active Directory User Arguments
  */
 class AADAppInstallArguments {
+    
+    constructor() {
+        this.accessTokens = {}
+        this.settings = {}
+    }
+
+    /** 
+     * The power platform endpoint to interact with
+     */
+    endpoint: string;
+
+    /**
+    * Audiance scoped access tokens
+    */
+    accessTokens: { [id: string] : string }
+
     /**
     * The name of the Azure account
     */
@@ -21,6 +41,11 @@ class AADAppInstallArguments {
      * Create secret for application
      */
     createSecret: boolean
+
+    /**
+    * Optional settings
+    */
+    settings:  { [id: string] : string }
 }
 
 type AADAppSecret = {
@@ -34,9 +59,12 @@ type AADAppSecret = {
  */
 class AADCommand {
     runCommand: (command: string, displayOutput: boolean) => string
-    prompt: (text: string) => Promise<boolean>
+    prompt: Prompt
+    logger: winston.Logger
+    getAxios: () => AxiosStatic
 
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger
         this.runCommand = (command: string, displayOutput: boolean) => {
             if (displayOutput) {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
@@ -44,7 +72,18 @@ class AADCommand {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
             }
         }
-        this.prompt = async (text: string) => await yesno({ question: text })
+        this.getAxios = () => axios
+        this.prompt = new Prompt()
+    }
+
+    getAADApplication(args: AADAppInstallArguments): string {
+        let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
+
+        if (app.length == 1) {
+            return app[0].appId
+        }
+
+        return null
     }
 
     /**
@@ -53,6 +92,7 @@ class AADCommand {
      * @returns 
      */
     async installAADApplication(args: AADAppInstallArguments): Promise<void> {
+
         if (await this.validateAzCliReady(args)) {
             let script = path.join(__dirname, '..', '..', '..', 'scripts', 'New-AzureAdAppRegistration.ps1')
             let manifest = path.join(__dirname, '..', '..', '..', 'config', 'manifest.json')
@@ -62,13 +102,30 @@ class AADCommand {
             this.runCommand(command, true)
 
             // Find the created application and register the management application 
-            // https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp?view=pa-ps-latest
             let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
             if (app.length == 1) {
-                let administrationScript = path.join(__dirname, '..', '..', '..', 'scripts', 'Microsoft.PowerApps.Administration.PowerShell.psm1')
-                command = `pwsh -c "Import-Module '${administrationScript}' -Force; New-PowerAppManagementApp  -ApplicationId ${app[0].appId}"`
-                this.runCommand(command, true)
+                let pp = new PowerPlatformCommand(this.logger)
+                let bapUrl = pp.mapEndpoint("bap", args.endpoint)
+                let apiVersion = "2020-06-01"
+                let authService = Environment.getAuthenticationUrl(bapUrl)
+                let accessToken = args.accessTokens[authService]
+                let results: AxiosResponse<any>
+                try{
+                    // Reference
+                    // Source: Microsoft.PowerApps.Administration.PowerShell
+                    results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${app[0].appId}?api-version=${apiVersion}`, {}, {
+                        headers: {
+                            "Authorization": `Bearer ${accessToken}`,
+                            "Content-Type": "application/json"
+                        }
+                    })
+                    this.logger?.info("Added Admin Application for Azure Application")
+                } catch (err) {
+                    this.logger?.info("Error adding Admin Application for Azure Application")
+                    this.logger?.error(err.response.data.error)
+                    return Promise.reject(err)
+                }
 
                 let match = 0
                 app[0].replyUrls?.forEach( (u:string) => {
@@ -78,11 +135,11 @@ class AADCommand {
                 })
 
                 if ( app[0].replyUrls.length == 0 || match == 0) {
-                    console.log('Adding reply url https://global.consent.azure-apim.net/redirect')
+                    this.logger?.debug('Adding reply url https://global.consent.azure-apim.net/redirect')
                     this.runCommand(`az ad app update --id ${app[0].appId} --reply-urls https://global.consent.azure-apim.net/redirect`, true)
                 }
             } else {
-                console.log(`Application ${args.azureActiveDirectoryServicePrincipal} not found`)
+                this.logger?.info(`Application ${args.azureActiveDirectoryServicePrincipal} not found`)
                 return Promise.resolve()
             }
         }
@@ -118,11 +175,11 @@ class AADCommand {
                 }
 
                 if (args.createSecret) {
-                    console.log(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
+                    this.logger?.info(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
 
                     name = name.replace('-', '')
                     let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substr(0,15) : name
-                    console.log(`Createing secret for ${newName}`)
+                    this.logger?.info(`Creating secret for ${newName}`)
                     let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --credential-description ${newName}`, false))
                     result.clientSecret = creds.password
                     result.tenantId = creds.tenant
@@ -141,7 +198,7 @@ class AADCommand {
 
         }
         if (pwshVersion?.length == 0 || typeof pwshVersion == "undefined") {
-            console.log('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
             return Promise.resolve(false)
         }
 
@@ -158,7 +215,7 @@ class AADCommand {
             if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
                 if (accounts.length == 0) {
                     // No accounts are available probably not logged in ... prompt to login
-                    let ok = await this.prompt('You are not logged into an account. Try login now (y/n)?')
+                    let ok = await this.prompt.yesno('You are not logged into an account. Try login now (y/n)?', true)
                     if (ok) {
                         this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
                     } else {
@@ -174,14 +231,14 @@ class AADCommand {
                     }
                     if (defaultAccount.length == 1 && accounts.length > 1) {
                         // More than one account assigned to this account .. confirm if want to use the current default tenant
-                        let ok = await this.prompt(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`);
+                        let ok = await this.prompt.yesno(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`, true);
                         if (ok) {
                             // Use the default account
                             args.account = defaultAccount[0].id
                         }
                     }
                     if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
-                        console.log("Missing account, run az account list to and it -a argument to assign the account")
+                        this.logger?.info("Missing account, run az account list to and it -a argument to assign the account")
                         return Promise.resolve(false);
                     }
                 }
@@ -190,8 +247,8 @@ class AADCommand {
             if (accounts.length > 0) {
                 let match = accounts.filter((a: any) => (a.id == args.account || a.name == args.account) && (a.isDefault));
                 if (match.length != 1) {
-                    console.log(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
-                    console.log('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
+                    this.logger?.info(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
+                    this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
                     return Promise.resolve(true)

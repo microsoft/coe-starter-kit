@@ -6,13 +6,20 @@ import { mock } from 'jest-mock-extended';
 import DynamicsWebApi = require('dynamics-web-api');
 import { AADCommand } from '../../src/commands/aad';
 import { AxiosStatic } from 'axios';
+import winston = require('winston');
+import { GitHubCommand } from '../../src/commands/github';
+import { PowerPlatformCommand } from '../../src/commands/powerplatform';
 
 describe('Install - AAD', () => {
     test('No command', async () => {
         // Arrange
-        var command = new AA4AMCommand();
-        
-        // Act
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+        let mockLogin = mock<LoginCommand>()
+
+        command.createLoginCommand = () => mockLogin
+
+                // Act
         let args = new AA4AMInstallArguments();
         await command.install(args)
 
@@ -22,7 +29,9 @@ describe('Install - AAD', () => {
 
     test('Called', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+
         const mockedLoginCommand = mock<LoginCommand>();
         command.createLoginCommand = () => mockedLoginCommand
         let mockAADCommand = mock<AADCommand>()
@@ -48,13 +57,14 @@ describe('Install - AAD', () => {
 describe('Install - DevOps', () => {
     test('Default', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+
         const mockedLoginCommand = mock<LoginCommand>();
         const mockedDevOpsCommand= mock<DevOpsCommand>();
         
         command.createLoginCommand = () => mockedLoginCommand   
         command.createDevOpsCommand = () => mockedDevOpsCommand    
-        command.prompt = (text) => Promise.resolve(false)
 
         mockedLoginCommand.azureLogin.mockResolvedValue({})
 
@@ -69,10 +79,54 @@ describe('Install - DevOps', () => {
     })
 })
 
+describe('Install - Enviroment', () => {
+    test('Default', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
+        let addCommand = mock<AADCommand>()
+        let mockLogin = mock<LoginCommand>()
+
+        command.createLoginCommand = () => mockLogin
+
+        const mockedPowerPlatformCommand = mock<PowerPlatformCommand>()
+        const mockedGitHubCommand= mock<GitHubCommand>();
+        const mockedDynamicsWebApi = mock<DynamicsWebApi>();
+        const mockAxios = mock<AxiosStatic>();
+        
+        command.createAADCommand = () => addCommand
+        command.createGitHubCommand = () => mockedGitHubCommand    
+        command.createPowerPlatformCommand = () => mockedPowerPlatformCommand
+        command.createDynamicsWebApi = () => mockedDynamicsWebApi
+        command.getAxios = () => mockAxios
+
+        addCommand.getAADApplication.mockReturnValue("A123");
+        mockedDynamicsWebApi.executeUnboundFunction.mockResolvedValue({BusinessUnitId:"B1"})
+        mockedDynamicsWebApi.executeFetchXmlAll.mockResolvedValue({value:[{}]})
+        mockedDynamicsWebApi.associate.mockResolvedValue({})
+        mockAxios.post.mockResolvedValue({})
+
+        // Act
+        let args = new AA4AMInstallArguments();
+        args.components = ['environment']
+        args.environment = "1"
+        args.accessTokens = {
+            'https://1.crm.dynamics.com/': '123'
+        }
+        args.azureActiveDirectoryServicePrincipal = "123"
+        await command.install(args)
+
+        // Assert
+        expect(mockedPowerPlatformCommand.importSolution).toHaveBeenCalled()
+        expect(mockedGitHubCommand.getRelease).toHaveBeenCalled()
+    })
+})
+
 describe('Add User', () => {
     test('Default', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
 
         const mockedLoginCommand= mock<LoginCommand>();
         const mockedDynamicsWebApi= mock<DynamicsWebApi>();
@@ -104,6 +158,7 @@ describe('Add User', () => {
         
         // Act
         let args = new AA4AMUserArguments();
+        args.id = "123"
         await command.addUser(args)
 
         // Assert
@@ -117,7 +172,8 @@ describe('Add User', () => {
 describe('Branch', () => {
     test('Default', async () => {
         // Arrange
-        var command = new AA4AMCommand();
+        let logger = mock<winston.Logger>()
+        var command = new AA4AMCommand(logger);
 
         const mockedLoginCommand= mock<LoginCommand>();
         const mockedDevOpsCommand= mock<DevOpsCommand>();

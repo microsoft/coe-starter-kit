@@ -1,7 +1,8 @@
 "use strict";
 import * as path from 'path'
 import * as fs from 'fs';
-import CoeCliCommands from './commands'
+import { CoeCliCommands } from './commands'
+import * as winston from 'winston';
 
 /**
  * Run Command Arguments
@@ -29,9 +30,15 @@ class RunArguments {
  */
 class RunCommand {
     creatCoeCliCommands: () => CoeCliCommands
+    logger: winston.Logger
   
-    constructor() {
-        this.creatCoeCliCommands = () => new CoeCliCommands
+    constructor(logger: winston.Logger) {
+        this.logger = logger
+        this.creatCoeCliCommands = () => { 
+            let command = new CoeCliCommands(this.logger)
+            command.logger = this.logger
+            return command
+        }
     }
 
     /**
@@ -54,7 +61,7 @@ class RunCommand {
         let executor = this.creatCoeCliCommands();
 
         for ( var i = 0; i < commands.length; i++) {
-            console.log(`Running ${commands[i].name}`)
+            this.logger?.info(`Running ${commands[i].name}`)
             let childArgs : string[] = []
             childArgs.push('node')
             childArgs.push('run')
