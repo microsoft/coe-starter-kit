@@ -13,6 +13,7 @@ import { Environment } from '../common/enviroment';
 
 interface TextParseFunction {
     parse: (text:string) => { [id: string] : string } | string | string[]
+    command: commander.Command
 }
 
 /**
@@ -28,6 +29,7 @@ class CoeCliCommands {
     readline: readline.ReadLine
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
     writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array, options?: fs.BaseEncodingOptions & { mode?: fs.Mode, flag?: fs.OpenMode } | BufferEncoding | null) => Promise<void>
+    outputText: (text: string) => void
     
     constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null, defaultFs: any = null ) {
         if (typeof logger === "undefined") {
@@ -52,6 +54,7 @@ class CoeCliCommands {
             this.readFile = defaultFs.readFile
             this.writeFile = defaultFs.writeFile
         }
+        this.outputText = (text: string) => console.log(text)
     }
 
     /**
@@ -114,6 +117,7 @@ class CoeCliCommands {
                 this.setupLogger(options)
                 let command = this.createAA4AMCommand()
                 command.create(options.type);
+                this.readline.close()
             });
 
         aa4am.command('generate')
@@ -122,27 +126,60 @@ class CoeCliCommands {
             .allowExcessArguments()
             .action(async (options:any) => {
                 let parse : { [id: string] : TextParseFunction } = {}
+
+
+                let regions = new Option("--region", "The region to deploy to").default(["NAM"])                
+                .choices(['NAM',
+                    'DEU',
+                    'SAM',
+                    'CAN',
+                    'EUR',
+                    'FRA',
+                    'APJ',
+                    'OCE',
+                    'JPN',
+                    'IND',
+                    'GCC',
+                    'GCC High',
+                    'GBR',
+                    'ZAF',
+                    'UAE',
+                    'GER',
+                    'CHE']);
+
+                const settings = new Command()
+                    .command('settings')
+                
+                settings.option("--validation", "Validation Enviroment Name", "yourenvironment-validation");     
+                settings.option("--test", "Test Enviroment Name", "yourenvironment-test");     
+                settings.option("--prod", "Test Enviroment Name", "yourenvironment-prod");     
+                settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
+                settings.addOption(regions)
+                    
+
                 parse["environments"] = { parse: (text) => {
                     if (text?.length > 0 && text.indexOf('=') < 0) {
                         return text;
                     }
                     return this.parseSettings(text)
-                 } }
-                let results = await this.promptForValues(aa4am, 'install', parse)
-
-                if (typeof results.environments === "undefined") {
-                    results.environments = {
-                        "validation": "contoso-validation",
-                        "test": "contoso-test",
-                        "prod": "contoso-prod"
-                    }
+                    },
+                    command: undefined
                 }
+
+                parse["settings"] = {
+                    parse: (text) => text,
+                    command: settings
+                }
+                let results = await this.promptForValues(aa4am, 'install', parse)
 
                 if (typeof results.settings === "string") {
                     results.settings = this.parseSettings(results.settings)
                 }
 
                 if (typeof results.settings?.region === "undefined") {
+                    if (typeof results.settings === "undefined") {
+                        results.settings = {}
+                    }
                     // Set default region https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
                     results.settings.region = "NAM"
                 }
@@ -150,8 +187,10 @@ class CoeCliCommands {
                 if (typeof options.output === "string") {
                     this.writeFile(options.output, JSON.stringify(results, null, 2))
                 } else {
-                    console.log(JSON.stringify(results, null, 2))
+                    this.outputText(JSON.stringify(results, null, 2))
                 }
+
+                this.readline.close()
             })
     
         aa4am.command('install')
@@ -163,7 +202,7 @@ class CoeCliCommands {
             .option('-o, --devopsOrg <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
-            .option('-e, --environments [names]', 'The Power Platform environment(s) to configure either single or multiple in the format type=name,type2=name2 e.g. validation=org-validation,test=org-test,prod=org-prod')
+            .option('-e, --environments <names>', 'The Power Platform environment to install Managed solution to')
             .option('-s, --settings <namevalues>', 'Optional settings', "createSecret=true")
             .addOption(installOption)
             .addOption(installEndpoint)
@@ -216,6 +255,8 @@ class CoeCliCommands {
                 args.environments = Environment.getEnvironments(args.environments, args.settings)
 
                 await command.install(args);
+
+                this.readline.close()
             });
 
         let fix = aa4am.command('fix')
@@ -238,6 +279,8 @@ class CoeCliCommands {
                 args.endpoint = options.endpoint
 
                 await command.createAdvancedMakersBuildPipelines(args, null, null)
+
+                this.readline.close()
             })
 
         let connection = aa4am.command('connection')
@@ -273,6 +316,8 @@ class CoeCliCommands {
                 } catch (err) {
                     this.logger?.error(err)
                 }
+
+                this.readline.close()
                 
             })
        
@@ -298,6 +343,8 @@ class CoeCliCommands {
                 args.role = options.role
                 args.settings = this.parseSettings(options.settings)
                 await command.addUser(args);
+
+                this.readline.close()
             });
 
         aa4am.command('branch')
@@ -322,7 +369,8 @@ class CoeCliCommands {
 
                 let command = this.createAA4AMCommand()
                 await command.branch(args)
-                return Promise.resolve()
+
+                this.readline.close()
             });
 
         return aa4am;
@@ -338,6 +386,8 @@ class CoeCliCommands {
                 args.file = options.file;
                 let command = this.createRunCommand();
                 await command.execute(args)
+
+                this.readline.close()
             });
     }
 
@@ -350,6 +400,8 @@ class CoeCliCommands {
                 this.setupLogger(options)
                 let command = this.createCliCommand()
                 await command.about()
+
+                this.readline.close()
             })
         run.command("add")
             .description('Add a new command to the cli application')
@@ -360,6 +412,8 @@ class CoeCliCommands {
                 args.name = options.name;
                 let command = this.createCliCommand();
                 await command.add(args)
+
+                this.readline.close()
             });
     }
 
@@ -397,87 +451,116 @@ class CoeCliCommands {
     async promptForValues(command: commander.Command, name: string, parse:  { [id: string] : TextParseFunction }) : Promise<any> {
         let values: any = {}
         let match = command.commands.filter( (c: commander.Command) => c.name() == name)
+        let parseKeys = Object.keys(parse)
+
         if (match.length == 1) {
             let options : Option[] = <Option[]>(<any>match[0]).options
-            this.logger?.info(`Please provide your ${name} options`)
+            this.outputText(`Please provide your ${name} options`)
             for ( var i = 0; i < options.length ; i++ ) {
-                await new Promise((resolve) => {
-                    if (options[i].argChoices?.length > 0) {
-                        console.log(`> Which choices for ${options[i].description}`)
-                        for ( let c = 0; c < options[i].argChoices.length; c++) {
-                            console.log(`  ${c}: ${options[i].argChoices[c]}`)
-                        }
-                        if (typeof options[i].defaultValue !== "undefined") {
-                            console.log(`Default value(s) ${options[i].defaultValue}`)
-                        }
-                        this.readline.question(`+ Your selection(s) seperated by commas:`, (answer: string) => {
-                            if (answer?.length > 0) {
-                                let indexes : number[] = []
-                                let results: string[] = []
-                                this.logger?.debug(`Received answer ${answer}`)
-                                if (answer.split(',').length > 0) {
-                                    let indexParts = answer.split(',')
-                                    for (let n = 0; n < indexParts.length; n++ ) {
-                                        indexes.push(Number.parseInt(indexParts[n]))
-                                    }
-                                } else {
-                                    indexes.push(Number.parseInt(answer))
-                                }
+                let optionName = options[i].long.replace("--","")
+                let optionParseMatch = parseKeys.filter( ( p: string) => p == optionName )
 
-                                for (let index = 0 ; index < indexes.length; index++) {
-                                    let indexValue = indexes[index]
-                                    if (indexValue >= 0 && indexValue < options[i].argChoices.length) {
-                                        results.push(options[i].argChoices[indexValue])
-                                    }
-                                }
+                if (optionParseMatch.length == 1 && typeof parse[optionParseMatch[0]].command !== "undefined") {
+                    let childOptions = <Option[]>(<any>parse[optionParseMatch[0]].command).options
+                    let childValues = {}
 
-                                let optionName = options[i].name()
-                                values[optionName] = results
-                                resolve(results)
-                                return
-                            }
-                            if (typeof options[i].defaultValue !== "undefined") {
-                                let optionName = options[i].name()
-                                values[optionName] = options[i].defaultValue
-                            }
-                            resolve(options[i].defaultValue)
-                        });
-                    } else {
-                        let defaultText: string = ''
-                        if (typeof options[i].defaultValue !== "undefined") {
-                            defaultText = ` (Default ${options[i].defaultValue})`
-                        }
-                        this.readline.question(`> ${options[i].description} ${options[i].flags}${defaultText}:`, (answer: string) => {
-                            let optionName = options[i].name()
-                            if (answer?.length > 0) {
-                                let parser = parse[optionName]
-                                if ( typeof parser !== "undefined") {
-                                    values[optionName] = parser.parse(answer)
-                                    resolve(answer)
-                                    return;
+                    this.outputText(`> Which options for ${options[i].description} (${options[i].flags})`)
+                    for ( var c = 0 ; c < childOptions.length; c++ ) {
+                        await this.promptOption(childOptions[c], childValues, parse, 2)
+                    }
+
+                    values[optionName] = childValues
+                } else {
+                    await this.promptOption(options[i], values, parse)
+                }
+            }
+        }
+        this.readline.close()
+        return values
+    }
+
+    async promptOption(option: Option, data: any, parse:  { [id: string] : TextParseFunction }, offset: number = 0) : Promise<void> {
+        return new Promise((resolve, reject) => {
+            try {
+                if (option.argChoices?.length > 0) {
+                    let offsetText = new Array(offset).join( ' ' )
+                    this.outputText(`${offsetText}> Which choices for ${option.description}`)
+                    for ( let c = 0; c < option.argChoices.length; c++) {
+                        this.outputText(`  ${c}: ${option.argChoices[c]}`)
+                    }
+                    if (typeof option.defaultValue !== "undefined") {
+                        this.outputText(`Default value(s) ${option.defaultValue}`)
+                    }
+                    this.readline.question(`+ Your selection(s) seperated by commas for ${option.long?.replace("--","")}:`, (answer: string) => {
+                        if (answer?.length > 0) {
+                            let indexes : number[] = []
+                            let results: string[] = []
+                            this.logger?.debug(`Received answer ${answer}`)
+                            if (answer.split(',').length > 0) {
+                                let indexParts = answer.split(',')
+                                for (let n = 0; n < indexParts.length; n++ ) {
+                                    indexes.push(Number.parseInt(indexParts[n]))
                                 }
-    
-                                if (options[i].flags.indexOf("[") > 0 && answer.indexOf(',') > 0) {
-                                    values[optionName] = answer.split(',')
-                                } else {
-                                    values[optionName] = answer
-                                }    
-                                resolve(answer)
-                                return                        
+                            } else {
+                                indexes.push(Number.parseInt(answer))
                             }
-                            if (typeof options[i].defaultValue !== "undefined") {
-                                values[optionName] = options[i].defaultValue
-                                resolve(options[i].defaultValue)
+            
+                            for (let index = 0 ; index < indexes.length; index++) {
+                                let indexValue = indexes[index]
+                                if (indexValue >= 0 && indexValue < option.argChoices.length) {
+                                    results.push(option.argChoices[indexValue])
+                                }
+                            }
+            
+                            let optionName = option.name()
+                            data[optionName] = results.join(',')
+                            resolve()
+                            return
+                        }
+                        if (typeof option.defaultValue !== "undefined") {
+                            let optionName = option.name()
+                            data[optionName] = option.defaultValue
+                        }
+                        resolve()
+                    });
+                } else {
+                    let defaultText: string = ''
+                    if (typeof option.defaultValue !== "undefined") {
+                        defaultText = ` (Default ${option.defaultValue})`
+                    }
+                    this.readline.question(`> ${option.description} ${option.flags}${defaultText}:`, (answer: string) => {
+                        let optionName = option.name()
+                        if (answer?.length > 0) {
+                            let parser = parse[optionName]
+                            if ( typeof parser !== "undefined") {
+                                data[optionName] = parser.parse(answer)
+                                resolve()
                                 return;
                             }
-                            resolve(answer)
-                        });
-                    }
-                })  
-            }
-            this.readline.close()
-        }
-        return values
+
+                            if (option.flags.indexOf("[") > 0 && answer.indexOf(',') > 0) {
+                                data[optionName] = answer.split(',')
+                            } else {
+                                data[optionName] = answer
+                            }  
+                            resolve()  
+                            return                        
+                        }
+                        if (typeof option.defaultValue !== "undefined") {
+                            data[optionName] = option.defaultValue
+                            resolve()
+                            return;
+                        }
+                        resolve()
+                    });
+                }
+                
+            } catch ( err ) {
+                console.log(err)
+                this.logger?.error(err)
+                reject()
+            }   
+        })
     }
 }
 

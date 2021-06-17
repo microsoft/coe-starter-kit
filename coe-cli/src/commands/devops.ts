@@ -535,14 +535,14 @@ class DevOpsCommand {
                 if (create.message.statusCode != 200) {
                     this.logger?.info(await create.readBody())
                 } else {
-                    this.logger?.info(`Create service connection ${endpointUrl}`)
+                    this.logger?.info(`Created service connection ${endpointUrl}`)
                 }
             }
         }
     }
 
     /**
-     * Retrieve laray of current service connections
+     * Retrieve array of current service connections
      * @param connection The authenticated connection
      * @returns 
      */
@@ -597,7 +597,7 @@ class DevOpsCommand {
         let project : CoreInterfaces.TeamProject = await core.getProject(args.projectName)
 
         if (typeof project !== "undefined") {
-            this.logger?.debug(util.format("Found project %s", project.name))
+            this.logger?.info(util.format("Found project %s", project.name))
 
             let gitApi = await connection.getGitApi()
 
@@ -672,7 +672,7 @@ class DevOpsCommand {
                 gitPush.refUpdates = [ newRef ]
                 gitPush.commits = [ newGitCommit ]
 
-                this.logger?.debug(util.format('Pushing new branch %s',args.destinationBranch))
+                this.logger?.info(util.format('Pushing new branch %s',args.destinationBranch))
                 await gitApi.createPush(gitPush, repo.id, project.name)
             }
         }
@@ -738,10 +738,10 @@ class DevOpsCommand {
                 newPolicy.isEnabled = true
                 newPolicy.isEnterpriseManaged = false
 
-                this.logger?.debug('Checking branch policy')
+                this.logger?.info('Checking branch policy')
                 await policyApi.createPolicyConfiguration(newPolicy, args.projectName)
             } else {
-                this.logger?.debug('Branch policy already created')
+                this.logger?.info('Branch policy already created')
             }
         }
     }
@@ -867,7 +867,7 @@ class DevOpsCommand {
             }
         }
 
-        this.logger?.debug(util.format("Creating new build %s", destinationBuildName));
+        this.logger?.info(util.format("Creating new build %s", destinationBuildName));
         var newBuild = <BuildInterfaces.BuildDefinition>{};
         newBuild.name = destinationBuildName;
         let process = <BuildInterfaces.YamlProcess>{};

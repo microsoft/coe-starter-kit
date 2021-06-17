@@ -256,6 +256,8 @@ class PowerPlatformCommand {
     }
 
     async fixCustomConnectors(args: PowerPlatformImportSolutionArguments) : Promise<void> {
+        this.logger?.info("Checking connectors")
+
         let environment = await this.getEnvironment(args)
 
         let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
@@ -264,6 +266,7 @@ class PowerPlatformCommand {
         let connectorMatch = connectors?.filter( (c:any) => c.name.startsWith('cat_5Fcustomazuredevops') )
 
         if (connectorMatch.length == 1 ) {
+            this.logger?.debug("Found connector")
             let aad = this.createAADCommand();
             let addInstallArgs = new AADAppInstallArguments();
             addInstallArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
@@ -275,6 +278,7 @@ class PowerPlatformCommand {
 
             let clientid = aad.getAADApplication(addInstallArgs)
             if (connectionParameters.token.oAuthSettings.clientId != clientid) {
+                this.logger?.debug("Connector needs update")
                 let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
                 let bapUrl = this.mapEndpoint("bap", args.endpoint)
                 let token = args.accessTokens[bapUrl]
@@ -384,6 +388,8 @@ class PowerPlatformCommand {
     }
 
     async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+        this.logger?.info("Check connection reference")
+
         let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
         let whoAmI = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/WhoAmI`, args.accessToken)
@@ -406,6 +412,7 @@ class PowerPlatformCommand {
             this.logger?.info('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
             return Promise.resolve();
         } else {
+            
             let connectionReferences = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
             let connectionMatch = connectionReferences?.filter( (c:any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps') )
 
@@ -413,7 +420,9 @@ class PowerPlatformCommand {
                 this.logger?.info('Dataverse Connection not found')
                 return Promise.resolve();
             } else {
+                this.logger?.info("Connection found")
                 if (connectionMatch[0].connectionid == null) {
+                    this.logger?.info("Connection id needs to be updated")
                     let update = {
                         "connectionid": `${connection[0].name}`
                     }
@@ -442,6 +451,8 @@ class PowerPlatformCommand {
      * @param args 
      */
     async fixFlows(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+        this.logger?.info("Checking flow enabled")
+        
         if (typeof solutions === "undefined" || solutions.value.length == 0) {
             this.logger?.info("Unable to update flow, solution not found")
             return Promise.resolve()
@@ -465,6 +476,7 @@ class PowerPlatformCommand {
                             'OData-Version': '4.0',
                             'If-Match': '*'  
                         }})
+                this.logger?.debug(`Patch complete for ${flow.name}`)
             }
         }
     }

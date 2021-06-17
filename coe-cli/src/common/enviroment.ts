@@ -24,80 +24,88 @@ export abstract class Environment {
         let environmentUrl : url.URL = null
         let defaultDomain = '.crm.dynamics.com'
         // https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+
+        let region = ''
         if (typeof settings !== "undefined" && typeof settings["region"] === "string") {
-            switch ( settings["region"].toUpperCase() ) {
-                case "NAM": {
-                    defaultDomain = '.crm.dynamics.com'
-                    break;
-                }
-                case 'DEU': {
-                    defaultDomain = '.crm.microsoftdynamics.de'
-                    break;
-                }
-                case 'SAM': {
-                    defaultDomain = '.crm2.dynamics.com'
-                    break;
-                }
-                case 'CAN': {
-                    defaultDomain = '.crm3.dynamics.com'
-                    break;
-                }
-                case 'EUR': {
-                    defaultDomain = '.crm4.dynamics.com'
-                    break;
-                }
-                case 'FRA': {
-                    defaultDomain = '.crm12.dynamics.com'
-                    break;
-                }
-                case 'APJ': {
-                    defaultDomain = '.crm5.dynamics.com'
-                    break;
-                }
-                case 'OCE': {
-                    defaultDomain = '.crm6.dynamics.com'
-                    break;
-                }
-                case 'JPN': {
-                    defaultDomain = '.crm7.dynamics.com'
-                    break;
-                }
-                case 'IND': {
-                    defaultDomain = '.crm8.dynamics.com'
-                    break;
-                }
-                case 'GCC': {
-                    defaultDomain = '.crm9.dynamics.com'
-                    break;
-                }
-                case 'GCC HIGH': {
-                    defaultDomain = '.crm.microsoftdynamics.us'
-                    break;
-                }
-                case 'GBR': {
-                    defaultDomain = '.crm11.dynamics.com'
-                    break;
-                }
-                case 'ZAF': {
-                    defaultDomain = '.crm14.dynamics.com'
-                    break;
-                }
-                case 'UAE': {
-                    defaultDomain = '.crm15.dynamics.com'
-                    break;
-                }
-                case 'GER': {
-                    defaultDomain = '.crm16.dynamics.com'
-                    break;
-                }
-                case 'CHE': {
-                    defaultDomain = '.crm17.dynamics.com'
-                    break;
-                }
-                case 'CHN': {
-                    defaultDomain = '.crm.dynamics.cn'
-                    break;
-                }
+            region = settings["region"]
+        }
+        
+        if (typeof settings !== "undefined" && Array.isArray(settings["region"]) && settings["region"].length > 0) {
+            region = settings["region"][0]
+        }
+
+        switch ( region.toUpperCase() ) {
+            case "NAM": {
+                defaultDomain = '.crm.dynamics.com'
+                break;
+            }
+            case 'DEU': {
+                defaultDomain = '.crm.microsoftdynamics.de'
+                break;
+            }
+            case 'SAM': {
+                defaultDomain = '.crm2.dynamics.com'
+                break;
+            }
+            case 'CAN': {
+                defaultDomain = '.crm3.dynamics.com'
+                break;
+            }
+            case 'EUR': {
+                defaultDomain = '.crm4.dynamics.com'
+                break;
+            }
+            case 'FRA': {
+                defaultDomain = '.crm12.dynamics.com'
+                break;
+            }
+            case 'APJ': {
+                defaultDomain = '.crm5.dynamics.com'
+                break;
+            }
+            case 'OCE': {
+                defaultDomain = '.crm6.dynamics.com'
+                break;
+            }
+            case 'JPN': {
+                defaultDomain = '.crm7.dynamics.com'
+                break;
+            }
+            case 'IND': {
+                defaultDomain = '.crm8.dynamics.com'
+                break;
+            }
+            case 'GCC': {
+                defaultDomain = '.crm9.dynamics.com'
+                break;
+            }
+            case 'GCC HIGH': {
+                defaultDomain = '.crm.microsoftdynamics.us'
+                break;
+            }
+            case 'GBR': {
+                defaultDomain = '.crm11.dynamics.com'
+                break;
+            }
+            case 'ZAF': {
+                defaultDomain = '.crm14.dynamics.com'
+                break;
+            }
+            case 'UAE': {
+                defaultDomain = '.crm15.dynamics.com'
+                break;
+            }
+            case 'GER': {
+                defaultDomain = '.crm16.dynamics.com'
+                break;
+            }
+            case 'CHE': {
+                defaultDomain = '.crm17.dynamics.com'
+                break;
+            }
+            case 'CHN': {
+                defaultDomain = '.crm.dynamics.cn'
+                break;
             }
         }
         try {
