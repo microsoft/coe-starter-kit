@@ -424,6 +424,12 @@ class AA4AMCommand {
               "Content-Type": "application/json"
             }
           })
+
+          await dynamicsWebApi.executeFetchXmlAll("systemusers", query).then(function (response) {
+            match = response
+          }).catch(error => {
+            this.logger?.error(error)
+          });
         } catch (err) {
           this.logger?.error(err)
           throw err
@@ -485,6 +491,7 @@ class AA4AMCommand {
 
     let devopsCommand = this.createDevOpsCommand();
     await devopsCommand.branch(branchArgs)
+    this.logger?.info("Branch option complete")
   }
 
   async getAccessTokens(args: any) : Promise<{ [id: string] : string }>  {

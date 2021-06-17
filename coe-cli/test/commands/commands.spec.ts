@@ -10,6 +10,7 @@ import winston from 'winston';
 import readline = require('readline');
 import commander, { command, Command, Option } from 'commander';
 import * as fs from 'fs';
+import { Prompt } from '../../src/common/prompt';
 
 describe('AA4AM', () => {
 
@@ -146,7 +147,9 @@ describe('AA4AM', () => {
         expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].organizationName).toBe("O1")
         expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].projectName).toBe("P1")
     })
+})
 
+describe('Prompt For Values', () => {
     test('Generate Text property', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
@@ -156,6 +159,7 @@ describe('AA4AM', () => {
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
+        commands.outputText = (text) => {}
 
         readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
             callback('foo')
@@ -173,6 +177,50 @@ describe('AA4AM', () => {
         expect(readline.close).toBeCalledTimes(1)
     })
 
+    test('Generate sub settings', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        let mockLoginCommand = mock<LoginCommand>(); 
+        let mockDevOpsCommand = mock<DevOpsCommand>(); 
+        commands.createLoginCommand = () => mockLoginCommand;
+        commands.createDevOpsCommand = () => mockDevOpsCommand;
+        commands.outputText = (text) => {}
+
+        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
+            if (prompt.indexOf('mode') >= 0) {
+                callback('foo')
+            }
+
+            if (prompt.indexOf('item1') >= 0) {
+                callback('test1')
+            }
+
+            callback('')
+        })
+
+        const program = new Command();
+        let install = program.command('install')
+        install.option("-m, --mode <name>", "Mode name")
+        install.option("-s, --settings <settings>", "Optional settings")
+
+        const settings = new Command()
+            .command('settings')
+        settings.option("-i, --item1", "Item 1");          
+
+        // Act
+        let result = await commands.promptForValues(program, 'install', { 'settings': {
+            parse: (text) => text,
+            command: settings
+        } })
+
+        // Assert
+        expect(result.mode).toBe("foo")
+        expect(result.settings['item1']).toBe("test1")
+        expect(readline.close).toBeCalledTimes(1)
+    })
+
     test('Generate Array property', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
@@ -182,6 +230,7 @@ describe('AA4AM', () => {
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
+        commands.outputText = (text:string) => {}
 
         readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
             callback('1,2')
@@ -208,6 +257,7 @@ describe('AA4AM', () => {
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
+        commands.outputText = (text:string) => {}
 
         readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
             callback('')
@@ -263,4 +313,3 @@ describe('CLI', () => {
         expect(mockCliCommand.add).toHaveBeenCalled()
     })
 });
-
