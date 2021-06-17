@@ -5,6 +5,7 @@ import { Project, ts } from "ts-morph";
 import pascalcase = require('pascalcase');
 import open = require('open');
 const fsPromises = fs.promises;
+import * as winston from 'winston';
 
 /**
  * CLI Command Arguments
@@ -21,8 +22,10 @@ class CLIArguments {
  */
 class CLICommand {
     public writeFile: (name: string, content: string) => Promise<void>
+    logger: winston.Logger
 
-    constructor() {
+    constructor(logger: winston.Logger) {
+        this.logger = logger
         this.writeFile = async (name: string, content: string) => await fsPromises.writeFile(name, content)
     }
 
@@ -62,8 +65,9 @@ class CLICommand {
             let commmandScript = path.join(process.cwd(), `src/commands/${name.toLowerCase()}.ts`)
     
             if (!fs.existsSync(commmandScript)) {
-                console.log(`Creating ${commmandScript}`)
+                this.logger?.info(`Creating ${commmandScript}`)
                 await this.writeFile(commmandScript, `"use strict";
+logger: winston.Logger
 
 /**
  * ${newCommandName} Command Arguments
@@ -79,6 +83,11 @@ class ${newCommandName}Arguments {
  * ${newCommandName} commands
  */
 class ${newCommandName}Command {
+    logger: winston.Logger
+    
+    constructor(logger: winston.Logger) {
+        this.logger = logger
+    }
 
     /**
      * Execute the command
@@ -86,7 +95,7 @@ class ${newCommandName}Command {
      * @returns 
      */
     async execute(args: ${newCommandName}Arguments) : Promise<void> {
-        console.log(args.comments)
+        this.logger?.info(args.comments)
         return Promise.resolve();
     }
 }
@@ -96,7 +105,7 @@ export {
     ${newCommandName}Command
 };`)
             } else {
-                console.log('Script file already exists')
+                this.logger?.info('Script file already exists')
             }    
         }
     
@@ -105,7 +114,7 @@ export {
             let commmandScript = path.join(process.cwd(), `test/commands/${name.toLowerCase()}.spec.ts`)
             
             if (!fs.existsSync(commmandScript)) {
-                console.log(`Creating ${commmandScript}`)
+                this.logger?.info(`Creating ${commmandScript}`)
                 await this.writeFile(commmandScript, `"use strict";
 import { ${newCommandName}Arguments, ${newCommandName}Command } from '../../src/commands/${name.toLowerCase()}';
             
@@ -124,7 +133,7 @@ describe('Related Tests', () => {
 });
     `)
             } else {
-                console.log('Test script file already exists')
+                this.logger?.info('Test script file already exists')
             }    
         }
     }

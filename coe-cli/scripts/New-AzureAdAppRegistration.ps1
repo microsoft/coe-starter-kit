@@ -1,6 +1,3 @@
-Import-Module (Join-Path ( ([System.IO.Path]::GetDirectoryName($PSCommandPath))) "Microsoft.PowerApps.Administration.PowerShell.psm1") -Force
-Import-Module (Join-Path ( ([System.IO.Path]::GetDirectoryName($PSCommandPath))) "Microsoft.PowerApps.AuthModule.psm1") -Force
-
 Function New-AzureAdAppRegistration {
     <#
         .SYNOPSIS

@@ -1,16 +1,24 @@
-import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import yesno from 'yesno';
+import { exec, execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
+import * as winston from 'winston';
+import { Prompt } from './prompt';
 
 export class CommandLineHelper {
+    logger: winston.Logger
+    prompt: Prompt
+
+    constructor() {
+        this.prompt = new Prompt()
+    }
+
     async validateAzCliReady(args: any): Promise<boolean> {
         let pwshVersion = ''
         try {
-            pwshVersion = this.runCommand('pwsh --version', false)
+            pwshVersion = await this.runCommand('pwsh --version', false)
         } catch {
 
         }
         if (pwshVersion?.length == 0 || typeof pwshVersion == "undefined") {
-            console.log('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
+            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
             return Promise.resolve(false)
         }
 
@@ -18,7 +26,7 @@ export class CommandLineHelper {
         while (!validated) {
             let accounts: any[]
             try {
-                accounts = <any[]>JSON.parse(this.runCommand('az account list', false))
+                accounts = <any[]>JSON.parse(await this.runCommand('az account list', false))
             } catch {
                 accounts = []
             }
@@ -27,9 +35,9 @@ export class CommandLineHelper {
             if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
                 if (accounts.length == 0) {
                     // No accounts are available probably not logged in ... prompt to login
-                    let ok = await this.prompt('You are not logged into an account. Try login now (y/n)?')
+                    let ok = await this.prompt.yesno('You are not logged into an account. Try login now (Y/n)?', true)
                     if (ok) {
-                        this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
+                        await this.runCommand('az login --use-device-code --allow-no-subscriptions', true)
                     } else {
                         return Promise.resolve(false);
                     }
@@ -43,14 +51,14 @@ export class CommandLineHelper {
                     }
                     if (defaultAccount.length == 1 && accounts.length > 1) {
                         // More than one account assigned to this account .. confirm if want to use the current default tenant
-                        let ok = await this.prompt(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`);
+                        let ok = await this.prompt.yesno(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (Y/n)?`, true);
                         if (ok) {
                             // Use the default account
                             args.account = defaultAccount[0].id
                         }
                     }
                     if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
-                        console.log("Missing account, run az account list to and it -a argument to assign the account")
+                        this.logger?.info("Missing account, run az account list to and it -a argument to assign the account")
                         return Promise.resolve(false);
                     }
                 }
@@ -59,8 +67,8 @@ export class CommandLineHelper {
             if (accounts.length > 0) {
                 let match = accounts.filter((a: any) => (a.id == args.account || a.name == args.account) && (a.isDefault));
                 if (match.length != 1) {
-                    console.log(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
-                    console.log('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
+                    this.logger?.info(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
+                    this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
                     return Promise.resolve(true)
@@ -69,15 +77,34 @@ export class CommandLineHelper {
         }
     }
     
-    runCommand(command: string, displayOutput: boolean) {
-        if (displayOutput) {
-            return execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
-        } else {
-            return execSync(command, <ExecSyncOptionsWithStringEncoding>{ encoding: 'utf8' })
-        }
-    }
+    runCommand(command: string, displayOutput: boolean) : Promise<string> {
+        return new Promise((resolve, reject) => {
+            let child = exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    this.logger?.error(`exec error: ${error}`);
+                    reject(error);
+                }
 
-    async prompt(text: string) : Promise<boolean> {
-        return await yesno({ question: text })
+                if (displayOutput) {
+                    this.logger?.info(stdout)
+                }
+
+                let text = stdout.replace(/^\s*[\r\n]/gm,"\n");
+                text = text.replace(/^\s*[\n]/gm,"\n");
+
+                var array = text.split("\n");
+                let data = ''
+                for ( var i = 0; i < array.length; i++) {
+                    let line = array[i]
+                    if (!line?.trim().startsWith("WARNING")) {
+                        data = data + '\n' + line
+                    }
+                }
+    
+                resolve(data);
+            });
+
+            child.on("error", () => reject)
+        })
     }
 }
