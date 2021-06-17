@@ -400,10 +400,16 @@ class DevOpsCommand {
             let buildId = exportBuild.length == 1 ? exportBuild[0].id.toString() : ""
 
             let validationConnection = 'TODO'
-            if (typeof args.environments["validation"] != "undefined" ) {
+            if (typeof args.environments["validation"] !== "undefined" ) {
+                // Use the named environment
                 validationConnection = args.environments["validation"] 
             }
+            if (typeof args.settings["validation"] != "undefined" && validationConnection == "TODO" ) {
+                // Use the validation settings
+                validationConnection = args.settings["validation"] 
+            }
             if (args.environment?.length > 0 && validationConnection == "TODO") {
+                // Default to environment 
                 validationConnection = args.environment
             }
            
@@ -819,8 +825,6 @@ class DevOpsCommand {
             }
 
             if (sourceBuild == null) {
-                //let endpoints = await this.getServiceConnections(connection)
-
                 defaultSettings = true
                 this.logger?.debug(`Matching ${template} build not found, will apply default settings`)
                 this.logger?.debug(`Applying default service connection. You will need to update settings with you environment teams`)
