@@ -127,7 +127,6 @@ class CoeCliCommands {
             .action(async (options:any) => {
                 let parse : { [id: string] : TextParseFunction } = {}
 
-
                 let regions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
                     'DEU',
@@ -170,7 +169,7 @@ class CoeCliCommands {
                     parse: (text) => text,
                     command: settings
                 }
-                let results = await this.promptForValues(aa4am, 'install', parse)
+                let results = await this.promptForValues(aa4am, 'install', ["file"], parse)
 
                 if (typeof results.settings === "string") {
                     results.settings = this.parseSettings(results.settings)
@@ -199,7 +198,7 @@ class CoeCliCommands {
             .addOption(componentOption)
             .option('-a, --account <name>', 'The Azure Active directory account (Optional select azure subscription name)')
             .option('-d, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
-            .option('-o, --devopsOrg <organization>', 'The Azure DevOps organization to install into')
+            .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
             .option('-e, --environments <names>', 'The Power Platform environment to install Managed solution to')
@@ -229,7 +228,7 @@ class CoeCliCommands {
                     
                     this.copyValues(optionsFile, args, {
                         "aad": "azureActiveDirectoryServicePrincipal",
-                        "devopsOrg": "organizationName",
+                        "devOpsOrganization": "organizationName",
                         "powerPlatformOrg": "powerPlatformOrganization",
                     })   
                     settings = typeof optionsFile.settings === "string" ? this.parseSettings(optionsFile.settings) : optionsFile.settings
@@ -237,7 +236,7 @@ class CoeCliCommands {
                     args.components = options.components
                     args.account = options.account
                     args.azureActiveDirectoryServicePrincipal = options.aad
-                    args.organizationName = options.devopsOrg
+                    args.organizationName = options.devOpsOrganization
                     args.project = options.project
                     args.repository = options.repository
                     args.powerPlatformOrganization = options.powerPlatformOrg
@@ -264,7 +263,7 @@ class CoeCliCommands {
                    
         fix.command('build')
             .description('Attempt to build components')
-            .option('-o, --devopsOrg <organization>', 'The Azure DevOps environment validate')
+            .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps environment validate')
             .option('-p, --project <name>', 'The Azure DevOps name')
             .addOption(installEndpoint)
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines").action(async (options:any) => {
@@ -272,7 +271,7 @@ class CoeCliCommands {
                 let login = this.createLoginCommand()
                 let command = this.createDevOpsCommand()
                 let args = new DevOpsInstallArguments()
-                args.organizationName = options.devopsOrg
+                args.organizationName = options.organization
                 args.projectName = options.project
                 args.repositoryName = options.repository
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
@@ -288,7 +287,7 @@ class CoeCliCommands {
         
         connection.command("add")
             .description("Add a new connection")
-            .requiredOption('-o, --organization <name>', 'The Azure DevOps organization')
+            .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
             .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to')
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
@@ -299,7 +298,7 @@ class CoeCliCommands {
                 let login = this.createLoginCommand()
                 let command = this.createDevOpsCommand()
                 let args = new DevOpsInstallArguments()
-                args.organizationName = options.organization
+                args.organizationName = options.devOpsOrganization
                 args.clientId = options.clientid
                 if (typeof options.aad !== "undefined") {
                     args.azureActiveDirectoryServicePrincipal = options.aad
@@ -349,7 +348,7 @@ class CoeCliCommands {
 
         aa4am.command('branch')
             .description('Create a new Application Branch')
-            .option('-o, --organization <name>', 'The Azure DevOps Organization name')
+            .option('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
             .option('-p, --project <name>', 'The Azure DevOps name')
             .option('--source <name>', 'The source branch to copy from')
@@ -359,7 +358,7 @@ class CoeCliCommands {
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 let args = new AA4AMBranchArguments();
-                args.organizationName = options.organization
+                args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
                 args.projectName = options.project
                 args.sourceBranch = options.source
@@ -448,7 +447,7 @@ class CoeCliCommands {
         }
     }
 
-    async promptForValues(command: commander.Command, name: string, parse:  { [id: string] : TextParseFunction }) : Promise<any> {
+    async promptForValues(command: commander.Command, name: string, ignore: string[], parse:  { [id: string] : TextParseFunction }) : Promise<any> {
         let values: any = {}
         let match = command.commands.filter( (c: commander.Command) => c.name() == name)
         let parseKeys = Object.keys(parse)
@@ -458,6 +457,11 @@ class CoeCliCommands {
             this.outputText(`Please provide your ${name} options`)
             for ( var i = 0; i < options.length ; i++ ) {
                 let optionName = options[i].long.replace("--","")
+
+                if ( ignore.includes(optionName) ) {
+                    continue;
+                }
+
                 let optionParseMatch = parseKeys.filter( ( p: string) => p == optionName )
 
                 if (optionParseMatch.length == 1 && typeof parse[optionParseMatch[0]].command !== "undefined") {

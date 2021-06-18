@@ -56,21 +56,21 @@ To run the COE CLI application you will require the following
 
 Before you start you will need the following
 1. The following Power Platform environment provisioned:
-   a. An environment to deploy the Managed Application with Common Data Service database enbaled. It will required Data Loss Prevention Policies enables for
+   1) An environment to deploy the Managed Application with Common Data Service database enabled. It will required Data Loss Prevention Policies enables for
       - Common Data Service
       - Custom Connectors
-   b. A validation environment
-   c. A test environment
-   d. A production environment
-   e. Development environment for each developer
+   2) A validation environment
+   3) A test environment
+   4) A production environment
+   5) Development environment for each developer
 1. Azure Active Directory Administrator with rights to create Azure Active Directory Applications and grant tenant permissions
 1. An Azure DevOps subscription
 1. A Common Data Service Connection created in target environment that will host Advanced Maker solution created by install user
-   a. Goto https://make.powerapps.com/
-   b. Navigate to Data -> Connections
-   c. New Connection
-   d. Microsoft Dataverse (lagacy)
-   e. Select Create
+   1) Goto https://make.powerapps.com/
+   2) Navigate to Data -> Connections
+   3) New Connection
+   4) Microsoft Dataverse (legacy)
+   5) Select Create
 
 ## Assumed Workflow
 
@@ -94,7 +94,7 @@ coe aa4am generate install -o test.json
 coe aa4am install -f test.json
 ```
 
-1. In Azure DevOps initailize an empty Azure DevOps git repository (e.g. in project alm-sandbox, alm-sandbox repository)
+1. In Azure DevOps initialize an empty Azure DevOps git repository (e.g. in project alm-sandbox, alm-sandbox repository)
 
 ### Security Setup
 
@@ -134,7 +134,7 @@ As Azure DevOps Administrator
 coe aa4am connection add -o dev12345 -p alm-sandbox -e https://org12345-dev.crm.dynamics.com
 ```
 
-1. For the created service connection assign the user in Securty rights
+1. For the created service connection assign the user in Security rights
 
 ### Maker First Solution
 
