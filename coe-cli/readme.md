@@ -10,14 +10,17 @@ Contents
 - [Getting Started](#getting-started)
 - [ALM Accelerator for Advanced Makers](#alm-accelerator-for-advanced-makers)
   - [Before You Start](#before-you-start)
+    - [COE Command Line](#coe-command-line)
+    - [Power Platform](#power-platform)
+    - [Azure](#azure)
+    - [Azure DevOps](#azure-devops)
+    - [Development Environments](#development-environments)
   - [Assumed Workflow](#assumed-worflow)
-   - [Initial Setup](#initial-setup)
-   - [Security Setup](#security-setup)
-   - [Maker Setup](#maker-setup)
-   - [Admin Maker Setup](#admin-maker-setup)
-   - [Maker First Solution](#maker-first-solution)
-  - [Local Run](#local-run)
-  - [Docker Run](#docker-run)
+  - [Initial Setup](#initial-setup)
+    - [Post Install Security Setup](#post-install-security-setup)
+    - [Maker Setup](#maker-setup)
+    - [Admin Maker Setup](#admin-maker-setup)
+  - [Maker First Solution](#maker-first-solution)
   - [Common Commands](#common-commands)
     - [Install](#install)
       - [Preparing for an Install](#preparing-for-an-install)
@@ -25,15 +28,17 @@ Contents
       - [Install Azure Active Directory](#install-azure-active-directory)
       - [Install DevOps](#install-devops)
       - [Install Environment](#install-environment)
-      - [Add Service Connections](#add-service-connections)
-      - [Add Environment Application User](#add-environment-application-user)
+    - [Add Service Connections](#add-service-connections)
+    - [Add Environment Application User](#add-environment-application-user)
 - [Technical](#technical)
   - [Contributions](#contributions)
   - [Authentication](#authentication)
 
 # Overview
 
-The Center of Excellence (COE) toolkit command line interface (CLI) provide common functionality to automate the installation and operate solutions within a COE environment.
+The Center of Excellence (COE) toolkit command line interface (CLI) provides common functionality to automate the installation and operate solutions within a COE environment.
+
+![Overview](./images/overview.jpg)
 
 ## Guiding Requirements
 
@@ -48,8 +53,9 @@ The Center of Excellence (COE) toolkit command line interface (CLI) provide comm
 To run the COE CLI application you will require the following
 
 1. An installation of Node 11+ for versions (12, 14, 16)
-1. Azure CLI https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
-   Required for user authentication and Azure Active Directory Integration
+   a) https://nodejs.org/en/download/
+1. Azure CLI Required for user authentication and Azure Active Directory Integration
+   a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### Optional Prerequisites
 
@@ -123,59 +129,79 @@ coe -h
 
 The ALM Accelerator for Advanced Makers (AA4AM) command allows you to manage common tasks for Advanced Makers.
 
+![ALM Accelerator for Advanced Makers Overview](./images/aa4am-overview.jpg)
+
 ### Before You Start
 
-Before you start you will need the following
-1. The following Power Platform environment provisioned:
-   1) An environment to deploy the Managed Application with Common Data Service database enabled. It will required Data Loss Prevention Policies enables for
-      - Common Data Service
-      - Custom Connectors
-   2) A validation environment
-   3) A test environment
-   4) A production environment
-   5) Development environment for each developer
-1. Azure Active Directory Administrator with rights to create Azure Active Directory Applications and grant tenant permissions
-1. An Azure DevOps subscription
-1. A Common Data Service Connection created in target environment that will host Advanced Maker solution created by install user
+#### COE Command Line
+
+Install the COE CLI [locally](#local-install) or via a [docker image](#docker-imstall)
+
+#### Power Platform
+
+Environment | Description
+----------- | -------------
+Maker | Environment with Dataverse enabled. Will be used to deploy managed solution. See **Note (1)* below to create Common Data Service Connection
+Validation | Environment used to validate builds before merging into a solution branch              |
+Test | Pre production Environment used to test solutions before moving to production          |
+Production | Production Environment for managed solutions                                          |
+
+Notes:
+1. In the maker environment will require a Common Data Service Connection created by install user
    1) Goto https://make.powerapps.com/
    2) Navigate to Data -> Connections
    3) New Connection
    4) Microsoft Dataverse (legacy)
    5) Select Create
+2. Sample environment from https://admin.powerplatform.microsoft.com/environments
+
+   ![Environments](./images/environments.jpg)
+
+#### Azure
+
+Component | Description
+--------- | ----------
+Global Administrator or Privileged Role Administrator|Grant tenant-wide admin consent to an application [Read More](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/grant-admin-consent)
+
+#### Azure DevOps
+
+Component | Description
+--------- | ----------
+Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
+Project | An Azure DevOps project to integtrate with. This guide uses the name **alm-sandbox** as the project name
+Extensions | Review the [extensions configuration](./config/AzureDevOpsExtensionsDetails.json) that will be installed
+
+#### Development Environments
+
+Each advanced maker will need a development environment created. Community signup page is https://web.powerapps.com/community/signup
+
+1. Azure Active Directory Administrator with rights to create Azure Active Directory Applications and grant tenant permissions
+1. An Azure DevOps subscription
 
 ### Assumed Workflow
 
 This guide assumes that you have the the following end to end workflow or a similar variation run.
 
-#### Initial Setup
+## Initial Setup
 
 Assuming a single user that has Power Platform Global Administrator, DevOps Administrator rights and Azure Active directory Administrator rights.
 
-1. An Power Platform Environment has been selected to host the following
-   1) The environment for host the Managed Advanced Makers solution. Likely to be a new environment and not the Default environment as it may not match your Data Loss Prevention Policies for Default
-   2) The validation, test and production environments
-1. A Common Data Service Connection created in target environment created by install user
-1. A user with access to the Azure Active directory tenant to create teh and grant the required permissions
-1. An Azure DevOps Organization with a created Azure DevOps Project
-
-For example
+To start the install first generate an install configuation file and then run the install
 
 ```bash
 coe aa4am generate install -o test.json
 coe aa4am install -f test.json
 ```
 
-1. In Azure DevOps initialize an empty Azure DevOps git repository (e.g. in project alm-sandbox, alm-sandbox repository)
+### Post Install Security Setup
 
-### Security Setup
-
-1. Create AAD Security to Share Canvas Application
+1. Create AAD Security to Share Canvas Application with Advanced Makers
 1. Create Azure DevOps Group to add Advanced Makers to
    a. Grant Variable Groups rights 
    b. Grant Build Administrator Rights
 1. Ensure Maker assigned as Azure DevOps user with **Basic** permissions and access to DevOps project e.g. **alm-sandbox**
 
-#### Maker Setup
+### Maker Setup
 
 1. A Development Environment for the Maker. 
    a. Can use https://web.powerapps.com/community/signup to signup for community developer environment
@@ -195,7 +221,7 @@ coe aa4am user add -e https://org12345-dev.crm.dynamics.com
 coe aa4am branch -o dev12345 -p alm-sandbox -d MyTestSolution
 ```
 
-#### Admin Maker Setup
+### Admin Maker Setup
 
 As Azure DevOps Administrator
 
@@ -207,7 +233,7 @@ coe aa4am connection add -o dev12345 -p alm-sandbox -e https://org12345-dev.crm.
 
 1. For the created service connection assign the user in Security rights
 
-#### Maker First Solution
+## Maker First Solution
 
 1. Switch to Developer Environment
 1. Create new solution e.g. NewSolution1
@@ -230,48 +256,13 @@ coe aa4am branch -o dev12345 -p alm-sandbox -d MySolution1
 1. Click on Latest Push Status 
    a. Permit permissions for pipeline to run (Variable Group, Service Connection, Pipeline)
 
-### Docker Run
+## Common Commands
 
-Run the docker image which will start a PowerShell session
-
- ```bash
-docker run -it --rm coe-cli
-```
-
-**-it** run docker command interactive with terminal input
-**--rm** remove the docker image when exit. Ensure any temp files or credentials are removed when sesion ends
-coe-cli is the docker image name
-
-**Optional Arguments**
-
-**-v "c:\temp":/tmp** map local c:\temp to the /temp folder inside the docker container 
-**coe --help** os the command to run (Optional will start PowerShell by default)
-
-Notes:
-1. Once the docker container starts youc an use coe command inside the powershell e.g. coe --help
-1. You can run a single command from the command line e.g. 
-
-```bash
-docker run -it --rm coe-cli coe --help
-```
-
-### Local Run
-
-```bash
-coe aa4am --help
-```
-
--o is the devops organization name
--p is the Azure DevOps Project name
--e is the Dataverse Environment to install the Administration application to
-
-#### Common Commands
-
-##### Install
+### Install
 
 You can install all pre-requites if you are installing to a Dmo tenant or you have rights to Azure Active Directory, Azure DevOps and Power Platform System Administrator rights.
 
-###### Preparing for an Install
+#### Preparing for an Install
 
 You can start by generating a configuration file for you install using the following command
 
@@ -306,7 +297,7 @@ To start an install with you configured settings you can use thw following.
 coe aa4am install -f test.json
 ```
 
-###### Install All Pre-requisites
+#### Install All Pre-requisites
 
 Install aad, DevOps and environment components 
 
@@ -316,7 +307,7 @@ coe aa4am install -e org12346 -o dev12345 -p alm-sandbox
 
 Will install Managed application the AAD application and Azure DevOps components
 
-###### Install Azure Active Directory
+#### Install Azure Active Directory
 
 To install just the Azure Active Directory components
 
@@ -332,7 +323,7 @@ Steps by performed by the command:
   - Requires Azure Active Directory permissions to grant organization right to the application
 1. Ensure Reply Url is configured
 
-###### Install DevOps
+#### Install DevOps
 
 Install the just devops components. This step assumes the Azure Active Directory Service Principal has been created
 
@@ -353,7 +344,7 @@ Steps by performed by the command:
 1. Setup Build Variables
 1. Setup service connections
 
-###### Install Environment
+#### Install Environment
 
 Install the Managed Solution to administer the application. This step assumes that Azure Active Directory and Azure DevOps components have been created.
 
@@ -364,7 +355,7 @@ coe aa4am install -c environment -e org1235
 Steps by performed by the command:
 1. Import the latest managed solution from GitHub into the environment
 
-##### Add Service Connections
+### Add Service Connections
 
 For each environment (validation, test, prod) and the developer environments you create you will need to create a service connection from Azure DevOps to the environment
 
@@ -376,7 +367,7 @@ Notes:
 1. The command will look to add a new secret per connection to the AAD Application
 1. Need to assign rights to the service connection in Azure DevOps
 
-#### Add Environment Application User
+### Add Environment Application User
 
 Each environment that the solution imports and exports from needs the Azure Active Directory application added as an Application user
 
@@ -388,7 +379,7 @@ Notes:
 1. Add the Client if of the AAD Application as the -i argument
 1. The user will be assigned to the System Administrator role of the environment
 
-#### Create Branch
+### Create Branch
 
 One setup you can create a solution branch and the associated Azure DevOps Pipelines
 
