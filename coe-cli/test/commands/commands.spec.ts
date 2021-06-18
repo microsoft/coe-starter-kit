@@ -170,7 +170,7 @@ describe('Prompt For Values', () => {
             .option("-m, mode <name>", "Mode name")
 
         // Act
-        let result = await commands.promptForValues(program, 'install', {})
+        let result = await commands.promptForValues(program, 'install', [], {})
 
         // Assert
         expect(result.mode).toBe("foo")
@@ -210,7 +210,7 @@ describe('Prompt For Values', () => {
         settings.option("-i, --item1", "Item 1");          
 
         // Act
-        let result = await commands.promptForValues(program, 'install', { 'settings': {
+        let result = await commands.promptForValues(program, 'install', [], { 'settings': {
             parse: (text) => text,
             command: settings
         } })
@@ -241,7 +241,7 @@ describe('Prompt For Values', () => {
             .option("-m, modes [name]", "Mode name")
 
         // Act
-        let result = await commands.promptForValues(program, 'install', {})
+        let result = await commands.promptForValues(program, 'install', [], {})
 
         // Assert
         expect(JSON.stringify(result.modes)).toBe(JSON.stringify(["1", "2"]))
@@ -270,7 +270,7 @@ describe('Prompt For Values', () => {
             .addOption(componentOption)
 
         // Act
-        let result = await commands.promptForValues(program, 'install', {})
+        let result = await commands.promptForValues(program, 'install', [], {})
 
         // Assert
         expect(JSON.stringify(result.components)).toBe(JSON.stringify(["A"]))
