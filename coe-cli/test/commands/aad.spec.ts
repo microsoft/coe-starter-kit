@@ -71,6 +71,10 @@ describe('Install - AAD User', () => {
             if (command.startsWith("az ad app list")) {
                 return '[{"appId":"123", "replyUrls":[]}]'
             }
+            
+            if (command.startsWith("az ad app permission list-grants")) {
+                return '[{"appId":"123"}]'
+            }
             return ""
         }
         command.getAxios = () => mock<AxiosStatic>()
@@ -104,6 +108,11 @@ describe('AAD User Secret', () => {
             if (command.startsWith("az ad app list")) {
                 return '[{"appId":"123"}]'
             }
+
+            if (command.startsWith("az ad app permission list-grants")) {
+                return '[{"appId":"123"}]'
+            }
+           
             return ""
         }
 
