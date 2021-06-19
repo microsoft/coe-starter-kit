@@ -104,6 +104,12 @@ https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
    - Select "Setup and installation"
 
+1. Install Azure DevOps Extension
+
+```
+az extension add --upgrade -n azure-devops
+```
+
 ### Docker Install
 
 One method of installation is via docker
@@ -153,7 +159,14 @@ Notes:
    3) New Connection
    4) Microsoft Dataverse (legacy)
    5) Select Create
-2. Sample environment from https://admin.powerplatform.microsoft.com/environments
+1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Advanced Makers
+   1) Visit https://docs.microsoft.com/en-us/partner-center/mpn-demos for more information
+   2) Go to https://demos.microsoft.com to request a new enviroment
+   3) Select My Enviroments
+   4) Select Create Tenant
+   5) Select tennat location
+   6) Select "Dynamics Customer Engagement"
+1. Sample environment from https://admin.powerplatform.microsoft.com/environments
 
    ![Environments](./images/environments.jpg)
 
@@ -171,12 +184,29 @@ Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/
 Project | An Azure DevOps project to integtrate with. This guide uses the name **alm-sandbox** as the project name
 Extensions | Review the [extensions configuration](./config/AzureDevOpsExtensionsDetails.json) that will be installed
 
+Notes:
+1. If installing using demo tenant you can request a trial Azure DevOps environment
+   a) https://azure.microsoft.com/en-us/services/devops/
+   b) Create Organization
+   c) Create initial project e.g. alm-sandbox
+1. Review the Azure [DevOps Extensions](./config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
+  - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
+  - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
+  - [Colin's ALM Corner Build & Release Tools](https://marketplace.visualstudio.com/items?itemName=colinsalmcorner.colinsalmcorner-buildtasks)
+  - [RegexReplace Azure Pipelines Task](https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task)
+  - [Variable Tools for Azure DevOps Services](https://marketplace.visualstudio.com/items?itemName=nkdagility.variablehydration)
+  - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
+
 #### Development Environments
 
-Each advanced maker will need a development environment created. Community signup page is https://web.powerapps.com/community/signup
+Each advanced maker will need a development environment created. 
 
-1. Azure Active Directory Administrator with rights to create Azure Active Directory Applications and grant tenant permissions
-1. An Azure DevOps subscription
+1. Community sign-up page is https://web.powerapps.com/community/signup
+1. A solution created in their Development Environment
+1. Basis rights of higher to the Azure DevOps Organization
+1. Added to the Azure DevOps Project
+1. User rights to Service Connection to the created Development Environment
+1. User rights to Variable Groups
 
 ### Assumed Workflow
 
@@ -192,6 +222,9 @@ To start the install first generate an install configuation file and then run th
 coe aa4am generate install -o test.json
 coe aa4am install -f test.json
 ```
+
+Notes:
+- Review the generated JSON file and confirm the settings before you start the install 
 
 ### Post Install Security Setup
 
