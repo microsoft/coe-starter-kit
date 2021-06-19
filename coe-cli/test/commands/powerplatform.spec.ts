@@ -235,6 +235,74 @@ describe('API Import', () => {
     })
 });
 
+describe('Get Environment', () => {
+    test('Full url', async () => {
+        let logger = mock<winston.Logger>()
+        var command = new PowerPlatformCommand(logger);
+        let mockAxios = mock<AxiosStatic>();
+        command.getAxios = () => mockAxios
+
+        mockAxios.get.mockResolvedValue({
+            data: {
+                value: [
+                    {
+                        name: '123',
+                        properties: {
+                            linkedEnvironmentMetadata:{
+                                domainName: 'foo'
+                            }
+                        } 
+                    }
+                ]
+            }
+        })
+
+        let args = new PowerPlatformImportSolutionArguments()
+        args.environment  = 'https://foo.crm.dynamic.com'
+        args.endpoint = "prod"
+     
+
+        // Act
+        let env = await command.getEnvironment(args)
+
+        // Assert
+        expect(env).toBe("123")
+    })
+
+    test('Full url different domain case', async () => {
+        let logger = mock<winston.Logger>()
+        var command = new PowerPlatformCommand(logger);
+        let mockAxios = mock<AxiosStatic>();
+        command.getAxios = () => mockAxios
+
+        mockAxios.get.mockResolvedValue({
+            data: {
+                value: [
+                    {
+                        name: '123',
+                        properties: {
+                            linkedEnvironmentMetadata:{
+                                domainName: 'FOO'
+                            }
+                        } 
+                    }
+                ]
+            }
+        })
+
+        let args = new PowerPlatformImportSolutionArguments()
+        args.environment  = 'https://foo.crm.dynamic.com'
+        args.endpoint = "prod"
+     
+
+        // Act
+        let env = await command.getEnvironment(args)
+
+        // Assert
+        expect(env).toBe("123")
+    })
+})
+
 function mockResponse(url:string, contains: string, data: any) : Promise<AxiosResponse<any>> {
     if ( url.indexOf(contains) >= 0 || contains.length == 0 ) {
         let response : AxiosResponse<any> = 

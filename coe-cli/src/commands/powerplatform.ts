@@ -377,12 +377,12 @@ class PowerPlatformCommand {
 
         }
 
-        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName == domainName )
+        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName.toLowerCase() == domainName.toLowerCase() )
         if ( match.length == 1 ) {
             this.logger?.debug('Found environment')
             return match[0].name
         } else {
-            Promise.reject('Environment not found')
+            Promise.reject(`Environment ${domainName} not found`)
             return ""
         }
     }
@@ -409,7 +409,7 @@ class PowerPlatformCommand {
         let connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId?.split('apis/')[1] == 'shared_commondataservice')
        
         if (connection.length == 0) {
-            this.logger?.info('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
+            this.logger?.error('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
             return Promise.resolve();
         } else {
             

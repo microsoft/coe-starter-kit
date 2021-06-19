@@ -94,17 +94,88 @@ class AADCommand {
     async installAADApplication(args: AADAppInstallArguments): Promise<void> {
 
         if (await this.validateAzCliReady(args)) {
-            let script = path.join(__dirname, '..', '..', '..', 'scripts', 'New-AzureAdAppRegistration.ps1')
             let manifest = path.join(__dirname, '..', '..', '..', 'config', 'manifest.json')
 
-            // Call powershell script to register a new Azure active directory Application
-            let command = `pwsh -c ". '${script}'; New-AzureAdAppRegistration -DisplayName '${args.azureActiveDirectoryServicePrincipal}' -ManifestPath '${manifest}'"`
-            this.runCommand(command, true)
-
-            // Find the created application and register the management application 
+            // Find if application has been created already
             let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
+            if (app.length == 0) {
+                this.logger?.info(`Creating application ${args.azureActiveDirectoryServicePrincipal}`)
+                let createCommand = `az ad app create --display-name "${args.azureActiveDirectoryServicePrincipal}" --available-to-other-tenants false --required-resource-accesses "${manifest}"`
+                let appCreateText = this.runCommand(createCommand, false)
+                let appCreate = JSON.parse(appCreateText)
+                if ( typeof appCreate.Error !== "undefined") {
+                    this.logger.error(appCreate.Error)
+                }
+                app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
+                this.logger?.info("Creating application service principal")
+                this.runCommand(`az ad sp create --id ${app[0].appId}`, false)
+            }
+
             if (app.length == 1) {
+                this.logger.info("Application exists")
+
+                let permissions : any[]
+                let waiting = true
+                let attempt = 0
+                while ( waiting ) {
+                    if (attempt > 60) {
+                        break
+                    }
+                    try {
+                        permissions= <any[]>JSON.parse(this.runCommand(`az ad app permission list-grants --id ${app[0].appId}`, false))
+                        if (permissions.length >= 0) {
+                            break
+                        }
+                    } catch {
+
+                    }
+                    this.logger?.debug(`Waiting attempt ${attempt}`)
+                    await this.sleep(1000)
+                    attempt++
+                }
+                 
+                if (permissions?.length == 0) {
+                    this.logger.info("Administration grant not set")
+                    let permissionGrant : any
+                    let waiting = true
+                    let attempt = 0
+                    let requestedPermissions = false
+
+                    while ( waiting ) {
+                        if (attempt > 60) {
+                            break
+                        }
+                        try
+                        {
+                            permissions = <any[]>JSON.parse(this.runCommand(`az ad app permission list-grants --id ${app[0].appId}`, false))
+                            if ( permissions.length > 0 ) {
+                                waiting = false
+                                break
+                            }
+                        } catch {
+
+                        }
+
+                        try {
+                            this.logger?.info(`Requesting admin permissions for application ${app[0].appId}`)
+                            permissionGrant = JSON.parse(this.runCommand(`az ad app permission admin-consent --id ${app[0].appId}`, false))
+                            requestedPermissions = true
+                        } catch {
+                        }
+                        
+                        this.logger?.debug(`Waiting attempt ${attempt}`)
+                        await this.sleep(1000)
+                        attempt++
+                    }
+                } 
+                
+                if (permissions?.length > 0) {
+                    this.logger?.info("Admin permissions granted")
+                } else {
+                    this.logger.info("Unable to verify that Administration permissions set")
+                }
+
                 let pp = new PowerPlatformCommand(this.logger)
                 let bapUrl = pp.mapEndpoint("bap", args.endpoint)
                 let apiVersion = "2020-06-01"
@@ -144,6 +215,13 @@ class AADCommand {
             }
         }
     }
+
+    sleep(ms: number) {
+        return new Promise((resolve) => {
+            setTimeout(resolve, ms);
+        });
+    } 
+
 
     /**
      * Add a secret to an existing AAD application
