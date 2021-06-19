@@ -110,8 +110,11 @@ class CoeCliCommands {
 
         let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops', 'development']);
 
+        let logOption = new Option('-l, --log <log>', 'The log level').default(["info"]).choices(['error', 'warn', "info", "verbose", "debug"]);
+
         aa4am.command('create')
             .description('Create key services')
+            .addOption(logOption)
             .addOption(createTypeOption)
             .action((options:any) => {
                 this.setupLogger(options)
@@ -123,10 +126,13 @@ class CoeCliCommands {
         aa4am.command('generate')
             .command('install')
             .option('-o, --output <name>', 'The output file to generate')
+            .addOption(logOption)
             .allowExcessArguments()
             .action(async (options:any) => {
-                let parse : { [id: string] : TextParseFunction } = {}
+                this.setupLogger(options)
+                this.logger?.info("Generate Install start")
 
+                let parse : { [id: string] : TextParseFunction } = {}
 
                 let regions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
@@ -155,7 +161,6 @@ class CoeCliCommands {
                 settings.option("--prod", "Test Enviroment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
                 settings.addOption(regions)
-                    
 
                 parse["environments"] = { parse: (text) => {
                     if (text?.length > 0 && text.indexOf('=') < 0) {
@@ -170,10 +175,16 @@ class CoeCliCommands {
                     parse: (text) => text,
                     command: settings
                 }
-                let results = await this.promptForValues(aa4am, 'install', parse)
+
+                this.logger?.debug("Prompting for values")
+                let results = await this.promptForValues(aa4am, 'install', ["file"], parse)
 
                 if (typeof results.settings === "string") {
                     results.settings = this.parseSettings(results.settings)
+                }
+
+                if (typeof results.components === "string") {
+                    results.components = results.components.split(',')
                 }
 
                 if (typeof results.settings?.region === "undefined") {
@@ -191,23 +202,27 @@ class CoeCliCommands {
                 }
 
                 this.readline.close()
+                this.logger?.info("Generate Install end")
             })
     
         aa4am.command('install')
             .description('Initialize a new ALM Accelerators for Makers instance')
             .option('-f, --file <name>', 'The install configuration parameters file')
+            .addOption(logOption)
             .addOption(componentOption)
-            .option('-a, --account <name>', 'The Azure Active directory account (Optional select azure subscription name)')
             .option('-d, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
-            .option('-o, --devopsOrg <organization>', 'The Azure DevOps organization to install into')
+            .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
             .option('-e, --environments <names>', 'The Power Platform environment to install Managed solution to')
             .option('-s, --settings <namevalues>', 'Optional settings', "createSecret=true")
             .addOption(installOption)
             .addOption(installEndpoint)
+            .option('-a, --account <name>', 'The Azure Active directory account (Optional select azure subscription name)')
             .action(async (options:any) => {
                 this.setupLogger(options)
+                this.logger?.info("Install start")
+
                 let command = this.createAA4AMCommand()
 
                 let args = new AA4AMInstallArguments()
@@ -226,18 +241,30 @@ class CoeCliCommands {
                         optionsFile.environments = this.parseSettings(optionsFile.environments)
                         optionsFile.environment = optionsFile.environments['0']
                     }
+
+                    if ( typeof optionsFile.components === "string") {
+                        options.components = optionsFile.components.split(',')
+                    }
                     
                     this.copyValues(optionsFile, args, {
                         "aad": "azureActiveDirectoryServicePrincipal",
-                        "devopsOrg": "organizationName",
+                        "devOpsOrganization": "organizationName",
                         "powerPlatformOrg": "powerPlatformOrganization",
                     })   
+
+                    if ( Array.isArray(optionsFile.level) && optionsFile.level.length > 0) {
+                        for ( var t = 0; t < this.logger.transports.length; t++) {
+                            let transport = this.logger.transports[t]
+                            transport.level = optionsFile.level[0]
+                        }
+                    }
+
                     settings = typeof optionsFile.settings === "string" ? this.parseSettings(optionsFile.settings) : optionsFile.settings
                 } else {
                     args.components = options.components
                     args.account = options.account
                     args.azureActiveDirectoryServicePrincipal = options.aad
-                    args.organizationName = options.devopsOrg
+                    args.organizationName = options.devOpsOrganization
                     args.project = options.project
                     args.repository = options.repository
                     args.powerPlatformOrganization = options.powerPlatformOrg
@@ -254,9 +281,11 @@ class CoeCliCommands {
                 args.createSecretIfNoExist = typeof settings == "undefined" || typeof settings["createSecret"] == "undefined" || settings["createSecret"]?.toLowerCase() == "true"
                 args.environments = Environment.getEnvironments(args.environments, args.settings)
 
+                this.logger?.info("Starting install")
                 await command.install(args);
 
                 this.readline.close()
+                this.logger?.info("Install end")
             });
 
         let fix = aa4am.command('fix')
@@ -264,15 +293,18 @@ class CoeCliCommands {
                    
         fix.command('build')
             .description('Attempt to build components')
-            .option('-o, --devopsOrg <organization>', 'The Azure DevOps environment validate')
+            .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps environment validate')
             .option('-p, --project <name>', 'The Azure DevOps name')
             .addOption(installEndpoint)
-            .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines").action(async (options:any) => {
+            .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines")
+            .addOption(logOption).action(async (options:any) => {
                 this.setupLogger(options)
+                this.logger?.info("Build start")
+
                 let login = this.createLoginCommand()
                 let command = this.createDevOpsCommand()
                 let args = new DevOpsInstallArguments()
-                args.organizationName = options.devopsOrg
+                args.organizationName = options.organization
                 args.projectName = options.project
                 args.repositoryName = options.repository
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
@@ -281,6 +313,7 @@ class CoeCliCommands {
                 await command.createAdvancedMakersBuildPipelines(args, null, null)
 
                 this.readline.close()
+                this.logger?.info("Build end")
             })
 
         let connection = aa4am.command('connection')
@@ -288,18 +321,20 @@ class CoeCliCommands {
         
         connection.command("add")
             .description("Add a new connection")
-            .requiredOption('-o, --organization <name>', 'The Azure DevOps organization')
+            .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
             .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to')
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-s, --settings <namevalues>', 'Optional settings')
-            .action(async (options:any) => {
+            .addOption(logOption)
+            .action(async (options:any) => {                
                 this.setupLogger(options)
+                this.logger?.info("Add start")
                 let login = this.createLoginCommand()
                 let command = this.createDevOpsCommand()
                 let args = new DevOpsInstallArguments()
-                args.organizationName = options.organization
+                args.organizationName = options.devOpsOrganization
                 args.clientId = options.clientid
                 if (typeof options.aad !== "undefined") {
                     args.azureActiveDirectoryServicePrincipal = options.aad
@@ -318,7 +353,7 @@ class CoeCliCommands {
                 }
 
                 this.readline.close()
-                
+                this.logger?.info("Add end")
             })
        
         let user = aa4am.command('user')
@@ -330,8 +365,10 @@ class CoeCliCommands {
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
             .option('-s, --settings <namevalues>', 'Optional settings')
+            .addOption(logOption)
             .action(async (options: any) => {
                 this.setupLogger(options)
+                this.logger?.info("Add start")
                 let command = this.createAA4AMCommand()
                 let args = new AA4AMUserArguments();
                 args.command = options.command
@@ -345,21 +382,24 @@ class CoeCliCommands {
                 await command.addUser(args);
 
                 this.readline.close()
+                this.logger?.info("Add end")
             });
 
         aa4am.command('branch')
             .description('Create a new Application Branch')
-            .option('-o, --organization <name>', 'The Azure DevOps Organization name')
+            .option('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
             .option('-p, --project <name>', 'The Azure DevOps name')
             .option('--source <name>', 'The source branch to copy from')
             .option('--source-build <name>', 'The source build to copy from')
             .option('-d, --destination <name>', 'The branch to create')
             .option('-s, --settings <namevalues>', 'Optional settings')
+            .addOption(logOption)
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
+                this.logger?.info("Branch start")
                 let args = new AA4AMBranchArguments();
-                args.organizationName = options.organization
+                args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
                 args.projectName = options.project
                 args.sourceBranch = options.source
@@ -371,6 +411,7 @@ class CoeCliCommands {
                 await command.branch(args)
 
                 this.readline.close()
+                this.logger?.info("Branch end")
             });
 
         return aa4am;
@@ -448,23 +489,31 @@ class CoeCliCommands {
         }
     }
 
-    async promptForValues(command: commander.Command, name: string, parse:  { [id: string] : TextParseFunction }) : Promise<any> {
+    async promptForValues(command: commander.Command, name: string, ignore: string[], parse:  { [id: string] : TextParseFunction }) : Promise<any> {
         let values: any = {}
         let match = command.commands.filter( (c: commander.Command) => c.name() == name)
         let parseKeys = Object.keys(parse)
 
         if (match.length == 1) {
             let options : Option[] = <Option[]>(<any>match[0]).options
+
+            this.outputText(`NOTE: To accept any default value just press ENTER`)
+            this.outputText('');
             this.outputText(`Please provide your ${name} options`)
             for ( var i = 0; i < options.length ; i++ ) {
                 let optionName = options[i].long.replace("--","")
+
+                if ( ignore.includes(optionName) ) {
+                    continue;
+                }
+
                 let optionParseMatch = parseKeys.filter( ( p: string) => p == optionName )
 
                 if (optionParseMatch.length == 1 && typeof parse[optionParseMatch[0]].command !== "undefined") {
                     let childOptions = <Option[]>(<any>parse[optionParseMatch[0]].command).options
                     let childValues = {}
 
-                    this.outputText(`> Which options for ${options[i].description} (${options[i].flags})`)
+                    this.outputText(`> Which options for ${options[i].description}`)
                     for ( var c = 0 ; c < childOptions.length; c++ ) {
                         await this.promptOption(childOptions[c], childValues, parse, 2)
                     }
@@ -528,7 +577,7 @@ class CoeCliCommands {
                     if (typeof option.defaultValue !== "undefined") {
                         defaultText = ` (Default ${option.defaultValue})`
                     }
-                    this.readline.question(`> ${option.description} ${option.flags}${defaultText}:`, (answer: string) => {
+                    this.readline.question(`> ${option.description}${defaultText}:`, (answer: string) => {
                         let optionName = option.name()
                         if (answer?.length > 0) {
                             let parser = parse[optionName]

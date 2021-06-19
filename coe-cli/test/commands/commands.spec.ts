@@ -170,7 +170,7 @@ describe('Prompt For Values', () => {
             .option("-m, mode <name>", "Mode name")
 
         // Act
-        let result = await commands.promptForValues(program, 'install', {})
+        let result = await commands.promptForValues(program, 'install', [], {})
 
         // Assert
         expect(result.mode).toBe("foo")
@@ -189,11 +189,11 @@ describe('Prompt For Values', () => {
         commands.outputText = (text) => {}
 
         readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
-            if (prompt.indexOf('mode') >= 0) {
+            if (prompt.indexOf('Mode') >= 0) {
                 callback('foo')
             }
 
-            if (prompt.indexOf('item1') >= 0) {
+            if (prompt.indexOf('Item 1') >= 0) {
                 callback('test1')
             }
 
@@ -210,7 +210,7 @@ describe('Prompt For Values', () => {
         settings.option("-i, --item1", "Item 1");          
 
         // Act
-        let result = await commands.promptForValues(program, 'install', { 'settings': {
+        let result = await commands.promptForValues(program, 'install', [], { 'settings': {
             parse: (text) => text,
             command: settings
         } })
@@ -241,7 +241,7 @@ describe('Prompt For Values', () => {
             .option("-m, modes [name]", "Mode name")
 
         // Act
-        let result = await commands.promptForValues(program, 'install', {})
+        let result = await commands.promptForValues(program, 'install', [], {})
 
         // Assert
         expect(JSON.stringify(result.modes)).toBe(JSON.stringify(["1", "2"]))
@@ -270,7 +270,7 @@ describe('Prompt For Values', () => {
             .addOption(componentOption)
 
         // Act
-        let result = await commands.promptForValues(program, 'install', {})
+        let result = await commands.promptForValues(program, 'install', [], {})
 
         // Assert
         expect(JSON.stringify(result.components)).toBe(JSON.stringify(["A"]))
