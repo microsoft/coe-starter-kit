@@ -620,9 +620,11 @@ class DevOpsCommand {
 
             let repo = await this.createBranch(args, project, gitApi);
 
-            await this.createBuildForBranch(args, project, repo, connection);
+            if (repo != null) {
+                await this.createBuildForBranch(args, project, repo, connection);
 
-            await this.setBranchPolicy(args, repo, connection);
+                await this.setBranchPolicy(args, repo, connection);    
+            }
         }
     }
 
@@ -654,6 +656,11 @@ class DevOpsCommand {
                 this.logger?.debug(`Found matching repo ${repositoryName}`)
 
                 let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
+
+                if (refs.length == 0) {
+                    this.logger.info("No commits to this repository yet. Initialize this repository before creating new branches")
+                    return Promise.resolve(null)
+                }
 
                 let sourceBranch = args.sourceBranch;
                 if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
@@ -791,6 +798,14 @@ class DevOpsCommand {
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
         let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
+
+        if (typeof args.settings["validation"] === "undefined") {
+            let taskApi = await connection.getTaskAgentApi()
+            let groups = await taskApi?.getVariableGroups(args.projectName, "global-variable-group")
+            if (groups?.length == 1) {
+                args.settings["validation"] = groups[0].variables["ValidationServiceConnection"]?.value
+            }
+        }
 
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, false, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, false, defaultAgentPool);
