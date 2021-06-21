@@ -15,6 +15,8 @@ import { PolicyConfiguration } from "azure-devops-node-api/interfaces/PolicyInte
 
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import path = require('path');
+import * as fs from 'fs';
+import { FileHandle } from 'fs/promises';
 import httpm = require('typed-rest-client/HttpClient');
 
 import { AADAppInstallArguments, AADCommand } from "./aad";
@@ -23,8 +25,8 @@ import { ProjectReference, VariableGroupProjectReference, VariableValue } from "
 
 import * as winston from 'winston';
 import { Environment } from "../common/enviroment";
-import { URL } from "url";
 import { Prompt } from "../common/prompt";
+import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionManagementInterfaces";
 
 /**
  * Install Arguments
@@ -32,24 +34,7 @@ import { Prompt } from "../common/prompt";
 class DevOpsInstallArguments {
     
     constructor() {
-        this.extensions = [
-            <DevOpsExtension> {
-                name: "PowerPlatform-BuildTools",
-                publisher: "microsoft-IsvExpTools"
-            },
-            <DevOpsExtension> {
-                name: "xrm-ci-framework-build-tasks",
-                publisher: "WaelHamze"
-            },
-            <DevOpsExtension> {
-                name: "variablehydration",
-                publisher: "nkdagility"
-            },
-            <DevOpsExtension> {
-                name: "scans",
-                publisher: "sariftools"
-            }
-        ]
+        this.extensions = []
         this.environments = {}
         this.azureActiveDirectoryServicePrincipal = 'ALMAcceleratorServicePrincipal'
         this.accessTokens = {}
@@ -105,7 +90,7 @@ class DevOpsInstallArguments {
      /**
       * The DevOps extension to install
       */
-     extensions: DevOpsExtension[]
+    extensions: DevOpsExtension[]
 
      /**
       * Create secret if not exist
@@ -207,8 +192,9 @@ class DevOpsCommand {
     prompt: Prompt
     getHttpClient: (connection: azdev.WebApi) => httpm.HttpClient
     logger: winston.Logger
-
-    constructor(logger: winston.Logger) {
+    readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
+    
+    constructor(logger: winston.Logger, defaultFs: any = null) {
         this.logger = logger
         this.createWebApi = (orgUrl: string, authHandler: IRequestHandler) => new azdev.WebApi(orgUrl, authHandler)
         this.createAADCommand = () => new AADCommand(this.logger)
@@ -224,6 +210,11 @@ class DevOpsCommand {
         }
         this.prompt = new Prompt()
         this.getHttpClient = (connection: azdev.WebApi) => connection.rest.client
+        if (defaultFs == null) {
+            this.readFile = fs.promises.readFile
+        } else {
+            this.readFile = defaultFs.readFile
+        }
     }
 
     /**
@@ -232,28 +223,26 @@ class DevOpsCommand {
      * @returns 
      */
     async install(args: DevOpsInstallArguments): Promise<void> {
-        try {
-            this.runCommand('pwsh --version', false)
-        } catch (error) {
-            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
-            this.logger?.error(error)
-            return
-        }
-
-        let script = path.join( __dirname, '..', '..', '..' , 'scripts', 'Install-AzureDevOpsExtensions.ps1')
         let extensions = path.join(__dirname, '..', '..', '..', 'config', 'AzureDevOpsExtensionsDetails.json')
 
         let orgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
 
-        this.logger?.debug('Installing DevOps Extensions')
-
-        // Call powershell script to register a new Azure active directory Application
-        let command = `pwsh -c ". '${script}'; Install-AzureDevOpsExtensions -OrganizationUrl '${orgUrl}' -ExtensionsFilePath '${extensions}'"`
-        this.runCommand(command, true)
+        if (args.extensions.length == 0) {
+            this.logger?.info('Loading DevOps Extensions Configuration')
+            let extensionConfig = JSON.parse(await this.readFile(extensions, 'utf-8'))
+            for ( let i = 0; i < extensionConfig.length; i++ ) {
+                args.extensions.push(<DevOpsExtension> {
+                    name: extensionConfig[i].extensionId,
+                    publisher: extensionConfig[i].publisherId
+                })
+            }    
+        }
 
         let authHandler = azdev.getBearerHandler(typeof args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] !== "undefined" ? args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] : args.accessToken); 
         let connection = this.createWebApi(orgUrl, authHandler); 
 
+        await this.installExtensions(args, connection)
+        
         let repo = await this.importPipelineRepository(args, connection)
 
         await this.createAdvancedMakersBuildPipelines(args, connection, repo)
@@ -263,8 +252,34 @@ class DevOpsCommand {
         await this.createAdvancedMakersServiceConnections(args, connection)
     }
 
+    async installExtensions(args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<void> {
+        if (args.extensions.length == 0) {
+            return Promise.resolve()
+        }
+
+        this.logger.info(`Checking devOps Extensions`)
+
+        let extensionsApi = await connection.getExtensionManagementApi()
+
+        let extensions = await extensionsApi.getInstalledExtensions()
+
+        for ( let i = 0; i < args.extensions.length; i++ ) {
+            let extension = args.extensions[i]
+        
+            let match = extensions.filter( (e: InstalledExtension ) => e.extensionId == extension.name && e.publisherId == extension.publisher )
+            if ( match.length == 0 ) {
+                this.logger.info(`Installing ${extension.name} by ${extension.publisher}`)
+                await extensionsApi.installExtensionByName(extension.publisher, extension.name)
+            } else {
+                this.logger.info(`Extension ${extension.name} by ${extension.publisher} installed`)
+            }
+        }
+    }
+
     async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) : Promise<GitRepository> {
         let gitApi = await connection.getGitApi()
+
+        this.logger.info(`Checking pipeline repository`)
         let repo = await this.getRepository(args, gitApi)
 
         let refs = await gitApi.getRefs(repo.id, args.projectName)
@@ -294,6 +309,8 @@ class DevOpsCommand {
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
 
             await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
+        } else {
+            this.logger.info(`Pipeline repository ${args.repositoryName}`)
         }
 
         return repo;
@@ -921,5 +938,6 @@ class DevOpsCommand {
 export { 
     DevOpsBranchArguments,
     DevOpsInstallArguments,
-    DevOpsCommand 
+    DevOpsCommand,
+    DevOpsExtension
 };

@@ -3,7 +3,6 @@ import { AADAppInstallArguments, AADCommand} from './aad';
 import { LoginCommand} from './login';
 import { PowerPlatformImportSolutionArguments, PowerPlatformCommand} from './powerplatform';
 import { DevOpsBranchArguments, DevOpsInstallArguments,  DevOpsCommand} from './devops';
-import { DeviceCodeRequest, Configuration, AuthenticationResult } from '@azure/msal-node';
 import DynamicsWebApi = require('dynamics-web-api');
 import open = require('open');
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
@@ -301,6 +300,8 @@ class AA4AMCommand {
     devOpsInstall.environments = args.environments
     devOpsInstall.endpoint = args.endpoint
     devOpsInstall.settings = args.settings
+
+    
 
     await command.install(devOpsInstall)
   }

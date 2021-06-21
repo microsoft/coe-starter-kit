@@ -25,7 +25,7 @@ Review review the general [Contribution Guidence](../CONTRIBUTING). Specifically
 ## Environment Setup
 
 To build the COE CLI cli application you have two choices.
-1. Local setup with install of NodeJs, Azure CLI and PowerShell Core
+1. Local setup with install of NodeJs and Azure CLI
 2. Linux docker build using node image
 
 ### Local Setup
@@ -44,12 +44,6 @@ npm install -g typescript
 
 https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
-3. Install PowerShell Core
-
-   - https://aka.ms/powershell 
-
-   - Select "Setup and installation"
-
 ### Docker Setup
 
 But using docker you will not need a local installation of node. The docker image makes use of a known node version to build the coe-cli into a docker image. To build a local docker image you can do the following command line option.
@@ -62,7 +56,7 @@ docker build -t coe-cli .
 To run via docker
 
 ```bash
-docker run -it -rm coe-cli coe --help
+docker run -it -rm coe-cli
 ```
 
 The [Readme](./README#) provides guidance on how to install the command line application
@@ -99,11 +93,6 @@ You can edit and debug the cli using Visual Studio Code
 npm run test
 ```
 
-1. Run development version
-
-```bash
-npm run start
-```
 
 1. Build production version
 
