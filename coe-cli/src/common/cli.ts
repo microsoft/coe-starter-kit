@@ -11,17 +11,6 @@ export class CommandLineHelper {
     }
 
     async validateAzCliReady(args: any): Promise<boolean> {
-        let pwshVersion = ''
-        try {
-            pwshVersion = await this.runCommand('pwsh --version', false)
-        } catch {
-
-        }
-        if (pwshVersion?.length == 0 || typeof pwshVersion == "undefined") {
-            this.logger?.info('Powershell Core not installed or could not not be found. Visit https://aka.ms/powershell to install or check your environment.')
-            return Promise.resolve(false)
-        }
-
         let validated = false
         while (!validated) {
             let accounts: any[]

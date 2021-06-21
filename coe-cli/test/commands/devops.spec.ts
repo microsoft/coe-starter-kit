@@ -1,5 +1,5 @@
 "use strict";
-import { DevOpsBranchArguments, DevOpsInstallArguments, DevOpsCommand } from '../../src/commands/devops'
+import { DevOpsBranchArguments, DevOpsInstallArguments, DevOpsCommand, DevOpsExtension } from '../../src/commands/devops'
 import * as azdev from "azure-devops-node-api"
 import { mock } from 'jest-mock-extended';
 import { IHttpClientResponse, IRequestHandler } from 'azure-devops-node-api/interfaces/common/VsoBaseInterfaces';
@@ -19,32 +19,14 @@ import { ITaskAgentApi } from 'azure-devops-node-api/TaskAgentApi';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
 import { TeamProjectReference } from 'azure-devops-node-api/interfaces/CoreInterfaces';
 import winston from 'winston';
+import { ExtensionManagementApi } from 'azure-devops-node-api/ExtensionManagementApi';
+import { InstalledExtension } from 'azure-devops-node-api/interfaces/ExtensionManagementInterfaces';
 
 describe('Install', () => {
-    test('Error - Powershell Not Installed', async () => {
-        // Arrange
-        let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
-        
-        command.runCommand = (command: string, displayOutput: boolean) => {
-            if (command.startsWith("pwsh --version")) {
-                throw Error("pwsh not found")
-            }
-            return ""
-        }
-
-        let args = new DevOpsInstallArguments();
-        
-        // Act
-        await command.install(args)
-
-        // Assert
-    })
-
     test('Import Repo', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         command.runCommand = (command: string, displayOutput: boolean) => {
             return ""
         }
@@ -80,7 +62,7 @@ describe('Install', () => {
     test('Repo alredy exists', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         command.runCommand = (command: string, displayOutput: boolean) => {
             return ""
         }
@@ -116,7 +98,7 @@ describe('Install Build', () => {
     test('Error - Powershell Not Installed', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let args = new DevOpsInstallArguments();
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
@@ -148,7 +130,7 @@ describe('Branch', () => {
     test('Create new branch if project exists and source build exists', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockCoreApi = mock<corem.ICoreApi>(); 
         
@@ -201,7 +183,7 @@ describe('Branch', () => {
     test('Clone existing source build - validation', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
 
@@ -247,7 +229,7 @@ describe('Branch', () => {
     test('Clone existing source build - match validation', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
 
@@ -293,7 +275,7 @@ describe('Branch', () => {
     test('Clone existing source build - validation using default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
         let mockTaskApi = mock<ITaskAgentApi>();
@@ -365,7 +347,7 @@ describe('Build', () => {
     test('Clone existing source build - validation using default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let args = new DevOpsBranchArguments();
         let project = <CoreInterfaces.TeamProject>{}
         let gitMock = mock<gitm.GitApi>()
@@ -413,7 +395,7 @@ describe('Policy', () => {
     test('Do nothing policy exists', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let args = new DevOpsBranchArguments();
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockPolicyApi = mock<IPolicyApi>();
@@ -461,7 +443,7 @@ describe('Build Variables', () => {
     test('Create', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger);
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockAADCommand = mock<AADCommand>()
         command.createAADCommand= () => mockAADCommand
         let args = new DevOpsInstallArguments();
@@ -488,3 +470,62 @@ describe('Build Variables', () => {
         expect(mockAADCommand.addSecret).toBeCalledTimes(1)
     })
 });
+
+describe('Extensions', () => {
+    test('No extensions installed', async () => {
+
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
+        let args = new DevOpsInstallArguments();
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockExtensionManagementApi = mock<ExtensionManagementApi>(); 
+
+        args.extensions = []
+        args.extensions.push(<DevOpsExtension> {
+            name: 'test',
+            publisher: "P1"
+        })
+
+        mockDevOpsWebApi.getExtensionManagementApi.mockResolvedValue(mockExtensionManagementApi)
+        mockExtensionManagementApi.getInstalledExtensions.mockResolvedValue([])
+
+        // Act
+        await command.installExtensions(args, mockDevOpsWebApi)
+
+        // Assert
+        expect(mockDevOpsWebApi.getExtensionManagementApi).toBeCalledTimes(1)
+        expect(mockExtensionManagementApi.getInstalledExtensions).toBeCalledTimes(1)
+        expect(mockExtensionManagementApi.installExtensionByName).toBeCalledTimes(1)
+    })
+
+    test('Extenion Installed', async () => {
+
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger);
+        let args = new DevOpsInstallArguments();
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockExtensionManagementApi = mock<ExtensionManagementApi>(); 
+
+        args.extensions = []
+        args.extensions.push(<DevOpsExtension> {
+            name: 'test',
+            publisher: "P1"
+        })
+
+        mockDevOpsWebApi.getExtensionManagementApi.mockResolvedValue(mockExtensionManagementApi)
+        mockExtensionManagementApi.getInstalledExtensions.mockResolvedValue([<InstalledExtension>{
+            extensionId: 'test',
+            publisherId: 'P1'
+        }])
+
+        // Act
+        await command.installExtensions(args, mockDevOpsWebApi)
+
+        // Assert
+        expect(mockDevOpsWebApi.getExtensionManagementApi).toBeCalledTimes(1)
+        expect(mockExtensionManagementApi.getInstalledExtensions).toBeCalledTimes(1)
+        expect(mockExtensionManagementApi.installExtensionByName).toBeCalledTimes(0)
+    })
+})

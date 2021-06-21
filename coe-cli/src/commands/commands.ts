@@ -77,6 +77,9 @@ class CoeCliCommands {
     }
 
     setupLogger(args: any) {
+        if (typeof this.logger !== "undefined") {
+            return;
+        }
         this.logger = winston.createLogger({
             format: winston.format.combine(
                 winston.format.splat(),
