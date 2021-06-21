@@ -21,6 +21,7 @@ import { TeamProjectReference } from 'azure-devops-node-api/interfaces/CoreInter
 import winston from 'winston';
 import { ExtensionManagementApi } from 'azure-devops-node-api/ExtensionManagementApi';
 import { InstalledExtension } from 'azure-devops-node-api/interfaces/ExtensionManagementInterfaces';
+import { ITaskApi } from 'azure-devops-node-api/TaskApi';
 
 describe('Install', () => {
     test('Import Repo', async () => {
@@ -133,6 +134,7 @@ describe('Branch', () => {
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockCoreApi = mock<corem.ICoreApi>(); 
+        let mockTaskAgentApi = mock<ITaskAgentApi>();
         
         let mockProject = mock<CoreInterfaces.TeamProject>()
         
@@ -150,6 +152,7 @@ describe('Branch', () => {
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
+        mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
 
         mockCoreApi.getProject.mockResolvedValue(mockProject)
 
@@ -162,6 +165,14 @@ describe('Branch', () => {
         mockRepo.name = 'repo1'
         mockRepo.defaultBranch = 'refs/heads/main'
         mockSourceRef.name = 'refs/heads/main'
+
+        mockTaskAgentApi.getVariableGroups.mockResolvedValue([<BuildInterfaces.VariableGroup>{
+            variables: {
+                "ValidationServiceConnection": <BuildDefinitionVariable>{
+                    value: "123"
+                }
+            }
+        }])
 
         let args = new DevOpsBranchArguments();
         args.accessToken = "FOO"
@@ -343,6 +354,39 @@ describe('Branch', () => {
 describe('Build', () => {
     
     beforeEach(() => jest.clearAllMocks())
+
+    test('Empty repo', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
+        let args = new DevOpsBranchArguments();
+        let project = <CoreInterfaces.TeamProject>{}
+        let gitMock = mock<gitm.GitApi>()
+        project.name = 'test'
+        command.getUrl = () => Promise.resolve(`[SampleSolutionName]
+-[BranchContainingTheBuildTemplates]
+-[RepositoryContainingTheBuildTemplates]
+-[SampleSolutionName]`)
+
+        args.projectName = 'DevOpsProject'
+        args.repositoryName = 'alm-sandbox'
+        
+        let repo = <GitRepository>{}
+        repo.name = 'alm-sandbox'
+
+        args.projectName = 'test'
+        args.destinationBranch = "New"
+
+        gitMock.getRepositories.mockResolvedValue([repo])
+        gitMock.getRefs.mockResolvedValue([])
+
+        // Act
+        await command.createBranch(args, project, gitMock)
+
+        // Assert
+        
+        expect(gitMock.createPush).toBeCalledTimes(0)
+    });
 
     test('Clone existing source build - validation using default', async () => {
         // Arrange

@@ -180,7 +180,7 @@ Notes:
 
 #### Azure
 
-Endure the user you run with has the the following permissions
+Ensure the user you run with has the the following permissions
 
 Component | Description
 --------- | ----------
@@ -193,6 +193,7 @@ Component | Description
 Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
 Project | An Azure DevOps project to integtrate with. This guide uses the name **alm-sandbox** as the project name
 Extensions | Review the [extensions configuration](./config/AzureDevOpsExtensionsDetails.json) that will be installed
+Project | Ensure the git repository has been initialized with an initial commit
 
 Notes:
 1. If installing using demo tenant you can request a trial Azure DevOps environment
@@ -261,6 +262,24 @@ For example logged in as the **maker**
 coe aa4am user add -e https://org12345-dev.crm.dynamics.com
 coe aa4am branch -o dev12345 -p alm-sandbox -d MyTestSolution
 ```
+
+Notes:
+1. If the repository you want to create a branch for is empty you will need to commit an initial commit before a branch can be created.
+1. If this is your first branch created you will need to check variables applied for the the created pipeline
+1. The first time that each pipeline is run you will need to open the pipeline in Azure DevOps and approve the resources used by the pipeline
+
+   ![Latest Push Status](./images/latest-push-status.jpg)
+
+   Will receive message similar to
+
+   ![Azure DevOps Permissions](./images/devops-pipeline-permissions.jpg)
+
+
+   Select "View"
+
+   ![Azure DevOps Permit](./images/devops-pipeline-permit.jpg)
+1. If you are using a free Azure Subscription you will receive error "No hosted parallelism has been purchased or granted."
+   1) Visit to request Azure Pipeline build compute https://aka.ms/azpipelines-parallelism-request
 
 ### Admin Maker Setup
 
