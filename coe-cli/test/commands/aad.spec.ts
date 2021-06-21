@@ -6,33 +6,11 @@ import { AxiosStatic } from 'axios';
 import { Prompt } from '../../src/common/prompt';
 
 describe('Install - AAD User', () => {
-    test('Error - Powershell Not Installed', async () => {
-        // Arrange
-        let logger = mock<winston.Logger>()
-        var command = new AADCommand(logger);
-        command.runCommand = (command: string, displayOutput: boolean) => {
-            if (command.startsWith("pwsh --version")) {
-                throw Error("pwsh not found")
-            }
-            return ""
-        }
-
-        let args = new AADAppInstallArguments();
-        
-        // Act
-        await command.installAADApplication(args)
-
-        // Assert
-    })
-
     test('Error - AAD No Account', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new AADCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
-            if (command.startsWith("pwsh --version")) {
-                return "PowerShell X.XX"
-            }
             if (command.startsWith("az account list")) {
 
                 return "[]"
@@ -62,9 +40,6 @@ describe('Install - AAD User', () => {
 
         expect(JSON.parse(accountList).length).toBe(1)
         command.runCommand = (command: string, displayOutput: boolean) => {
-            if (command.startsWith("pwsh --version")) {
-                return "PowerShell X.XX"
-            }
             if (command.startsWith("az account list")) {
                 return accountList
             }
@@ -99,9 +74,6 @@ describe('AAD User Secret', () => {
 
         expect(JSON.parse(accountList).length).toBe(1)
         command.runCommand = (command: string, displayOutput: boolean) => {
-            if (command.startsWith("pwsh --version")) {
-                return "PowerShell X.XX"
-            }
             if (command.startsWith("az account list")) {
                 return accountList
             }
@@ -127,9 +99,6 @@ describe('AAD User Secret', () => {
             }
 
         command.runCommand = (text: string, displayOutput:boolean) => {
-            if (text.startsWith("pwsh --version")) {
-                return "PowerShell X.XX"
-            }
             if (text.startsWith("az account list")) {
                 return accountList
             }

@@ -57,11 +57,6 @@ To run the COE CLI application you will require the following
 1. Azure CLI Required for user authentication and Azure Active Directory Integration
    a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
-### Optional Prerequisites
-
-1. PowerShell Core https://aka.ms/powershell 
-   NOTE: Used for coe aa4am install command
-
 ## Installation
 
 ### Local Install
@@ -98,18 +93,6 @@ npm link
 
 https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
-1. Install PowerShell Core
-
-   - https://aka.ms/powershell 
-
-   - Select "Setup and installation"
-
-1. Install Azure DevOps Extension
-
-```
-az extension add --upgrade -n azure-devops
-```
-
 ### Docker Install
 
 One method of installation is via docker
@@ -137,13 +120,38 @@ The ALM Accelerator for Advanced Makers (AA4AM) command allows you to manage com
 
 ![ALM Accelerator for Advanced Makers Overview](./images/aa4am-overview.jpg)
 
+### Install Overview
+
+![ALM Accelerator for Advanced Makers Install Overview](./images/aa4am-install-overview.jpg)
+
+The install process has the following main parts
+1. Complete [Before You Start](#before-you-start) to ensure that:
+
+   A) Power Platform Environments have been created an
+
+   B) Azure DevOps Organization and Project has been created
+
+   C) Developer Environment Created
+
+   D) COE CLI installed
+
+2. COE CLI install commands executed to setup and install the ALM Accelerator for Advanced Makers
+3. Service Connections from Azure DevOps to Power Platform have been created
+4. Advanced Makers have registered Azure Active Directory Power Platform Service Principal as System Administration user in their development environment
+5. Permissions setup in Azure DevOps so that DevOper has Usre rights to Service connection and User rights toVariable Groups
+6. Share to the ALM Accelerator for Advanced makers canvas application.
+7. A branch created by the developer to work within. 
+
+After these steps have been completed then Advanced Makers can use the ALM Accelerator for Advanced Makers application and Azure DevOps 
+   
+
 ### Before You Start
 
-#### COE Command Line
+##### COE Command Line
 
 Install the COE CLI [locally](#local-install) or via a [docker image](#docker-imstall)
 
-#### Power Platform
+##### Power Platform
 
 Environment | Description
 ----------- | -------------
@@ -172,6 +180,8 @@ Notes:
 
 #### Azure
 
+Endure the user you run with has the the following permissions
+
 Component | Description
 --------- | ----------
 Global Administrator or Privileged Role Administrator|Grant tenant-wide admin consent to an application [Read More](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/grant-admin-consent)
@@ -192,9 +202,7 @@ Notes:
 1. Review the Azure [DevOps Extensions](./config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
   - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
   - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
-  - [Colin's ALM Corner Build & Release Tools](https://marketplace.visualstudio.com/items?itemName=colinsalmcorner.colinsalmcorner-buildtasks)
-  - [RegexReplace Azure Pipelines Task](https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task)
-  - [Variable Tools for Azure DevOps Services](https://marketplace.visualstudio.com/items?itemName=nkdagility.variablehydration)
+  - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
   - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 
 #### Development Environments
@@ -350,12 +358,6 @@ coe aa4am install -c aad
 
 Will login using the Azure CLI user and attempt to install the Azure Active Directory application required for Azure DevOps and the Application User that wil be used to interact Power Platform environments.
 
-Steps by performed by the command:
-1. Run the [./scripts/New-AzureAdAppRegistration.ps1](./scripts/New-AzureAdAppRegistration.ps1) to create the application. Notes:
-  - Requires PowerShell Core to be installed to run step
-  - Requires Azure Active Directory permissions to grant organization right to the application
-1. Ensure Reply Url is configured
-
 #### Install DevOps
 
 Install the just devops components. This step assumes the Azure Active Directory Service Principal has been created
@@ -365,9 +367,7 @@ coe aa4am install -c devops -o dev12345 -p alm-sandbox
 ```
 
 Steps by performed by the command:
-1. Install Azure DevOps extensions using [./scripts/Install-AzureDevOpsExtensions.ps1](./scripts/Install-AzureDevOpsExtensions.ps1). Notes:
-  - Requires Azure DevOps extension for az cli to be installed
-  - Extensions that will be installed configured in [./config/AzureDevOpsExtensionsDetails.json](./config/AzureDevOpsExtensionsDetails.json)
+1. Install Azure DevOps extensions. Extensions that will be installed configured in [./config/AzureDevOpsExtensionsDetails.json](./config/AzureDevOpsExtensionsDetails.json)
 1. Import Azure DevOps Pipelines. Notes:
   - The first time the build is run permissions will need to be granted to the service connections.
 1. Install Azure DevOps Build Pipeline for 
