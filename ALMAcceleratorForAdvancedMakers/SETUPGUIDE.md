@@ -364,7 +364,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
    ![image-20210408144634619](.attachments/GETTINGSTARTED/image-20210408144634619.png)
 
-1. Paste the YAML from **deploy-validation-SampleSolution.yml**, **deploy-test-SampleSolution.yml** or **deploy-prod-SampleSolution.yml** into your new Pipeline YAML file.
+1. Paste the YAML from **build-deploy-validation-SampleSolution.yml**, **build-deploy-test-SampleSolution.yml** or **build-deploy-prod-SampleSolution.yml** into your new Pipeline YAML file.
 
    ![image-20210408155252306](.attachments/GETTINGSTARTED/image-20210408155252306.png)
 
