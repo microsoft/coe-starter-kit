@@ -28,6 +28,8 @@ import { Environment } from "../common/enviroment";
 import { Prompt } from "../common/prompt";
 import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionManagementInterfaces";
 
+import url from 'url';
+
 /**
  * Install Arguments
  */
@@ -111,6 +113,11 @@ class DevOpsInstallArguments {
     * Optional settings
     */
     settings:  { [id: string] : string }
+
+    /**
+    * The user to associate with this connection
+    */
+    user: string
 }
 
 type DevOpsExtension = {
@@ -257,7 +264,7 @@ class DevOpsCommand {
             return Promise.resolve()
         }
 
-        this.logger.info(`Checking devOps Extensions`)
+        this.logger.info(`Checking DevOps Extensions`)
 
         let extensionsApi = await connection.getExtensionManagementApi()
 
@@ -470,7 +477,7 @@ class DevOpsCommand {
         
     }
 
-    async createAdvancedMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi) {
+    async createAdvancedMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi, setupEnvironmentConnections: boolean = true) {
         connection = await this.createConnectionIfExists(args, connection)
 
         let endpoints = await this.getServiceConnections(args, connection)
@@ -502,19 +509,38 @@ class DevOpsCommand {
 
         let mapping : { [id: string] : string } = {}
 
-        for ( var i = 0; i < keys.length; i++) {
-            let environmentName = args.environments[keys[i]]
-            mapping[environmentName] = keys[i]
-            if ( environments.filter( (e:string) => e == environmentName ).length == 0) {
-                environments.push(environmentName)
+        if ( setupEnvironmentConnections ) {
+            for ( var i = 0; i < keys.length; i++) {
+                let environmentName = args.environments[keys[i]]
+                mapping[environmentName] = keys[i]
+                if ( environments.filter( (e:string) => e == environmentName ).length == 0) {
+                    environments.push(environmentName)
+                }
             }
+    
+            if (Array.isArray(args.settings["installEnvironments"])) {
+                for ( var i = 0; i < args.settings["installEnvironments"].length; i++ ) {
+                    let environmentName = args.settings["installEnvironments"][i]
+                    if ( typeof args.settings[environmentName] === "string" && environments.filter( (e:string) => e ==  args.settings[environmentName] ).length == 0) {
+                        environments.push(args.settings[environmentName])
+                    }
+                }
+            }    
         }
 
         for ( var i = 0; i < environments.length; i++) {
             let environmentName = environments[i]
             let endpointUrl = Environment.getEnvironmentUrl(environmentName, args.settings)
 
-            let secretInfo = await aadCommand.addSecret(aadArgs, environmentName)
+            let secretName = environmentName
+            try {
+                let environmentUrl = new url.URL(secretName)
+                secretName = environmentUrl.hostname.split(".")[0]
+            } catch {
+
+            }
+
+            let secretInfo = await aadCommand.addSecret(aadArgs, secretName)
 
             if (endpoints.filter(e => e.name == endpointUrl).length == 0) {
                 let ep = <ServiceEndpoint>{

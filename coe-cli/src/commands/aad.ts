@@ -38,6 +38,11 @@ class AADAppInstallArguments {
     azureActiveDirectoryServicePrincipal: string
 
     /**
+     * Azure Active directory makers group
+     */
+    azureActiveDirectoryMakersGroup: string
+
+    /**
      * Create secret for application
      */
     createSecret: boolean
@@ -55,7 +60,7 @@ type AADAppSecret = {
 }
 
 /**
- * AML Accelereator for Advanced Makers commands
+ * ALM Accelereator for Advanced Makers commands
  */
 class AADCommand {
     runCommand: (command: string, displayOutput: boolean) => string
@@ -76,6 +81,39 @@ class AADCommand {
         this.prompt = new Prompt()
     }
 
+    getAADGroup(args: AADAppInstallArguments): string {
+        let json = this.runCommand(`az ad group list --display-name "${args.azureActiveDirectoryMakersGroup}"`, false)
+        let groups = <any[]>JSON.parse(json)
+
+        if (groups.length == 1) {
+            return groups[0].objectId
+        }
+
+        return null
+    }
+
+    /**
+     * Install AAD Group
+     * @param args 
+     * @returns 
+     */
+    installAADGroup(args: AADAppInstallArguments): string {
+        if ( args.azureActiveDirectoryMakersGroup?.length == 0 ) {
+            this.logger?.info('Skipping group create')
+            return null;
+        }
+
+        let group : string = this.getAADGroup(args)
+        if ( group === null) {
+            this.logger?.info(`Creating ${args.azureActiveDirectoryMakersGroup} group`)
+            let createJson = this.runCommand(`az ad group create --display-name '${args.azureActiveDirectoryMakersGroup}' --description 'Application Lifecycle Management Accelerator for Advanced Makers' --mail-nickname="null"`, false)
+            group = JSON.parse(createJson).objectId
+        } else {
+            this.logger?.info(`Group ${args.azureActiveDirectoryMakersGroup} exists`)
+        }
+        return group
+    }
+    
     getAADApplication(args: AADAppInstallArguments): string {
         let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 

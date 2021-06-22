@@ -40,6 +40,11 @@ import { Environment } from '../common/enviroment'
   azureActiveDirectoryServicePrincipal: string
 
   /**
+   * The azure active directory makers group
+   */
+  azureActiveDirectoryMakersGroup: string
+
+  /**
    * The name of the Azure DevOps Organization
    */
   organizationName: string
@@ -277,11 +282,14 @@ class AA4AMCommand {
     let install = new AADAppInstallArguments()
     install.account = args.account
     install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    install.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
     install.accessTokens = args.accessTokens
     install.endpoint = args.endpoint
     install.settings = args.settings
 
     await aad.installAADApplication(install)
+
+    aad.installAADGroup(install)
   }
 
   async installDevOpsComponents(args: AA4AMInstallArguments) : Promise<void> {
@@ -380,7 +388,7 @@ class AA4AMCommand {
 
       let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-      this.logger?.verbose("Checking user")
+      this.logger?.verbose(`Checking user ${args.azureActiveDirectoryServicePrincipal} exists in ${enviromentUrl}`)
       var dynamicsWebApi = this.createDynamicsWebApi({
         webApiUrl: `${enviromentUrl}api/data/v9.1/`,
         onTokenRefresh: (dynamicsWebApiCallback) => dynamicsWebApiCallback(accessTokens[enviromentUrl])
@@ -416,7 +424,7 @@ class AA4AMCommand {
         this.logger?.debug('User exists')
       } else {
         try{
-          this.logger?.debug('Creating application user')
+          this.logger?.debug(`Creating application user in ${args.environment}`)
           let user = { "applicationid": id, "businessunitid@odata.bind": `/businessunits(${businessUnitId})`}
           this.logger?.info('Creating system user')
           await this.getAxios().post(`${enviromentUrl}api/data/v9.1/systemusers`, user, {

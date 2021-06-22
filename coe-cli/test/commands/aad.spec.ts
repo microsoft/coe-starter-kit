@@ -5,6 +5,34 @@ import winston = require('winston');
 import { AxiosStatic } from 'axios';
 import { Prompt } from '../../src/common/prompt';
 
+describe('Install - Group', () => {
+    test('Error - AAD No Account', async () => {
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
+        command.runCommand = (command: string, displayOutput: boolean) => {
+            if (command.startsWith("az ad group list")) {
+                return "[]"
+            }
+
+            if (command.startsWith("az ad group list")) {
+                return "[]"
+            }
+
+            if (command.startsWith("az ad group create")) {
+                return '{ "objectId": "O123" }'
+            }
+            
+            return "{}"
+        }
+        
+        // Act
+        let args = new AADAppInstallArguments();
+
+        await command.installAADGroup(args)
+    })
+});
+
+
 describe('Install - AAD User', () => {
     test('Error - AAD No Account', async () => {
         // Arrange
