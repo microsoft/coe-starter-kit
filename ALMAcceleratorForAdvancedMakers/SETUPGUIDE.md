@@ -180,6 +180,10 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
    ![clone-template-repository](.attachments/SETUPGUIDE/clone-template-repository-1.png)
 
 1. Enter https://github.com/microsoft/coe-alm-accelerator-templates as the **Clone URL** and click **Import**
+1. Check that the default branch for this repo is `main`. Choose **Repos** and **Branches** and ensure that the `main` branch is tagged as the default:
+   ![Check default branch on imported repository](.attachments/SETUPGUIDE/check-default-branch-imported-repository.png)
+   If it is not, select the 3 vertical dots corresponding to the `main` branch and from the **More options** menu, choose **Set as default branch**
+   ![Set default branch on imported repository](.attachments/SETUPGUIDE/set-default-branch-imported-repository.png)
 
    > [!NOTE] The AzDO repo you created above will be where the Solution Pipeline Templates and the Export / Import Pipelines will run. Later when you create the Pipelines for your solutions you may need to reference this specific Project/Repo if you choose to source control your solutions in another repo in AzDO.
 
