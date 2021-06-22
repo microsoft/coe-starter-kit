@@ -137,6 +137,13 @@ class CoeCliCommands {
 
                 let parse : { [id: string] : TextParseFunction } = {}
 
+                let environments = new Option("--installEnvironments", "The environments to setup connections and applications user permissions").default(['validation',
+                'test',
+                'prod'])          
+                .choices(['validation',
+                    'test',
+                    'prod'])
+
                 let regions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
                     'DEU',
@@ -159,9 +166,10 @@ class CoeCliCommands {
                 const settings = new Command()
                     .command('settings')
                 
-                settings.option("--validation", "Validation Enviroment Name", "yourenvironment-validation");     
-                settings.option("--test", "Test Enviroment Name", "yourenvironment-test");     
-                settings.option("--prod", "Test Enviroment Name", "yourenvironment-prod");     
+                settings.addOption(environments)
+                settings.option("--validation", "Validation Environment Name", "yourenvironment-validation");     
+                settings.option("--test", "Test Environment Name", "yourenvironment-test");     
+                settings.option("--prod", "Test Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
                 settings.addOption(regions)
 
@@ -214,6 +222,7 @@ class CoeCliCommands {
             .addOption(logOption)
             .addOption(componentOption)
             .option('-d, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
+            .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
@@ -221,7 +230,7 @@ class CoeCliCommands {
             .option('-s, --settings <namevalues>', 'Optional settings', "createSecret=true")
             .addOption(installOption)
             .addOption(installEndpoint)
-            .option('-a, --account <name>', 'The Azure Active directory account (Optional select azure subscription name)')
+            .option('-a, --account <name>', 'The Azure Active directory account (Optional select azure subscription if access to multiple subscriptions)')
             .action(async (options:any) => {
                 this.setupLogger(options)
                 this.logger?.info("Install start")
@@ -251,6 +260,7 @@ class CoeCliCommands {
                     
                     this.copyValues(optionsFile, args, {
                         "aad": "azureActiveDirectoryServicePrincipal",
+                        "group": "azureActiveDirectoryMakersGroup",
                         "devOpsOrganization": "organizationName",
                         "powerPlatformOrg": "powerPlatformOrganization",
                     })   
@@ -267,6 +277,7 @@ class CoeCliCommands {
                     args.components = options.components
                     args.account = options.account
                     args.azureActiveDirectoryServicePrincipal = options.aad
+                    args.azureActiveDirectoryMakersGroup = options.group
                     args.organizationName = options.devOpsOrganization
                     args.project = options.project
                     args.repository = options.repository
@@ -329,6 +340,7 @@ class CoeCliCommands {
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('-u, --user <name>', 'The azure active directory user to assign to the connection')
             .option('-s, --settings <namevalues>', 'Optional settings')
             .addOption(logOption)
             .action(async (options:any) => {                
@@ -348,9 +360,10 @@ class CoeCliCommands {
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
                 args.endpoint = options.endpoint
                 args.settings = this.parseSettings(options.settings)
+                args.user = options.user
                                                        
                 try {
-                    await command.createAdvancedMakersServiceConnections(args, null)
+                    await command.createAdvancedMakersServiceConnections(args, null, false)
                 } catch (err) {
                     this.logger?.error(err)
                 }

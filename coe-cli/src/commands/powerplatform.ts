@@ -7,6 +7,7 @@ import { AADAppInstallArguments, AADCommand } from './aad';
 import * as winston from 'winston';
 import { Environment } from '../common/enviroment';
 import * as urlModule from 'url';
+import { AA4AMCommand, AA4AMInstallArguments, AA4AMUserArguments } from './aa4am';
 
 /**
  * Powerplatform Command Arguments
@@ -107,6 +108,7 @@ class PowerPlatformCommand {
     writeFile: (name: string, data: Buffer) =>Promise<void>
     cli: CommandLineHelper
     createAADCommand: () => AADCommand
+    createAA4AMCommand: () => AA4AMCommand
     logger: winston.Logger
   
     constructor(logger: winston.Logger) {
@@ -129,6 +131,7 @@ class PowerPlatformCommand {
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.cli = new CommandLineHelper
         this.createAADCommand = () => { return new AADCommand(this.logger) }
+        this.createAA4AMCommand = () => { return new AA4AMCommand(this.logger) }
     }
 
     /**
@@ -253,6 +256,8 @@ class PowerPlatformCommand {
         await this.fixConnectionReferences(solutions, args)
 
         await this.fixFlows(solutions, args)
+
+        await this.addApplicationUsersToEnvironments(args)
     }
 
     async fixCustomConnectors(args: PowerPlatformImportSolutionArguments) : Promise<void> {
@@ -480,6 +485,29 @@ class PowerPlatformCommand {
             }
         }
     }
+
+    async addApplicationUsersToEnvironments(args: PowerPlatformImportSolutionArguments) {
+        let environments : string[] = []
+        if (Array.isArray(args.settings["installEnvironments"])) {
+            for ( var i = 0; i < args.settings["installEnvironments"].length; i++ ) {
+                let environmentName = args.settings["installEnvironments"][i]
+                if ( typeof args.settings[environmentName] === "string" && environments.filter( (e:string) => e ==  args.settings[environmentName] ).length == 0) {
+                    environments.push(args.settings[environmentName])
+                }
+            }
+        }  
+        
+        let aa4am = this.createAA4AMCommand()
+        let aa4amArgs = new AA4AMUserArguments()
+
+        for ( var i = 0; i < environments.length; i++) {
+            aa4amArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            aa4amArgs.environment = environments[i]
+            await aa4am.addUser(aa4amArgs)
+        }
+    }
+
+    
 }
 
 export {
