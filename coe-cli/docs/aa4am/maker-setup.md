@@ -64,7 +64,7 @@ After setting up an advanced maker you may need to verify the following
 
    ![Azure DevOps Permissions](../../images/devops-pipeline-permissions.jpg)
 
-5. If required select "View" and permit the buidl pipeline to
+5. If required select "View" and permit the build pipeline to
 
    ![Azure DevOps Permit](../../images/devops-pipeline-permit.jpg)
 

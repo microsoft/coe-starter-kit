@@ -80,4 +80,4 @@ coe aa4am install -f test.json
 
 ## Read Next
 
-- Complete the [Install Overview](./index#onstall-overview)
+- Complete the [Install Overview](./index.md#onstall-overview)
