@@ -28,7 +28,7 @@ Notes:
    3) Select My Enviroments
    4) Select Create Tenant
    5) Select tennat location
-   6) Select "Dynamics Customer Engagement"
+   6) Select "Dynamics 365 Customer Engagement"
 3. Sample environment from https://admin.powerplatform.microsoft.com/environments
 
    ![Environments](../../images/environments.jpg)
