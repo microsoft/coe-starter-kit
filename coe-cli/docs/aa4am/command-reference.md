@@ -68,7 +68,7 @@ coe aa4am install -c devops -o dev12345 -p alm-sandbox
 ```
 
 Steps by performed by the command:
-1. Install Azure DevOps extensions. Extensions that will be installed configured in [./config/AzureDevOpsExtensionsDetails.json](./config/AzureDevOpsExtensionsDetails.json)
+1. Install Azure DevOps extensions. Extensions that will be installed configured in [config/AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json)
 1. Import Azure DevOps Pipelines. Notes:
   - The first time the build is run permissions will need to be granted to the service connections.
 1. Install Azure DevOps Build Pipeline for 

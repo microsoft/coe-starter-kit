@@ -4,7 +4,7 @@ Before you start an install of AA4AM ensure that you have the following in place
 
 ## COE Command Line
 
-Install the COE CLI [locally](../index#local-install) or via a [docker image](../index#docker-imstall)
+Install the COE CLI [locally](../index.md#local-install) or via a [docker image](../index.md#docker-imstall)
 
 ## Power Platform
 
@@ -55,7 +55,7 @@ Notes:
    a) https://azure.microsoft.com/en-us/services/devops/
    b) Create Organization
    c) Create initial project e.g. alm-sandbox
-2. Review the Azure [DevOps Extensions](./config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
+2. Review the Azure [DevOps Extensions](../../config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
   - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
   - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
   - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
@@ -65,4 +65,4 @@ Notes:
 
   Once you have verified the above
 
-  1. Complete the [Admin Install](./admin-install)
+  1. Complete the [Admin Install](./admin-install.md)

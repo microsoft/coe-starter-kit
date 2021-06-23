@@ -8,11 +8,11 @@ The diagram below provides an over of the key components required and permission
 
 ## Install Overview
 
-1. As an administrator complete the [Admin Install](./admin-install)
+1. As an administrator complete the [Admin Install](./admin-install.md)
 
-2. Have Advanced Makers create [Development Environments](./development-environments)
+2. Have Advanced Makers create [Development Environments](./development-environments.md)
 
-3. Use [Maker Setup](./maker-setup) to create and setup environment and solution branches in the Azure DevOps repository.
+3. Use [Maker Setup](./maker-setup.md) to create and setup environment and solution branches in the Azure DevOps repository.
 
 ## Maker First Solution
 
@@ -44,4 +44,4 @@ Notes:
 
 ## Read Next
 
-- [Command Reference](./command-reference)
+- [Command Reference](./command-reference.md)
