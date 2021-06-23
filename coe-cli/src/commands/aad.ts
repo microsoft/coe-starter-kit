@@ -173,42 +173,26 @@ class AADCommand {
                     attempt++
                 }
                  
-                if (permissions?.length == 0) {
+                if (permissions?.length < 3) {
                     this.logger.info("Administration grant not set")
-                    let permissionGrant : any
-                    let waiting = true
-                    let attempt = 0
-                    let requestedPermissions = false
 
-                    while ( waiting ) {
-                        if (attempt > 60) {
-                            break
-                        }
-                        try
-                        {
-                            permissions = <any[]>JSON.parse(this.runCommand(`az ad app permission list-grants --id ${app[0].appId}`, false))
-                            if ( permissions.length > 0 ) {
-                                waiting = false
-                                break
-                            }
-                        } catch {
+                    this.logger?.info("Granting Azure DevOps delegated admin consent")
+                    this.grantAdminDelegatedPermissions(app[0].appId, '499b84ac-1321-427f-aa17-267ca6975798', 'ee69721e-6c3a-468f-a9ec-302d16a4c599')
+                    
+                    this.logger?.info("Granting PowerApps-Advisor delegated admin consent")
+                    this.grantAdminDelegatedPermissions(app[0].appId, 'c9299480-c13a-49db-a7ae-cdfe54fe0313', 'd533b86d-8f67-45f0-b8bb-c0cee8da0356')
 
-                        }
+                    this.logger?.info("Granting Dynamics CRM delegated admin consent")
+                    this.grantAdminDelegatedPermissions(app[0].appId, '00000007-0000-0000-c000-000000000000', '78ce3f0f-a1ce-49c2-8cde-64b5c0896db4')
 
-                        try {
-                            this.logger?.info(`Requesting admin permissions for application ${app[0].appId}`)
-                            permissionGrant = JSON.parse(this.runCommand(`az ad app permission admin-consent --id ${app[0].appId}`, false))
-                            requestedPermissions = true
-                        } catch {
-                        }
-                        
-                        this.logger?.debug(`Waiting attempt ${attempt}`)
-                        await this.sleep(1000)
-                        attempt++
+                    try {
+                        permissions= <any[]>JSON.parse(this.runCommand(`az ad app permission list-grants --id ${app[0].appId}`, false))
+                    } catch {
+
                     }
                 } 
                 
-                if (permissions?.length > 0) {
+                if (permissions?.length == 3) {
                     this.logger?.info("Admin permissions granted")
                 } else {
                     this.logger.info("Unable to verify that Administration permissions set")
@@ -252,6 +236,12 @@ class AADCommand {
                 return Promise.resolve()
             }
         }
+    }
+
+    grantAdminDelegatedPermissions(appId: string, apiId: string, scope: string) {
+        // https://github.com/Azure/azure-cli/issues/12137#issuecomment-596567479
+        let result = this.runCommand(`az ad app permission grant --id ${appId} --api ${apiId} --scope ${scope}`, false)
+        this.logger?.debug(result)
     }
 
     sleep(ms: number) {
