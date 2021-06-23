@@ -8,6 +8,7 @@ import { CLIArguments, CLICommand } from './cli';
 import * as winston from 'winston';
 import * as readline from 'readline';
 import * as fs from 'fs';
+const path = require('path')
 import { FileHandle } from 'fs/promises';
 import { Environment } from '../common/enviroment';
 
@@ -115,36 +116,7 @@ class CoeCliCommands {
 
         let logOption = new Option('-l, --log <log>', 'The log level').default(["info"]).choices(['error', 'warn', "info", "verbose", "debug"]);
 
-        aa4am.command('create')
-            .description('Create key services')
-            .addOption(logOption)
-            .addOption(createTypeOption)
-            .action((options:any) => {
-                this.setupLogger(options)
-                let command = this.createAA4AMCommand()
-                command.create(options.type);
-                this.readline.close()
-            });
-
-        aa4am.command('generate')
-            .command('install')
-            .option('-o, --output <name>', 'The output file to generate')
-            .addOption(logOption)
-            .allowExcessArguments()
-            .action(async (options:any) => {
-                this.setupLogger(options)
-                this.logger?.info("Generate Install start")
-
-                let parse : { [id: string] : TextParseFunction } = {}
-
-                let environments = new Option("--installEnvironments", "The environments to setup connections and applications user permissions").default(['validation',
-                'test',
-                'prod'])          
-                .choices(['validation',
-                    'test',
-                    'prod'])
-
-                let regions = new Option("--region", "The region to deploy to").default(["NAM"])                
+        let regionOptions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
                     'DEU',
                     'SAM',
@@ -163,6 +135,37 @@ class CoeCliCommands {
                     'GER',
                     'CHE']);
 
+        aa4am.command('create')
+            .description('Create key services')
+            .addOption(logOption)
+            .addOption(createTypeOption)
+            .action((options:any) => {
+                this.setupLogger(options)
+                let command = this.createAA4AMCommand()
+                command.create(options.type);
+                this.readline.close()
+            });
+
+        let generate = aa4am.command('generate')
+        
+        generate.command('install')
+            .option('-o, --output <name>', 'The output file to generate')
+            .addOption(logOption)
+            .option('-s, --includeSchema <name>', 'Include schema', "true")
+            .allowExcessArguments()
+            .action(async (options:any) => {
+                this.setupLogger(options)
+                this.logger?.info("Generate Install start")
+
+                let parse : { [id: string] : TextParseFunction } = {}
+
+                let environments = new Option("--installEnvironments", "The environments to setup connections and applications user permissions").default(['validation',
+                'test',
+                'prod'])          
+                .choices(['validation',
+                    'test',
+                    'prod'])
+
                 const settings = new Command()
                     .command('settings')
                 
@@ -171,7 +174,7 @@ class CoeCliCommands {
                 settings.option("--test", "Test Environment Name", "yourenvironment-test");     
                 settings.option("--prod", "Test Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
-                settings.addOption(regions)
+                settings.addOption(regionOptions)
 
                 parse["environments"] = { parse: (text) => {
                     if (text?.length > 0 && text.indexOf('=') < 0) {
@@ -207,7 +210,13 @@ class CoeCliCommands {
                 }
 
                 if (typeof options.output === "string") {
+                    if ( options.includeSchema === "true") {
+                        results["$schema"] = "./aa4am.schema.json"
+                        let schemaFile =  path.join(__dirname, '..', '..', '..', 'config', 'aa4am.schema.json')
+                        this.writeFile(path.join(path.dirname(options.output), "aa4am.schema.json" ), await this.readFile(schemaFile, { encoding: 'utf-8' }))
+                    }
                     this.writeFile(options.output, JSON.stringify(results, null, 2))
+                    
                 } else {
                     this.outputText(JSON.stringify(results, null, 2))
                 }
@@ -215,6 +224,52 @@ class CoeCliCommands {
                 this.readline.close()
                 this.logger?.info("Generate Install end")
             })
+
+            generate.command('maker')
+                .command("add")
+                .option('-o, --output <name>', 'The output file to generate')
+                .addOption(logOption)
+                .allowExcessArguments()
+                .action(async (options:any) => {
+                    this.setupLogger(options)
+                    this.logger?.info("Generate Maker start")
+
+                    let parse : { [id: string] : TextParseFunction } = {}
+
+                    const settings = new Command()
+                        .command('settings')
+                    settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
+                    settings.addOption(regionOptions)
+
+                    parse["settings"] = {
+                        parse: (text) => text,
+                        command: settings
+                    }
+
+                    this.logger?.debug("Prompting for values")
+                    let results = await this.promptForValues(maker, 'add', ["file"], parse)
+
+                    if (typeof results.settings === "string") {
+                        results.settings = this.parseSettings(results.settings)
+                    }
+
+                    if (typeof results.settings?.region === "undefined") {
+                        if (typeof results.settings === "undefined") {
+                            results.settings = {}
+                        }
+                        // Set default region https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+                        results.settings.region = "NAM"
+                    }
+
+                    if (typeof options.output === "string") {
+                        this.writeFile(options.output, JSON.stringify(results, null, 2))
+                    } else {
+                        this.outputText(JSON.stringify(results, null, 2))
+                    }
+
+                    this.readline.close()
+                    this.logger?.info("Generate maker end")
+                })
     
         aa4am.command('install')
             .description('Initialize a new ALM Accelerators for Makers instance')
@@ -336,7 +391,7 @@ class CoeCliCommands {
         connection.command("add")
             .description("Add a new connection")
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
-            .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to')
+            .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
@@ -371,6 +426,28 @@ class CoeCliCommands {
                 this.readline.close()
                 this.logger?.info("Add end")
             })
+
+        let maker = aa4am.command('maker')
+            .description('Manage Advanced makers')
+
+        maker.command("add")
+            .option('-f, --file <name>', 'The install configuration parameters file from')
+            .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
+            .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
+            .requiredOption('-e, --environment <organization>', 'The environment to create the Service Principal Application User in')
+            .requiredOption('-u, --user <name>', 'The user to add as a advanced maker')
+            .requiredOption('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
+            .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('-r, --role <name>', 'The user role', 'System Administrator')
+            .option('-s, --settings <namevalues>', 'Optional settings')
+            .action(async (options: any) => {
+                this.setupLogger(options)
+                this.logger?.info("Add start")
+
+
+                this.logger?.info("Add end")
+            });
+            
        
         let user = aa4am.command('user')
             .description('Create Admin user in Dataverse Environment')

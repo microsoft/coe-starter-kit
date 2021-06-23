@@ -675,7 +675,7 @@ class DevOpsCommand {
         for ( let i = 0; i < repos.length; i++ ) {
             let repo = repos[i]
 
-            if ( repo.name == repositoryName ) {
+            if ( repo.name.toLowerCase() == repositoryName.toLowerCase() ) {
                 foundRepo = true
                 matchingRepo = repo
 
