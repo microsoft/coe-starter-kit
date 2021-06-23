@@ -191,6 +191,71 @@ describe('Branch', () => {
         expect(mockCoreApi.getProject).toHaveBeenCalled()
     })
 
+    test('Create new branch if project exists and source build exists - Case Insentive', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockCoreApi = mock<corem.ICoreApi>(); 
+        let mockTaskAgentApi = mock<ITaskAgentApi>();
+        
+        let mockProject = mock<CoreInterfaces.TeamProject>()
+        
+        let mockGitApi = mock<gitm.IGitApi>();
+        let mockBuildApi = mock<IBuildApi>();
+        
+        let mockRepo = mock<GitInterfaces.GitRepository>()
+        let mockSourceRef = mock<GitInterfaces.GitRef>()
+
+        let mockSourceBuildRef = mock<BuildDefinitionReference>();
+
+        command.createWebApi = (org: string, handler: IRequestHandler) => mockDevOpsWebApi;
+        command.getUrl = (url: string) => Promise.resolve('123')
+
+        mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
+        mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
+        mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
+        mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
+
+        mockCoreApi.getProject.mockResolvedValue(mockProject)
+
+        mockGitApi.getRepositories.mockResolvedValue([mockRepo])
+        mockGitApi.getRefs.mockResolvedValue([mockSourceRef])
+
+        mockBuildApi.getDefinitions.mockResolvedValue([])
+
+        mockProject.name = 'alm-sandbox'
+        mockRepo.name = 'RePo1'
+        mockRepo.defaultBranch = 'refs/heads/main'
+        mockSourceRef.name = 'refs/heads/main'
+
+        mockTaskAgentApi.getVariableGroups.mockResolvedValue([<BuildInterfaces.VariableGroup>{
+            variables: {
+                "ValidationServiceConnection": <BuildDefinitionVariable>{
+                    value: "123"
+                }
+            }
+        }])
+
+        let args = new DevOpsBranchArguments();
+        args.accessToken = "FOO"
+        args.organizationName = "org"
+        args.projectName = "P1"
+        args.repositoryName = "REPO1"        
+        args.sourceBranch = "main"  
+        args.sourceBuildName = "TestSolution"
+        args.destinationBranch = "NewSolution"  
+
+        // Act
+        await command.branch(args)
+
+        // Assert
+        expect(mockDevOpsWebApi.getCoreApi).toHaveBeenCalled()
+        expect(mockCoreApi.getProject).toHaveBeenCalled()
+        expect(mockGitApi.createPush).toHaveBeenCalled()
+        
+    })
+
     test('Clone existing source build - validation', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
