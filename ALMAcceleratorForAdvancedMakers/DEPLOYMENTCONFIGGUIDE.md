@@ -83,7 +83,7 @@ To create custom deployment settings JSON file follow the steps below
    >
    > ![image-20210622130424580](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622130424580.png)
 
-#### Create Connection Reference JSON (Optional)
+#### Create Connection Reference JSON
 
 The connection reference property in the customDeploymentConfiguration.json is **ConnectionReferences**. This is used for setting connection references in your solution to specific connections configured in a target environment after the solution is imported into an environment. Additionally, the **ConnectionReferences** are used to enable flows after the solution is imported based on owner of the connection specified in the variable.
 
@@ -91,7 +91,7 @@ The connection reference property in the customDeploymentConfiguration.json is *
 
 1. The format of the JSON for these variables take the form of an array of name/value pairs.
 
-   ```json
+   ```
    [
       [ 
         "connection reference1 schema name",
@@ -102,7 +102,7 @@ The connection reference property in the customDeploymentConfiguration.json is *
         "my environment connection ID2"
       ]
    ]
-```
+   ```
 
    - The **schema name** for the connection reference can be obtained from the **connection reference component** in your solution.
      ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/connrefschema.png)
@@ -110,20 +110,13 @@ The connection reference property in the customDeploymentConfiguration.json is *
    - The **connection id** can be obtained via the URL of the connection after you create it. For example the id of the connection below is **9f66d1d455f3474ebf24e4fa2c04cea2** where the URL is https://.../connections/shared_commondataservice/9f66d1d455f3474ebf24e4fa2c04cea2/details#
      ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/connid.png)
 
-1. Once you've gathered the connection reference schema names and connection ids go to the pipeline for your solution that you created above Select **Edit -> Variables**
-
-1. On the **Pipeline Variables** screen create the **ConnectionReferences** pipeline variables.
-
-1. Set the value to the JSON formatted array of connection reference schema and connection ids.
-
-   - For the example above the values look like the following
-     ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/connrefvariables.png)
+1. Once you've gathered the connection reference schema names and connection ids go to the **customDeploymentSettings.json** and paste the json in  the **ConnectionReferences property**.
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create Environment Variable Pipeline Variable (Optional)
+#### Create Environment Variable Pipeline Variable
 
-The environment variable pipeline variable is **EnvironmentVariables**. This pipeline variable is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
+The environment variable property in the customDeploymentConfiguration.json is **EnvironmentVariables**. This is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
 
 1. The format of the JSON for these variables take the form of an array of name/value pairs.
 
@@ -144,26 +137,17 @@ The environment variable pipeline variable is **EnvironmentVariables**. This pip
    - The **schema name** for the environment variable can be obtained from the **environment variable component** in your solution.
      ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/envvariableschema.png)
 
-1. Once you've gathered the environment variable schema names and connection ids go to the pipeline for your solution that you created above
-
-1. Click Edit -> Variables
-
-1. On the Pipeline Variables screen create the **EnvironmentVariables** pipeline variables.
-
-1. Set the value to the JSON formatted array of environment variable schema and values.
-
-1. For the example above the values look like the following
-   ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/envvariablesvariables.png)
+1. Once you've gathered the environment variable schema names and values go to the **customDeploymentSettings.json** and paste the json in the **EnvironmentVariables property**.
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create AAD Group Canvas Configuration Pipeline Variable (Optional)
+#### Create AAD Group Canvas Configuration Pipeline Variable
 
-The AAD group canvas configuration pipeline variable is **AadGroupCanvasConfiguration**. This pipeline variable is used for **sharing canvas apps** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
+The AAD group canvas configuration property in the customDeploymentConfiguration.json is **AadGroupCanvasConfiguration**. This pipeline variable is used for **sharing canvas apps** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
 
 1. The format of the JSON for these variables take the form of an array of objects. The **roleName** can be one of **CanView**, **CanViewWithShare** and **CanEdit**
 
-   ```json
+   ```
    [
     {
         "aadGroupId": "azure active directory group id",
@@ -181,7 +165,7 @@ The AAD group canvas configuration pipeline variable is **AadGroupCanvasConfigur
         "roleName": "CanEdit"
     }
    ]
-```
+   ```
 
    - The **schema name** for the Canvas App can be obtained from the **Canvas App component** in your solution.
      ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/canvasschemaname.png)
@@ -224,7 +208,7 @@ The pipeline variable is **AadGroupTeamConfiguration**. This pipeline variable i
         ]
     }
    ]
-   ```
+```
 
    - The **Dataverse team name** can be any **existing team or a new team** to be created in Dataverse and mapped to an AAD Group after the solution is imported via the pipeline.
 
@@ -266,7 +250,7 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
         "ownerEmail": "new owner2 email address"
     }
    ]
-   ```
+```
 
    - The **solution component type code** is based on the component types specified in the following doc https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solutioncomponent?view=dynamics-ce-odata-9 (e.g. a Power Automate Flow is component type 29). The component type should be specified as an integer value (i.e. with no quotes)
    - The **unique name of the solution component**, in the case of a Power Automate Flow, has to be taken from the unpacked solution. This is a limitation of flows currently not requiring unique names when they are created. As such the only true unique identifier for a Flow is the internal ID the system uses to identify it in a solution.
@@ -275,14 +259,57 @@ The  pipeline variable is **SolutionComponentOwnershipConfiguration**. This vari
    - The **owner email** can be gathered from the user's record in Dataverse or Office 365.
 
 1. Once you've gathered the component type codes, unique name of the components and owner emails go to the pipeline for your solution that you created above
-
 1. Click Edit -> Variables
-
 1. On the Pipeline Variables screen create the **SolutionComponentOwnershipConfiguration** pipeline variables.
-
 1. Set the value to the JSON formatted array of environment variable schema and values.
-
 1. For the example above the values look like the following
    ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/componentappvariables.png)
-
 1. Where applicable repeat the steps above for each deployment solution / pipeline you create.
+
+### Importing Data from your Pipeline
+
+In many cases there will be configuration or seed data that you will want to import into your Dataverse environment initially after deploying your solution to the target environment. The pipelines are configured to import data using the **Configuration Migration tool** available via nuget https://www.nuget.org/packages/Microsoft.CrmSdk.XrmTooling.ConfigurationMigration.Wpf. To add configuration data for your pipeline use the following steps. For more information on the **Configuration Migration tool** see here https://docs.microsoft.com/en-us/power-platform/admin/manage-configuration-data
+
+1. Clone the AzDO Repo where your solution is to be source controlled and where you created your solution pipeline YAML to your local machine.
+
+1. Install the **Configuration Migration tool** per the instructions here https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/download-tools-nuget
+
+1. Open the **Configuration Migration tool** select **Create schema** and select **Continue**
+
+   ![image-20210217093038901](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217093038901.png)
+
+1. **Login to the tenant** from which you want to **export your configuration data**
+
+   ![image-20210217092809637](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217092809637.png)
+
+1. Select your **environment**
+
+   ![image-20210217092931725](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217092931725.png)
+
+1. Select the specific **Tables and Columns** you want to export for your configuration data.
+
+   ![image-20210217093237070](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217093237070.png)
+
+1. Select **Save and Export** and save the data to a folder called **ConfigurationMigrationData** in your **local Azure DevOps repo** under the **solution folder** for which this configuration data is to be imported.
+
+   > [!NOTE] The pipeline will look for this specific folder to run the import after your solution is imported. Ensure that the name of the folder and the location are the same as the screenshot below.
+
+   ![image-20210217093946271](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217093946271.png)
+
+   ![image-20210217093914368](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217093914368.png)
+
+1. When prompted to **export the data** select **Yes**
+
+   ![image-20210217094104975](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217094104975.png)
+
+1. Choose the **same location** for your exported data and **select Save** then **Export Data**.
+
+   ![image-20210217094247030](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217094247030.png)
+
+   ![image-20210217094341476](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217094341476.png)
+
+1. When the export is complete **unzip the files from the data.zip** file to the ConfigurationMigrationData directory and **delete the data.zip** file.
+
+   ![image-20210309121221510](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210309121221510.png)
+
+1. Finally, **Commit the changes** with your data to Azure DevOps.

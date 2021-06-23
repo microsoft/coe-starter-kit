@@ -1,22 +1,22 @@
-# Set up ALM Accelerator for Advanced Maker components
+# Set up ALM Accelerator for Advanced Makers (AA4AM) components
 
 The ALM Accelerator components enable makers to apply source control strategies using Azure DevOps and use automated builds and deployment of solutions to their environments without the need for manual intervention by the maker, administrator, developer, or tester. In addition the ALM Accelerator provides makers the ability to work without intimate knowledge of the downstream technologies and to be able to switch quickly from developing solutions to source controlling the solution and ultimately pushing their apps to other environments with as few interruptions to their work as possible.
 
-This solution uses Azure DevOps for source control and deployments. You can sign up for Azure DevOps for free for up to 5 users on the [Azure DevOps](https://azure.microsoft.com/en-us/services/DevOps/) site.
+This solution uses Azure DevOps for source control and deployments (pipelines). You can sign up for Azure DevOps for free for up to 5 users on the [Azure DevOps](https://azure.microsoft.com/en-us/services/DevOps/) site.
 
 **The ALM Accelerator components solution doesn't have a dependency on other components of the CoE Starter Kit. It can be used independently.**
 
->[!NOTE] The pipelines in the ALM Accelerator components rely on some third party extensions to fill gaps in areas where native utilities are not available or the effort to recreate the functionality is prohibitive. We recognize that this isn't ideal and are working toward eliminating these utilities as we grow the solution and native capabilities become available. However, in the interest of providing a sample implementation of full end to end Power Platform Pipelines it was decided that this would be necessary at the moment. Where possible the documentation calls out these third party tools, their purpose and their documentation / source code.
+>[!NOTE] The pipelines in the ALM Accelerator components rely on some third party extensions to fill gaps in areas where native utilities are not available or the effort to recreate the functionality is prohibitive. We recognize that this isn't ideal and are working toward eliminating these utilities as we grow the solution and native capabilities become available. However, in the interest of providing a sample implementation of full end to end Power Platform Pipelines it was decided that this would be necessary at the moment. The documentation below calls out these third party tools, their purpose and their documentation / source code.
 
 ## Document structure
 
 The GETTINGSTARTED.md is structured into 7 main sections
 
 - **Prerequisites** - Considerations and requirements in order to complete the setup.
-- **Foundational Setup** - This sections walks through the base setup of the ALM Accelerator for Advanced Makers. The base setup consist of the steps and configurations required.
+- **Foundational Setup** - This sections walks through the base setup of the AA4AM. The base setup consist of the steps and configurations required.
 - **Development Project Setup** - This sections includes the steps required to set up a new Development Project covering project specific setup of Azure DevOps, generic build and deployment pipelines, Service Connections, Power Platform Environments and Application Users
 - **Solution Setup** - These steps are specific to each solution you wish to support with the ALM Accelerator. The section covers setting up the solution specific pipelines, branch policies, deployment variables to support connections references, environment variables and AAD group sharing.
-- **Importing the Solution and Configuring the App** - This section takes you through the steps required to import the actual ALM Accelerator for Advanced Makers canvas app and configuring the included custom connector.
+- **Importing the Solution and Configuring the App** - This section takes you through the steps required to import the actual AA4AM canvas app and configuring the included custom connector.
 - **Using the ALM Accelerator App** - A short introduction to using the AA4AM canvas app
 - **Troubleshooting** - A few pointers on some know issues and how to remediate these.
 
@@ -49,11 +49,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
     - [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
     - [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
       - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
-      - [Create Connection Reference Pipeline Variable (Optional)](#create-connection-reference-pipeline-variable-optional)
-      - [Create Environment Variable Pipeline Variable (Optional)](#create-environment-variable-pipeline-variable-optional)
-      - [Create AAD Group Canvas Configuration Pipeline Variable (Optional)](#create-aad-group-canvas-configuration-pipeline-variable-optional)
-      - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
-      - [Create Solution Component Ownership Pipeline Variable (Optional)](#create-solution-component-ownership-pipeline-variable-optional)
+      - [Create Deployment Configuration File (Optional)](#create-connection-reference-pipeline-variable-optional)
   - [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
     - [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
     - [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
@@ -70,6 +66,8 @@ The application will manage deploying solutions from Development to Validation t
 
 - The environment into which you are deploying the ALM Accelerator app will need to be created with a Dataverse database. Additionally, any target environment requires a Dataverse database in order to deploy your solutions.
 
+> [!NOTE] Currently the ALM Accelerator is not compatible with Dataverse for Teams. Both the AA4AM App and the associated AzDO pipelines assume the full version of Dataverse is being used in all environments.
+
 ### Users and Permissions
 
 In order to complete the steps below you will need the following users and permissions in Power Platform, Azure DevOps and Azure.
@@ -80,7 +78,7 @@ In order to complete the steps below you will need the following users and permi
 
 ### Connectors and DLPs
 
-For the ALM Accelerator for Advanced Makers Canvas App to work as expected the following connectors must be available to be used together in the environment into which the ALM Accelerator solution is imported.
+For the AA4AM Canvas App to work as expected the following connectors must be available to be used together in the environment into which the ALM Accelerator solution is imported.
 
 - Dataverse
 - Power Apps for Makers
@@ -88,7 +86,7 @@ For the ALM Accelerator for Advanced Makers Canvas App to work as expected the f
 
 ## Foundational Setup
 
-The following steps will guide you through setting up the foundations of the ALM Accelerator for Advanced Makers. These steps are general to the functionality of the ALM Accelerator and not project or solution specific.
+The following steps will guide you through setting up the foundations of the AA4AM. These steps are general to the functionality of the ALM Accelerator and not project or solution specific.
 
 ### Create an App Registration in your AAD Environment
 
@@ -164,7 +162,7 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 
    - **Power DevOps Tools (required)**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
 
-   - **Replace Tokens (optional)**: This extension is used by the pipelines to replace tokens in configuration files in order to be able to store secure values in private variables configured for a pipeline. NOTE: If you choose not to install this extension you will need to modify (https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens | https://github.com/qetza/vsts-replacetokens-task)
+   - **Replace Tokens (required)**: This extension is used by the pipelines to replace tokens in configuration files in order to be able to store secure values in private variables configured for a pipeline. (https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens | https://github.com/qetza/vsts-replacetokens-task)
 
    - **SARIF SAST Scans Tab (optional)**: This extension can be used to visualize the .**sarif files** that get generated by the **Solution Checker** during a build. ([SARIF SAST Scans Tab - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sariftools.scans))
 
@@ -207,7 +205,7 @@ Following the steps below to create the following pipelines based on the YAML in
 1. In Azure DevOps Select **Pipelines** > **Library** > **Create a new Variable Group**
 1. Name the Variable Group **global-variable-group**.
 
-    >[!NOTE] The pipelines reference this specific variable group so it has to be named exactly as what's shown. Also, be sure to create all of the variables below as the pipelines depend on them to be present and configured in order to execute (i.e. if you don't have a production environment while configuring the variable group, for example, use the Test Service Connection for the time being).
+    >[!NOTE] The pipelines reference this specific variable group so it has to be named exactly as what's shown. If you decide to use a different naming convention for your Variable Group you will need to modify parts of the pipeline(s) to reference the name you use instead.
 1. Add the following Variables to the variable group
 
     |Name| Value |
@@ -265,9 +263,9 @@ The following section will guide you through the setup steps required for each o
 
 ### Create Service Connections for DevOps to access Power Platform
 
-Each Dataverse environment (i.e. Development, Validation, Test and Production) will need to have a **Power Platform service connection in DevOps**. For each of your environments follow the steps below to setup the service connection.
+Each Dataverse environment (e.g Development, Validation, Test and Production) will need to have a **Power Platform service connection in DevOps**. For each of your environments follow the steps below to setup the service connection.
 
->[!NOTE] Users of the ALM Accelerator for Advanced Makers app will only see environments for which they have either User or Administrator role on the Service Connection in Azure DevOps. If using personal development environments all developers should have User or Administrator role for the Service Connection for their own development environment.
+>[!NOTE] Users of the AA4AM app will only see environments for which they have either User or Administrator role on the Service Connection in Azure DevOps. If using personal development environments all developers should have User or Administrator role for the Service Connection for their own development environment.
 
 1. Go to https://dev.azure.com and select your **Project**
 
@@ -280,7 +278,7 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 
 1. Enter the same value as above for the **Service Connection Name**.  **NOTE: You must include the trailing forward slash**
 
-    >[!IMPORTANT] Currently ALM Accelerator will use the Service connection name to identify the service connection to use per environment so this needs to be the same URL you entered above **including the trailing forward slash**).
+    >[!IMPORTANT] AA4AM will use the Service connection name to identify the service connection to use per environment so this needs to be the same URL you entered above **including the trailing forward slash**).
 
 1. Enter the **Tenant ID**, **Application (client) ID** and **Client Secret** you copied from AAD when you created your App Registration and select **Save**.
 
@@ -304,7 +302,7 @@ Each Dataverse environment (i.e. Development, Validation, Test and Production) w
 
 ## Solution Setup
 
-When you create a solution in Dataverse you'll need to create pipelines specifically for that solution. Follow these steps for creating pipelines for your solution in Azure DevOps. There are sample pipelines included in the Pipeline directory in the CoE ALM Templates repo.
+When you create a solution in Dataverse you'll need to **create pipelines specifically for that solution**. Follow these steps for creating pipelines for your solution in Azure DevOps. There are sample pipelines included in the Pipeline directory in the CoE ALM Templates repo.
 
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-validation-SampleSolution.yml
 - https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/build-deploy-test-SampleSolution.yml
@@ -322,7 +320,7 @@ The steps below provide generic step-by-step instructions on how to create pipel
 
 Solution Pipelines are used to build and deploy your source controlled solutions to environments in your tenant. You can create as many solution pipelines as needed based on your organization's environment strategy. The sample pipelines provided assume only 3 environments (Validation, Test, Production). However, more or less can be created as needed with specific triggers in the pipelines or without triggers that can be run manually as well. The sample deployment pipelines trigger off of changes to a branch (i.e. Test and Production) or as a part of a branch policy in Azure DevOps (i.e. Validation). See [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation) below for more information on Branch Policies.
 
-The following steps show how to create a pipeline from the sample pipeline YAML (**build-deploy-validation-SampleSolution.yml**). Follow these steps to create all of your deployment pipelines. For reference your pipelines will follow this configuration
+The following steps show how to **create a pipeline from the sample pipeline YAML**. Follow these steps to create all of your deployment pipelines. For reference your pipelines will follow this configuration
 
 | Pipeline YAML File Name                   | Pipeline Name                   | Branch Policy Enabled | Required              |
 | ----------------------------------------- | ------------------------------- | --------------------- | --------------------- |
@@ -342,7 +340,7 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
    
 1. Create a new Branch based on **your default branch** in the Repo with the name of your solution (e.g. **MyNewSolution**) 
 
-    > [NOTE!] This branch will be your 'v-next' branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
+    > [NOTE!] This branch will be your next version (v-next) branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
 
     ![image-20210507110620258](.attachments/SETUPGUIDE/image-20210507110620258.png)
 
@@ -413,9 +411,9 @@ The following steps show how to create a pipeline from the sample pipeline YAML 
 
      ![image-20210510163834521](.attachments/SETUPGUIDE/image-20210510163834521.png)
 
-### Create the Solution Deployment Pipeline(s) (Optional)
+### Create the Solution Deployment Pipeline (Optional)
 
-As mentioned in the note above, the previous section allows you to create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above. For reference your pipeline will be configured as follows.
+As mentioned in the note above, the previous section allows you to create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, if you want to only build and deploy for Validation and Test and then **deploy the artifacts from the Test build to Production** you can follow these instructions to create your production deployment pipeline after you've created your build and deploy pipeline for Validation and Test above. For reference your pipeline will be configured as follows.
 
 | Pipeline YAML File Name       | Pipeline Name             | Branch Policy Enabled |
 | ----------------------------- | ------------------------- | --------------------- |
@@ -459,53 +457,21 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
 9. Repeat the same steps 9-17 performed for **deploy-validation-ALMAcceleratorSampleSolution** and **deploy-test-ALMAcceleratorSampleSolution** to create a pipeline from the new production pipeline YAML called **deploy-prod-ALMAcceleratorSampleSolution**.
 
-### Importing Data from your Pipeline
+### Setting Deployment Pipeline Variables
 
-In many cases there will be configuration or seed data that you will want to import into your Dataverse environment initially after deploying your solution to the target environment. The pipelines are configured to import data using the **Configuration Migration tool** available via nuget https://www.nuget.org/packages/Microsoft.CrmSdk.XrmTooling.ConfigurationMigration.Wpf. To add configuration data for your pipeline use the following steps. For more information on the **Configuration Migration tool** see here https://docs.microsoft.com/en-us/power-platform/admin/manage-configuration-data
+**EnvironmentName** and **ServiceConnection** variables are **required** for each pipeline. These pipeline variables will be set for each **deployment pipeline** you've configured above based on the environment to which your pipeline deploys.
 
-1. Clone the AzDO Repo where your solution is to be source controlled and where you created your solution pipeline YAML to your local machine.
+#### Create Environment and Service Connection (Required)
 
-1. Install the **Configuration Migration tool** per the instructions here https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/download-tools-nuget
+These variables are required by every deployment pipeline. The Environment variable is **EnvironmentName** and the Service Connection variable is **ServiceConnection**.
 
-1. Open the **Configuration Migration tool** select **Create schema** and select **Continue**
+The **EnvironmentName** variable is used to specify the Azure DevOps environment being deployed to in order to enable tracking deployment history and set permissions and approvals for deployment to specific environments. Depending on the environment to which you're deploying set this value to **Validate, Test or Production** For more information on Environments in AzureDevOps see https://docs.microsoft.com/en-us/azure/devops/pipelines/process/environments.
 
-   ![image-20210217093038901](.attachments/GETTINGSTARTED/image-20210217093038901.png)
+![image-20210414170154479](.attachments/GETTINGSTARTED/image-20210414170154479.png)
 
-1. **Login to the tenant** from which you want to **export your configuration data**
+The **ServiceConnection** variable is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created above [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
 
-   ![image-20210217092809637](.attachments/GETTINGSTARTED/image-20210217092809637.png)
-
-1. Select your **environment**
-
-   ![image-20210217092931725](.attachments/GETTINGSTARTED/image-20210217092931725.png)
-
-1. Select the specific **Tables and Columns** you want to export for your configuration data.
-
-   ![image-20210217093237070](.attachments/GETTINGSTARTED/image-20210217093237070.png)
-
-1. Select **Save and Export** and save the data to a folder called **ConfigurationMigrationData** in your **local Azure DevOps repo** under the **solution folder** for which this configuration data is to be imported.
-
-   > [!NOTE] The pipeline will look for this specific folder to run the import after your solution is imported. Ensure that the name of the folder and the location are the same as the screenshot below.
-
-   ![image-20210217093946271](.attachments/GETTINGSTARTED/image-20210217093946271.png)
-
-   ![image-20210217093914368](.attachments/GETTINGSTARTED/image-20210217093914368.png)
-
-1. When prompted to **export the data** select **Yes**
-
-   ![image-20210217094104975](.attachments/GETTINGSTARTED/image-20210217094104975.png)
-
-1. Choose the **same location** for your exported data and **select Save** then **Export Data**.
-
-   ![image-20210217094247030](.attachments/GETTINGSTARTED/image-20210217094247030.png)
-
-   ![image-20210217094341476](.attachments/GETTINGSTARTED/image-20210217094341476.png)
-
-1. When the export is complete **unzip the files from the data.zip** file to the ConfigurationMigrationData directory and **delete the data.zip** file.
-
-   ![image-20210309121221510](.attachments/GETTINGSTARTED/image-20210309121221510.png)
-
-1. Finally, **Commit the changes** with your data to Azure DevOps.
+![image-20210414170210916](.attachments/GETTINGSTARTED/image-20210414170210916.png)
 
 ### Setting Branch Policies for Pull Request Validation
 
@@ -539,34 +505,19 @@ In order to leverage executing the build pipeline for your solution when a **Pul
 
    ![image-20210301104042544](.attachments/GETTINGSTARTED/image-20210301104042544.png)
 
-### Setting Deployment Pipeline Variables
+### Create Deployment Configuration (Optional)
 
-**EnvironmentName** and **ServiceConnection** variables are **required** for each pipeline. These pipeline variables will be set for each **deployment pipeline** you've configured above based on the environment to which your pipeline deploys.
+There are a number of configurations that need to made in a target environment after a solution is deployed. These configurations are specific to the environment into which the solution is being deployed. Included are **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. In addition to these configurations many times **sample or configuration data associated with Dataverse Tables** in the solution is required in a target environment in order to provide a full end to end ALM experience.
 
-#### Create Environment and Service Connection (Required)
-
-These variables are required by every deployment pipeline. The Environment variable is **EnvironmentName** and the Service Connection variable is **ServiceConnection**.
-
-The **EnvironmentName** variable is used to specify the Azure DevOps environment being deployed to in order to enable tracking deployment history and set permissions and approvals for deployment to specific environments. Depending on the environment to which you're deploying set this value to **Validate, Test or Production** For more information on Environments in AzureDevOps see https://docs.microsoft.com/en-us/azure/devops/pipelines/process/environments.
-
-![image-20210414170154479](.attachments/GETTINGSTARTED/image-20210414170154479.png)
-
-The **ServiceConnection** variable is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created above [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
-
-![image-20210414170210916](.attachments/GETTINGSTARTED/image-20210414170210916.png)
-
-
+If your solution requires these additional configuration settings and / or data follow the [Configuration and Data Deployment in Pipelines](DEPLOYMENTCONFIGGUIDE) guide to configure your pipelines based on the environment(s) to which you are deploying.
 
 ## Importing the Solution and Configuring the App
 
-### Install ALM Accelerator Solutions in Dataverse
+### Install ALM Accelerator Solution in Dataverse
 
-> [!NOTE] As of January 2021, before installing the solutions you will need to **enable Power Apps Component Framework for Canvas apps** from the Power Platform Admin Center by going to https://admin.powerplatform.microsoft.com/ selecting your environment and selecting **Settings** - **Product** - **Features**. From here select the toggle for **Power Apps component framework for canvas apps** to turn it on.
-![image.png](.attachments/GETTINGSTARTED/image-717c0f47-d496-4d3c-aa14-59feeb822268.png)
+Download the **latest managed solution**(s) from GitHub (https://github.com/microsoft/coe-starter-kit/releases).
 
-1. Download the **latest managed solution** from GitHub (https://github.com/microsoft/coe-starter-kit/releases).
-
-   > [NOTE!] The screenshot below is for reference as to where the managed solution exists under a release. The actual version should be the most recent release.
+1. > [NOTE!] The screenshot below is for reference as to where the managed solution exists under a release. The actual version should be the most recent release.
 
    ![image-20210430150752479](.attachments/SETUPGUIDE/image-20210430150752479.png)
 
@@ -619,14 +570,10 @@ See the [User Guide](USERGUIDE.md) for using the ALM Accelerator App
 
 ## Troubleshooting
 
-1. Occasionally, you may see the following when launching the app. "The app stopped working. Try refreshing your browser." This generally happens after launching the app and then getting a prompt to login. To get around this issue use a **private browser session**. This isn't an issue with the app itself but an issue with credential caching in the browser.
+- When you setup your pipelines such that the pipeline templates are stored in a different repository than the solution pipeline you may get the following message when trying to run your pipeline for the first time. To eliminate the error select the **Permit** button to grant the repo running the pipeline access to the template repository.
 
-   ![image-20210225172822543](.attachments/GETTINGSTARTED/image-20210225172822543.png)
+![image-20210311114131170](.attachments/GETTINGSTARTED/image-20210311114131170.png)
 
-1. When you setup your pipelines such that the pipeline templates are stored in a different repository than the solution pipeline you may get the following message when trying to run your pipeline for the first time. To eliminate the error select the **Permit** button to grant the repo running the pipeline access to the template repository.
+Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in Project -> Settings -> General. This setting is turned on by default when you create a new project.
 
-   ![image-20210311114131170](.attachments/GETTINGSTARTED/image-20210311114131170.png)
-
-   Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in Project -> Settings -> General. This setting is turned on by default when you create a new project.
-
-   ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png) 
+![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png) 

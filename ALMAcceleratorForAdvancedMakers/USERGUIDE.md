@@ -52,3 +52,9 @@
    ![image-20210303085132733](.attachments/GETTINGSTARTED/image-20210303085132733.png)
 
 1. For Production a Pull Request will need to be created in Azure DevOps that merges the changes into your Production release branch. The same approval process will be required depending on your branch policies and once the PR is completed your solution will be pushed to Production. Once the pipeline for deploying to Production is finished you will see the status of the deployment in the App.
+
+## Troubleshooting
+
+1. Occasionally, you may see the following when launching the app. "The app stopped working. Try refreshing your browser." This generally happens after launching the app and then getting a prompt to login. To get around this issue use a **private browser session**. This isn't an issue with the app itself but an issue with credential caching in the browser.
+
+   ![image-20210225172822543](.attachments/USERGUIDE/image-20210225172822543.png)
