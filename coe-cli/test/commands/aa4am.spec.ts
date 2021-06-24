@@ -1,5 +1,5 @@
 "use strict";
-import { AA4AMBranchArguments, AA4AMCommand, AA4AMInstallArguments, AA4AMUserArguments } from '../../src/commands/aa4am';
+import { AA4AMBranchArguments, AA4AMCommand, AA4AMInstallArguments, AA4AMMakerAddArguments, AA4AMUserArguments } from '../../src/commands/aa4am';
 import { LoginCommand } from '../../src/commands/login';
 import { DevOpsCommand } from '../../src/commands/devops';
 import { mock } from 'jest-mock-extended';
@@ -166,6 +166,53 @@ describe('Add User', () => {
         expect(mockedDynamicsWebApi.executeUnboundFunction).toHaveBeenCalled()
         expect(mockedDynamicsWebApi.executeFetchXmlAll).toHaveBeenCalled()
         expect(mockedDynamicsWebApi.associate).toHaveBeenCalled()
+    })
+})
+
+describe('Maker Add', () => {
+    test('Default', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+
+        let mockAADCommand = mock<AADCommand>()
+        let mockDevOps = mock<DevOpsCommand>()
+        let mockLogin = mock<LoginCommand>()
+        
+        var command = new AA4AMCommand(logger);
+        command.createAADCommand = () => mockAADCommand
+        command.createDevOpsCommand = () => mockDevOps
+        command.createLoginCommand = () => mockLogin
+
+        mockLogin.azureLogin.mockResolvedValue({})
+
+        let args = new AA4AMMakerAddArguments();
+        args.azureActiveDirectoryMakersGroup = "G1"
+        args.azureActiveDirectoryServicePrincipal = "P1"
+        args.endpoint = "prod"
+        args.organizationName = "dev12345"
+        args.project = "proj1"
+        args.user = "U1"
+        args.environment = "E1"
+        args.settings = { 'region': 'NAM' }
+
+        // Act
+        await command.addMaker(args)
+
+        // Assert
+        expect(mockDevOps.createAdvancedMakersServiceConnections).toBeCalledTimes(1)
+
+        expect(mockLogin.azureLogin).toBeCalledTimes(1)
+
+        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe(args.azureActiveDirectoryServicePrincipal)
+        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].endpoint).toBe(args.endpoint)
+        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].organizationName).toBe(args.organizationName)
+        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].projectName).toBe(args.project)
+        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].createSecretIfNoExist).toBe(true)
+        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].environment).toBe(args.environment)
+        
+        expect(mockAADCommand.addUserToGroup).toBeCalledTimes(1) 
+        expect(mockAADCommand.addUserToGroup.mock.calls[0][0]).toBe("U1")       
+        expect(mockAADCommand.addUserToGroup.mock.calls[0][1]).toBe("G1")       
     })
 })
 

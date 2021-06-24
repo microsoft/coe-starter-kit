@@ -32,6 +32,46 @@ describe('Install - Group', () => {
     })
 });
 
+describe('User Group', () => {
+    test('Add User To Group', async () => {
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
+        command.runCommand = (command: string, displayOutput: boolean) => {
+            if (command.indexOf('az ad user show')) {
+                return '{"objectId":"123"}'
+            }
+
+            if (command.indexOf('az ad group member check')) {
+                return '{"value":false}'
+            }
+
+            return "{}"
+        }
+        
+        // Act
+        command.addUserToGroup("U1", "G1")
+    })
+
+    test('User Exists', async () => {
+        let logger = mock<winston.Logger>()
+        var command = new AADCommand(logger);
+        command.runCommand = (command: string, displayOutput: boolean) => {
+            if (command.indexOf('az ad user show')) {
+                return '{"objectId":"123"}'
+            }
+
+            if (command.indexOf('az ad group member check')) {
+                return '{"value":false}'
+            }
+
+            return "{}"
+        }
+        
+        // Act
+        command.addUserToGroup("U1", "G1")
+    })
+});
+
 
 describe('Install - AAD User', () => {
     test('Error - AAD No Account', async () => {

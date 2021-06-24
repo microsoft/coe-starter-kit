@@ -2,7 +2,7 @@
 import { DevOpsBranchArguments, DevOpsInstallArguments, DevOpsCommand, DevOpsExtension } from '../../src/commands/devops'
 import * as azdev from "azure-devops-node-api"
 import { mock } from 'jest-mock-extended';
-import { IHttpClientResponse, IRequestHandler } from 'azure-devops-node-api/interfaces/common/VsoBaseInterfaces';
+import { IHeaders, IHttpClientResponse, IRequestHandler } from 'azure-devops-node-api/interfaces/common/VsoBaseInterfaces';
 import corem = require('azure-devops-node-api/CoreApi');
 import CoreInterfaces = require('azure-devops-node-api/interfaces/CoreInterfaces');
 import GitInterfaces = require('azure-devops-node-api/interfaces/GitInterfaces');
@@ -22,6 +22,7 @@ import winston from 'winston';
 import { ExtensionManagementApi } from 'azure-devops-node-api/ExtensionManagementApi';
 import { InstalledExtension } from 'azure-devops-node-api/interfaces/ExtensionManagementInterfaces';
 import { ITaskApi } from 'azure-devops-node-api/TaskApi';
+import exp = require('constants');
 
 describe('Install', () => {
     test('Import Repo', async () => {
@@ -638,3 +639,115 @@ describe('Extensions', () => {
         expect(mockExtensionManagementApi.installExtensionByName).toBeCalledTimes(0)
     })
 })
+
+describe('Service Connections', () => {
+    
+    beforeEach(() => jest.clearAllMocks())
+
+    test('Create', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockCoreApi = mock<corem.ICoreApi>(); 
+        let mockAADCommand = mock<AADCommand>(); 
+        let mockHttpClient = mock<httpm.HttpClient>(); 
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
+        command.createAADCommand = () => mockAADCommand
+        command.getHttpClient = (connection: azdev.WebApi) => mockHttpClient
+        let args = new DevOpsInstallArguments();
+        
+        args.environment = "E1"
+        args.settings = { 'region': 'NAM' }
+        args.projectName = "P1"
+
+        mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
+        mockCoreApi.getProjects.mockResolvedValue([{name: 'p1'}])
+
+        
+        mockHttpClient.get.mockImplementation((url: string, header: IHeaders) => {
+            let mockGetResponse = mock<IHttpClientResponse>()
+            mockGetResponse.readBody.mockResolvedValue(JSON.stringify({value:[{name:'E1'}]}))
+            return Promise.resolve(mockGetResponse)
+        })
+
+        let mockPostResponse = mock<IHttpClientResponse>()
+        mockPostResponse.message.statusCode = 200
+        mockPostResponse.readBody.mockResolvedValue(JSON.stringify({id:'S123'}))
+        mockHttpClient.post.mockResolvedValue(mockPostResponse)
+
+        mockAADCommand.addSecret.mockResolvedValue(<AADAppSecret> {})
+
+        // Act
+        await command.createAdvancedMakersServiceConnections(args, mockDevOpsWebApi, false)
+
+        // Assert
+        expect(mockAADCommand.addSecret).toBeCalledTimes(1)
+        
+    })
+
+    test('Assign users', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        logger.info.mockImplementation((message:object) => {
+            console.log(message)
+            return logger
+        })
+        logger.debug.mockImplementation((message:object) => {
+            console.log(message)
+            return logger
+        })
+        logger.verbose.mockImplementation((message:object) => {
+            console.log(message)
+            return logger
+        })
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockHttpClient = mock<httpm.HttpClient>(); 
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
+        command.getHttpClient = (connection: azdev.WebApi) => mockHttpClient
+        let args = new DevOpsInstallArguments();
+        let project = mock<CoreInterfaces.TeamProjectReference>()
+        
+        args.organizationName = 'dev12345'
+        args.projectName = 'test1'
+        args.environment = 'test'
+        args.user = "test@microsoft.com"
+        args.settings = {
+            'region': 'NAM'
+        }
+       
+        mockHttpClient.get.mockImplementation((url: string, header: IHeaders) => {
+            if ( url.indexOf('/_apis/serviceendpoint') > 0 ) {
+                let mockGetResponse = mock<IHttpClientResponse>()
+                mockGetResponse.readBody.mockResolvedValue(JSON.stringify({value:[{url:'https://test.crm.dynamics.com', id:'SC1'}]}))
+                return Promise.resolve(mockGetResponse)
+            }
+
+            if ( url.indexOf('/_apis/securityroles') > 0 ) {
+                let mockGetResponse = mock<IHttpClientResponse>()
+                mockGetResponse.readBody.mockResolvedValue(JSON.stringify({value:[]}))
+                return Promise.resolve(mockGetResponse)
+            }
+
+            if ( url.indexOf('_apis/identities') > 0 ) {
+                let mockGetResponse = mock<IHttpClientResponse>()
+                mockGetResponse.readBody.mockResolvedValue(JSON.stringify({value:[{properties:{ Account: {
+                    '$value':'test@microsoft.com'
+                }}, id:'U1234'}]}))
+                return Promise.resolve(mockGetResponse)
+            }
+        })
+
+        let mockPostResponse = mock<IHttpClientResponse>()
+        mockPostResponse.message.statusCode = 200
+        mockPostResponse.readBody.mockResolvedValue("{'id':'S123'")
+        mockHttpClient.put.mockResolvedValue(mockPostResponse)
+
+        project.id = 'P1'
+
+        // Act
+        await command.assignUserToServiceConnector(project, "https://test.crm.dynamics.com", args, mockDevOpsWebApi)
+
+        // Assert
+        expect(mockHttpClient.put).toBeCalledTimes(1)
+    })
+});

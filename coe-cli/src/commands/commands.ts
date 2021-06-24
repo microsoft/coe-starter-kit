@@ -1,7 +1,7 @@
 "use strict";
 import commander, { command, Command, option, Option, opts } from 'commander';
 import { LoginCommand } from './login';
-import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMCommand } from './aa4am';
+import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMCommand, AA4AMMakerAddArguments } from './aa4am';
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
 import { RunArguments, RunCommand } from './run';
 import { CLIArguments, CLICommand } from './cli';
@@ -316,8 +316,7 @@ class CoeCliCommands {
                     this.copyValues(optionsFile, args, {
                         "aad": "azureActiveDirectoryServicePrincipal",
                         "group": "azureActiveDirectoryMakersGroup",
-                        "devOpsOrganization": "organizationName",
-                        "powerPlatformOrg": "powerPlatformOrganization",
+                        "devOpsOrganization": "organizationName"
                     })   
 
                     if ( Array.isArray(optionsFile.level) && optionsFile.level.length > 0) {
@@ -336,7 +335,6 @@ class CoeCliCommands {
                     args.organizationName = options.devOpsOrganization
                     args.project = options.project
                     args.repository = options.repository
-                    args.powerPlatformOrganization = options.powerPlatformOrg
                     if (options.environments?.length > 0 && options.environments?.indexOf('=')>0) {
                         args.environments = this.parseSettings(options.environments)
                         args.environment = ''
@@ -436,14 +434,45 @@ class CoeCliCommands {
             .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
             .requiredOption('-e, --environment <organization>', 'The environment to create the Service Principal Application User in')
             .requiredOption('-u, --user <name>', 'The user to add as a advanced maker')
-            .requiredOption('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
+            .requiredOption('-g, --group <name>', 'The azure active directory makers group.', 'ALMAcceleratorForAdvancedMakers')
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
+            .addOption(installEndpoint)
             .option('-s, --settings <namevalues>', 'Optional settings')
             .action(async (options: any) => {
                 this.setupLogger(options)
                 this.logger?.info("Add start")
 
+                let args = new AA4AMMakerAddArguments()
+
+                if ( typeof options.file === "string" && options.file?.length > 0 ) {
+                    this.logger?.info("Loading configuration")
+                    let optionsFile = JSON.parse(await this.readFile(options.file, { encoding: 'utf-8' }))
+                    
+                    this.copyValues(optionsFile, args, {
+                        "aad": "azureActiveDirectoryServicePrincipal",
+                        "group": "azureActiveDirectoryMakersGroup",
+                        "devOpsOrganization": "organizationName"
+                    })   
+                } else {
+                    args.user = options.user
+                    args.organizationName = options.devOpsOrganization
+                    args.project = options.project
+                    args.azureActiveDirectoryServicePrincipal = options.aad
+                    args.azureActiveDirectoryMakersGroup = options.group
+                    args.role = options.role
+                    args.endpoint = options.endpoint
+                    args.environment = options.environment
+                    args.settings = this.parseSettings(options.settings)
+                }
+
+                if (args.user.length == 0) {
+                    this.logger?.info("No user specified")
+                    return Promise.resolve()
+                }
+
+                let command = this.createAA4AMCommand()
+                await command.addMaker(args)
 
                 this.logger?.info("Add end")
             });
