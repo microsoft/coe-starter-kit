@@ -11,12 +11,8 @@ In addition they will require the following to setup to endure they can use the 
 
 ## Admin Maker Setup
 
-As Azure DevOps Administrator you will need to a service connection to each development environment
+As Azure DevOps Administrator you will need to add each advanced maker This process will add the required service connection to development environment and setup security for the user
 
-1. Create the Service Connection
-
+```bash
+coe aa4am maker add -o https://dev.azure.com/dev12345 -p alm-sandbox -e https://org12345-dev.crm.dynamics.com -u username@contoso.com
 ```
-coe aa4am connection add -o https://dev.azure.com/dev12345 -p alm-sandbox -e https://org12345-dev.crm.dynamics.com
-```
-
-2. For the created service connection assign the requesting user in Security rights
