@@ -130,7 +130,7 @@ class AA4AMUserArguments {
   azureActiveDirectoryServicePrincipal: string
 
   /**
-  * The usre role
+  * The user role
   */
   role: string
 
@@ -138,6 +138,60 @@ class AA4AMUserArguments {
     * Optional settings
     */
    settings:  { [id: string] : string }
+}
+
+/**
+ * ALM Accelerator for Advanced Makers Add Arguments
+ */
+ class AA4AMMakerAddArguments {
+  constructor() {
+    this.settings = {}
+  }
+
+  /**
+   * The user to add
+   */
+  user: string
+
+  /**
+   * The Azure DevOps Organization
+   */
+  organizationName: string
+
+  /**
+   * The Azure DevOps project
+   */
+  project: string
+
+  /**
+   * The name of the Power Platform environment to add the user to
+   */
+  environment: string
+
+  /**
+   * The Power Platform endpoint
+   */
+  endpoint: string
+
+  /**
+   * The name of the azure active directory service principal to lookup
+   */
+  azureActiveDirectoryServicePrincipal: string
+
+  /**
+   * The name of the azure active directory group to add the user to
+   */
+  azureActiveDirectoryMakersGroup: string
+
+  /**
+  * The user role for the service principal
+  */
+  role: string
+
+  /**
+    * Optional settings
+    */
+  settings:  { [id: string] : string }
 }
 
 /**
@@ -365,6 +419,29 @@ class AA4AMCommand {
   }
 
   /**
+   * Add maker to Azure DevOps with service connection and maker user AAD group
+   * @param args 
+   */
+  async addMaker(args: AA4AMMakerAddArguments) : Promise<void> {
+    
+    let devOps = this.createDevOpsCommand()
+    let install = new DevOpsInstallArguments()
+    install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    install.organizationName = args.organizationName
+    install.projectName = args.project
+    install.user = args.user
+    install.createSecretIfNoExist = typeof args.settings["createSecret"] === "undefined" || args.settings["createSecret"] != "false"
+    install.accessTokens = await this.getAccessTokens(args)
+    install.endpoint = args.endpoint
+    install.environment = args.environment
+
+    await devOps.createAdvancedMakersServiceConnections(install, null, false)
+
+    let aad = this.createAADCommand()
+    aad.addUserToGroup(args.user, args.azureActiveDirectoryMakersGroup)
+  }
+
+  /**
    * Add Application user to Power Platform Dataverse environment 
    *
    * @param args {AA4AMBranchArguments} - User request
@@ -542,5 +619,6 @@ export {
   AA4AMBranchArguments,
   AA4AMInstallArguments,
   AA4AMUserArguments,
+  AA4AMMakerAddArguments,
   AA4AMCommand
 };

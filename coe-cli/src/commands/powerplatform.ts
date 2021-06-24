@@ -34,7 +34,7 @@ class PowerPlatformImportSolutionArguments {
     endpoint: string
 
     /**
-     * The name of the Power Platform Organization that the solution wil be imported into
+     * The name of the Power Platform Organization that the solution will be imported into
      */
     organizationName: string
 
@@ -270,7 +270,7 @@ class PowerPlatformCommand {
         let connectors = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/connectors`, args.accessToken)).value
         let connectorMatch = connectors?.filter( (c:any) => c.name.startsWith('cat_5Fcustomazuredevops') )
 
-        if (connectorMatch.length == 1 ) {
+        if (connectorMatch?.length == 1 ) {
             this.logger?.debug("Found connector")
             let aad = this.createAADCommand();
             let addInstallArgs = new AADAppInstallArguments();

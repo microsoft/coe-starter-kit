@@ -63,6 +63,7 @@ type AADAppSecret = {
  * ALM Accelereator for Advanced Makers commands
  */
 class AADCommand {
+  
     runCommand: (command: string, displayOutput: boolean) => string
     prompt: Prompt
     logger: winston.Logger
@@ -122,6 +123,31 @@ class AADCommand {
         }
 
         return null
+    }
+
+    /**
+     * Add user to group
+     * @param user The object ID of the contact, group, user, or service principal.
+     * @param azureActiveDirectoryMakersGroup Group's object id or display name(prefix also works if there is a unique match).
+     */
+    addUserToGroup(user: string, azureActiveDirectoryMakersGroup: string) {
+        let userInfo = JSON.parse(this.runCommand(`az ad user show --id ${user}`, false))
+
+        if (typeof userInfo === "object" && typeof userInfo.objectId === "string") {
+            let result = JSON.parse(this.runCommand(`az ad group member check --group ${azureActiveDirectoryMakersGroup} --member-id ${userInfo.objectId}`, false))
+            let exists : Boolean = (result.value == true)
+
+            if (!exists) {
+                this.logger?.info(`Add ${userInfo.objectId} to ${azureActiveDirectoryMakersGroup}`)
+                this.runCommand(`az ad group member add --group ${azureActiveDirectoryMakersGroup} --member-id ${userInfo.objectId}`, false)
+            } else {
+                this.logger?.info(`User exists in ${azureActiveDirectoryMakersGroup}`)
+            }
+            
+        } else {
+            this.logger?.info(`Unable add user to ${azureActiveDirectoryMakersGroup}`)
+            this.logger?.debug(userInfo)
+        }
     }
 
     /**

@@ -9,8 +9,6 @@ import { DevOpsCommand } from '../../src/commands/devops';
 import winston from 'winston';
 import readline = require('readline');
 import commander, { command, Command, Option } from 'commander';
-import * as fs from 'fs';
-import { Prompt } from '../../src/common/prompt';
 
 describe('AA4AM', () => {
 

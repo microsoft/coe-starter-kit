@@ -29,6 +29,7 @@ import { Prompt } from "../common/prompt";
 import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionManagementInterfaces";
 
 import url from 'url';
+import { UserRoleAssignmentRef } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
 
 /**
  * Install Arguments
@@ -188,6 +189,8 @@ class DevOpsBranchArguments {
     settings:  { [id: string] : string }
 }
 
+type ServiceConnectorReference = string | any
+
  /**
  * Azure DevOps Commands
  */
@@ -232,7 +235,7 @@ class DevOpsCommand {
     async install(args: DevOpsInstallArguments): Promise<void> {
         let extensions = path.join(__dirname, '..', '..', '..', 'config', 'AzureDevOpsExtensionsDetails.json')
 
-        let orgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+        let orgUrl = Environment.getDevOpsOrgUrl(args)
 
         if (args.extensions.length == 0) {
             this.logger?.info('Loading DevOps Extensions Configuration')
@@ -313,7 +316,7 @@ class DevOpsCommand {
             let headers = <IHeaders>{ };
             headers["Content-Type"] = "application/json"
 
-            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
             await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
         } else {
@@ -571,17 +574,117 @@ class DevOpsCommand {
                 headers["Content-Type"] = "application/json"
                 let webClient = this.getHttpClient(connection);
 
-                let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+                let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
+                // https://docs.microsoft.com/en-us/rest/api/azure/devops/serviceendpoint/endpoints/create?view=azure-devops-rest-6.0
                 let create = await webClient.post(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
 
+                let serviceConnection: any
+                serviceConnection = JSON.parse(await create.readBody())
                 if (create.message.statusCode != 200) {
-                    this.logger?.info(await create.readBody())
+                    return Promise.resolve()
                 } else {
                     this.logger?.info(`Created service connection ${endpointUrl}`)
                 }
+
+                await this.assignUserToServiceConnector(project[0], serviceConnection, args, connection)
+            } else {
+                await this.assignUserToServiceConnector(project[0], endpointUrl, args, connection)
+            }
+
+        }
+    }
+
+    async assignUserToServiceConnector(project: CoreInterfaces.TeamProjectReference, endpoint: ServiceConnectorReference, args: DevOpsInstallArguments, connection: azdev.WebApi) {
+        if ( args.user?.length > 0 ) {
+            let webClient = this.getHttpClient(connection);
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
+    
+            if ( typeof endpoint === "string") {
+                let results = await webClient.get(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`);
+                let endpointJson = await results.readBody()
+                this.logger?.debug(endpointJson)
+                let endpoints = <any[]>(JSON.parse(endpointJson).value)
+                this.logger?.debug(endpoints)
+
+                let endPointMatch = endpoints.filter ( (ep: any) => ep.url == endpoint)
+
+                if (endPointMatch.length == 1) {
+                    endpoint = endPointMatch[0]
+                } else {
+                    this.logger.error(`Unable to find service connection ${endpoint}`)
+                    return Promise.resolve()
+                }
+            }
+
+            let userId = await this.getUserId(devOpsOrgUrl, args.user, connection)
+            if (userId == null) {
+                this.logger?.info("No user found -- Exiting")
+                return Promise.resolve()
+            } else {
+                this.logger?.info(`Found user ${userId}`)
+            }
+
+            let connectorRoles = await webClient.get(`${devOpsOrgUrl}_apis/securityroles/scopes/distributedtask.serviceendpointrole/roleassignments/resources/${project.id}_${endpoint.id}`)
+            let connectorData = JSON.parse(await connectorRoles.readBody())
+
+            let connectorMatch = connectorData.value?.filter( (c: any) => c.identity.id == userId )
+
+            if ( connectorMatch?.length == 0 ) {
+                let headers = <IHeaders>{ };
+                headers["Content-Type"] = "application/json"
+                
+                let newRole = [{
+                    "roleName": "User",
+                    "userId": userId
+                }]
+
+                //https://docs.microsoft.com/en-us/rest/api/azure/devops/securityroles/roleassignments/set%20role%20assignments?view=azure-devops-rest-6.1
+                this.logger?.info(`Assigning user ${args.user} to service connection ${endpoint.url}`)
+                let update = await webClient.put(`${devOpsOrgUrl}_apis/securityroles/scopes/distributedtask.serviceendpointrole/roleassignments/resources/${project.id}_${endpoint.id}?api-version=6.1-preview.1`, JSON.stringify(newRole), headers)
+
+                if (update.message.statusCode != 200) {
+                    this.logger?.info("Update failed")
+                    this.logger?.error(await update.readBody())
+                } else {
+                    this.logger?.info('User role assigned')
+                    let results = await update.readBody()
+                    this.logger?.debug(results)
+                }
+            } else {
+                this.logger?.info("User role already assigned")
             }
         }
+    }
+
+    async getUserId(devOpsOrgUrl: string, user: string, connection: azdev.WebApi) {
+        let client = this.getHttpClient(connection)
+
+        // https://docs.microsoft.com/en-us/rest/api/azure/devops/ims/identities/read%20identities?view=azure-devops-rest-6.0#by-email
+        let query = await client.get(`${devOpsOrgUrl.replace("https://dev", "https://vssps.dev")}_apis/identities?searchFilter=General&filterValue=${user}&queryMembership=None&api-version=6.0`)
+        let identityJson = await query.readBody()
+        let users = JSON.parse(identityJson)
+        this.logger?.debug(`Found ${users.value?.length} user(s)`)
+        this.logger?.verbose(users)
+
+        this.logger?.debug(`Searching for ${user}`)
+        let userMatch = users.value?.filter((u:any) => u.properties?.Account['$value']?.toLowerCase() == user?.toLowerCase())
+
+        if (userMatch?.length == 1) {
+            this.logger?.debug(`Found user ${userMatch[0].id}`)
+            return userMatch[0].id
+        }
+
+        if (userMatch?.length == 0) {
+            this.logger?.error(`Unable to find ${user} in ${devOpsOrgUrl}, has the used been added?`)
+            return null
+        }
+
+        if (userMatch?.length > 1) {
+            this.logger?.error(`More than one match for ${user} in ${devOpsOrgUrl}`)
+            return null
+        }
+
     }
 
     /**
@@ -594,6 +697,7 @@ class DevOpsCommand {
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let request = await webClient.get(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
         let data = await request.readBody()
+        this.logger?.debug(data)
         return <ServiceEndpoint[]>(JSON.parse(data).value)
     }
 
