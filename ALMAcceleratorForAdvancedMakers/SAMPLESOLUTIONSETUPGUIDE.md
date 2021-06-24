@@ -8,16 +8,17 @@ When you create a solution in Dataverse you'll need to create pipelines specific
 
 ### Table of Contents
 - [ALM Accelerator Sample Solution Setup](#alm-accelerator-sample-solution-setup)
-  * [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
-    + [Create the Validation and Test Pipelines](#create-the-validation-and-test-pipelines)
-    + [Create the Production Solution Deployment Pipeline](#create-the-production-solution-deployment-pipeline)
-  * [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
-  * [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
-    + [Create Environment and Service Connection](#create-environment-and-service-connection)
-    + [Create the Connection Reference Pipeline Variable](#create-the-connection-reference-pipeline-variable)
-    + [Create Environment Variable Pipeline Variable](#create-environment-variable-pipeline-variable)
-    + [Create AAD Group Canvas Configuration Pipeline Variable](#create-aad-group-canvas-configuration-pipeline-variable)
-    + [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
+  - [Table of Contents](#table-of-contents)
+  - [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
+    - [Create the Validation and Test Pipelines](#create-the-validation-and-test-pipelines)
+    - [Create the Production Solution Deployment Pipeline](#create-the-production-solution-deployment-pipeline)
+  - [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
+  - [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
+    - [Create Environment and Service Connection](#create-environment-and-service-connection)
+    - [Create the Connection Reference Pipeline Variable](#create-the-connection-reference-pipeline-variable)
+    - [Create Environment Variable Pipeline Variable](#create-environment-variable-pipeline-variable)
+    - [Create AAD Group Canvas Configuration Pipeline Variable](#create-aad-group-canvas-configuration-pipeline-variable)
+    - [Create AAD Group / Team Configuration Pipeline Variable (Optional)](#create-aad-group--team-configuration-pipeline-variable-optional)
 - [Importing the Solution and Configuring the ALM Accelerator App](#importing-the-solution-and-configuring-the-alm-accelerator-app)
 - [Test the ALM Accelerator App](#test-the-alm-accelerator-app)
 
@@ -110,6 +111,8 @@ In this step you'll be creating the Validation and Test Pipelines for reference 
 
    ![image-20210510163722833](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210510163722833.png)
 
+   - **Drop-down and Select Save** (not Save & queue) to save the pipeline
+
 1. Repeat the steps above to create a deployment pipeline for each of your environments referencing the sample deployment pipeline YAML from the **coe-alm-accelerator-templates repo** (i.e. deploy-test-SampleSolution.yml).
 
 #### Create the Production Solution Deployment Pipeline
@@ -128,9 +131,9 @@ As mentioned in the note above, the previous section allows you to create pipeli
 
 1. Navigate to the **Repo where you want to source control the ALM Accelerator Sample Solution**.
 
-1. Select **New** from the top menu and then **File**
+1. Navigate to the [SolutionName] subfolder and then Select **New** from the top menu and then **File**
 
-   ![image-20210505171116437](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505171116437.png)
+   ![image-20210616130145498](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210616130145498.png)
 
 5. Give the new Pipeline YAML file a name (e.g. **deploy-prod-ALMAcceleratorSampleSolution.yml**). Select **Create**
 
@@ -155,6 +158,8 @@ As mentioned in the note above, the previous section allows you to create pipeli
    - Change any value that references **SampleSolutionName** to the unique name of the ALM Accelerator Sample Solution (i.e. **ALMAcceleratorSampleSolution**).
 
      ![image-20210505172803107](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505172803107.png)
+
+   - Click **Commit** to save the changes to your repository.
 
 8. Repeat the same steps 9-15, performed above, for **deploy-validation-ALMAcceleratorSampleSolution** and **deploy-test-ALMAcceleratorSampleSolution** to create a pipeline from the new production pipeline YAML called **deploy-prod-ALMAcceleratorSampleSolution**.
 
@@ -372,12 +377,14 @@ To get started using the ALM Accelerator For Advanced Makers App follow the inst
 
 ## Test the ALM Accelerator App
 
-1. Download the **latest managed solution** of the **ALM Accelerator Sample Solution** from the latest release of the ALM Accelerator For Advanced Makers on GitHub (https://github.com/microsoft/coe-starter-kit/releases).
+1. Download the **latest unmanaged solution** of the **ALM Accelerator Sample Solution** from the latest release of the ALM Accelerator For Advanced Makers on GitHub (https://github.com/microsoft/coe-starter-kit/releases).
 
-    > [NOTE!] The screenshot below is for reference as to where the managed solution exists under a release. The actual version should be the most recent release.
+    > [NOTE!] The screenshot below is for reference as to where the unmanaged solution exists under a release. The actual version should be the most recent release.
     
     ![image-20210506140023521](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210506140023521.png)
-    
+
+1. Import the solution into a developer environment
+
 1. Once the solution is installed run the ALM Accelerator For Advanced Makers App.
 
     > [!NOTE] When you first launch the app you may need to consent to the app using your connections.
@@ -400,6 +407,7 @@ To get started using the ALM Accelerator For Advanced Makers App follow the inst
    ![image-20210506145231393](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210506145231393.png)
    >[!NOTE]: There is an option to specify if the latest changes contain Delete Components. This allows the user to specify whether to perform an **update** or an **upgrade** of the solution when it is deployed. The former will increase the performance of the pipelines and reduce the overall time to deploy.
    - When the push begins a waiting indicator will appear. If the push is successful a checkbox will appear otherwise a red x will appear. In order to see the progress of your push select the progress indicator which will take you to the running pipeline in Azure DevOps.
+   - Note that the first time you run the pipeline, you may need to give it permission to run in the Azure DevOps interface (see the [Troubleshooting](./SETUPGUIDE.md#Troubleshooting) section of the Setup Guide for more information)
    
 1. Once the initial push completes successfully you validate that the changes were exported to your branch.
    
