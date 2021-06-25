@@ -118,7 +118,7 @@ steps:
 - powershell: |   
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}" -Recurse -Filter *_connectionparameters.json | 
    ForEach-Object {
-       Clear-Content $_.FullName
+      Clear-Content $_.FullName
    }
   displayName: 'Clear contents of *_connectionparameters.json files'
   enabled: false #Temporarily disabling this step until the fix is rolled out to all geos
@@ -131,17 +131,29 @@ steps:
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage" -Recurse -Filter *.json | 
    ForEach-Object {
     #skip canvas app folder because canvas team already handles this for canvas unpack
-    if(-not $_.FullName.Contains('CanvasApps')) {
-      Write-Host $_.FullName
-      $formatted = .\jq.exe . $_.FullName --sort-keys
-      $formatted | Out-File $_.FullName -Encoding UTF8
-    }
+     if(-not $_.FullName.Contains('CanvasApps')) {
+       Write-Host $_.FullName
+       $formatted = .\jq.exe . $_.FullName --sort-keys
+       $formatted | Out-File $_.FullName -Encoding UTF8
+     }
    }
    del jq.exe
    del $(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}.zip
    del $(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}_managed.zip
   displayName: 'Format JSON files'
   enabled: true
+
+- powershell: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
+   ForEach-Object {
+     $xml=[xml](Get-Content $_.FullName)
+     $workflowNode = $xml.SelectSingleNode("//Workflow")
+     $workflowNode.StateCode = '0'
+     $workflowNode.StatusCode = '1'
+     $xml.Save($_.FullName)
+   }
+  displayName: 'Conditionally Disable Flows'
+  condition: and(succeeded(), eq(variables.DisableFlows, 'true'))
 
 - powershell: |
     git add --all
@@ -151,12 +163,10 @@ steps:
 # Commit all changes to Git branch. If there are no changes we want to warn the user that there was nothing to commit. As this could mean there was a user error involved.
 - powershell: |
     $gitStatus = iex "git status --porcelain"
-    if ($gitStatus) 
-    {
+    if ($gitStatus) {
         git commit -m "$(CommitMessage)"
     }
-    else 
-    {
+    else {
         Write-Host "##vso[task.logissue type=warning]There is nothing to commit. No changes have been made since the previous commit. If this is unexpected make sure your changes have been published before committing again."
         exit 1;
     }
