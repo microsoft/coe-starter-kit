@@ -356,14 +356,13 @@ class AA4AMCommand {
     devOpsInstall.repositoryName = args.repository
     devOpsInstall.accessTokens = args.accessTokens
     devOpsInstall.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    devOpsInstall.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
     devOpsInstall.account = args.account
     devOpsInstall.createSecretIfNoExist = args.createSecretIfNoExist
     devOpsInstall.environment = args.environment
     devOpsInstall.environments = args.environments
     devOpsInstall.endpoint = args.endpoint
     devOpsInstall.settings = args.settings
-
-    
 
     await command.install(devOpsInstall)
   }
@@ -427,6 +426,7 @@ class AA4AMCommand {
     let devOps = this.createDevOpsCommand()
     let install = new DevOpsInstallArguments()
     install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    install.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
     install.organizationName = args.organizationName
     install.projectName = args.project
     install.user = args.user

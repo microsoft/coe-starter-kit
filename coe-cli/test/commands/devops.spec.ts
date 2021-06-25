@@ -1,5 +1,5 @@
 "use strict";
-import { DevOpsBranchArguments, DevOpsInstallArguments, DevOpsCommand, DevOpsExtension } from '../../src/commands/devops'
+import { DevOpsBranchArguments, DevOpsInstallArguments, DevOpsCommand, DevOpsExtension, DevOpsProjectSecurityContext } from '../../src/commands/devops'
 import * as azdev from "azure-devops-node-api"
 import { mock } from 'jest-mock-extended';
 import { IHeaders, IHttpClientResponse, IRequestHandler } from 'azure-devops-node-api/interfaces/common/VsoBaseInterfaces';
@@ -23,28 +23,58 @@ import { ExtensionManagementApi } from 'azure-devops-node-api/ExtensionManagemen
 import { InstalledExtension } from 'azure-devops-node-api/interfaces/ExtensionManagementInterfaces';
 import { ITaskApi } from 'azure-devops-node-api/TaskApi';
 import exp = require('constants');
+import { RoleAssignment } from 'azure-devops-node-api/interfaces/SecurityRolesInterfaces';
+import { IdentityRef } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
+import { GraphGroup } from 'azure-devops-node-api/interfaces/GraphInterfaces';
 
 describe('Install', () => {
     test('Import Repo', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
-        command.runCommand = (command: string, displayOutput: boolean) => {
-            return ""
-        }
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockCoreApi = mock<corem.ICoreApi>()
         let mockGitApi = mock<gitm.IGitApi>();
         let httpClient = mock<httpm.HttpClient>();
-        let httpResponse = mock<IHttpClientResponse>();
+        let mockTaskAgentApi = mock<ITaskAgentApi>()
 
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
+        command.runCommand = (command: string, displayOutput: boolean) => {
+            return ""
+        }
         command.getHttpClient = (connection: azdev.WebApi) => httpClient
-        httpClient.get.mockResolvedValue(httpResponse)
-        httpResponse.readBody.mockResolvedValue("[]")
-
         command.createWebApi = () => mockDevOpsWebApi
+
+        httpClient.get.mockImplementation( (url:string, headers: IHeaders) => {
+            let httpResponse = mock<IHttpClientResponse>();
+            let result = JSON.stringify({value:[]})
+           
+            httpResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(httpResponse)
+        })
+
+        httpClient.put.mockImplementation( (url:string, data:string, headers: IHeaders) => {
+            let httpResponse = mock<IHttpClientResponse>();
+            let result = JSON.stringify({value:[]})
+           
+            httpResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(httpResponse)
+        })
+
+        httpClient.post.mockImplementation((url:string, data:string, headers: IHeaders) => {
+
+            let httpResponse = mock<IHttpClientResponse>();
+            let result = "[]"
+            if ( url.indexOf("_apis/IdentityPicker/") > 0 ) {
+                result = JSON.stringify({results: []})
+            }
+            httpResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(httpResponse)
+        })
+
+        
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
+        mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
 
         mockCoreApi.getProjects.mockResolvedValue([<TeamProjectReference>{id:"1"}])
         mockGitApi.getRepositories.mockResolvedValue([])
@@ -54,6 +84,8 @@ describe('Install', () => {
         mockGitApi.queryImportRequests.mockResolvedValue([<GitInterfaces.GitImportRequest>{importRequestId: 1, status: GitAsyncOperationStatus.Completed}])
         httpClient.patch.mockResolvedValue(null)
         let args = new DevOpsInstallArguments();
+
+        mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "global-variable-group"}])
         
         // Act
         await command.install(args)
@@ -73,21 +105,60 @@ describe('Install', () => {
         let mockGitApi = mock<gitm.IGitApi>();
         let httpClient = mock<httpm.HttpClient>();
         let httpResponse = mock<IHttpClientResponse>();
+        let mockTaskAgentApi = mock<ITaskAgentApi>()
 
         command.getHttpClient = (connection: azdev.WebApi) => httpClient
 
-        httpClient.get.mockResolvedValue(httpResponse)
-        httpResponse.readBody.mockResolvedValue("[]")
+        httpClient.get.mockImplementation((url: string, headers: IHeaders) => {
+            let result = JSON.stringify({value:[]})
+
+            if (url.indexOf("_apis/Graph/Groups") > 0) {
+                result = JSON.stringify({value:[
+                    {
+                        displayName: "ALM Accelerator for Advanced Makers"
+                    }
+                ]})
+            }
+
+            httpResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(httpResponse)
+        }) 
+
+        httpClient.post.mockImplementation((url: string, data: string, headers: IHeaders) => {
+            let result = JSON.stringify({value:[]})
+
+            if (url.indexOf("_apis/IdentityPicker/Identities") > 0) {
+                result = JSON.stringify({results:[
+                ]})
+            }
+
+            httpResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(httpResponse)
+        }) 
+
+        httpClient.put.mockImplementation((url: string, data: string, headers: IHeaders) => {
+            let result = JSON.stringify({value:[]})
+
+            httpResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(httpResponse)
+        }) 
+
+        let args = new DevOpsInstallArguments();
+        args.repositoryName = "pipeline"
+        args.projectName = "test1"
 
         command.createWebApi = () => mockDevOpsWebApi
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
+        
+        mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
+        mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "global-variable-group"}])
 
-        mockCoreApi.getProjects.mockResolvedValue([])
+        mockCoreApi.getProjects.mockResolvedValue([{
+            name: args.projectName
+        }])
         mockGitApi.getRepositories.mockResolvedValue([<GitRepository>{id:"123", name:"pipeline"}])
         mockGitApi.getRefs.mockResolvedValue([<GitInterfaces.GitRef>{}])
-        let args = new DevOpsInstallArguments();
-        args.repositoryName = "pipeline"
         
         // Act
         await command.install(args)
@@ -554,12 +625,15 @@ describe('Build Variables', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
-        let mockAADCommand = mock<AADCommand>()
-        command.createAADCommand= () => mockAADCommand
         let args = new DevOpsInstallArguments();
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockTaskApi = mock<ITaskAgentApi>();
         let mockBuildApi = mock<IBuildApi>();
+        let mockHttpClient = mock<httpm.HttpClient>()
+
+        let mockAADCommand = mock<AADCommand>()
+        command.createAADCommand= () => mockAADCommand
+        command.getHttpClient = () => mockHttpClient
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
@@ -569,12 +643,26 @@ describe('Build Variables', () => {
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
 
         mockTaskApi.getVariableGroups.mockResolvedValue([])
+        mockTaskApi.addVariableGroup.mockResolvedValue({id:1})
+
         mockBuildApi.getDefinitions.mockResolvedValue([<BuildDefinitionReference>{id:1, name: "export-solution-to-git"}])
 
         mockAADCommand.addSecret.mockResolvedValue(<AADAppSecret>{clientId:'C1', clientSecret:'S1', tenantId:'T1'})
+
+        let getRequest = mock<IHttpClientResponse>()
+        getRequest.readBody.mockResolvedValue(JSON.stringify({value:[]}))
+        mockHttpClient.get.mockResolvedValue(getRequest);
+
+        let putRequest = mock<IHttpClientResponse>()
+        putRequest.readBody.mockResolvedValue(JSON.stringify({value: [<RoleAssignment>{ identity: <IdentityRef>{}}]}))
+        mockHttpClient.put.mockResolvedValue(putRequest);
+
+        let securityContext = <DevOpsProjectSecurityContext>{
+            almGroup: <GraphGroup>{}
+        }
         
         // Act
-        await command.createAdvancedMakersBuildVariables(args, mockDevOpsWebApi)
+        await command.createAdvancedMakersBuildVariables(args, mockDevOpsWebApi, securityContext)
 
         // Assert
         expect(mockAADCommand.addSecret).toBeCalledTimes(1)
@@ -688,18 +776,6 @@ describe('Service Connections', () => {
     test('Assign users', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        logger.info.mockImplementation((message:object) => {
-            console.log(message)
-            return logger
-        })
-        logger.debug.mockImplementation((message:object) => {
-            console.log(message)
-            return logger
-        })
-        logger.verbose.mockImplementation((message:object) => {
-            console.log(message)
-            return logger
-        })
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockHttpClient = mock<httpm.HttpClient>(); 
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
@@ -751,3 +827,108 @@ describe('Service Connections', () => {
         expect(mockHttpClient.put).toBeCalledTimes(1)
     })
 });
+
+describe('Security', () => {
+    test('Project Found, Create Group, AAD Group Found', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockCoreApi = mock<corem.ICoreApi>()
+        let mockHttpClient = mock<httpm.HttpClient>(); 
+
+        var command = new DevOpsCommand(logger, null)
+        command.getHttpClient = () => mockHttpClient
+
+        mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
+        mockCoreApi.getProjects.mockResolvedValue([{name:"test1"}])
+
+        let args = new DevOpsInstallArguments()
+        args.projectName = "test1"
+        args.azureActiveDirectoryMakersGroup = 'AADMaker'
+
+        mockHttpClient.get.mockImplementation((url: string, header: IHeaders) => {
+            let mockResponse = mock<IHttpClientResponse>()
+            let result = JSON.stringify({value:[]})
+            mockResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(mockResponse)
+        })
+
+        mockHttpClient.post.mockImplementation((url: string, data: string, header: IHeaders) => {
+            let mockResponse = mock<IHttpClientResponse>()
+            let result = JSON.stringify({value:[]})
+            if (url.indexOf("_apis/graph/groups")> 0) {
+                result = JSON.stringify({displayName:'New Group'})
+            }
+            if (url.indexOf("_apis/IdentityPicker")> 0) {
+                result = JSON.stringify({results:[
+                    {
+                        displayName: args.azureActiveDirectoryMakersGroup,
+                        entityType: "Group",
+                        originDirectory: "aad",
+                        subjectDescriptor: "ABC"
+                    }
+                ]})
+            }
+            mockResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(mockResponse)
+        })
+
+        // Act
+        let result = await command.setupSecurity(args, mockDevOpsWebApi)
+
+        // Assert
+        expect(result.almGroup.displayName).toBe("New Group")
+    });
+
+    test('Project Found, Create Group, New AAD Group', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockCoreApi = mock<corem.ICoreApi>()
+        let mockHttpClient = mock<httpm.HttpClient>(); 
+
+        var command = new DevOpsCommand(logger, null)
+        command.getHttpClient = () => mockHttpClient
+
+        mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
+        mockCoreApi.getProjects.mockResolvedValue([{name:"test1"}])
+
+        let args = new DevOpsInstallArguments()
+        args.projectName = "test1"
+        args.azureActiveDirectoryMakersGroup = 'AADMaker'
+
+        mockHttpClient.get.mockImplementation((url: string, header: IHeaders) => {
+            let mockResponse = mock<IHttpClientResponse>()
+            let result = JSON.stringify({value:[]})
+            mockResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(mockResponse)
+        })
+
+        mockHttpClient.post.mockImplementation((url: string, data: string, header: IHeaders) => {
+            let mockResponse = mock<IHttpClientResponse>()
+            let result = JSON.stringify({value:[]})
+            if (url.indexOf("_apis/graph/groups")> 0) {
+                result = JSON.stringify({displayName:'New Group', descriptor: "NEW"})
+            }
+            if (url.indexOf("_apis/IdentityPicker")> 0) {
+                result = JSON.stringify({results:[
+                    {
+                        displayName: args.azureActiveDirectoryMakersGroup,
+                        entityType: "Group",
+                        originDirectory: "aad",
+                        subjectDescriptor: null
+                    }
+                ]})
+            }
+            mockResponse.readBody.mockResolvedValue(result)
+            return Promise.resolve(mockResponse)
+        })
+
+        // Act
+        let result = await command.setupSecurity(args, mockDevOpsWebApi)
+
+        // Assert
+        expect(result.almGroup.displayName).toBe("New Group")
+        expect(result.almGroup.descriptor).toBe("NEW")
+    });
+})
