@@ -381,7 +381,8 @@ class AA4AMCommand {
 
     importArgs.accessToken = typeof args.accessTokens !== "undefined" ? args.accessTokens[environmentUrl] : undefined
     importArgs.environment = typeof args.environment === "string" ? args.environment : args.environments["0"]
-    importArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+    importArgs.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
+    importArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal    
     importArgs.createSecret = args.createSecretIfNoExist
     importArgs.settings = args.settings
 

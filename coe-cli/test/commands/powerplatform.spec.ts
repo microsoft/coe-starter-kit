@@ -1,5 +1,5 @@
 "use strict";
-import { PowerPlatformImportSolutionArguments, PowerPlatformCommand } from '../../src/commands/powerplatform';
+import { PowerPlatformImportSolutionArguments, PowerPlatformCommand, Solution, Component, ComponentPermissions } from '../../src/commands/powerplatform';
 import { mock } from 'jest-mock-extended';
 import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
 import winston from 'winston';
@@ -95,6 +95,7 @@ describe('API Import', () => {
         args.importMethod = 'api'
         args.environment = "test"
         args.endpoint = "prod"
+        args.setupPermissions = false
 
         // Act
         
@@ -225,6 +226,7 @@ describe('API Import', () => {
         args.importMethod = 'api'
         args.environment = "test"
         args.endpoint = "prod"
+        args.setupPermissions = false
 
         // Act
         
@@ -260,13 +262,13 @@ describe('Get Environment', () => {
         let args = new PowerPlatformImportSolutionArguments()
         args.environment  = 'https://foo.crm.dynamic.com'
         args.endpoint = "prod"
-     
+        args.setupPermissions = false
 
         // Act
         let env = await command.getEnvironment(args)
 
         // Assert
-        expect(env).toBe("123")
+        expect(env.name).toBe("123")
     })
 
     test('Full url different domain case', async () => {
@@ -293,13 +295,104 @@ describe('Get Environment', () => {
         let args = new PowerPlatformImportSolutionArguments()
         args.environment  = 'https://foo.crm.dynamic.com'
         args.endpoint = "prod"
+        args.setupPermissions = false
      
-
         // Act
         let env = await command.getEnvironment(args)
 
         // Assert
-        expect(env).toBe("123")
+        expect(env.name).toBe("123")
+    })
+})
+
+describe('Share', () => {
+    test('Application not found', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new PowerPlatformCommand(logger);
+        
+        let args = new PowerPlatformImportSolutionArguments()
+        let mockAxios = mock<AxiosStatic>()
+        command.getAxios = () => mockAxios
+
+        args.endpoint = "prod"
+
+        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+            let response = {}
+            if (url.indexOf('api/data/v9.0/msdyn_solutioncomponentsummaries') > 0) {
+                response = [
+                ]
+            }
+            return Promise.resolve({data:{ value: response }})
+        })
+
+
+        let solution = <Solution> {
+            solutionid: "S123"
+        }
+
+        // Act
+
+
+        await command.shareMakerApplication(solution, "E1", args)
+
+        // Assert
+        expect(command.logger.error).toBeCalled()
+    })
+
+    test('Application found, no pemissions - Add', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        logger.verbose.mockImplementation( (info: object) => {
+            console.log(info)
+            return logger
+        })
+        let args = new PowerPlatformImportSolutionArguments()
+        let mockAxios = mock<AxiosStatic>()
+        let mockAADcommand = mock<AADCommand>()
+
+        var command = new PowerPlatformCommand(logger);
+        command.getAxios = () => mockAxios
+        command.createAADCommand = () => mockAADcommand
+
+        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+            let response = {}
+            if (url.indexOf('api/data/v9.0/msdyn_solutioncomponentsummaries') > 0) {
+                response = [
+                    <Component> {
+                        msdyn_displayname: "ALM Accelerator for Advanced Makers",
+                        msdyn_objectid: "C1"
+                    }
+                ]
+            }
+
+            if (url.indexOf('/providers/Microsoft.PowerApps/apps/C1/permissions') > 0) {
+                response = [                   
+                ]
+            }
+            return Promise.resolve({data:{ value: response }})
+        })
+
+        mockAxios.post.mockResolvedValue({})
+
+        mockAADcommand.getAADGroup.mockReturnValue("ID")
+
+        let solution = <Solution> {
+            solutionid: "S123"
+        }
+
+        args.azureActiveDirectoryMakersGroup = "G1"
+        args.endpoint = "prod"
+
+        // Act
+
+
+        await command.shareMakerApplication(solution, "E1", args)
+
+        // Assert
+        expect(command.logger.error).toBeCalledTimes(0)
+        expect(mockAADcommand.getAADGroup).toBeCalledTimes(1)
+        expect(mockAxios.post).toBeCalledTimes(1)
     })
 })
 
@@ -317,4 +410,5 @@ function mockResponse(url:string, contains: string, data: any) : Promise<AxiosRe
     }
     return null
 }
+
 

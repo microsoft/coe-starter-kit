@@ -13,9 +13,11 @@ import { AA4AMCommand, AA4AMInstallArguments, AA4AMUserArguments } from './aa4am
  * Powerplatform Command Arguments
  */
 class PowerPlatformImportSolutionArguments {
+    
     constructor() {
         this.accessTokens = {}
         this.settings = {}
+        this.setupPermissions = true
     }
 
     /**
@@ -59,6 +61,11 @@ class PowerPlatformImportSolutionArguments {
     azureActiveDirectoryServicePrincipal: string
 
     /**
+     * The azure active directory makers group
+     */
+    azureActiveDirectoryMakersGroup: string
+
+    /**
      * Create a new secret for 
      */
     createSecret: boolean
@@ -67,6 +74,11 @@ class PowerPlatformImportSolutionArguments {
     * Optional settings
     */
     settings:  { [id: string] : string }
+
+    /**
+     * Check if permissions should be configured
+     */
+    setupPermissions: boolean;
 }
 
 class PowerPlatformConectorUpdate {
@@ -100,6 +112,7 @@ type PowerPlatformConnection = {
  * Powerplatform commands
  */
 class PowerPlatformCommand {
+    
     getBinaryUrl: (url: string) => Promise<Buffer>    
     getUrl: (url: string) => Promise<string>    
     getSecureJson: (url: string, accessToken: string) => Promise<any>    
@@ -215,6 +228,8 @@ class PowerPlatformCommand {
         await this.cli.runCommand('pac solution import --path release.zip', true)
     }
 
+
+
     /**
      * Import solution implementation using REST API
      * @param args 
@@ -236,12 +251,14 @@ class PowerPlatformCommand {
             };
     
             this.logger?.info('Importing managed solution')
+            // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
             await this.getAxios().post( `${enviromentUrl}api/data/v9.0/ImportSolution`, importData, {
                 headers: {
                     'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
+            // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
             solutions = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
         } else {
             this.logger?.info('Solution already exists')
@@ -251,19 +268,28 @@ class PowerPlatformCommand {
             return Promise.resolve()
         }
 
-        await this.fixCustomConnectors(args)
+        let environment = await this.getEnvironment(args)
+
+        if (environment != null)
+        {
+            let solution: Solution = solutions.value[0]
+
+            await this.fixCustomConnectors(environment.name, args)
         
-        await this.fixConnectionReferences(solutions, args)
-
-        await this.fixFlows(solutions, args)
-
-        await this.addApplicationUsersToEnvironments(args)
+            await this.fixConnectionReferences(environment.name, solutions, args)
+    
+            await this.fixFlows(solutions, args)
+    
+            await this.addApplicationUsersToEnvironments(args)     
+            
+            if ( args.setupPermissions ) {
+                await this.shareMakerApplication(solution, environment.name, args)
+            }
+        }
     }
 
-    async fixCustomConnectors(args: PowerPlatformImportSolutionArguments) : Promise<void> {
+    async fixCustomConnectors(environment: string, args: PowerPlatformImportSolutionArguments) : Promise<void> {
         this.logger?.info("Checking connectors")
-
-        let environment = await this.getEnvironment(args)
 
         let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
        
@@ -275,6 +301,7 @@ class PowerPlatformCommand {
             let aad = this.createAADCommand();
             let addInstallArgs = new AADAppInstallArguments();
             addInstallArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            addInstallArgs.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
             addInstallArgs.createSecret = args.createSecret
             addInstallArgs.accessTokens = args.accessTokens
             addInstallArgs.endpoint = args.endpoint
@@ -354,7 +381,7 @@ class PowerPlatformCommand {
         }
     }
 
-    async getEnvironment(args: PowerPlatformImportSolutionArguments) : Promise<string> {
+    async getEnvironment(args: PowerPlatformImportSolutionArguments) : Promise<PowerPlatformEnvironment> {
         let bapUrl = this.mapEndpoint("bap", args.endpoint)
         let apiVersion = "2019-05-01"
         let accessToken = args.accessTokens[bapUrl]
@@ -382,17 +409,19 @@ class PowerPlatformCommand {
 
         }
 
-        let match = results.data.value.filter((e: any) => e.properties?.linkedEnvironmentMetadata?.domainName.toLowerCase() == domainName.toLowerCase() )
+        let environments = <PowerPlatformEnvironment[]>results.data.value
+
+        let match = environments.filter((e: PowerPlatformEnvironment) => e.properties?.linkedEnvironmentMetadata?.domainName.toLowerCase() == domainName.toLowerCase() )
         if ( match.length == 1 ) {
             this.logger?.debug('Found environment')
-            return match[0].name
+            return match[0]
         } else {
             Promise.reject(`Environment ${domainName} not found`)
-            return ""
+            return null
         }
     }
 
-    async fixConnectionReferences(solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+    async fixConnectionReferences(environment: string, solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
         this.logger?.info("Check connection reference")
 
         let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
@@ -402,7 +431,6 @@ class PowerPlatformCommand {
         let aadInfo = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
         this.logger?.debug('Query environment connecctions')
-        let environment = await this.getEnvironment(args)
         let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
         let bapUrl = this.mapEndpoint("bap", args.endpoint)
         let token = args.accessTokens[bapUrl]
@@ -507,11 +535,324 @@ class PowerPlatformCommand {
         }
     }
 
-    
+    async shareMakerApplication(solution: Solution, environment: string,  args: PowerPlatformImportSolutionArguments) : Promise<void> {
+        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+
+        let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
+        let bapUrl = this.mapEndpoint("bap", args.endpoint)
+        let accessToken = args.accessTokens[bapUrl]
+
+        let config = {
+            headers: {
+                'Authorization': 'Bearer ' + args.accessToken,
+                'Content-Type': 'application/json',
+                'OData-MaxVersion': '4.0',
+                'OData-Version': '4.0',
+                'If-Match': '*'  
+            }
+        }
+
+        let powerAppsConfig = {
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json',
+                'OData-MaxVersion': '4.0',
+                'OData-Version': '4.0',
+                'If-Match': '*'  
+            }
+        }
+
+
+        this.logger?.debug("Searching for solution components")
+        // https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/entities/msdyn_solutioncomponentsummary?view=op-9-1
+        let componentQuery = await this.getAxios().get(`${enviromentUrl}api/data/v9.0/msdyn_solutioncomponentsummaries?%24filter=(msdyn_solutionid%20eq%20${solution.solutionid})&api-version=9.1`, config)
+
+        let components = <Component[]>componentQuery.data.value
+        this.logger?.verbose(components)
+
+        let makeCanvasApp = "ALM Accelerator for Advanced Makers"
+        let componentMatch = components.filter( (c:Component) => { return c.msdyn_displayname == makeCanvasApp })
+
+        if (componentMatch.length == 1) {
+            let appName = componentMatch[0].msdyn_objectid
+                                      
+            this.logger?.debug("Searching for permissions")
+            let url = `${powerAppsUrl}providers/Microsoft.PowerApps/apps/${appName}/permissions?$expand=permissions($filter=environment eq '${environment}')&api-version=2020-06-01`
+            let permssionsRequest = await this.getAxios().get(url, powerAppsConfig)
+            let permissions = <ComponentPermissions[]>permssionsRequest.data.value
+
+            if (permissions.filter( ( p: ComponentPermissions) => { return p.properties.principal.displayName == args.azureActiveDirectoryMakersGroup }).length == 0 )
+            {
+                let command = this.createAADCommand();
+                let aadGroupId = command.getAADGroup(args)
+
+                let apiInvokeConfig = {
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken,
+                        'Content-Type': 'application/json',
+                        'x-ms-path-query': `/providers/Microsoft.PowerApps/apps/${appName}/modifyPermissions?$filter=environment eq '${environment}'&api-version=2020-06-01`
+                    }
+                }
+
+                this.logger?.info(`Adding CanView permissions for group ${args.azureActiveDirectoryMakersGroup}`)
+                url = `${powerAppsUrl}api/invoke`
+                let response = await this.getAxios().post(url, {
+                    put: [{
+                        properties: {
+                            roleName:"CanView",
+                            principal: {
+                                email: args.azureActiveDirectoryMakersGroup,
+                                id: aadGroupId,
+                                "type":"Group","tenantId":null
+                            },"NotifyShareTargetOption":"DoNotNotify"
+                        }
+                    }]
+                }, apiInvokeConfig)
+                this.logger?.verbose(response.data)
+            }
+        } else {
+            this.logger?.error(`Unable to find ${makeCanvasApp}`)
+        }   
+    }
+}
+
+type ComponentPermissionsProperty = {
+    roleName: string,
+    principal: PowerPlatformIdentity
+    scope: string
+    notifyShareTargetOption: string
+    inviteGuestToTenant: boolean
+}
+
+type ComponentPermissions = {
+    name: string
+    id: string    
+    type: string
+    properties: ComponentPermissionsProperty
+}
+
+type Solution = {
+    /**
+    * Date and time when the solution was created.
+    */
+    createdon: string
+
+    /**
+     * Description of the solution.
+     */
+    description: string
+
+    /**
+     * User display name for the solution.
+     */
+    friendlyname: string
+
+    /**
+     * Date and time when the solution was installed/upgraded.
+     */
+    installedon: string
+
+    /**
+     * Information about whether the solution is api managed.
+     */
+    isapimanaged: boolean
+
+    /**
+     * Indicates whether the solution is managed or unmanaged.
+     */
+    ismanaged: boolean
+
+    /**
+     * Indicates whether the solution is visible outside of the platform.
+     */
+    isvisible: boolean
+
+    /**
+     * Date and time when the solution was last modified.
+     */
+    modifiedon: string
+
+    /**
+     * Read Only
+     */
+    pinpointassetid: string
+
+    /**
+     * Identifier of the publisher of this solution in Microsoft Pinpoint.
+     */
+    pinpointpublisherid: string
+
+    /**
+     * Default locale of the solution in Microsoft Pinpoint.
+     */
+    pinpointsolutiondefaultlocale: string
+
+
+    /**
+     * Identifier of the solution in Microsoft Pinpoint.
+     */
+    pinpointsolutionid: number
+
+    /**
+     * Unique identifier of the solution.
+     */
+    solutionid: string
+
+    /**
+     * Solution package source organization version
+     */
+    solutionpackageversion: string
+
+    /**
+     * Solution Type
+     */
+    solutiontype: number
+
+    /**
+     * The template suffix of this solution
+     */
+    templatesuffix: string	
+
+    /**
+     * thumbprint of the solution signature
+     */
+    thumbprint: string	
+
+    /**
+     * The unique name of this solution
+     */
+    uniquename: string
+
+
+    /**
+     * Date and time when the solution was updated.
+     */
+    updatedon: string
+
+    /**
+     * Contains component info for the solution upgrade operation
+     */
+    upgradeinfo: string
+
+    versionnumber: number
+}
+
+type Component = {
+    msdyn_name: string
+    msdyn_modifiedon: string
+    msdyn_createdon: string
+    msdyn_iscustomizable: string
+    msdyn_iscustomizablename: string
+    msdyn_solutionid: string
+    msdyn_ismanaged: string
+    msdyn_ismanagedname: string
+    organizationid: string
+    msdyn_displayname: string
+    msdyn_objecttypecode: string
+    msdyn_objectid: string
+    msdyn_description: string
+    msdyn_componenttype: string
+    msdyn_componenttypename: string
+    msdyn_componentlogicalname: string
+    msdyn_primaryidattribute: string
+    msdyn_total: string
+    msdyn_executionorder: string
+    msdyn_isolationmode: string
+    msdyn_sdkmessagename: string
+    msdyn_connectorinternalid: string
+    msdyn_isappaware: string
+    msdyn_iscustom: string
+    msdyn_synctoexternalsearchindex: string
+    msdyn_logicalcollectionname: string
+    msdyn_canvasappuniqueid: string
+    msdyn_solutioncomponentsummaryid: string
+    msdyn_deployment: string
+    msdyn_executionstage: string
+    msdyn_owner: string
+    msdyn_fieldsecurity: string
+    msdyn_typename: string
+    msdyn_eventhandler: string
+    msdyn_statusname: string
+    msdyn_isdefault: string
+    msdyn_publickeytoken: string
+    msdyn_iscustomname: string
+    msdyn_workflowcategoryname: string
+    msdyn_subtype: string
+    msdyn_owningbusinessunit: string
+    msdyn_workflowcategory: string
+    msdyn_isauditenabledname: string
+    msdyn_isdefaultname: string
+    msdyn_isappawarename: string
+    msdyn_istableenabled: string
+    msdyn_fieldtype: string
+    msdyn_relatedentity: string
+    msdyn_schemaname: string
+    msdyn_version: string
+    msdyn_uniquename: string
+    msdyn_status: string
+    msdyn_relatedentityattribute: string
+    msdyn_workflowidunique: string
+    msdyn_isauditenabled: string
+    msdyn_primaryentityname: string
+    msdyn_culture: string
+}
+
+type PowerPlatformIdentity = {
+    id: string
+    displayName: string
+    type: string
+    tenantId: string
+}
+
+type EnvironmentCapacity = {
+    capacityType: string
+    actualConsumption: number
+    ratedConsumption: number
+    capacityUnit: string
+    updatedOn: string
+}
+
+type EnvironmentAddon = {
+    addonType: string
+    allocated: number
+    addonUnit: string
+}
+
+type EnvironmentProperties = {
+    azureRegion: string
+    displayName: string
+    description: string
+    createdTime: string
+    createdBy: PowerPlatformIdentity
+    lastModifiedTime: string
+    provisioningState: string
+    creationType: string
+    environmentSku: string
+    isDefault: string,
+    capacity: EnvironmentCapacity[]
+    addons: EnvironmentAddon[]
+    clientUris: { [id: string] : string }
+    runtimeEndpoints: { [id: string] : string }
+    databaseType: string
+    linkedEnvironmentMetadata: { [id: string] : any }
+    notificationMetadata: { [id: string] : string }
+    retentionPeriod: string
+}
+
+type PowerPlatformEnvironment = {
+    id: string
+    type: string
+    location: string
+    name: string
+    properties: EnvironmentProperties
 }
 
 export {
     PowerPlatformImportSolutionArguments,
     PowerPlatformConectorUpdate,
-    PowerPlatformCommand
+    PowerPlatformCommand,
+    PowerPlatformEnvironment,
+    Solution,
+    Component,
+    ComponentPermissions
 };
