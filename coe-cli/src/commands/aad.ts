@@ -82,7 +82,7 @@ class AADCommand {
         this.prompt = new Prompt()
     }
 
-    getAADGroup(args: AADAppInstallArguments): string {
+    getAADGroup(args: IMakerGroup): string {
         let json = this.runCommand(`az ad group list --display-name "${args.azureActiveDirectoryMakersGroup}"`, false)
         let groups = <any[]>JSON.parse(json)
 
@@ -377,6 +377,10 @@ class AADCommand {
             }
         }
     }
+}
+
+interface IMakerGroup {
+    azureActiveDirectoryMakersGroup: string
 }
 
 export {
