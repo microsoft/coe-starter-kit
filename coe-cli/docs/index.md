@@ -1,9 +1,6 @@
 # Overview
 
-The Center of Excellence (COE) toolkit command line interface (CLI) provides common functionality to automate the installation and operate solutions within a COE environment.
-
-![Overview](../images/overview.jpg)
-
+Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with the ALM Accelerator for Advanced Makers and will add more features over time.
 
 ## Prerequisites
 
@@ -11,7 +8,7 @@ To run the COE CLI application you will require the following
 
 1. An installation of Node 11+ for versions (12, 14, 16)
    a) https://nodejs.org/en/download/
-2. Azure CLI Required for user authentication and Azure Active Directory Integration
+2. Azure CLI is required for user authentication and Azure Active Directory Integration
    a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### Checking Prerequisites

@@ -343,10 +343,7 @@ describe('Share', () => {
     test('Application found, no pemissions - Add', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        logger.verbose.mockImplementation( (info: object) => {
-            console.log(info)
-            return logger
-        })
+
         let args = new PowerPlatformImportSolutionArguments()
         let mockAxios = mock<AxiosStatic>()
         let mockAADcommand = mock<AADCommand>()
@@ -370,6 +367,19 @@ describe('Share', () => {
                 response = [                   
                 ]
             }
+
+            if (url.indexOf('/api/data/v9.0/teams') > 0) {
+                response = [                   
+                ]
+            }
+
+            if (url.indexOf('/api/data/v9.0/roles') > 0) {
+                response = [ { roleId: "R1"} ]
+            }
+
+            console.log(url)
+            console.log(response)
+
             return Promise.resolve({data:{ value: response }})
         })
 
@@ -392,7 +402,7 @@ describe('Share', () => {
         // Assert
         expect(command.logger.error).toBeCalledTimes(0)
         expect(mockAADcommand.getAADGroup).toBeCalledTimes(1)
-        expect(mockAxios.post).toBeCalledTimes(1)
+        expect(mockAxios.post).toBeCalledTimes(2)
     })
 })
 
