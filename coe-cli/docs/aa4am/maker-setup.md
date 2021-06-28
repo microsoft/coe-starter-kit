@@ -1,34 +1,12 @@
 # Maker Setup
 
-To setup a user as an advanced maker the following needs to be done.
+Once a user has been setup with a development environment [Read More](./development-environments.md) they wil nee to us eth following sections to provide access to the service principal and create a solution branch.
 
-1. A Development Environment for the Maker.
+## Setup Service Principal
 
-    **NOTE:** Makers can use https://web.powerapps.com/community/signup to signup for community developer environment
+The Azure DevOps Pipeline uses a Azure Active Directory service principal to connect to the development environment and import and export the solution. To enable access to the environment the following command will add the service principal as a System Administrator to the developer Power Platform environment.
 
-2. The Azure Active Directory Service service principal in the Developers Maker environment as a System Administrator
-
-```bash
-coe aa4am user add -e https://org12345-dev.crm.dynamics.com
-```
-
-3. Add a service connection to the developers environment in Azure DevOps
-
-```bash
-coe aa4am connection add -e https://org12345-dev.crm.dynamics.com -o https://dev.azure.com/dev12345 -p alm-sandbox
-```
-
-4. Run the ALM Accelerator for Advanced Makers application and sign into services
-
-6. Create a branch for the solution. See [Create Solution Branch](#create-solution-branch) for more information
-
-## Create Solution Branch
-
-Each solution will require a solution branch created with Azure DevOps Pipeline with Build Policies for Validation and Continious deployment to test and production environments.
-
-To create a solution branch
-
-1. Log out of any existing sessions if not the maker
+1. Log out of any existing sessions if not the maker or a Power Platform tenant Administrator
 
 ```bash
 az logout
@@ -40,13 +18,24 @@ az logout
 coe aa4am user add -e https://org12345-dev.crm.dynamics.com
 ```
 
-3. Create a solution branch
+## Create Solution Branch
+
+Each solution will require a solution branch created with Azure DevOps Pipeline with Build Policies for Validation and Continuous deployment to test and production environments.
+
+To create a solution branch os the following command
 
 ```bash
 coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MyTestSolution
 ```
 
-NOTE: If the repository you want to create a branch for is empty you will need to commit an initial commit before a branch can be created.
+NOTES:
+1. -o is the name of your DevOps Organization
+
+2. -p is the name of the Azure DevOps Project
+
+3. -d os the name of the solution branch to create
+
+4. If the repository you want to create a branch for is empty you will need to commit an initial commit before a branch can be created.
 
 ## Post Setup Checks
 
@@ -70,3 +59,7 @@ After setting up an advanced maker you may need to verify the following
 
 NOTES:
 1. If you are using a free Azure Subscription you may receive error "No hosted parallelism has been purchased or granted.". To resolve this issue visit to request Azure Pipeline build compute https://aka.ms/azpipelines-parallelism-request
+
+## Read Next
+
+- Complete the [Install Overview](./index.md#install-overview)

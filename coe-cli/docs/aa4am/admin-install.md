@@ -62,22 +62,6 @@ Which will generate a file similar to
 coe aa4am install -f test.json
 ```
 
-### Post Install Security Setup
-
-1. Create AAD Security to Share Canvas Application with Advanced Makers
-
-2. Create Azure DevOps Group to add Advanced Makers to
-
-   a. Grant Variable Groups rights 
-
-   b. Grant Build Administrator Rights
-
-3. Ensure Maker assigned as Azure DevOps user with **Basic** permissions and access to DevOps project e.g. **alm-sandbox**
-
-4. COE CLI install commands executed to setup and install the ALM Accelerator for Advanced Makers
-
-5. Service Connections from Azure DevOps to Power Platforms validation, test and production have been created
-
 ## Read Next
 
-- Complete the [Install Overview](./index.md#onstall-overview)
+- Complete the [Install Overview](./index.md#install-overview)

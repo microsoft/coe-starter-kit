@@ -4,25 +4,21 @@ Before you start an install of AA4AM ensure that you have the following in place
 
 ## COE Command Line
 
-Install the COE CLI [locally](../index.md#local-install) or via a [docker image](../index.md#docker-imstall)
+Install the COE CLI [locally](../index.md#local-install) or via a [docker image](../index.md#docker-install)
 
 ## Power Platform
 
 Environment | Description
 ----------- | -------------
-Maker | Environment with Dataverse enabled. Will be used to deploy managed solution. See **Note (1)* below to create Common Data Service Connection
+Maker | Environment with Dataverse enabled. Will be used to deploy managed solution.
+Maker - Common Data Service Connection | See [Maker Environment Common Data Service](#maker-environment-common-data-service) below to create the Common Data Service Connection
 Validation | Environment used to validate builds before merging into a solution branch              |
 Test | Pre production Environment used to test solutions before moving to production          |
 Production | Production Environment for managed solutions                                          |
 
 Notes:
-1. In the maker environment will require a Common Data Service Connection created by install user
-   1) Goto https://make.powerapps.com/
-   2) Navigate to Data -> Connections
-   3) New Connection
-   4) Microsoft Dataverse (legacy)
-   5) Select Create
-2. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Advanced Makers
+
+1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Advanced Makers
    1) Visit https://docs.microsoft.com/en-us/partner-center/mpn-demos for more information
    2) Go to https://demos.microsoft.com to request a new enviroment
    3) Select My Enviroments
@@ -32,6 +28,23 @@ Notes:
 3. Sample environment from https://admin.powerplatform.microsoft.com/environments
 
    ![Environments](../../images/environments.jpg)
+
+## Maker Environment Common Data Service
+
+In the maker environment you will Common Data Service connection to be created by install user.
+
+This can be done using the following steps
+1. Goto https://make.powerapps.com/
+
+2. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
+
+3. Navigate to Data -> Connections
+
+4. New Connection
+
+5. Microsoft Dataverse (legacy)
+
+6. Select Create
 
 ## Azure
 
