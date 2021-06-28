@@ -65,14 +65,20 @@ Repository | Ensure the git repository has been initialized with an initial comm
 
 Notes:
 1. If installing using demo tenant you can request a trial Azure DevOps environment
-   a) https://azure.microsoft.com/en-us/services/devops/
-   b) Create Organization
-   c) Create initial project e.g. alm-sandbox
+   - https://azure.microsoft.com/en-us/services/devops/
+
+   - Create Organization
+
+   - Create initial project e.g. alm-sandbox
+
 2. Review the Azure [DevOps Extensions](../../config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
-  - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
-  - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
-  - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
-  - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
+   - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
+
+   - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
+
+   - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
+  
+   - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 
   ## Read Next
 
