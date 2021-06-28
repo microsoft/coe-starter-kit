@@ -1,6 +1,6 @@
 # Overview
 
-Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with the [ALM Accelerator for Advanced Makers](./aa4am/index.md) and will add more features over time.
+Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./aa4am/index.md) and will add more features over time.
 
 ## Prerequisites
 
