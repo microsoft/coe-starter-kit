@@ -6,6 +6,8 @@ The diagram below provides an over of the key components required and permission
 
 ![ALM Accelerator for Advanced Makers Overview](../../images/aa4am-overview.jpg)
 
+The main GitHub readme for [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) provides more information how to use the installed solution.
+
 ## Install Overview
 
 1. Review the [Before You Start](./before-you-start.md) to ensure you have the required Power Platform environments and Azure DevOps organizations created
@@ -47,3 +49,7 @@ Notes:
 ## Read Next
 
 - [Command Reference](./command-reference.md)
+- [Manual Setup Guide - Foundational Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#foundational-setup) - Foundational Setup for Manual steps automated by the CLI install command
+- [Manual Setup Guide - Development Project Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#development-project-setup) - Documents the Manual steps that are automated by the CLI install command
+- [Manual Setup Guide - Solution Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#solution-setup) - Documents the manual steps to setup Azure DevOps that are by the CLI install command
+- [Manual Setup Guide - Importing Solution](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#importing-the-solution-and-configuring-the-app) - Documents the manual steps to import the managed solution that are by the CLI install command
