@@ -8,11 +8,13 @@ The diagram below provides an over of the key components required and permission
 
 ## Install Overview
 
-1. As an administrator complete the [Admin Install](./admin-install.md)
+1. Review the [Before You Start](./before-you-start.md) to ensure you have the required Power Platform environments and Azure DevOps organizations created
 
-2. Have Advanced Makers create [Development Environments](./development-environments.md)
+2. As an administrator complete the [Admin Install](./admin-install.md)
 
-3. Use [Maker Setup](./maker-setup.md) to create and setup environment and solution branches in the Azure DevOps repository.
+3. Have Advanced Makers create [Development Environments](./development-environments.md)
+
+4. Use [Maker Setup](./maker-setup.md) to create and setup environment and solution branches in the Azure DevOps repository.
 
 ## Maker First Solution
 
