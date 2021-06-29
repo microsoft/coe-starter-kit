@@ -67,12 +67,20 @@ One method of installation is via docker
 
 1. Download zip or clone repository
 
-1. Build docker image
+2. Build docker image
 
 ```bash
 cd coe-cli
 docker build -t coe-cli . 
 ```
+
+3. Using the docker image
+
+```bash
+docker run -it --rm coe-cli
+```
+
+This will start a new interactive console (-it) and remove the docker container (--rm) when the console session exits. Using --rm ensures that any cached credentials are removed when you exit.
 
 ## Getting Started
 
