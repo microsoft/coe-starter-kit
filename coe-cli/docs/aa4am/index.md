@@ -1,8 +1,16 @@
 # ALM Accelerator for Advanced Makers
 
-The [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) (AA4AM) command allows you to manage common tasks for Advanced Makers. 
+The [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) (AA4AM) 
+command allows you to manage common tasks for Advanced Makers. 
 
 Not sure what AA4AM is and how it can help? The main GitHub project [README](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/README.md) provides further context and examples of usage.
+
+## Getting Started
+
+- [Scenarios](./scenarios.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments
+- [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are being automated under the hood by the CLI commands
+
+## Overview
 
 The diagram below provides an overview of the key components required and permissions required.
 
@@ -54,10 +62,8 @@ Notes:
 
 ## Read Next
 
-- [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are automated by the CLI commands
 - [Command Reference](./command-reference.md)
 - [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) - Overview for AA4AM
-- [Scenarios](./scenarios.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments
 - Manual Setup - Understand the key steps that the CLI is automating
   - [Foundational Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#foundational-setup) - Foundational Setup for Manual steps automated by the CLI install command
   - [Development Project Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#development-project-setup) - Documents the Manual steps that are automated by the CLI install command
