@@ -20,7 +20,7 @@ To include a short animated recording of commands and the expected output you ca
 A. Install termtosvg in a unix terminal
 
 ```bash
-npm install termtosvg -g
+pip3 install --user termtosvg
 ```
 
 This process will work cross platform and any of the following options could be used:
