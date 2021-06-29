@@ -96,6 +96,8 @@ In addition to install automation the following concepts are also assumed for Ad
 
 ## Power Platform
 
+### Automation
+
 The CLI provides the following key steps. (Source code file [powerplatform.ts](../../src/commands/powerplatform.ts))
 
 1. Import Managed solution into environment to allow Advanced Makers to Manage git import, create branches, pull requests and updates to test and production.
@@ -107,3 +109,21 @@ The CLI provides the following key steps. (Source code file [powerplatform.ts](.
 4. Add the user to the Azure Active Directory Service Principal to the power platform environments
 
 5. Share the Canvas application with the Maker Azure Active Directory Group
+
+### Environments
+
+The AA4AM CLI commands currently assume the following environments have been created https://aka.ms/ppac as a Global Administrator or Environment Administrator
+
+1. Maker Environment
+
+   - Require Common Data Service to be enabled
+
+   - Created "Microsoft Dataverse (legacy)" connection - [Read More](./before-you-start.md#maker-environment-common-data-service)
+
+2. Validation, Test, Production Environments
+
+   - CLI can setup Azure Active Directory application as Application User with System Administrator rights
+
+3. Developer Environments
+
+   - CLI can setup Azure Active Directory application as Application User with System Administrator rights
