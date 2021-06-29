@@ -5,27 +5,6 @@ import { CoeCliCommands } from './commands'
 import * as winston from 'winston';
 
 /**
- * Run Command Arguments
- */
-class RunArguments {
-    /**
-     * Some text argument
-     */
-    file: string
-}
-
-/**
- * Run Command Arguments
- */
- class RunCommandInfo {
-    /**
-     * Some text argument
-     */
-    name: string
-    args: string[]
-}
-
-/**
  * Run commands
  */
 class RunCommand {
@@ -70,6 +49,29 @@ class RunCommand {
         }
     }
 }
+
+
+/**
+ * Run Command Arguments
+ */
+ class RunArguments {
+    /**
+     * Some text argument
+     */
+    file: string
+}
+
+/**
+ * Run Command Arguments
+ */
+ class RunCommandInfo {
+    /**
+     * Some text argument
+     */
+    name: string
+    args: string[]
+}
+
 
 export { 
     RunArguments,

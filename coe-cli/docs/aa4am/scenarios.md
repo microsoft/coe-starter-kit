@@ -86,7 +86,7 @@ coe aa4am install -c aad
 
 ## Multi Tenant Deployment
 
-This deployment type is involves different Azure Active Directory deployments that seperate development, test and production systems. For example the following Azure Active Directory tenants
+This deployment type is involves different Azure Active Directory deployments that separate development, test and production systems. For example the following Azure Active Directory tenants
 
 - contoso.onmicrosoft.com
 

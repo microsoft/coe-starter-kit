@@ -514,7 +514,6 @@ class DevOpsCommand {
                 repository: repo
             }, args.projectName, repo.id)
 
-
             while (true) {
                 let requests = await gitApi.queryImportRequests(args.projectName, repo.id)
                 let current = requests.filter(r => r.importRequestId == importRequest.importRequestId)[0]

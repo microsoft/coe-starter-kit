@@ -7,15 +7,6 @@ import open = require('open');
 const fsPromises = fs.promises;
 import * as winston from 'winston';
 
-/**
- * CLI Command Arguments
- */
-class CLIArguments {
-    /**
-     * Some text argument
-     */
-    name: string
-}
 
 /**
  * CLI commands
@@ -138,6 +129,16 @@ describe('Related Tests', () => {
         }
     }
     
+}
+
+/**
+ * CLI Command Arguments
+ */
+ class CLIArguments {
+    /**
+     * Some text argument
+     */
+    name: string
 }
 
 export { 

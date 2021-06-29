@@ -3,21 +3,6 @@ const { Octokit } = require("@octokit/rest")
 import * as winston from 'winston';
 
 /**
- * Github Release Command Arguments
- */
-class GitHubReleaseArguments {
-    /**
-     * The type of release asset to retreive
-     */
-    type: string
-
-     /**
-     * The asset to retreive
-     */
-    asset: string
-}
-
-/**
  * Github commands
  */
 class GitHubCommand {
@@ -58,6 +43,22 @@ class GitHubCommand {
         throw Error(`Type ${args.type} not supported`)
     }
 }
+
+/**
+ * Github Release Command Arguments
+ */
+ class GitHubReleaseArguments {
+    /**
+     * The type of release asset to retreive
+     */
+    type: string
+
+     /**
+     * The asset to retreive
+     */
+    asset: string
+}
+
 
 export { 
     GitHubReleaseArguments,

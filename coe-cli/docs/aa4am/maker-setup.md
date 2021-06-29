@@ -1,6 +1,6 @@
 # Maker Setup
 
-Once a user has been setup with a development environment [Read More](./development-environments.md) they wil nee to us eth following sections to provide access to the service principal and create a solution branch.
+Once a user has been setup with a development environment [Read More](./development-environments.md) they will need to use the following sections to provide access to the service principal and create a solution branch.
 
 ## Setup Service Principal
 
