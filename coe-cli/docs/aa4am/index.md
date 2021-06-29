@@ -8,6 +8,12 @@ The diagram below provides an over of the key components required and permission
 
 The main GitHub readme for [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) provides more information how to use the installed solution.
 
+## Sample Install
+
+The following recording shows a sample generating a install configuration file
+
+![Example](./install.svg)
+
 ## Install Overview
 
 1. Review the [Before You Start](./before-you-start.md) to ensure you have the required Power Platform environments and Azure DevOps organizations created
