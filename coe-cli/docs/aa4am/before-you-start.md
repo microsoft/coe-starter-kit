@@ -80,8 +80,10 @@ Notes:
   
    - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 
-  ## Read Next
+## Read Next
 
-  Once you have verified the above
+Once you have verified the above
 
-  1. Complete the [Admin Install](./admin-install.md)
+1. Determine the install [deployment scenario](./scenarios.md) you are targeting
+1. Complete the [Admin Install](./admin-install.md)
+  
