@@ -13,243 +13,6 @@ import * as winston from 'winston';
 import { Environment } from '../common/enviroment'
 
 /**
- * ALM Accelerator for Advanced Makers User Arguments
- */
- class AA4AMInstallArguments {
-  constructor() {
-     this.environments = {}
-     this.endpoint = "prod"
-     this.settings = {}
-  }
-
-  endpoint: string
-
-   /**
-   * The components to install
-   */
-  components: string[]
-  
-  /**
-   * The Azure active directory account to setup and install to
-   */
-  account: string
-
-  /**
-   * The azure active directory services principal application name
-   */
-  azureActiveDirectoryServicePrincipal: string
-
-  /**
-   * The azure active directory makers group
-   */
-  azureActiveDirectoryMakersGroup: string
-
-  /**
-   * The name of the Azure DevOps Organization
-   */
-  organizationName: string
-
-  /**
-   * The name of the Azure DevOps project
-   */
-  project: string
-
-  /**
-   * The name of the Azure DevOps pipeline repository
-   */
-  repository: string
-
-  /**
-   * The Power Platform organization
-   */
-  environment: string
-
-  /**
-   * The name of the Power Platform Organization
-   */
-  powerPlatformOrganization: string
-
-  /**
-   * The Power Platform organization
-   */
-  environments: { [id: string] : string }
-
-  /**
-   * Create secret if not exist
-   */
-  createSecretIfNoExist: boolean
-
-   /**
-    * Audiance scoped access tokens
-    */
-   accessTokens: { [id: string] : string }
-
-   /**
-    * Solution import method
-    */
-   importMethod: string
-
-   /**
-    * Optional settings
-    */
-   settings:  { [id: string] : string }
-}
-
-/**
- * ALM Accelerator for Advanced Makers User Arguments
- */
-class AA4AMUserArguments {
-  constructor() {
-    this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
-    this.settings = {}
-  }
-
-  /**
-   * The client id to authenticate with
-   */
-   clientId: string
-
-  /**
-   * The user command execute
-   */
-  command: string
-
-  /**
-   * The name of the Power Platform environment to add the user to
-   */
-  environment: string
-
-   /**
-   * The id of the user the command should be applied to
-   */
-  id: string
-
-  /**
-   * The name of the azure active directory service principal to lookup
-   */
-  azureActiveDirectoryServicePrincipal: string
-
-  /**
-  * The user role
-  */
-  role: string
-
-  /**
-    * Optional settings
-    */
-   settings:  { [id: string] : string }
-}
-
-/**
- * ALM Accelerator for Advanced Makers Add Arguments
- */
- class AA4AMMakerAddArguments {
-  constructor() {
-    this.settings = {}
-  }
-
-  /**
-   * The user to add
-   */
-  user: string
-
-  /**
-   * The Azure DevOps Organization
-   */
-  organizationName: string
-
-  /**
-   * The Azure DevOps project
-   */
-  project: string
-
-  /**
-   * The name of the Power Platform environment to add the user to
-   */
-  environment: string
-
-  /**
-   * The Power Platform endpoint
-   */
-  endpoint: string
-
-  /**
-   * The name of the azure active directory service principal to lookup
-   */
-  azureActiveDirectoryServicePrincipal: string
-
-  /**
-   * The name of the azure active directory group to add the user to
-   */
-  azureActiveDirectoryMakersGroup: string
-
-  /**
-  * The user role for the service principal
-  */
-  role: string
-
-  /**
-    * Optional settings
-    */
-  settings:  { [id: string] : string }
-}
-
-/**
- * ALM Accelerator for Advanced Makers Branch Arguments
- */
-class AA4AMBranchArguments {
-  constructor() {
-    this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
-    this.settings = {}
-  }
-
-  /**
-   * The name of the configuration file to read from
-   */
-  configFile: string
-  /**
-   * The client id to authenticate with
-   */
-  clientId: string
-
-  auth: string
-  /**
-   * The name of the Azure DevOps Organization
-   */
-  organizationName: string
-
-  /**
-   * The Azure DevOps project name that AA4AM installed ot
-   */
-  projectName: string
-
-  /**
-   * The Azure repo name that AA4AM installed to
-   */
-  repositoryName: string;
-
-  /**
-   * The source branch to copy from
-   */
-  sourceBranch: string
-
-  /**
-   * The source build name to copy setup from> if not defained will create initial values that will need to be updated
-   */
-  sourceBuildName: string
-
-  /**
-   * The destination branch that will be copied to
-   */
-  destinationBranch: string
-
-  /**
-    * Optional settings
-    */
-  settings:  { [id: string] : string }
-}
-
-/**
  * ALM Accelereator for Advanced Makers commands
  */
 class AA4AMCommand {
@@ -614,6 +377,243 @@ class AA4AMCommand {
 
     return login?.azureLogin(scopes)
   }
+}
+
+/**
+ * ALM Accelerator for Advanced Makers User Arguments
+ */
+ class AA4AMInstallArguments {
+  constructor() {
+     this.environments = {}
+     this.endpoint = "prod"
+     this.settings = {}
+  }
+
+  endpoint: string
+
+   /**
+   * The components to install
+   */
+  components: string[]
+  
+  /**
+   * The Azure active directory account to setup and install to
+   */
+  account: string
+
+  /**
+   * The azure active directory services principal application name
+   */
+  azureActiveDirectoryServicePrincipal: string
+
+  /**
+   * The azure active directory makers group
+   */
+  azureActiveDirectoryMakersGroup: string
+
+  /**
+   * The name of the Azure DevOps Organization
+   */
+  organizationName: string
+
+  /**
+   * The name of the Azure DevOps project
+   */
+  project: string
+
+  /**
+   * The name of the Azure DevOps pipeline repository
+   */
+  repository: string
+
+  /**
+   * The Power Platform organization
+   */
+  environment: string
+
+  /**
+   * The name of the Power Platform Organization
+   */
+  powerPlatformOrganization: string
+
+  /**
+   * The Power Platform organization
+   */
+  environments: { [id: string] : string }
+
+  /**
+   * Create secret if not exist
+   */
+  createSecretIfNoExist: boolean
+
+   /**
+    * Audiance scoped access tokens
+    */
+   accessTokens: { [id: string] : string }
+
+   /**
+    * Solution import method
+    */
+   importMethod: string
+
+   /**
+    * Optional settings
+    */
+   settings:  { [id: string] : string }
+}
+
+/**
+ * ALM Accelerator for Advanced Makers User Arguments
+ */
+class AA4AMUserArguments {
+  constructor() {
+    this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+    this.settings = {}
+  }
+
+  /**
+   * The client id to authenticate with
+   */
+   clientId: string
+
+  /**
+   * The user command execute
+   */
+  command: string
+
+  /**
+   * The name of the Power Platform environment to add the user to
+   */
+  environment: string
+
+   /**
+   * The id of the user the command should be applied to
+   */
+  id: string
+
+  /**
+   * The name of the azure active directory service principal to lookup
+   */
+  azureActiveDirectoryServicePrincipal: string
+
+  /**
+  * The user role
+  */
+  role: string
+
+  /**
+    * Optional settings
+    */
+   settings:  { [id: string] : string }
+}
+
+/**
+ * ALM Accelerator for Advanced Makers Add Arguments
+ */
+ class AA4AMMakerAddArguments {
+  constructor() {
+    this.settings = {}
+  }
+
+  /**
+   * The user to add
+   */
+  user: string
+
+  /**
+   * The Azure DevOps Organization
+   */
+  organizationName: string
+
+  /**
+   * The Azure DevOps project
+   */
+  project: string
+
+  /**
+   * The name of the Power Platform environment to add the user to
+   */
+  environment: string
+
+  /**
+   * The Power Platform endpoint
+   */
+  endpoint: string
+
+  /**
+   * The name of the azure active directory service principal to lookup
+   */
+  azureActiveDirectoryServicePrincipal: string
+
+  /**
+   * The name of the azure active directory group to add the user to
+   */
+  azureActiveDirectoryMakersGroup: string
+
+  /**
+  * The user role for the service principal
+  */
+  role: string
+
+  /**
+    * Optional settings
+    */
+  settings:  { [id: string] : string }
+}
+
+/**
+ * ALM Accelerator for Advanced Makers Branch Arguments
+ */
+class AA4AMBranchArguments {
+  constructor() {
+    this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+    this.settings = {}
+  }
+
+  /**
+   * The name of the configuration file to read from
+   */
+  configFile: string
+  /**
+   * The client id to authenticate with
+   */
+  clientId: string
+
+  auth: string
+  /**
+   * The name of the Azure DevOps Organization
+   */
+  organizationName: string
+
+  /**
+   * The Azure DevOps project name that AA4AM installed ot
+   */
+  projectName: string
+
+  /**
+   * The Azure repo name that AA4AM installed to
+   */
+  repositoryName: string;
+
+  /**
+   * The source branch to copy from
+   */
+  sourceBranch: string
+
+  /**
+   * The source build name to copy setup from> if not defained will create initial values that will need to be updated
+   */
+  sourceBuildName: string
+
+  /**
+   * The destination branch that will be copied to
+   */
+  destinationBranch: string
+
+  /**
+    * Optional settings
+    */
+  settings:  { [id: string] : string }
 }
 
 export { 

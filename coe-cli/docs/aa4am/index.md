@@ -54,6 +54,7 @@ Notes:
 
 ## Read Next
 
+- [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are automated by the CLI commands
 - [Command Reference](./command-reference.md)
 - [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) - Overview for AA4AM
 - [Scenarios](./scenarios.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments

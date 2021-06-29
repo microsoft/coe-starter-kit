@@ -61,7 +61,7 @@ Will login using the Azure CLI user and attempt to install the Azure Active Dire
 
 #### Install DevOps
 
-Install the just devops components. This step assumes the Azure Active Directory Service Principal has been created
+To install just the DevOps components you can run the following command. This step assumes the Azure Active Directory Service Principal has been created
 
 ```bash
 coe aa4am install -c devops -o https://dev.azure.com/dev12345 -p alm-sandbox

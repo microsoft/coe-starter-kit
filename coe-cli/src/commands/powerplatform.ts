@@ -10,105 +10,6 @@ import * as urlModule from 'url';
 import { AA4AMCommand, AA4AMInstallArguments, AA4AMUserArguments } from './aa4am';
 
 /**
- * Powerplatform Command Arguments
- */
-class PowerPlatformImportSolutionArguments {
-
-    constructor() {
-        this.accessTokens = {}
-        this.settings = {}
-        this.setupPermissions = true
-    }
-
-    /**
-     * The access token with rigts to connect to Power Platform environment
-     */
-    accessToken: string
-
-    /**
-    * Audiance scoped access tokens
-    */
-    accessTokens: { [id: string]: string }
-
-    /**
-     * The endpoint to connect to
-     */
-    endpoint: string
-
-    /**
-     * The name of the Power Platform Organization that the solution will be imported into
-     */
-    organizationName: string
-
-    /**
-     * The Power Platform environment that the solution wil be imported into
-     */
-    environment: string
-
-    /**
-     * The source location to retrieve the unmanaged solution from
-     */
-    sourceLocation: string
-
-    /**
-     * Import method
-     */
-    importMethod: string
-
-    /**
-     * The Azure Active Directory Service principal to assign to the custom connector
-     */
-    azureActiveDirectoryServicePrincipal: string
-
-    /**
-     * The azure active directory makers group
-     */
-    azureActiveDirectoryMakersGroup: string
-
-    /**
-     * Create a new secret for 
-     */
-    createSecret: boolean
-
-    /**
-    * Optional settings
-    */
-    settings: { [id: string]: string }
-
-    /**
-     * Check if permissions should be configured
-     */
-    setupPermissions: boolean;
-}
-
-class PowerPlatformConectorUpdate {
-    /**
-    * The name of the Azure Account
-    */
-    account: string
-
-    /**
-     * Azure Active directory application name
-     */
-    azureActiveDirectoryServicePrincipal: string
-
-    /**
-    * The Power Platform environment that the solution wil be imported into
-    */
-    environment: string
-
-    /**
-    * The Power Platform environment that the solution wil be imported into
-    */
-    solution: string
-}
-
-type PowerPlatformConnection = {
-    name: string
-    id: string
-}
-
-/**
  * Powerplatform commands
  */
 class PowerPlatformCommand {
@@ -149,41 +50,6 @@ class PowerPlatformCommand {
         this.createAA4AMCommand = () => { return new AA4AMCommand(this.logger) }
     }
 
-    /**
-     * Map endpoints to defined power platform endpoints
-     * @param endpoint 
-     * @returns 
-     */
-    mapEndpoint(type: string, endpoint: string): string {
-        switch (type) {
-            case 'powerapps': {
-                switch (endpoint) {
-                    case "prod": { return "https://api.powerapps.com/" }
-                    case "usgov": { return "https://gov.api.powerapps.us/" }
-                    case "usgovhigh": { return "https://high.api.powerapps.us/" }
-                    case "dod": { return "https://api.apps.appsplatform.us/" }
-                    case "china": { return "https://api.powerapps.cn/" }
-                    case "preview": { return "https://preview.api.powerapps.com/" }
-                    case "tip1": { return "https://tip1.api.powerapps.com/" }
-                    case "tip2": { return "https://tip2.api.powerapps.com/" }
-                    default: { throw Error("Unsupported endpoint '${this.endpoint}'") }
-                }
-            }
-            case 'bap': {
-                switch (endpoint) {
-                    case "prod": { return "https://api.bap.microsoft.com/" }
-                    case "usgov": { return "https://gov.api.bap.microsoft.us/" }
-                    case "usgovhigh": { return "https://high.api.bap.microsoft.us/" }
-                    case "dod": { return "https://api.bap.appsplatform.us/" }
-                    case "china": { return "https://api.bap.partner.microsoftonline.cn/" }
-                    case "preview": { return "https://preview.api.bap.microsoft.com/" }
-                    case "tip1": { return "https://tip1.api.bap.microsoft.com/" }
-                    case "tip2": { return "https://tip2.api.bap.microsoft.com/" }
-                    default: { throw Error("Unsupported endpoint '${this.endpoint}'") }
-                }
-            }
-        }
-    }
 
     /**
      * Import Solution action
@@ -207,35 +73,10 @@ class PowerPlatformCommand {
         }
     }
 
-    private async importViaBrowser(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
-
-        await this.deleteIfExists('release.zip')
-        await this.writeFile('release.zip', base64CustomizationFile)
-
-        this.logger?.info('Complete import in you browser. Steps')
-        this.logger?.info('1. Open https://make.powerapps.com')
-        this.logger?.info('2. Select environment you want to import solution into')
-        this.logger?.info('3. Select Solutions')
-        this.logger?.info('4. Select Import')
-        this.logger?.info('5. Select Browse and select release.zip downloaded')
-    }
-
-    private async importViaPacCli(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
-
-        await this.deleteIfExists('release.zip')
-        await this.writeFile('release.zip', base64CustomizationFile)
-
-        await this.cli.runCommand('pac solution import --path release.zip', true)
-    }
-
-
-
     /**
-     * Import solution implementation using REST API
-     * @param args 
-     */
+ * Import solution implementation using REST API
+ * @param args 
+ */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
         let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
         let solutions: any = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
@@ -287,6 +128,70 @@ class PowerPlatformCommand {
             }
         }
     }
+
+    private async importViaBrowser(args: PowerPlatformImportSolutionArguments): Promise<void> {
+        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
+
+        await this.deleteIfExists('release.zip')
+        await this.writeFile('release.zip', base64CustomizationFile)
+
+        this.logger?.info('Complete import in you browser. Steps')
+        this.logger?.info('1. Open https://make.powerapps.com')
+        this.logger?.info('2. Select environment you want to import solution into')
+        this.logger?.info('3. Select Solutions')
+        this.logger?.info('4. Select Import')
+        this.logger?.info('5. Select Browse and select release.zip downloaded')
+    }
+
+    private async importViaPacCli(args: PowerPlatformImportSolutionArguments): Promise<void> {
+        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
+
+        await this.deleteIfExists('release.zip')
+        await this.writeFile('release.zip', base64CustomizationFile)
+
+        await this.cli.runCommand('pac solution import --path release.zip', true)
+    }
+
+
+
+
+
+    /**
+ * Map endpoints to defined power platform endpoints
+ * @param endpoint 
+ * @returns 
+ */
+    mapEndpoint(type: string, endpoint: string): string {
+        switch (type) {
+            case 'powerapps': {
+                switch (endpoint) {
+                    case "prod": { return "https://api.powerapps.com/" }
+                    case "usgov": { return "https://gov.api.powerapps.us/" }
+                    case "usgovhigh": { return "https://high.api.powerapps.us/" }
+                    case "dod": { return "https://api.apps.appsplatform.us/" }
+                    case "china": { return "https://api.powerapps.cn/" }
+                    case "preview": { return "https://preview.api.powerapps.com/" }
+                    case "tip1": { return "https://tip1.api.powerapps.com/" }
+                    case "tip2": { return "https://tip2.api.powerapps.com/" }
+                    default: { throw Error("Unsupported endpoint '${this.endpoint}'") }
+                }
+            }
+            case 'bap': {
+                switch (endpoint) {
+                    case "prod": { return "https://api.bap.microsoft.com/" }
+                    case "usgov": { return "https://gov.api.bap.microsoft.us/" }
+                    case "usgovhigh": { return "https://high.api.bap.microsoft.us/" }
+                    case "dod": { return "https://api.bap.appsplatform.us/" }
+                    case "china": { return "https://api.bap.partner.microsoftonline.cn/" }
+                    case "preview": { return "https://preview.api.bap.microsoft.com/" }
+                    case "tip1": { return "https://tip1.api.bap.microsoft.com/" }
+                    case "tip2": { return "https://tip2.api.bap.microsoft.com/" }
+                    default: { throw Error("Unsupported endpoint '${this.endpoint}'") }
+                }
+            }
+        }
+    }
+
 
     async fixCustomConnectors(environment: string, args: PowerPlatformImportSolutionArguments): Promise<void> {
         this.logger?.info("Checking connectors")
@@ -622,7 +527,7 @@ class PowerPlatformCommand {
         }
 
         this.logger?.info(`Checking ${args.azureActiveDirectoryMakersGroup} permissions`)
-        await this.assignRoleToAADGroup(args.azureActiveDirectoryMakersGroup, aadGroupId, 'ALM Power App Access', enviromentUrl, config)        
+        await this.assignRoleToAADGroup(args.azureActiveDirectoryMakersGroup, aadGroupId, 'ALM Power App Access', enviromentUrl, config)
     }
 
     async assignRoleToAADGroup(aadGroupName: string, aadGroupId: string, roleName: string, enviromentUrl: string, config: { headers: { Authorization: string; 'Content-Type': string; 'OData-MaxVersion': string; 'OData-Version': string; 'If-Match': string; }; }) {
@@ -881,6 +786,106 @@ type PowerPlatformEnvironment = {
     location: string
     name: string
     properties: EnvironmentProperties
+}
+
+
+/**
+ * Powerplatform Command Arguments
+ */
+class PowerPlatformImportSolutionArguments {
+
+    constructor() {
+        this.accessTokens = {}
+        this.settings = {}
+        this.setupPermissions = true
+    }
+
+    /**
+     * The access token with rigts to connect to Power Platform environment
+     */
+    accessToken: string
+
+    /**
+    * Audiance scoped access tokens
+    */
+    accessTokens: { [id: string]: string }
+
+    /**
+     * The endpoint to connect to
+     */
+    endpoint: string
+
+    /**
+     * The name of the Power Platform Organization that the solution will be imported into
+     */
+    organizationName: string
+
+    /**
+     * The Power Platform environment that the solution wil be imported into
+     */
+    environment: string
+
+    /**
+     * The source location to retrieve the unmanaged solution from
+     */
+    sourceLocation: string
+
+    /**
+     * Import method
+     */
+    importMethod: string
+
+    /**
+     * The Azure Active Directory Service principal to assign to the custom connector
+     */
+    azureActiveDirectoryServicePrincipal: string
+
+    /**
+     * The azure active directory makers group
+     */
+    azureActiveDirectoryMakersGroup: string
+
+    /**
+     * Create a new secret for 
+     */
+    createSecret: boolean
+
+    /**
+    * Optional settings
+    */
+    settings: { [id: string]: string }
+
+    /**
+     * Check if permissions should be configured
+     */
+    setupPermissions: boolean;
+}
+
+class PowerPlatformConectorUpdate {
+    /**
+    * The name of the Azure Account
+    */
+    account: string
+
+    /**
+     * Azure Active directory application name
+     */
+    azureActiveDirectoryServicePrincipal: string
+
+    /**
+    * The Power Platform environment that the solution wil be imported into
+    */
+    environment: string
+
+    /**
+    * The Power Platform environment that the solution wil be imported into
+    */
+    solution: string
+}
+
+type PowerPlatformConnection = {
+    name: string
+    id: string
 }
 
 export {

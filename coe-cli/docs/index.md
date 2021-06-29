@@ -86,7 +86,7 @@ This will start a new interactive console (-it) and remove the docker container 
 
 ## Getting Started
 
-Once installed can use -h argument to se help options
+Once installed can use -h argument to see help options
 
 ```bash
 coe -h
@@ -97,4 +97,4 @@ coe -h
 Once you have an install of the command line interface you can review the following commands
 
 - [ALM Accelerator for Advanced Makers](./aa4am/index.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to do more.
-- [COE CLI Upgrade](./upgrade.md) How to upgrade to t a new version of the COE install.
+- [COE CLI Upgrade](./upgrade.md) How to upgrade to a new version of the COE install.

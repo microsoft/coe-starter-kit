@@ -86,7 +86,7 @@ This will start a new interactive console (-it) and remove the docker container 
 
 ## Getting Started
 
-Once installed can use -h argument to se help options
+Once installed can use -h argument to see help options
 
 ```bash
 coe -h

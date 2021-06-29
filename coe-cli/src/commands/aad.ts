@@ -8,58 +8,6 @@ import { Environment } from '../common/enviroment';
 import { Prompt } from '../common/prompt';
 
 /**
- * Azure Active Directory User Arguments
- */
-class AADAppInstallArguments {
-    
-    constructor() {
-        this.accessTokens = {}
-        this.settings = {}
-    }
-
-    /** 
-     * The power platform endpoint to interact with
-     */
-    endpoint: string;
-
-    /**
-    * Audiance scoped access tokens
-    */
-    accessTokens: { [id: string] : string }
-
-    /**
-    * The name of the Azure account
-    */
-    account: string
-
-    /**
-     * Azure Active directory application name
-     */
-    azureActiveDirectoryServicePrincipal: string
-
-    /**
-     * Azure Active directory makers group
-     */
-    azureActiveDirectoryMakersGroup: string
-
-    /**
-     * Create secret for application
-     */
-    createSecret: boolean
-
-    /**
-    * Optional settings
-    */
-    settings:  { [id: string] : string }
-}
-
-type AADAppSecret = {
-    tenantId: string,
-    clientId: string,
-    clientSecret: string
-}
-
-/**
  * ALM Accelereator for Advanced Makers commands
  */
 class AADCommand {
@@ -377,6 +325,58 @@ class AADCommand {
             }
         }
     }
+}
+
+/**
+ * Azure Active Directory User Arguments
+ */
+ class AADAppInstallArguments {
+    
+    constructor() {
+        this.accessTokens = {}
+        this.settings = {}
+    }
+
+    /** 
+     * The power platform endpoint to interact with
+     */
+    endpoint: string;
+
+    /**
+    * Audiance scoped access tokens
+    */
+    accessTokens: { [id: string] : string }
+
+    /**
+    * The name of the Azure account
+    */
+    account: string
+
+    /**
+     * Azure Active directory application name
+     */
+    azureActiveDirectoryServicePrincipal: string
+
+    /**
+     * Azure Active directory makers group
+     */
+    azureActiveDirectoryMakersGroup: string
+
+    /**
+     * Create secret for application
+     */
+    createSecret: boolean
+
+    /**
+    * Optional settings
+    */
+    settings:  { [id: string] : string }
+}
+
+type AADAppSecret = {
+    tenantId: string,
+    clientId: string,
+    clientSecret: string
 }
 
 interface IMakerGroup {

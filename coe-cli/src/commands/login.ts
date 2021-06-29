@@ -10,26 +10,6 @@ import winston from 'winston';
 
 const readFile = promisify(fs.readFile);
 
-/**
- * Login Arguments
- */
-class LoginArguments {
-    /**
-     * The configuration file to read from
-     */
-    configFile : string
-
-    /**
-     * The Azure Active directory client id to authenticate with 
-     */
-    clientId : string
-
-    /**
-     * The Azure Active Directory authorization url
-     */
-    auth : string
-}
-
  /**
  * Azure Active Directory Login Commands
  */
@@ -181,6 +161,26 @@ class LoginCommand {
             return error;
         });
     }
+}
+
+/**
+ * Login Arguments
+ */
+ class LoginArguments {
+    /**
+     * The configuration file to read from
+     */
+    configFile : string
+
+    /**
+     * The Azure Active directory client id to authenticate with 
+     */
+    clientId : string
+
+    /**
+     * The Azure Active Directory authorization url
+     */
+    auth : string
 }
 
 export { 
