@@ -10,7 +10,7 @@ The main GitHub readme for [ALM Accelerator for Advanced Makers](https://github.
 
 ## Sample Install
 
-The following recording shows a sample generating a install configuration file
+The following recording shows a sample generating a install configuration file and installing AA4AM using the config file.
 
 ![Example](./install.svg)
 

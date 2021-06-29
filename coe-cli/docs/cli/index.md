@@ -4,7 +4,7 @@ This document outlines the following key sections on the COE CLI.
 
 - [Quick Start](#quick-start) - Provides set of links of the technology building and testing the CLI
 
-- [Contributions](#contributions)
+- [Contributions](#contributions) - Links to wider contributor guidance
 
 - [Development Environment Setup](#development-environment-setup) - How to edit the CLI using Visual Studio Code
 
@@ -29,7 +29,7 @@ If you are new to unit testing with Jest you can start with
 
 ## Contributions
 
-Review review the general [Contribution Guidence](../../../CONTRIBUTING).
+Review review the general [Contribution Guidance](../../../CONTRIBUTING).
 
 ## Development Environment Setup
 
