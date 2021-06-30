@@ -9,6 +9,7 @@ Not sure what AA4AM is and how it can help? The main GitHub project [README](htt
 
 - [Scenarios](./scenarios.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments
 - [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are being automated under the hood by the CLI commands
+- [Personas](./key-concepts.md) - Understand the key personas that may be related to AA4AM.
 
 ## Overview
 
