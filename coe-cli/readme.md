@@ -31,13 +31,13 @@ Download zip or clone repository from GitHub repository. Once downloaded you hav
 
 ### Local Install
 
-![Local Install](./install-local.svg)
+[Watch Local Install](./docs/sample-local-install.md)
 
 Read more on [Local Install Steps Documentation](./docs/index.md#local-install)
 
 ### Docker Install
 
-![Docker Install](./install-docker.svg)
+[Watch Docker Install](./docs/sample-docker-install.md)
 
 Read more on [Docker Install Steps Documentation](./docs/index.md#docker-install)
 
@@ -63,7 +63,7 @@ Notes:
 
 ## CLI Development
 
-Looking to understand how the CLI commands works? The [CLI Development](./docs/cli-development/index.md) dives technically deeper into the CLI commands and looking how to debug and add / extend commands.
+Looking to understand how the CLI commands works? The [CLI Development](./docs/cli-development/index.md) dives technically deeper into the CLI commands and discusses how to debug and add / extend commands.
 
 ## Contributions
 
