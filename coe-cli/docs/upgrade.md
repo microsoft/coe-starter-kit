@@ -2,21 +2,32 @@
 
 Upgrade will depend on how you installed the COE cli
 
-## Zip Download
+## Download
 
-It you downloaded the COE CLI as a zip file
+It you downloaded the COE CLI as a zip file or a git clone
 
-1. Download the new zip file
+- Download the new zip file
+- Unzip the zip file to a new folder 
 
-2. Unzip the zip file to a new folder
+OR
 
-3. Change to coe-cli folder
+- Pull changes from git
+
+```bash
+git pull
+```
+
+ONe you have a local version of the coe-cli change to coe-cli folder
 
 ```
 cd coe-cli
 ```
 
-4. Install the dependencies
+### Local Upgrade
+
+In the coe-cli folder run the following commands
+
+1. Install the dependencies
 
 ```bash
 npm install
@@ -34,40 +45,11 @@ npm run build
 npm link --force
 ```
 
-## Git Clone
-
-1. Pull the latest version
-
-```bash
-git pull
-```
-
-2. Change to coe-cli folder
-
-```
-cd coe-cli
-```
-
-3. Build the new version
-
-```bash
-npm run build
-```
-
-Notes:
-1. The new version will now be globally available
-
 ## Docker Image
 
-1. Unzip the zip file or pull the latest version of the code
+In the coe-cli folder run the following commands
 
-2. Change to coe-cli folder
-
-```
-cd coe-cli
-```
-
-2. Build new docker image
+1. Build new docker image
 
 ```bash
 docker build -t coe-cli .

@@ -11,7 +11,7 @@ Install the COE CLI [locally](../index.md#local-install) or via a [docker image]
 Environment | Description
 ----------- | -------------
 Maker | Environment with Dataverse enabled. Will be used to deploy managed solution.
-Maker - Common Data Service Connection | See [Maker Environment Common Data Service](#maker-environment-common-data-service) below to create the Common Data Service Connection
+Maker - Dataverse Connection | See [Maker Environment Dataverse](#maker-environment-dataverse) below to create the Dataverse Connection
 Validation | Environment used to validate builds before merging into a solution branch              |
 Test | Pre production Environment used to test solutions before moving to production          |
 Production | Production Environment for managed solutions                                          |
@@ -21,17 +21,17 @@ Notes:
 1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Advanced Makers
    1) Visit https://docs.microsoft.com/en-us/partner-center/mpn-demos for more information
    2) Go to https://demos.microsoft.com to request a new enviroment
-   3) Select My Enviroments
+   3) Select My Environments
    4) Select Create Tenant
    5) Select tennat location
    6) Select "Dynamics 365 Customer Engagement"
 3. Sample environment from https://admin.powerplatform.microsoft.com/environments
 
-   ![Environments](../../images/environments.jpg)
+   ![Environments](../images/environments.jpg)
 
-## Maker Environment Common Data Service
+## Maker Environment Dataverse
 
-In the maker environment you will Common Data Service connection to be created by install user.
+In the maker environment you will a Dataverse connection to be created by install user.
 
 This can be done using the following steps
 1. Goto https://make.powerapps.com/
