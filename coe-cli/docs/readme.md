@@ -2,7 +2,7 @@
 
 Once you have an install of the command line interface and it's [pre-requisites](#prerequisites) you can review the following commands
 
-- [ALM Accelerator for Advanced Makers](./aa4am/index.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to do more.
+- [ALM Accelerator for Advanced Makers](./aa4am/readme.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to do more.
 
 ## Installation
 

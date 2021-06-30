@@ -19,4 +19,4 @@ coe aa4am maker add -o https://dev.azure.com/dev12345 -p alm-sandbox -e https://
 
 ## Read Next
 
-- Complete the [Install Overview](./index.md#install-overview)
+- Complete the [Install Overview](./readme.md#install-overview)

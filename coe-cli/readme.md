@@ -1,6 +1,6 @@
 # Overview
 
-Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/index.md) and will add more features over time.
+Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/readme.md) and will add more features over time.
 
 ![Overview](./docs/images/overview.jpg)
 
@@ -14,7 +14,7 @@ Using the Center of Excellence (COE) toolkit command line interface (CLI), you c
 
 ## Documentation
 
-Read the [Documentation](./docs/index.md) for information on supported commands and setup process
+Read the [Documentation](./docs/readme.md) for information on supported commands and setup process
 
 ## Requirements
 
@@ -33,13 +33,13 @@ Download zip or clone repository from GitHub repository. Once downloaded you hav
 
 [Watch Local Install](./docs/sample-local-install.md)
 
-Read more on [Local Install Steps Documentation](./docs/index.md#local-install)
+Read more on [Local Install Steps Documentation](./docs/readme.md#local-install)
 
 ### Docker Install
 
 [Watch Docker Install](./docs/sample-docker-install.md)
 
-Read more on [Docker Install Steps Documentation](./docs/index.md#docker-install)
+Read more on [Docker Install Steps Documentation](./docs/readme.md#docker-install)
 
 ## Getting Started
 
@@ -63,7 +63,7 @@ Notes:
 
 ## CLI Development
 
-Looking to understand how the CLI commands works? The [CLI Development](./docs/cli-development/index.md) dives technically deeper into the CLI commands and discusses how to debug and add / extend commands.
+Looking to understand how the CLI commands works? The [CLI Development](./docs/cli-development/readme.md) dives technically deeper into the CLI commands and discusses how to debug and add / extend commands.
 
 ## Contributions
 
