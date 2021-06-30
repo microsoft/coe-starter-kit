@@ -2,7 +2,7 @@
 
 This document outlines the following key sections on the COE CLI.
 
-- [Quick Start](#quick-start) - Provides set of links of the technology building and testing the CLI
+- [Quick Start](#quick-start) - Provides set of links of the technology used to build and test the CLI
 
 - [Contributions](#contributions) - Links to wider contributor guidance
 

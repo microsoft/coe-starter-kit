@@ -18,24 +18,44 @@ az logout
 coe aa4am user add -e https://org12345-dev.crm.dynamics.com
 ```
 
-## Create Solution Branch
+## Maker Create Solution
 
-Each solution will require a solution branch created with Azure DevOps Pipeline with Build Policies for Validation and Continuous deployment to test and production environments.
+Once the environment has been setup and your development environment created and registered as a service connection in Azure DevOps you can use the following steps to create a source control managed solution.
 
-To create a solution branch os the following command
+1. Switch to Developer Environment
+
+2. Create new solution e.g. NewSolution1
+
+3. Add items to the solution. For example
+   a. Select Solution
+   b. Add Canvas Application
+   c. Add Button
+   d. Save Application and Close
+
+4. Create Solution branch using the following CLI command
 
 ```bash
-coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MyTestSolution
+coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MySolution1
 ```
 
 NOTES:
-1. -o is the name of your DevOps Organization
+  - -o is the name of your DevOps Organization
 
-2. -p is the name of the Azure DevOps Project
+  - -p is the name of the Azure DevOps Project
 
-3. -d os the name of the solution branch to create
+  - -d os the name of the solution branch to create
 
-4. If the repository you want to create a branch for is empty you will need to commit an initial commit before a branch can be created.
+  - If the repository you want to create a branch for is empty you will need to commit an initial commit before a branch can be created.
+
+5. Open ALM Accelerator for Advanced Maker Application
+
+6. Select Push change to Git
+   a. Create New Branch e.g. MySolution1-WIP
+   b. From existing Solution Branch created above e.g. MySolution1
+   c. Add a comment e.g. Initial version
+
+7. Click on Latest Push Status 
+   a. Permit permissions for pipeline to run (Variable Group, Service Connection, Pipeline)
 
 ## Post Setup Checks
 
@@ -47,15 +67,15 @@ After setting up an advanced maker you may need to verify the following
 
 3. Select the blue icon for the Azure DevOps Build in the application
 
-   ![Latest Push Status](../../images/latest-push-status.jpg)
+   ![Latest Push Status](../images/latest-push-status.jpg)
 
 4. Check if is message similar to the following that requires approval of the pipeline to run
 
-   ![Azure DevOps Permissions](../../images/devops-pipeline-permissions.jpg)
+   ![Azure DevOps Permissions](../images/devops-pipeline-permissions.jpg)
 
 5. If required select "View" and permit the build pipeline to
 
-   ![Azure DevOps Permit](../../images/devops-pipeline-permit.jpg)
+   ![Azure DevOps Permit](../images/devops-pipeline-permit.jpg)
 
 NOTES:
 1. If you are using a free Azure Subscription you may receive error "No hosted parallelism has been purchased or granted.". To resolve this issue visit to request Azure Pipeline build compute https://aka.ms/azpipelines-parallelism-request

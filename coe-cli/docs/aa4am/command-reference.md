@@ -16,17 +16,30 @@ This will ask you a series of questions for the values which you can then edit a
 
 ```json
 {
+  "log": [
+    "info"
+  ],
   "components": [
-    "environment"
+    "all"
   ],
   "aad": "ALMAcceleratorServicePrincipal",
-  "devopsOrg": "CRM12345",
+  "group": "ALMAcceleratorForAdvancedMakers",
+  "devOpsOrganization": "https://dev.azure.com/dev1234",
   "project": "alm-sandbox",
   "repository": "pipelines",
-  "environments": "https://orga11111.crm.dynamics.com/",
   "settings": {
-    "createsecret": "true",
-    "region": "NAM"
+    "installEnvironments": [
+      "validation",
+      "test",
+      "prod"
+    ],
+    "validation": "https://sample-validation.crm.dyamics.com",
+    "test": "https://sample-test.crm.dyamics.com",
+    "prod": "https://sample-prod.crm.dyamics.com",
+    "createSecret": "true",
+    "region": [
+      "NAM"
+    ]
   },
   "importMethod": "api",
   "endpoint": "prod"

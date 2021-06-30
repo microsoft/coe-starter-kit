@@ -1,10 +1,28 @@
 # Overview
 
-Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./aa4am/index.md) and will add more features over time.
+Once you have an install of the command line interface and it's [pre-requisites](#prerequisites) you can review the following commands
 
-Looking to contribute or understand how the CLI works? The [CLI](./cli/index.md) discusses how dive technically deeper into the CLI commands and look how to add or extend commands.
+- [ALM Accelerator for Advanced Makers](./aa4am/index.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to do more.
 
-## Prerequisites
+## Installation
+
+To install the COE CLI
+
+1. Download zip or clone repository
+
+2. Change to unzipped or cloned repository
+
+3. cd coe-cli
+
+```bash
+cd coe-cli
+```
+
+Nxt select either [Local Install](#local-install) or [Docker Install](#docker-install)
+
+### Local Install
+
+#### Prerequisites
 
 To run the COE CLI application you will require the following
 
@@ -13,7 +31,7 @@ To run the COE CLI application you will require the following
 2. Azure CLI is required for user authentication and Azure Active Directory Integration
    a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
-### Checking Prerequisites
+#### Checking Prerequisites
 
 To check prerequisites installed at the command prompt
 
@@ -29,54 +47,53 @@ node --version
 az --version
 ```
 
-## Installation
+#### Install
 
-### Local Install
-
-1. Download zip or clone repository
-
-2. Change to unzipped or cloned repository
-
-3. cd coe-cli
-
-```bash
-cd coe-cli
-```
-
-4. Install application dependencies
+1. Install application dependencies
 
 ```bash
 npm install
 ```
 
-5. Build the application
+2. Build the application
 
 ```bash
 npm run build
 ```
 
-6. Link to the CLI application
+3. Link to the CLI application
 
 ```bash
 npm link
 ```
 
-7. Install Azure CLI. Follow install instructions for you operating system at https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+NOTE:
+1. On Windows you may need to add %APPDATA%\npm to your PATH environment variable to access the coe command
+
+4. Install Azure CLI. Follow install instructions for you operating system at https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### Docker Install
 
-One method of installation is via docker
+One method of installation is via docker.
 
-1. Download zip or clone repository
+#### Prerequisites
 
-2. Build docker image
+To run the COE CLI application you will require the following
+
+1. A local install of [Docker](https://docs.docker.com/get-docker/)
+
+#### Install
+
+NOTE: Note on some operating systems you may need to use sudo before each of the docker commands.
+
+1. Build docker image. 
 
 ```bash
 cd coe-cli
 docker build -t coe-cli . 
 ```
 
-3. Using the docker image
+2. Using the docker image
 
 ```bash
 docker run -it --rm coe-cli
@@ -92,9 +109,16 @@ Once installed can use -h argument to see help options
 coe -h
 ```
 
+Authentication for tasks is managed using the Azure CLI. Using standard az cli commands you can login, logout and select accounts. For example
+
+```bash
+az login
+coe aa4am install -c add
+az logoff
+```
+
 ## Read More
 
-Once you have an install of the command line interface you can review the following commands
+Further reading
 
-- [ALM Accelerator for Advanced Makers](./aa4am/index.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to do more.
 - [COE CLI Upgrade](./upgrade.md) How to upgrade to a new version of the COE install.

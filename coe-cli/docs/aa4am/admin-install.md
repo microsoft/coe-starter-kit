@@ -8,7 +8,7 @@ Assuming a single user that has Power Platform Global Administrator, DevOps Admi
 
 ## Before You Start
 
-Complete [Before You Start](./before-you-start) to ensure that:
+Complete [Before You Start](./before-you-start.md) to ensure that:
 
 A) Power Platform Environments have been created
 
@@ -36,7 +36,7 @@ Which will generate a file similar to
   ],
   "aad": "ALMAcceleratorServicePrincipal",
   "group": "ALMAcceleratorForAdvancedMakers",
-  "devOpsOrganization": "https://dev.azure.com",
+  "devOpsOrganization": "https://dev.azure.com/dev1234",
   "project": "alm-sandbox",
   "repository": "pipelines",
   "settings": {
