@@ -7,7 +7,7 @@ import { AADAppInstallArguments, AADCommand } from './aad';
 import * as winston from 'winston';
 import { Environment } from '../common/enviroment';
 import * as urlModule from 'url';
-import { AA4AMCommand, AA4AMInstallArguments, AA4AMUserArguments } from './aa4am';
+import { AA4AMCommand, AA4AMUserArguments } from './aa4am';
 
 /**
  * Powerplatform commands

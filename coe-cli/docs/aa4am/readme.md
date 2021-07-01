@@ -8,8 +8,8 @@ Not sure what AA4AM is and how it can help? The main GitHub project [README](htt
 ## Getting Started
 
 - [Scenarios](./scenarios.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments
+- [Personas](./personas.md) - Understand the key personas and how they may to AA4AML CLI commands and the wider AA4AM process.
 - [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are being automated under the hood by the CLI commands
-- [Personas](./personas.md) - Understand the key personas that may be related to AA4AM.
 
 ## Overview
 

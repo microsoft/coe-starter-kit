@@ -32,193 +32,6 @@ import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
 
 /**
- * Install Arguments
- */
-class DevOpsInstallArguments {
-
-    constructor() {
-        this.extensions = []
-        this.environments = {}
-        this.azureActiveDirectoryServicePrincipal = 'ALMAcceleratorServicePrincipal'
-        this.accessTokens = {}
-        this.createSecretIfNoExist = true
-        this.endpoint = "prod"
-        this.settings = {}
-    }
-
-    /**
-     * The Bearer Auth access token
-     */
-    accessToken: string
-
-
-    /**
-     * Audance scoped access tokens
-     */
-    accessTokens: { [id: string]: string }
-
-    /**
-     * The power platform endpoint type
-     */
-    endpoint: string;
-
-    /**
-     * The name of the Azure DevOps Organization
-     */
-    organizationName: string
-    /**
-     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
-     */
-    repositoryName: string
-    /**
-     * The name of the project that the Accelerator has been deployed to
-     */
-    projectName: string
-
-    /**
-     * The name of the Azure account. Required if access to more than one Azure account
-     */
-    account: string
-
-    /**
-     * The client id to use for authentication
-     */
-    clientId: string
-
-    /**
-     * The Azure Active directory application name will use to integrate with Azure DevOps
-     */
-    azureActiveDirectoryServicePrincipal: string
-
-    /**
-     * The azure active directory makers group
-    */
-    azureActiveDirectoryMakersGroup: string
-
-    /**
-     * The DevOps extension to install
-     */
-    extensions: DevOpsExtension[]
-
-    /**
-     * Create secret if not exist
-     */
-    createSecretIfNoExist: boolean
-
-    /**
-     * The Azure DevOps environment
-     */
-    environment: string
-
-    /**
-    * The Azure DevOps environments
-    */
-    environments: { [id: string]: string }
-
-    /**
-    * Optional settings
-    */
-    settings: { [id: string]: string }
-
-    /**
-    * The user to associate with this connection
-    */
-    user: string
-}
-
-type DevOpsExtension = {
-    /**
-     * The extension name
-     */
-    name: string
-
-    /**
-     * The publisher name
-     */
-    publisher: string
-}
-
-/**
- * Branch Arguments
- */
-class DevOpsBranchArguments {
-    constructor() {
-        this.settings = {}
-    }
-
-    /**
-     * The Bearer Auth access token
-     */
-    accessToken: string
-
-    /**
-     * Scoped access tokens
-     */
-    accessTokens: { [id: string]: string }
-
-    /**
-     * The name of the Azure DevOps Organization
-     */
-    organizationName: string
-    /**
-     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
-     */
-    repositoryName: string
-    /**
-     * The name of the project that the Accelerator has been deployed to
-     */
-    projectName: string
-    /**
-     * The source branch to branch from (Optional). If not defined will use default branch
-     */
-    sourceBranch: string
-
-    /**
-     * The source build name to copy setup from> if not defained will create initial values that will need to be updated
-     */
-    sourceBuildName: string
-
-    /**
-     * The name of the branch to create
-     */
-    destinationBranch: string
-
-    /**
-     * Open default web configuration pages
-     */
-    openDefaultPages: boolean
-
-    /**
-    * Optional settings
-    */
-    settings: { [id: string]: string }
-}
-
-type ServiceConnectorReference = string | any
-
-type DevOpsProjectSecurityContext = {
-    /**
-     * The project id
-     */
-    projectId: string
-
-    /**
-     * The ALM Azure DevOps Group
-     */
-    almGroup: GraphGroup
-
-    /**
-     * The Azure DevOps service for REST API calls
-     */
-    securityUrl: string
-
-    /**
-     * The extension name
-     */
-    projectDescriptor: string
-}
-
-/**
 * Azure DevOps Commands
 */
 class DevOpsCommand {
@@ -1403,6 +1216,193 @@ type MembershipResponse = {
 type GraphMembership = {
     containerDescriptor: string
     memberDescriptor: string
+}
+
+/**
+ * Install Arguments
+ */
+ class DevOpsInstallArguments {
+
+    constructor() {
+        this.extensions = []
+        this.environments = {}
+        this.azureActiveDirectoryServicePrincipal = 'ALMAcceleratorServicePrincipal'
+        this.accessTokens = {}
+        this.createSecretIfNoExist = true
+        this.endpoint = "prod"
+        this.settings = {}
+    }
+
+    /**
+     * The Bearer Auth access token
+     */
+    accessToken: string
+
+
+    /**
+     * Audance scoped access tokens
+     */
+    accessTokens: { [id: string]: string }
+
+    /**
+     * The power platform endpoint type
+     */
+    endpoint: string;
+
+    /**
+     * The name of the Azure DevOps Organization
+     */
+    organizationName: string
+    /**
+     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
+     */
+    repositoryName: string
+    /**
+     * The name of the project that the Accelerator has been deployed to
+     */
+    projectName: string
+
+    /**
+     * The name of the Azure account. Required if access to more than one Azure account
+     */
+    account: string
+
+    /**
+     * The client id to use for authentication
+     */
+    clientId: string
+
+    /**
+     * The Azure Active directory application name will use to integrate with Azure DevOps
+     */
+    azureActiveDirectoryServicePrincipal: string
+
+    /**
+     * The azure active directory makers group
+    */
+    azureActiveDirectoryMakersGroup: string
+
+    /**
+     * The DevOps extension to install
+     */
+    extensions: DevOpsExtension[]
+
+    /**
+     * Create secret if not exist
+     */
+    createSecretIfNoExist: boolean
+
+    /**
+     * The Azure DevOps environment
+     */
+    environment: string
+
+    /**
+    * The Azure DevOps environments
+    */
+    environments: { [id: string]: string }
+
+    /**
+    * Optional settings
+    */
+    settings: { [id: string]: string }
+
+    /**
+    * The user to associate with this connection
+    */
+    user: string
+}
+
+type DevOpsExtension = {
+    /**
+     * The extension name
+     */
+    name: string
+
+    /**
+     * The publisher name
+     */
+    publisher: string
+}
+
+/**
+ * Branch Arguments
+ */
+class DevOpsBranchArguments {
+    constructor() {
+        this.settings = {}
+    }
+
+    /**
+     * The Bearer Auth access token
+     */
+    accessToken: string
+
+    /**
+     * Scoped access tokens
+     */
+    accessTokens: { [id: string]: string }
+
+    /**
+     * The name of the Azure DevOps Organization
+     */
+    organizationName: string
+    /**
+     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
+     */
+    repositoryName: string
+    /**
+     * The name of the project that the Accelerator has been deployed to
+     */
+    projectName: string
+    /**
+     * The source branch to branch from (Optional). If not defined will use default branch
+     */
+    sourceBranch: string
+
+    /**
+     * The source build name to copy setup from> if not defained will create initial values that will need to be updated
+     */
+    sourceBuildName: string
+
+    /**
+     * The name of the branch to create
+     */
+    destinationBranch: string
+
+    /**
+     * Open default web configuration pages
+     */
+    openDefaultPages: boolean
+
+    /**
+    * Optional settings
+    */
+    settings: { [id: string]: string }
+}
+
+type ServiceConnectorReference = string | any
+
+type DevOpsProjectSecurityContext = {
+    /**
+     * The project id
+     */
+    projectId: string
+
+    /**
+     * The ALM Azure DevOps Group
+     */
+    almGroup: GraphGroup
+
+    /**
+     * The Azure DevOps service for REST API calls
+     */
+    securityUrl: string
+
+    /**
+     * The extension name
+     */
+    projectDescriptor: string
 }
 
 export {
