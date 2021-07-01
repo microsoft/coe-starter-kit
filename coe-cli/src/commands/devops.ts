@@ -282,15 +282,15 @@ class DevOpsCommand {
 
         let repo = await this.importPipelineRepository(args, connection)
 
-        await this.createAdvancedMakersBuildPipelines(args, connection, repo)
+        if (repo !== null) {
+            await this.createAdvancedMakersBuildPipelines(args, connection, repo)
 
-        let securityContext = await this.setupSecurity(args, connection)
-
-        await this.createAdvancedMakersBuildVariables(args, connection, securityContext)
-
-        await this.createAdvancedMakersServiceConnections(args, connection)
-
-        
+            let securityContext = await this.setupSecurity(args, connection)
+    
+            await this.createAdvancedMakersBuildVariables(args, connection, securityContext)
+    
+            await this.createAdvancedMakersServiceConnections(args, connection)    
+        }
     }
 
     async setupSecurity(args: DevOpsInstallArguments, connection: azdev.WebApi): Promise<DevOpsProjectSecurityContext> {
@@ -504,6 +504,10 @@ class DevOpsCommand {
         this.logger.info(`Checking pipeline repository`)
         let repo = await this.getRepository(args, gitApi)
 
+        if (repo == null) {
+            return Promise.resolve(null)
+        }
+
         let refs = await gitApi.getRefs(repo.id, args.projectName)
 
         if (refs.length == 0) {
@@ -539,7 +543,13 @@ class DevOpsCommand {
 
     private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi): Promise<GitRepository> {
         let repos = await gitApi.getRepositories(args.projectName);
-        if (repos.filter(r => r.name == args.repositoryName).length == 0) {
+
+        if (repos == null) {
+            this.logger?.error(`${args.projectName} not found`)
+            return Promise.resolve(null)
+        }
+
+        if (repos?.filter(r => r.name == args.repositoryName).length == 0) {
             this.logger?.debug(`Creating repository ${args.repositoryName}`)
             return await gitApi.createRepository(<GitRepositoryCreateOptions>{ name: args.repositoryName }, args.projectName)
         } else {
