@@ -393,7 +393,7 @@ class CoeCliCommands {
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
-            .option('-u, --user <name>', 'The azure active directory user to assign to the connection')
+            .option('-u, --user <name>', 'The optional azure active directory user to assign to the connection')
             .option('-s, --settings <namevalues>', 'Optional settings')
             .addOption(logOption)
             .action(async (options:any) => {                

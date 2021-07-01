@@ -18,7 +18,7 @@ To install the COE CLI
 cd coe-cli
 ```
 
-Nxt select either [Local Install](#local-install) or [Docker Install](#docker-install)
+Next select either [Local Install](#local-install) or [Docker Install](#docker-install)
 
 ### Local Install
 
