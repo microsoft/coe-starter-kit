@@ -30,7 +30,7 @@ coe aa4am branch -o dev12345 -p alm-sandbox -d MyTestSolution
 
 - **Information Security Team** - Will compare against organization standards for Data Loss Prevention (DLP), Authentication and Authorization, Service Principals, Teams and Security. Review the ALM process against Threat models, risks and mitigations.
 
-- **Architecture Team**I - Review the entire ALM process and components and verify matches solution methodology and architecture
+- **Architecture Team** - Review the entire ALM process and components and verify matches solution methodology and architecture
 
 - **Administrators**
   - **Power Platform Tenant Administrator** - Global right to Power Platform Administration - Manage Environments (Create, Update, Delete). Common commands
