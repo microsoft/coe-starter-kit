@@ -104,7 +104,7 @@ The CLI provides the following key steps. (Source code file [powerplatform.ts](.
 
 2. Fix Custom Connectors used to connect to Azure DevOps
 
-3. Connect Flow to Common data service
+3. Connect Flow to Dataverse
 
 4. Add the user to the Azure Active Directory Service Principal to the power platform environments
 
@@ -116,7 +116,7 @@ The AA4AM CLI commands currently assume the following environments have been cre
 
 1. Maker Environment
 
-   - Require Common Data Service to be enabled
+   - Require Dataverse to be enabled
 
    - Created "Microsoft Dataverse (legacy)" connection - [Read More](./before-you-start.md#maker-environment-common-data-service)
 

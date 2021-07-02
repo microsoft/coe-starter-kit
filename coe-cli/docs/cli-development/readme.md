@@ -1,6 +1,6 @@
 # Overview
 
-This document outlines the following key sections on the COE CLI.
+This document outlines the following key sections on the COE CLI. The information below can help guide you in making contributions back to the open source repository.
 
 - [Quick Start](#quick-start) - Provides set of links of the technology used to build and test the CLI
 
