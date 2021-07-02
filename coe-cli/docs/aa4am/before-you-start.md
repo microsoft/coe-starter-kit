@@ -84,6 +84,6 @@ Notes:
 
 Once you have verified the above
 
-1. Determine the install [deployment scenario](./scenarios.md) you are targeting
+1. Determine the install [deployment scenario](./scenarios/readme.md) you are targeting
 1. Complete the [Admin Install](./admin-install.md)
   
