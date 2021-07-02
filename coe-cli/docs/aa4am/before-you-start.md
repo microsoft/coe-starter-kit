@@ -4,7 +4,7 @@ Before you start an install of AA4AM ensure that you have the following in place
 
 ## COE Command Line
 
-Install the COE CLI [locally](../readme.md#local-install) or via a [docker image](../readme.md#docker-install)
+Install the COE CLI [locally](../install.md#local-install) or via a [docker image](../install.md#docker-install)
 
 ## Power Platform
 
