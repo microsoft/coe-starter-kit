@@ -34,7 +34,7 @@ In this scenario the following is assumed:
 
 - Each Azure DevOps organization can have a different set of users protected bu different Role Based Access Security Rules
 
-- Multiple pipelines can bbe defined and used at an Azure DevOps level that allow solutions to be deployed to different validation, test and production environments.
+- Multiple pipelines can be defined and used at an Azure DevOps level that allow solutions to be deployed to different validation, test and production environments.
 
 ## Multiple Power Platform Environments and DevOps
 
