@@ -20,7 +20,7 @@ Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
 ## Demonstration Deployment
 
-In this scenario you are looking to quickly install AA4AM to demonstrate how it works and demonstrate the end to end process. For this scenario the following is assumed.
+In this scenario you are looking to quickly install AA4AM to demonstrate how it works and demonstrate the end to end process. For this scenario the following is expected.
 
 1. Using Trial tenant and environments to demonstrate the solution
 1. Single Administrator that has rights to the
@@ -49,7 +49,7 @@ Finally makers can then [Setup Managed Solutions](./maker-setup.md)
 
 ## Enterprise Deployment
 
-In this scenario the aim is to install AA4AM inside an enterprise tenant and the following is assumed.
+In this scenario the aim is to install AA4AM inside an enterprise tenant and the following is expected.
 
 1. Likely to have different administration teams. For example
    - Azure Active Directory Administrators
@@ -77,7 +77,7 @@ To install the solution resources the following options can be used
 coe aa4am install -c aad
 ```
 
-2. Using a shared configuration file and setting install.json components to aad
+2. Using a shared configuration file and setting components array value to be [ "aad" ]
 
 ```json
 {

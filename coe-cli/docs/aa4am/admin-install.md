@@ -1,6 +1,6 @@
 # Overview
 
-To complete the initial steps to install of an Advanced Makers deployment you wil need to complete the administrative tasks. Once this is done Advances Makers can create and register development environments.
+To complete the initial steps of an AA4AM deployment you will need to complete the administrative tasks. Once this is done Advances Makers can create and register development environments.
 
 ![ALM Accelerator for Advanced Makers Install Overview](./aa4am-install-overview.svg)
 

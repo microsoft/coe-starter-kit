@@ -12,7 +12,7 @@ The Azure DevOps Pipeline uses a Azure Active Directory service principal to con
 az logout
 ```
 
-2. Ensure the Application User has access access to the development environment. This step only needs to be completed once
+2. To ensure the Application User has access to the development environment you need to run the following command
 
 ```bash
 coe aa4am user add -e https://org12345-dev.crm.dynamics.com

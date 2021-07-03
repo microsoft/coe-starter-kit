@@ -858,7 +858,7 @@ class DevOpsCommand {
                 let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
 
                 if (refs.length == 0) {
-                    this.logger.info("No commits to this repository yet. Initialize this repository before creating new branches")
+                    this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
                     return Promise.resolve(null)
                 }
 
@@ -1095,7 +1095,7 @@ class DevOpsCommand {
             }
         }
 
-        this.logger?.info(util.format("Creating new build %s", destinationBuildName));
+        this.logger?.info(util.format("Creating new pipeline %s", destinationBuildName));
         var newBuild = <BuildInterfaces.BuildDefinition>{};
         newBuild.name = destinationBuildName;
         let process = <BuildInterfaces.YamlProcess>{};
