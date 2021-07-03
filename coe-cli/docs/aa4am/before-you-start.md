@@ -10,8 +10,8 @@ Install the COE CLI [locally](../install.md#local-install) or via a [docker imag
 
 Environment | Description
 ----------- | -------------
-Maker | Environment with Dataverse enabled. Will be used to deploy managed solution.
-Maker - Dataverse Connection | See [Maker Environment Dataverse](#maker-environment-dataverse) below to create the Dataverse Connection
+ALM Environment | Environment with Dataverse enabled. Will be used to deploy managed solution.
+ALM Environment - Dataverse Connection | See [Maker Environment Dataverse](#maker-environment-dataverse) below to create the Dataverse Connection
 Validation | Environment used to validate builds before merging into a solution branch              |
 Test | Pre production Environment used to test solutions before moving to production          |
 Production | Production Environment for managed solutions                                          |
@@ -25,7 +25,7 @@ Notes:
    4) Select Create Tenant
    5) Select tennat location
    6) Select "Dynamics 365 Customer Engagement"
-3. Sample environment from https://admin.powerplatform.microsoft.com/environments
+3. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
 
    ![Environments](../images/environments.jpg)
 

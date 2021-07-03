@@ -1,6 +1,6 @@
 # Scenarios
 
-As you plan you ALM Accelerator for Advanced Makers (AA4AM) one of more of the following scenarios may apply to you.
+As you plan you ALM Accelerator for Advanced Makers (AA4AM) one or more of the following scenarios may apply to you.
 
 - [Tenant Deployments](./tenant-deployments.md) - Discusses different Azure Active Directory configurations across Demo, Single AAD and Multiple AAD deployment models.
 

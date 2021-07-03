@@ -172,7 +172,7 @@ class CoeCliCommands {
                 settings.addOption(environments)
                 settings.option("--validation", "Validation Environment Name", "yourenvironment-validation");     
                 settings.option("--test", "Test Environment Name", "yourenvironment-test");     
-                settings.option("--prod", "Test Environment Name", "yourenvironment-prod");     
+                settings.option("--prod", "Production Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
                 settings.addOption(regionOptions)
 
