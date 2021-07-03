@@ -4,7 +4,7 @@ Understanding the roles that different personas play in ALM Accelerator for Adva
 
 ## Persona Command Mapping
 
-![Common Commands](./aa4am-commands-summary.svg)
+![Common Commands](../images/aa4am-command-summary.png)
 
 ### Solution Setup
 

@@ -4,7 +4,7 @@ AA4AM can be deployed in the following scenarios single demo tenant, single ente
 
 Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
-![Deployments Scenarios](./deployments.svg)
+![Deployments Scenarios](../../images/aa4am-deployments.png)
 
 ## Factors to Consider
 

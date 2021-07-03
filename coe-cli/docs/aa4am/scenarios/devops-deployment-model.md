@@ -1,6 +1,6 @@
 # DevOps Deployment Model
 
-![DevOps Scenarios](./aa4am-devops-install.svg)
+![DevOps Scenarios](../../images/aa4am-devops-deployment-model.png)
 
 ## Factors to Consider
 
