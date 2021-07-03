@@ -12,7 +12,7 @@ Once you have an install of the command line interface and it's [pre-requisites]
 
 The COE CLI has been design to provide a set of commands that different [personas](./aa4am/personas.md) across the organization can use to automate the process of installing COE components covering Azure, Azure DevOps and the Power Platform. 
 
-![CLI Unified](./images/cli-unified.png)
+![CLI Unified](./images/cli-unified-process.png)
 
 The COE CLI wraps existing CLI and APIs so that there is a set of commands that can be used to holistically automate the end to end Microsoft Solution deployment required by COE services. 
 
