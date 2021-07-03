@@ -2,7 +2,7 @@
 
 To complete the initial steps of an AA4AM deployment you will need to complete the administrative tasks. Once this is done Advances Makers can create and register development environments.
 
-![ALM Accelerator for Advanced Makers Install Overview](./aa4am-install-overview.svg)
+![ALM Accelerator for Advanced Makers Install Overview](../images/aa4am-install-overview.png)
 
 Assuming a single user that has Power Platform Global Administrator, DevOps Administrator rights and Azure Active directory Administrator rights the install process has the following main sections below.
 
