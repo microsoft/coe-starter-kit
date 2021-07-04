@@ -22,6 +22,7 @@ C) COE CLI installed
 
 ```bash
 coe aa4am generate install -o test.json
+
 ```
 
 Which will generate a file similar to
@@ -62,6 +63,7 @@ Which will generate a file similar to
 
 ```bash
 coe aa4am install -f test.json
+
 ```
 
 ## Read Next

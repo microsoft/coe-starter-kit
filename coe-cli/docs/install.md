@@ -10,6 +10,7 @@ To install the COE CLI
 
 ```bash
 cd coe-cli
+
 ```
 
 Next select either [Local Install](#local-install) or [Docker Install](#docker-install)
@@ -33,12 +34,14 @@ To check prerequisites installed at the command prompt
 
 ```bash
 node --version
+
 ```
 
 2. Verify Azure CLI Version
 
 ```bash
 az --version
+
 ```
 
 ### Install
@@ -47,18 +50,21 @@ az --version
 
 ```bash
 npm install
+
 ```
 
 2. Build the application
 
 ```bash
 npm run build
+
 ```
 
 3. Link to the CLI application
 
 ```bash
 npm link
+
 ```
 
 NOTE:

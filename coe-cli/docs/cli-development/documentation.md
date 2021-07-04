@@ -21,6 +21,7 @@ A. Install termtosvg in a unix terminal
 
 ```bash
 pip3 install --user termtosvg
+
 ```
 
 This process will work cross platform and any of the following options could be used:
@@ -36,6 +37,7 @@ B. Record the session to a cast file
 
 ```bash
 termtosvg record test.cast
+
 ```
 
 The generated cast file is a simple text file that can be edited with any text editor.
@@ -44,12 +46,14 @@ C. Remove pauses using [term-trim.ps1](..\..\scripts\term-trim.ps1)
 
 ```bash
 ./term-trim.ps1 -Input test.cast -Output test2.cast -Trim 1
+
 ```
 
 D. Generate the svg file
 
 ```bash
 termtosvg render test2.cast test.svg -t window_frame
+
 ```
  
 

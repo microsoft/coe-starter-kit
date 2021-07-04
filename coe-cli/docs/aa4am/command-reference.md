@@ -10,6 +10,7 @@ You can start by generating a configuration file for you install using the follo
 
 ```bash
 coe aa4am generate install -o test.json
+
 ```
 
 This will ask you a series of questions for the values which you can then edit and review before starting install
@@ -50,6 +51,7 @@ To start an install with you configured settings you can use thw following.
 
 ```bash
 coe aa4am install -f test.json
+
 ```
 
 #### Install All Pre-requisites
@@ -57,7 +59,9 @@ coe aa4am install -f test.json
 Install aad, DevOps and environment components using the default parameters
 
 ```bash
-coe aa4am install -e https://contoso-maker.crm.microsoft.com -o https://dev.azure.com/dev12345 -p alm-sandbox
+coe aa4am install -e https://contoso-maker.crm.microsoft.com \
+  -o https://dev.azure.com/dev12345 \
+  -p alm-sandbox
 ```
 
 Will install Managed application the AAD application and Azure DevOps components
@@ -68,6 +72,7 @@ To install just the Azure Active Directory components using the default paramete
 
 ```bash
 coe aa4am install -c aad
+
 ```
 
 Will login using the Azure CLI user and attempt to install the Azure Active Directory application required for Azure DevOps and the Application User that wil be used to interact Power Platform environments.
@@ -78,6 +83,7 @@ To install just the DevOps components you can run the following command. This st
 
 ```bash
 coe aa4am install -c devops -o https://dev.azure.com/dev12345 -p alm-sandbox
+
 ```
 
 Steps by performed by the command:
@@ -97,6 +103,7 @@ Install the Managed Solution to administer the application. This step assumes th
 
 ```bash
 coe aa4am install -c environment -e https://org12345-dev.crm.microsoft.com
+
 ```
 
 Steps by performed by the command:
@@ -107,7 +114,10 @@ Steps by performed by the command:
 For each developer environments you create you will need to create a service connection from Azure DevOps to the environment
 
 ```bash
-coe aa4am maker add -o https://dev.azure.com/dev12345 -p alm-sandbox -e https://org12345-dev.crm.microsoft.com -u name@contoso.com
+coe aa4am maker add -o https://dev.azure.com/dev12345 \
+  -p alm-sandbox \
+  -e https://org12345-dev.crm.microsoft.com \
+  -u name@contoso.com
 ```
 
 Notes:
@@ -119,7 +129,8 @@ Notes:
 Each environment that the solution imports and exports from needs the Azure Active Directory application added as an Application user
 
 ```bash
-coe aa4am user add -e https://org12345-dev.crm.microsoft.com -a ALMAcceleratorServicePrincipal
+coe aa4am user add -e https://org12345-dev.crm.microsoft.com \
+  -a ALMAcceleratorServicePrincipal
 ```
 
 Notes:
@@ -131,7 +142,9 @@ Notes:
 One setup you can create a solution branch and the associated Azure DevOps Pipelines
 
 ```bash
-coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MyTestSolution
+coe aa4am branch -o https://dev.azure.com/dev12345 \
+  -p alm-sandbox \
+  -d MyTestSolution
 ```
 
 -o is the devops organization name
@@ -142,4 +155,5 @@ More help is available from
 
 ```bash
 coe aa4am branch --help
+
 ```

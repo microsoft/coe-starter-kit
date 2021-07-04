@@ -42,7 +42,10 @@ coe aa4am install -f test.json
 Then add a demo user as a maker
 
 ```bash
-coe aa4am maker add -e https://alans-dev.crm.dynamics.com -o https://dev.azure.com/contoso-dev -p alm-sandbox -u alans@crm716415.onmicrosoft.com
+coe aa4am maker add -e https://alans-dev.crm.dynamics.com \
+   -o https://dev.azure.com/contoso-dev \
+   -p alm-sandbox \
+   -u alans@crm716415.onmicrosoft.com
 ```
 
 Finally makers can then [Setup Managed Solutions](./maker-setup.md)
@@ -75,6 +78,7 @@ To install the solution resources the following options can be used
 
 ```bash
 coe aa4am install -c aad
+
 ```
 
 2. Using a shared configuration file and setting components array value to be [ "aad" ]
@@ -114,13 +118,16 @@ coe aa4am install -c aad
 #### Azure DevOps
 
 ```bash
-coe aa4am install -c devops -o https://dev.azure.com/contoso-dev -p alm-sandbox
+coe aa4am install -c devops \
+  -o https://dev.azure.com/contoso-dev \
+  -p alm-sandbox
 ```
 
 #### Power Platform Environment
 
 ```bash
 coe aa4am install -f install.json
+
 ```
 
 ```json

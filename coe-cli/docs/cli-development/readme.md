@@ -53,6 +53,7 @@ NOTES:
 
 ```bash
 az logout
+
 ```
 
 ### Debugging Commands
