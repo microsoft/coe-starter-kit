@@ -15,12 +15,14 @@ OR
 
 ```bash
 git pull
+
 ```
 
 ONe you have a local version of the coe-cli change to coe-cli folder
 
 ```
 cd coe-cli
+
 ```
 
 ### Local Upgrade
@@ -31,18 +33,21 @@ In the coe-cli folder run the following commands
 
 ```bash
 npm install
+
 ```
 
 5. Build the new version
 
 ```bash
 npm run build
+
 ```
 
 6. Update coe to new version
 
 ```bash
 npm link --force
+
 ```
 
 ## Docker Image
@@ -53,5 +58,6 @@ In the coe-cli folder run the following commands
 
 ```bash
 docker build -t coe-cli .
+
 ```
 

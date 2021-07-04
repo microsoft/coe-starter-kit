@@ -10,12 +10,14 @@ The Azure DevOps Pipeline uses a Azure Active Directory service principal to con
 
 ```bash
 az logout
+
 ```
 
 2. To ensure the Application User has access to the development environment you need to run the following command
 
 ```bash
 coe aa4am user add -e https://org12345-dev.crm.dynamics.com
+
 ```
 
 ## Maker Create Solution
@@ -36,6 +38,7 @@ Once the environment has been setup and your development environment created and
 
 ```bash
 coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MySolution1
+
 ```
 
 NOTES:

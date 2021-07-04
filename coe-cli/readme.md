@@ -47,6 +47,7 @@ Once installed can use -h argument to see help options
 
 ```bash
 coe -h
+
 ```
 
 Authentication for tasks is managed using the Azure CLI. Using standard az cli commands you can login, logout and select accounts. For example
