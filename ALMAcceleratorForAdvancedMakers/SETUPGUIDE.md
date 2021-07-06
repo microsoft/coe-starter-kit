@@ -177,7 +177,7 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 
    ![clone-template-repository](.attachments/SETUPGUIDE/clone-template-repository-1.png)
 
-1. Enter https://github.com/microsoft/coe-alm-accelerator-templates as the **Clone URL** and click **Import**
+1. Enter https://github.com/microsoft/coe-alm-accelerator-templates as the **Clone URL** and select **Import**
 1. Check that the default branch for this repo is `main`. Choose **Repos** and **Branches** and ensure that the `main` branch is tagged as the default:
    ![Check default branch on imported repository](.attachments/SETUPGUIDE/check-default-branch-imported-repository.png)
    If it is not, select the 3 vertical dots corresponding to the `main` branch and from the **More options** menu, choose **Set as default branch**
@@ -216,7 +216,7 @@ Following the steps below to create the following pipelines based on the YAML in
     |--|--|
     | CdsBaseConnectionString  | AuthType=ClientSecret;ClientId=\$(ClientId);ClientSecret=\$(ClientSecret);Url= |
     | ClientId  | [The Application (client) ID you copied when creating the App Registration] |
-    | ClientSecret | [The Application (client) Secret you copied when creating the App Registration] NOTE: It's recommeded that you secure this value by clicking the lock next to the value so others can't see your secret. |
+    | ClientSecret | [The Application (client) Secret you copied when creating the App Registration] NOTE: It's recommeded that you secure this value by selecting the lock next to the value so others can't see your secret. |
     | TenantID  | [The Directory (tenant) ID you copied when creating the App Registration] |
 
 ### Update Permissions for the Project Build Service
@@ -245,24 +245,6 @@ Following the steps below to create the following pipelines based on the YAML in
 ## Development Project Setup
 
 The following section will guide you through the setup steps required for each of the Development Projects you will support. In this context a Development Project signifies the required infrastructure and configuration needed to support healthy ALM including configuration of you Dataverse environment that will support the ALM process.
-
-### Create an App User in your Dataverse Environments
-
-**Each environment (i.e. Development, Validation, Test and Production) will need to have an Application User.** For each of your environments follow the steps below to setup the Application User.
-
-1. Go to Power Platform Admin Center [https://aka.ms/ppac](https://aka.ms/ppac)
-1. Select your environment
-1. Click **Settings**
-   ![Click environment settings](.attachments/SETUPGUIDE/environment-settings.png)
-1. Click **Users + permissions** > **Application users**
-   ![Click application users](.attachments/SETUPGUIDE/environment-settings-applications-users.png)
-1. Click **New app user** to add a new Application user
-   ![Click new app user](.attachments/SETUPGUIDE/environment-new-app-user.png)
-1. Select the **Azure App Registration** you created, **Business Unit** and **Security Role**
-   ![Select app regsitration, business unit and security role](.attachments/SETUPGUIDE/create-new-app-user.png)
-
-    >[!NOTE] It's recommended you give this user System Administrator rights to be able to perform the required functions in each of the environments.
-1. Repeat these steps as needed for each of your environments (i.e. Development, Validation, Test and Production).
 
 ### Create Service Connections for DevOps to access Power Platform
 
@@ -300,6 +282,30 @@ Each Dataverse environment (e.g Development, Validation, Test and Production) wi
     - Select the **User** **Role** and Select **Add**
 
       ![image-20210401093313321](.attachments/SETUPGUIDE/SetServiceConnectionPermissions.png)
+
+1. Repeat these steps as needed for each of your environments (i.e. Development, Validation, Test and Production).
+
+### Create an App User in your Dataverse Environments
+
+**Each environment (i.e. Development, Validation, Test and Production) will need to have an Application User.** For each of your environments follow the steps below to setup the Application User.
+
+1. Go to Power Platform Admin Center [https://aka.ms/ppac](https://aka.ms/ppac)
+
+1. Select your environment
+
+1. Select **Settings**
+   ![Select environment settings](.attachments/SETUPGUIDE/environment-settings.png)
+
+1. Select **Users + permissions** > **Application users**
+   ![Select application users](.attachments/SETUPGUIDE/environment-settings-applications-users.png)
+
+1. Select **New app user** to add a new Application user
+   ![Select new app user](.attachments/SETUPGUIDE/environment-new-app-user.png)
+
+1. Select the **Azure App Registration** you created, **Business Unit** and **Security Role**
+   ![Select app regsitration, business unit and security role](.attachments/SETUPGUIDE/create-new-app-user.png)
+
+    >[!NOTE] It's recommended you give this user System Administrator rights to be able to perform the required functions in each of the environments.
 
 1. Repeat these steps as needed for each of your environments (i.e. Development, Validation, Test and Production).
 
@@ -488,7 +494,7 @@ In order to leverage executing the build pipeline for your solution when a **Pul
 
 1. On the **Branch Policies** screen go to **Build Validation**
 
-1. Click the **+ Button** to add a **new Branch Policy**
+1. Select the **+ Button** to add a **new Branch Policy**
 
    ![image-20210301103528302](.attachments/GETTINGSTARTED/image-20210301103528302.png)
 
@@ -504,7 +510,7 @@ In order to leverage executing the build pipeline for your solution when a **Pul
 
 1. Set a **Display name** for your Branch Policy (e.g. PR Build Validation)
 
-1. Click **Save**
+1. Select **Save**
 
    ![image-20210301104042544](.attachments/GETTINGSTARTED/image-20210301104042544.png)
 
@@ -528,13 +534,13 @@ Download the **latest managed solution**(s) from GitHub (https://github.com/micr
 
 3. Select **Solutions** from the left navigation.
 
-4. Click **Import** and Browse to the location of the managed solution you downloaded.
+4. Select **Import** and Browse to the location of the managed solution you downloaded.
 
-5. Click **Next** and **Next** again.
+5. Select **Next** and **Next** again.
 
 6. On the Connections page select or create a new connection to use to connect to Dataverse for the **CDS DevOps connection**.
 
-7. Click **Import** and wait for the solution to complete the import process.
+7. Select **Import** and wait for the solution to complete the import process.
 
 ### Configure the Azure DevOps Custom Connector.
 
@@ -573,12 +579,10 @@ See the [User Guide](USERGUIDE.md) for using the ALM Accelerator App
 
 ## Troubleshooting
 
-- When you setup your pipelines such that the pipeline templates are stored in a different repository than the solution pipeline you may get the following message when trying to run your pipeline for the first time. To eliminate the error select the **Permit** button to grant the repo running the pipeline access to the template repository.
+When you setup your pipelines such that the pipeline templates are stored in a different repository than the solution pipeline you may get the following message when trying to run your pipeline for the first time. To eliminate the error select the **Permit** button to grant the repo running the pipeline access to the template repository.
 
 ![image-20210311114131170](.attachments/GETTINGSTARTED/image-20210311114131170.png)
 
-Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in Project -> Settings -> General. This setting is turned on by default when you create a new project.
+Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in **Project -> Settings -> General**. This setting is turned on by default when you create a new project.  ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png)
 
-   ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png)
-
-   Note that the project settings can be overridden at the Azure DevOps organization level, so if the option to change this is disabled in project settings, check in Organization Settings.
+>  [NOTE!] that the project settings can be overridden at the Azure DevOps organization level, so if the option to change this is disabled in project settings, check in Organization Settings.
