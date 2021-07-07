@@ -45,6 +45,15 @@
           "connectionReferenceLogicalName": "admin_CoEGovO365Users"
         },
         "runtimeSource": "embedded"
+      },
+      "shared_office365users_1": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
       }
     },
     "definition": {
@@ -121,7 +130,7 @@
                             "operationId": "UserProfile_V2"
                           },
                           "parameters": {
-                            "$select": "displayName, mail",
+                            "$select": "displayName, mail, statusCode",
                             "id": "@variables('FlowOwnerID')"
                           },
                           "retryPolicy": {
@@ -229,7 +238,7 @@
                       {
                         "equals": [
                           "@variables('isProd')",
-                          "no"
+                          "False"
                         ]
                       },
                       {
@@ -261,34 +270,70 @@
                 },
                 "If_DerivedOwner_is_null,_set_to_Creator": {
                   "actions": {
-                    "Set_FlowOwnerID_to_Creator": {
-                      "inputs": {
-                        "name": "FlowOwnerID",
-                        "value": "@{items('Create_Archival_Request_for_Each_')?['admin_flowcreatorupn']}"
-                      },
-                      "runAfter": {
-                        "Update_Flow_DerivedOwner": [
-                          "Succeeded"
-                        ]
-                      },
-                      "type": "SetVariable"
-                    },
-                    "Update_Flow_DerivedOwner": {
+                    "Get_flow_creator": {
                       "inputs": {
                         "authentication": "@parameters('$authentication')",
                         "host": {
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                          "connectionName": "shared_commondataserviceforapps",
-                          "operationId": "UpdateRecord"
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                          "connectionName": "shared_office365users_1",
+                          "operationId": "UserProfile_V2"
                         },
                         "parameters": {
-                          "entityName": "admin_flows",
-                          "item/admin_DerivedOwner@odata.bind": "admin_makers(@{items('Create_Archival_Request_for_Each_')?['admin_flowcreatorupn']})",
-                          "recordId": "@items('Create_Archival_Request_for_Each_')?['admin_flowid']"
+                          "$select": "statusCode",
+                          "id": "@items('Create_Archival_Request_for_Each_')?['admin_flowcreatorupn']"
                         }
                       },
                       "runAfter": {},
                       "type": "OpenApiConnection"
+                    },
+                    "Switch_on_Flow_Creator_Lookup": {
+                      "cases": {
+                        "200_Success": {
+                          "actions": {
+                            "Set_FlowOwnerID_to_Creator": {
+                              "inputs": {
+                                "name": "FlowOwnerID",
+                                "value": "@{items('Create_Archival_Request_for_Each_')?['admin_flowcreatorupn']}"
+                              },
+                              "runAfter": {
+                                "Update_Flow_DerivedOwner": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "SetVariable"
+                            },
+                            "Update_Flow_DerivedOwner": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "item/admin_DerivedOwner@odata.bind": "admin_makers(@{items('Create_Archival_Request_for_Each_')?['admin_flowcreatorupn']})",
+                                  "recordId": "@items('Create_Archival_Request_for_Each_')?['admin_flowid']"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "case": 200
+                        }
+                      },
+                      "default": {
+                        "actions": {}
+                      },
+                      "expression": "@outputs('Get_flow_creator')['statusCode']",
+                      "runAfter": {
+                        "Get_flow_creator": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      },
+                      "type": "Switch"
                     }
                   },
                   "expression": {
@@ -663,7 +708,7 @@
                             },
                             "parameters": {
                               "ApprovalCreationInput/assignedTo": "@{variables('varAssignee')};",
-                              "ApprovalCreationInput/details": "@{if(equals(variables('isReassigned'), true), 'OWNER DOES NOT EXIST. APPROVAL SENT TO ADMIN.', '')}\nYou own a flow that has not been modified recently.\n\nLast Modified: @{outputs('Date_Last_Modified')}\n\nWe want to make sure it is still useful, as if it is not then we would like to remove it to keep our Power Platform tenant tidy. \n\nPlease confirm this flow is no longer being used and can be deleted by approving this task; or provide a business justification if you reject. \n\nFlow Name: @{items('Create_Archival_Request_for_Each_')?['admin_displayname']}\nFlow ID: @{items('Create_Archival_Request_for_Each_')?['admin_flowid']}\nEnvironment: @{items('Create_Archival_Request_for_Each_')?['admin_flowenvironmentdisplayname']}\n\nNotes:\n1) If you are not using the flow anymore but do not yet want to delete it, you can turn the flow off and it will no longer be considered for deletion.\n\n2) If you select approve, the flow will be deleted from the tenant in three weeks, so please manually archive a copy ahead of that date if you believe you will want access in the future. \n\n3) If you select reject, consider performing a re-save or turn off your flow to avoid receving this email again in another month. \n",
+                              "ApprovalCreationInput/details": "@{if(equals(variables('isReassigned'), true), 'OWNER DOES NOT EXIST. APPROVAL SENT TO ADMIN.', '')}\nYou own a flow that has not been modified recently.\n\nLast Modified: @{outputs('Date_Last_Modified')}\n\nWe want to make sure it is still useful, as if it is not then we would like to remove it to keep our Power Platform tenant tidy. \n\nPlease confirm this flow is no longer being used and can be deleted by approving this task; or provide a business justification if you reject. \n\n**Flow Name:** @{items('Create_Archival_Request_for_Each_')?['admin_displayname']}\n**Flow ID:** @{items('Create_Archival_Request_for_Each_')?['admin_flowid']}\n**Environment:** @{items('Create_Archival_Request_for_Each_')?['admin_flowenvironmentdisplayname']}\n\n**Notes:**\n1) If you are not using the flow anymore but do not yet want to delete it, you can turn the flow off and it will no longer be considered for deletion.\n\n2) If you select approve, the flow will be deleted from the tenant in three weeks, so please manually archive a copy ahead of that date if you believe you will want access in the future. \n\n3) If you select reject, consider performing a re-save or turn off your flow to avoid receving this email again in another month. \n\n**To clean up all outstanding requests about old apps and flows:**\n@{if(equals(variables('CleanUpTextType'), 0), 'View flow approvals in the CoE environment', '')}\n@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), 'Use this app: [Clean Up App](', '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), variables('CleanUpAppURL'), '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 1), 'If you dont have permission use this instead: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 1), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 1), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 3), 'View all approvals: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 3), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 3), ')', '')}\n",
                               "ApprovalCreationInput/enableNotifications": true,
                               "ApprovalCreationInput/enableReassignment": true,
                               "ApprovalCreationInput/title": "Are you still using your flow? @{items('Create_Archival_Request_for_Each_')?['admin_displayname']}",
@@ -883,7 +928,7 @@
             }
           },
           "runAfter": {
-            "Initialize_var_isProd": [
+            "Initialize_var_CleanUpTextType": [
               "Succeeded"
             ]
           },
@@ -1022,6 +1067,56 @@
           },
           "type": "InitializeVariable"
         },
+        "Initialize_var_ApprovalsURL": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ApprovalsURL",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Set_env_var_CleanUpAppURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_CleanUpAppURL": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "CleanUpAppURL",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_var_isProd": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_CleanUpTextType": {
+          "description": "0 = both blank, 1 = neither blank, 2 = approval blank, 3 = app blank",
+          "inputs": {
+            "variables": [
+              {
+                "name": "CleanUpTextType",
+                "type": "integer",
+                "value": "@if(and(equals(variables('CleanUpAppURL'), ''), equals(variables('ApprovalsURL'), '')), 0, if(and(not(equals(variables('CleanUpAppURL'), '')), not(equals(variables('ApprovalsURL'), ''))), 1, if(equals(variables('ApprovalsURL'), ''), 2, if(equals(variables('CleanUpAppURL'), ''), 3, 0))))"
+              }
+            ]
+          },
+          "runAfter": {
+            "Set_env_var_ApprovalsURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
         "Initialize_var_isProd": {
           "inputs": {
             "variables": [
@@ -1113,7 +1208,7 @@
             },
             "parameters": {
               "$expand": "admin_FlowCreator($select=admin_userisserviceprinciple),admin_DerivedOwner($select=admin_userisserviceprinciple),admin_FlowEnvironment($select=admin_displayname,admin_environmentname)",
-              "$filter": "(admin_flowmodifiedon lt @{body('Get_past_time')} or admin_flowmodifiedon eq null) and admin_flowdeleted eq false and admin_flowstate ne 'Stopped'  and admin_flowexcusedfromarchival ne true and admin_flowexcusedfromarchival ne true",
+              "$filter": "(admin_flowmodifiedon lt @{body('Get_past_time')} or admin_flowmodifiedon eq null) and admin_flowdeleted eq false and admin_flowstate ne 'Stopped'  and admin_flowexcusedfromarchival ne true",
               "$select": "admin_flowid, _admin_flowenvironment_value, cr5d5_flowisorphaned, admin_flowmodifiedon, admin_flowenvironmentdisplayname, admin_displayname, admin_flowmakerdisplayname, admin_flowcreatorupn,  _admin_derivedowner_value, admin_flowarchiverequestignoredsince",
               "entityName": "admin_flows"
             },
@@ -1165,6 +1260,194 @@
             }
           },
           "type": "OpenApiConnection"
+        },
+        "Set_env_var_ApprovalsURL": {
+          "actions": {
+            "ApprovalsURL_-_if_no_Current,_use_Default": {
+              "actions": {
+                "Set_ApprovalsURL_-_CurrentValue": {
+                  "inputs": {
+                    "name": "ApprovalsURL",
+                    "value": "@{first(body('ListCurrents-ApprovalsURL')?['value'])?['Value']}"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Set_ApprovalsURL_-_DefaultValue": {
+                    "inputs": {
+                      "name": "ApprovalsURL",
+                      "value": "@{first(body('ListDefns-ApprovalsURL')?['value'])?['defaultvalue']}"
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "greaterOrEquals": [
+                  "@length(body('ListCurrents-ApprovalsURL')?['value'])",
+                  1
+                ]
+              },
+              "runAfter": {
+                "ListCurrents-ApprovalsURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Get_ID_from_ApprovalsURL": {
+              "inputs": "@first(body('ListDefns-ApprovalsURL')?['value'])?['environmentvariabledefinitionid']",
+              "runAfter": {
+                "ListDefns-ApprovalsURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "ListCurrents-ApprovalsURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_environmentvariabledefinitionid_value eq @{outputs('Get_ID_from_ApprovalsURL')}",
+                  "$select": "value",
+                  "entityName": "environmentvariablevalues"
+                }
+              },
+              "runAfter": {
+                "Get_ID_from_ApprovalsURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "ListDefns-ApprovalsURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "schemaname eq 'admin_FlowApprovalsURL'",
+                  "$select": "environmentvariabledefinitionid, defaultvalue",
+                  "entityName": "environmentvariabledefinitions"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "description": "must use old technique for fetching as env var is optional",
+          "runAfter": {
+            "Initialize_var_ApprovalsURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Set_env_var_CleanUpAppURL": {
+          "actions": {
+            "CleanUpAppURL_-_if_no_Current,_use_Default": {
+              "actions": {
+                "Set_CleanUpAppURL_-_CurrentValue": {
+                  "inputs": {
+                    "name": "CleanUpAppURL",
+                    "value": "@{first(body('ListCurrents-CleanUpAppURL')?['value'])?['Value']}"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Set_CleanUpAppURL_-_DefaultValue": {
+                    "inputs": {
+                      "name": "CleanUpAppURL",
+                      "value": "@{first(body('ListDefns-CleanUpAppURL')?['value'])?['defaultvalue']}"
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "greaterOrEquals": [
+                  "@length(body('ListCurrents-CleanUpAppURL')?['value'])",
+                  1
+                ]
+              },
+              "runAfter": {
+                "ListCurrents-CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Get_ID_from_CleanUpAppURL": {
+              "inputs": "@first(body('ListDefns-CleanUpAppURL')?['value'])?['environmentvariabledefinitionid']",
+              "runAfter": {
+                "ListDefns-CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "ListCurrents-CleanUpAppURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_environmentvariabledefinitionid_value eq @{outputs('Get_ID_from_CleanUpAppURL')}",
+                  "$select": "value",
+                  "entityName": "environmentvariablevalues"
+                }
+              },
+              "runAfter": {
+                "Get_ID_from_CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "ListDefns-CleanUpAppURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "schemaname eq 'admin_CleanupOldObjectsAppURL'",
+                  "$select": "environmentvariabledefinitionid, defaultvalue",
+                  "entityName": "environmentvariabledefinitions"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "description": "must use old technique for fetching as env var is optional",
+          "runAfter": {
+            "Initialize_var_CleanUpAppURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
         }
       },
       "contentVersion": "1.0.0.0",
@@ -1187,7 +1470,7 @@
           "type": "String"
         },
         "Approval Admin": {
-          "defaultValue": "a",
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
           "metadata": {
             "description": "Added for users that have a distribution list for Admin Email env var. You cannot use a distribution list for approvals, so this allows you to indicate an individual. Enter an individual who will be charged with approving removal of orphaned items",
             "schemaName": "admin_ApprovalAdmin"
@@ -1203,7 +1486,7 @@
           "type": "Bool"
         },
         "eMail Header Style": {
-          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: center; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
+          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: left; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
           "metadata": {
             "description": "CSS/Style used for eMails",
             "schemaName": "admin_eMailHeaderStyle"

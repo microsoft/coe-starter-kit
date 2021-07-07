@@ -15,6 +15,16 @@ AppsView As screen:
         Set(theMaker, LookUp(Makers, 'User Principal Name'=theLoggedInUserEmail));
         Set(theMakerID, theMaker.Maker);
         
+        //get app link
+        UpdateContext({EnvVarDefnID: LookUp('Environment Variable Definitions', 'Schema Name'="admin_CleanupOldObjectsAppURL").'Environment Variable Definition'});
+        Set(ThisAppLink, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
+        If(IsBlank(ThisAppLink), Set(ThisAppLink, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
+        
+        //get approvals link
+        UpdateContext({EnvVarDefnID: LookUp('Environment Variable Definitions', 'Schema Name'="admin_FlowApprovalsURL").'Environment Variable Definition'});
+        Set(TheApprovalsLink, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
+        If(IsBlank(TheApprovalsLink), Set(TheApprovalsLink, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
+        
         //Get archive records into collections
         ClearCollect(theAppsApprovedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'APPS  - approved'));
         ClearCollect(theFlowsApprovedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'FLOWS - approved'));
@@ -62,10 +72,11 @@ AppsView As screen:
         );//end first run only
         
         //Get first Seleted App
-        UpdateContext({SelectedApp: First(theApps)});
+        Set(SelectedApp, First(theApps));
+        Set(WorkingWithApp, true);
         UpdateContext({AppApprovedComment: LookUp(theAppsApprovedForDeletes, Name=Text(SelectedApp.App)).'Approval Comment'});
         UpdateContext({AppRejectedComment: LookUp(theAppsRejectedForDeletes, Name=Text(SelectedApp.App)).'Approval Comment'});
-        UpdateContext({SelectedAppComment: If(!IsBlank(AppApprovedComment), AppApprovedComment, If(!IsBlank(AppRejectedComment), AppRejectedComment, "none"))});
+        UpdateContext({SelectedAppComment: If(!IsBlank(AppApprovedComment), AppApprovedComment, If(!IsBlank(AppRejectedComment), AppRejectedComment, ""))});
         
         //Set visiable variables
         UpdateContext({ShowVerifyDelete: false});
@@ -80,10 +91,10 @@ AppsView As screen:
         Items: =theApps
         Layout: =Layout.Vertical
         OnSelect: |-
-            =UpdateContext({SelectedApp: ThisItem});
+            =Set(SelectedApp, ThisItem);
             UpdateContext({AppApprovedComment: LookUp(theAppsApprovedForDeletes, Name=Text(SelectedApp.App)).'Approval Comment'});
             UpdateContext({AppRejectedComment: LookUp(theAppsRejectedForDeletes, Name=Text(SelectedApp.App)).'Approval Comment'});
-            UpdateContext({SelectedAppComment: If(!IsBlank(AppApprovedComment), AppApprovedComment, If(!IsBlank(AppRejectedComment), AppRejectedComment, "none"))});
+            UpdateContext({SelectedAppComment: If(!IsBlank(AppApprovedComment), AppApprovedComment, If(!IsBlank(AppRejectedComment), AppRejectedComment, ""))});
         TemplateFill: =If(ThisItem.IsSelected, RGBA(112, 39, 117, .05))
         TemplateSize: =56
         Visible: =CountRows(theApps)>0
@@ -91,15 +102,25 @@ AppsView As screen:
         Y: =102
         ZIndex: =17
 
+        AppIgnoreDate As label:
+            Color: =AppEnvtName.Color
+            Fill: =If(ThisItem.approvedForDelete || ThisItem.rejectedForDelete, RGBA(204,255,179, .2), RGBA(0,0,0,0))
+            Height: =Parent.TemplateHeight
+            OnSelect: =Select(Parent)
+            Text: =Text(ThisItem.'App Archive Request Ignored Since', ShortDate)
+            Width: =125
+            X: =AppInfo.X+AppInfo.Width
+            ZIndex: =1
+
         AppInfo As label:
             Color: =AppEnvtName.Color
             Fill: =If(ThisItem.approvedForDelete || ThisItem.rejectedForDelete, RGBA(204,255,179, .2), RGBA(0,0,0,0))
             Height: =Parent.TemplateHeight
             OnSelect: =Select(Parent)
             Text: =If(ThisItem.approvedForDelete, "Approved for Delete", If(ThisItem.rejectedForDelete, "Rejected for Delete", "No Response"))
-            Width: =Parent.Width/3
+            Width: =165
             X: =AppName.X+AppName.Width
-            ZIndex: =1
+            ZIndex: =2
 
         AppName As label:
             Color: =AppEnvtName.Color
@@ -108,15 +129,24 @@ AppsView As screen:
             Text: =ThisItem.'App Display Name'
             Width: =Parent.Width/3
             X: =AppEnvtName.X+AppEnvtName.Width
-            ZIndex: =2
+            ZIndex: =3
 
         AppEnvtName As label:
             Color: =Black
             Height: =Parent.TemplateHeight
             OnSelect: =Select(Parent)
-            Text: =ThisItem.'App Environment'.admin_displayname
+            Text: =ThisItem.'App Environment'.'Display Name'
             Width: =Parent.Width/3
-            ZIndex: =3
+            ZIndex: =4
+
+    AppIngoreDateLabel As label:
+        FontWeight: =Bold
+        Text: ="Ignored Since"
+        Visible: =CountRows(theApps)>0
+        Width: =130
+        X: =AppIgnoreDate.X
+        Y: =57
+        ZIndex: =18
 
     AppStatusLabel As label:
         FontWeight: =Bold
@@ -124,7 +154,7 @@ AppsView As screen:
         Visible: =CountRows(theApps)>0
         X: =AppInfo.X
         Y: =57
-        ZIndex: =18
+        ZIndex: =19
 
     AppNameLabel As label:
         FontWeight: =Bold
@@ -132,7 +162,7 @@ AppsView As screen:
         Visible: =CountRows(theApps)>0
         X: =AppName.X
         Y: =57
-        ZIndex: =19
+        ZIndex: =20
 
     AppEnvtLabel As label:
         FontWeight: =Bold
@@ -140,7 +170,7 @@ AppsView As screen:
         Visible: =CountRows(theApps)>0
         X: =AppList.X
         Y: =57
-        ZIndex: =20
+        ZIndex: =21
 
     VerifyDelete As group:
         Height: =5
@@ -158,7 +188,7 @@ AppsView As screen:
             Width: =If(Self.Visible, 450, 0)
             X: =If(Self.Visible, 500, 0)
             Y: =If(Self.Visible, 300, 0)
-            ZIndex: =21
+            ZIndex: =22
 
         VerifyDeleteText As label:
             Height: =If(Self.Visible, VerifyDeleteBG.Height*.4, 0)
@@ -169,7 +199,7 @@ AppsView As screen:
             Width: =If(Self.Visible, VerifyDeleteBG.Width*.8, 0)
             X: =If(Self.Visible, VerifyDeleteBG.X+80, 0)
             Y: =If(Self.Visible, VerifyDeleteBG.Y+40, 0)
-            ZIndex: =22
+            ZIndex: =23
 
         VerifyDeleteCancel1 As icon.CancelBadge:
             Color: =RGBA(112, 39, 117, 1)
@@ -181,7 +211,7 @@ AppsView As screen:
             Width: =If(Self.Visible, 35, 0)
             X: =If(Self.Visible, VerifyDeleteBG.X+VerifyDeleteBG.Width-40, 0)
             Y: =If(Self.Visible, VerifyDeleteBG.Y+5, 0)
-            ZIndex: =23
+            ZIndex: =24
 
         VerifyDeleteOK As button:
             Fill: =RGBA(112, 39, 117, 1)
@@ -200,7 +230,7 @@ AppsView As screen:
             Width: =If(Self.Visible, VerifyDeleteBG.Width*.4, 0)
             X: =If(Self.Visible, VerifyDeleteBG.X+50, 0)
             Y: =If(Self.Visible, VerifyDeleteBG.Y+150, 0)
-            ZIndex: =24
+            ZIndex: =25
 
         VerifyDeleteCancel2 As button:
             Fill: =RGBA(112, 39, 117, 1)
@@ -216,7 +246,7 @@ AppsView As screen:
             Width: =VerifyDeleteOK.Width
             X: =If(Self.Visible, VerifyDeleteBG.X+250, 0)
             Y: =If(Self.Visible, VerifyDeleteBG.Y+150, 0)
-            ZIndex: =25
+            ZIndex: =26
 
     VerifySendApproval As group:
         Height: =5
@@ -234,7 +264,7 @@ AppsView As screen:
             Width: =If(Self.Visible, 450, 0)
             X: =If(Self.Visible, 500, 0)
             Y: =If(Self.Visible, 300, 0)
-            ZIndex: =26
+            ZIndex: =27
 
         VerifySendApprovalCancel1 As icon.CancelBadge:
             Color: =RGBA(112, 39, 117, 1)
@@ -246,7 +276,7 @@ AppsView As screen:
             Width: =VerifySendApprovalBG.Width*.07
             X: =If(Self.Visible, VerifySendApprovalBG.X+VerifySendApprovalBG.Width-Self.Width-5, 0)
             Y: =If(Self.Visible, VerifySendApprovalBG.Y+5, 0)
-            ZIndex: =27
+            ZIndex: =28
 
         VerifySendApprovalSubmit As button:
             Fill: =RGBA(112, 39, 117, 1)
@@ -283,7 +313,7 @@ AppsView As screen:
             Width: =If(Self.Visible, VerifySendApprovalBG.Width*.4, 0)
             X: =If(Self.Visible, VerifySendApprovalBG.X+50, 0)
             Y: =If(Self.Visible, VerifySendApprovalBG.Y+VerifySendApprovalBG.Height-Self.Height-15, 0)
-            ZIndex: =28
+            ZIndex: =29
 
         VerifySendApprovalCancel2 As button:
             Fill: =RGBA(112, 39, 117, 1)
@@ -302,11 +332,11 @@ AppsView As screen:
             Width: =VerifySendApprovalSubmit.Width
             X: =If(Self.Visible, VerifySendApprovalBG.X+250, 0)
             Y: =If(Self.Visible, VerifySendApprovalBG.Y+VerifySendApprovalBG.Height-Self.Height-15, 0)
-            ZIndex: =29
+            ZIndex: =30
 
         VerifySendApprovalInput As text:
             BorderColor: =RGBA(0, 18, 107, .25)
-            Default: =""
+            Default: =SelectedAppComment
             Height: =If(Self.Visible, VerifySendApprovalBG.Height*.4, 0)
             HintText: ="Enter comment about approval"
             HoverBorderColor: =Self.BorderColor
@@ -316,7 +346,7 @@ AppsView As screen:
             Width: =If(Self.Visible, VerifySendApprovalBG.Width*.8, 0)
             X: =If(Self.Visible, (VerifySendApprovalBG.Width-Self.Width)/2 + VerifySendApprovalBG.X, 0)
             Y: =If(Self.Visible, VerifySendApprovalBG.Y+40, 0)
-            ZIndex: =30
+            ZIndex: =31
 
     AppTitleBar As label:
         Align: =Center
@@ -326,7 +356,7 @@ AppsView As screen:
         Height: =50
         Text: ="Archive Request Clean Up -- " & theMaker.'Display Name' & " -- APPS"
         Width: =Parent.Width
-        ZIndex: =36
+        ZIndex: =37
 
     AppBurger As icon.Hamburger:
         Color: =RGBA(255, 255, 255, 1)
@@ -336,7 +366,7 @@ AppsView As screen:
             =UpdateContext({ShowBurgerMenu: !ShowBurgerMenu})
         Width: =Self.Height
         X: =Parent.Width-Self.Width-5
-        ZIndex: =37
+        ZIndex: =38
 
     VerifySendReject As group:
         Height: =5
@@ -354,7 +384,7 @@ AppsView As screen:
             Width: =If(Self.Visible, 450, 0)
             X: =If(Self.Visible, 500, 0)
             Y: =If(Self.Visible, 300, 0)
-            ZIndex: =31
+            ZIndex: =32
 
         VerifySendRejectCancel1 As icon.CancelBadge:
             Color: =RGBA(112, 39, 117, 1)
@@ -366,7 +396,7 @@ AppsView As screen:
             Width: =VerifySendRejectlBG.Width*.07
             X: =If(Self.Visible, VerifySendRejectlBG.X+VerifySendRejectlBG.Width-Self.Width-5, 0)
             Y: =If(Self.Visible, VerifySendRejectlBG.Y+5, 0)
-            ZIndex: =32
+            ZIndex: =33
 
         VerifySendRejectSubmit As button:
             Fill: =RGBA(112, 39, 117, 1)
@@ -389,7 +419,7 @@ AppsView As screen:
                 UpdateIf(theApps, App=SelectedApp.theGUID, {rejectedForDelete: true, approvedForDelete: false, requestsIgnoredSince: Blank()});
                 RemoveIf(theAppsApprovedForDeletes, Name=Text(SelectedApp.theGUID));
                 If(CountRows(Filter(theAppsRejectedForDeletes, Name=Text(SelectedApp.theGUID)))<1, Collect(theAppsRejectedForDeletes, CurrentArchiveItem));
-                UpdateContext({SelectedAppComment: VerifySendApprovalInput.Text});
+                UpdateContext({SelectedAppComment: VerifySendRejectInput.Text});
                 
                 //close dialog
                 UpdateContext({ShowSendReject: false});
@@ -403,7 +433,7 @@ AppsView As screen:
             Width: =If(Self.Visible, VerifySendRejectlBG.Width*.4, 0)
             X: =If(Self.Visible, VerifySendRejectlBG.X+50, 0)
             Y: =If(Self.Visible, VerifySendRejectlBG.Y+VerifySendRejectlBG.Height-Self.Height-15, 0)
-            ZIndex: =33
+            ZIndex: =34
 
         VerifySendRejectCancel2 As button:
             Fill: =RGBA(112, 39, 117, 1)
@@ -422,11 +452,11 @@ AppsView As screen:
             Width: =VerifySendRejectSubmit.Width
             X: =If(Self.Visible, VerifySendRejectlBG.X+250, 0)
             Y: =If(Self.Visible, VerifySendRejectlBG.Y+VerifySendRejectlBG.Height-Self.Height-15, 0)
-            ZIndex: =34
+            ZIndex: =35
 
         VerifySendRejectInput As text:
             BorderColor: =RGBA(0, 18, 107, .25)
-            Default: =""
+            Default: =SelectedAppComment
             Height: =If(Self.Visible, VerifySendRejectlBG.Height*.4, 0)
             HintText: ="Enter comment about rejection"
             HoverBorderColor: =Self.BorderColor
@@ -437,7 +467,7 @@ AppsView As screen:
             Width: =If(Self.Visible, VerifySendRejectlBG.Width*.8, 0)
             X: =If(Self.Visible, (VerifySendRejectlBG.Width-Self.Width)/2 + VerifySendRejectlBG.X, 0)
             Y: =If(Self.Visible, VerifySendRejectlBG.Y+40, 0)
-            ZIndex: =35
+            ZIndex: =36
 
     ActOnThisApp As group:
         Height: =5
@@ -479,13 +509,15 @@ AppsView As screen:
             Fill: =RGBA(112, 39, 117, 1)
             Height: =55
             OnSelect: |-
-                =Reset(VerifySendApprovalInput);
-                UpdateContext({ShowSendApprove: true});
+                =If(ShowingMine,
+                   Reset(VerifySendApprovalInput);
+                   UpdateContext({ShowSendApprove: true}),
+                   Navigate(EmailPing))
             RadiusBottomLeft: =0
             RadiusBottomRight: =0
             RadiusTopLeft: =0
             RadiusTopRight: =0
-            Text: ="Approve deletion"
+            Text: =If(ShowingMine, "Approve deletion", "Remind User")
             Visible: =AppsToShow
             Width: =(Parent.Width/7)*2
             X: =AppLastModified.X
@@ -599,7 +631,7 @@ AppsView As screen:
             OnSelect: |-
                 =UpdateContext({ShowVerifyDelete: true});
             Tooltip: ="Delete App"
-            Visible: =AppsToShow
+            Visible: =If(ShowingMine, AppsToShow, false)
             Width: =Self.Height
             X: =SettingsApp.X+SettingsApp.Width+5
             Y: =SettingsApp.Y
@@ -626,16 +658,6 @@ AppsView As screen:
             Y: =AppList.Y
             ZIndex: =16
 
-    NoApps As label:
-        Align: =Center
-        Color: =RGBA(112, 39, 117, 1)
-        Height: =If(Self.Visible, 60, 0)
-        Text: ="No Apps to Display"
-        Visible: =!AppsToShow
-        Width: =If(Self.Visible, Parent.Width, 0)
-        Y: =If(Self.Visible, Parent.Height/2-Self.Height, 0)
-        ZIndex: =42
-
     BurgerMenu As group:
         Height: =5
         Width: =5
@@ -650,7 +672,7 @@ AppsView As screen:
             Width: =If(Self.Visible, 150, 0)
             X: =If(Self.Visible, Parent.Width-Self.Width, 0)
             Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height, 0)
-            ZIndex: =38
+            ZIndex: =39
 
         MenuSelectUser As label:
             Color: =RGBA(255, 255, 255, 1)
@@ -662,7 +684,7 @@ AppsView As screen:
             Width: =MenuBG.Width
             X: =MenuBG.X
             Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*2), 0)
-            ZIndex: =39
+            ZIndex: =40
 
         MenuFlows As label:
             Color: =RGBA(255, 255, 255, 1)
@@ -674,7 +696,7 @@ AppsView As screen:
             Width: =MenuBG.Width
             X: =MenuBG.X
             Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*1), 0)
-            ZIndex: =40
+            ZIndex: =41
 
         MenuApps As label:
             Color: =RGBA(255, 255, 255, 1)
@@ -686,7 +708,17 @@ AppsView As screen:
             Width: =MenuBG.Width
             X: =MenuBG.X
             Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*0), 0)
-            ZIndex: =41
+            ZIndex: =42
+
+    NoApps As label:
+        Align: =Center
+        Color: =RGBA(112, 39, 117, 1)
+        Height: =If(Self.Visible, 60, 0)
+        Text: ="No Apps to Display"
+        Visible: =!AppsToShow
+        Width: =If(Self.Visible, Parent.Width, 0)
+        Y: =If(Self.Visible, Parent.Height/2-Self.Height, 0)
+        ZIndex: =43
 
     LoadingGif_1 As image:
         Height: =Self.Width
@@ -695,5 +727,5 @@ AppsView As screen:
         Width: =If(Self.Visible, 300, 0)
         X: =If(Self.Visible, Parent.Width/2-Self.Width/2, 0)
         Y: =If(Self.Visible, Parent.Height/2-Self.Height/2, 0)
-        ZIndex: =43
+        ZIndex: =44
 
