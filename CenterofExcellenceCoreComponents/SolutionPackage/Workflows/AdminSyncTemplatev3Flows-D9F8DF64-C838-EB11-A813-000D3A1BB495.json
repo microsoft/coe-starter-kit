@@ -238,34 +238,79 @@
                           "actions": {
                             "If_DerivedOwner_is_null,_set_to_Creator": {
                               "actions": {
-                                "Set_FlowOwnerID_to_Creator": {
-                                  "inputs": {
-                                    "name": "FlowOwnerID",
-                                    "value": "@{outputs('Get_Flow_as_Admin')?['body/properties/creator/objectId']}"
-                                  },
-                                  "runAfter": {
-                                    "Update_a_row": [
-                                      "Succeeded"
-                                    ]
-                                  },
-                                  "type": "SetVariable"
-                                },
-                                "Update_a_row": {
+                                "Get_flow_creator": {
                                   "inputs": {
                                     "authentication": "@parameters('$authentication')",
                                     "host": {
-                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                                      "connectionName": "shared_commondataserviceforapps_5",
-                                      "operationId": "UpdateRecord"
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                      "connectionName": "shared_office365users",
+                                      "operationId": "UserProfile_V2"
                                     },
                                     "parameters": {
-                                      "entityName": "admin_flows",
-                                      "item/admin_DerivedOwner@odata.bind": "admin_makers(@{outputs('Get_Flow_as_Admin')?['body/properties/creator/objectId']})",
-                                      "recordId": "@outputs('Get_Flow_from_CoE')?['body/admin_flowid']"
+                                      "$select": "statusCode",
+                                      "id": "@outputs('Get_Flow_as_Admin')?['body/properties/creator/objectId']"
                                     }
                                   },
                                   "runAfter": {},
                                   "type": "OpenApiConnection"
+                                },
+                                "Switch_on_Flow_Creator_Lookup": {
+                                  "cases": {
+                                    "200_Success": {
+                                      "actions": {
+                                        "Set_FlowOwnerID_to_Creator": {
+                                          "inputs": {
+                                            "name": "FlowOwnerID",
+                                            "value": "@outputs('Get_Flow_as_Admin')?['body/properties/creator/objectId']"
+                                          },
+                                          "runAfter": {
+                                            "Update_a_row": [
+                                              "Succeeded"
+                                            ]
+                                          },
+                                          "type": "SetVariable"
+                                        },
+                                        "Update_a_row": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_5",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_flows",
+                                              "item/admin_DerivedOwner@odata.bind": "admin_makers(@{outputs('Get_Flow_as_Admin')?['body/properties/creator/objectId']})",
+                                              "recordId": "@outputs('Get_Flow_from_CoE')?['body/admin_flowid']"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "case": 200
+                                    }
+                                  },
+                                  "default": {
+                                    "actions": {
+                                      "Set_FlowOwnerID_to_Creator_2": {
+                                        "inputs": {
+                                          "name": "FlowOwnerID",
+                                          "value": "@outputs('Get_Flow_as_Admin')?['body/properties/creator/objectId']"
+                                        },
+                                        "runAfter": {},
+                                        "type": "SetVariable"
+                                      }
+                                    }
+                                  },
+                                  "expression": "@outputs('Get_flow_creator')['statusCode']",
+                                  "runAfter": {
+                                    "Get_flow_creator": [
+                                      "Succeeded",
+                                      "Failed"
+                                    ]
+                                  },
+                                  "type": "Switch"
                                 }
                               },
                               "expression": {
@@ -1446,8 +1491,8 @@
                         "or": [
                           {
                             "equals": [
-                              "@parameters('FullInventory')",
-                              "@true"
+                              "@variables('fullinventory')",
+                              "True"
                             ]
                           },
                           {
@@ -2823,6 +2868,23 @@
           },
           "type": "InitializeVariable"
         },
+        "Initialize_variable_fullinventory": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullinventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Check_if_Environment_Deleted,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
         "Initialize_variable_isNewToCoE": {
           "inputs": {
             "variables": [
@@ -2834,7 +2896,7 @@
             ]
           },
           "runAfter": {
-            "Check_if_Environment_Deleted,_terminate_if_true": [
+            "Initialize_variable_fullinventory": [
               "Succeeded"
             ]
           },
@@ -2870,7 +2932,7 @@
           "type": "Object"
         },
         "FullInventory": {
-          "defaultValue": true,
+          "defaultValue": false,
           "metadata": {
             "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running ",
             "schemaName": "admin_FullInventory"
