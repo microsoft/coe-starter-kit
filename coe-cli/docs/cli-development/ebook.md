@@ -25,6 +25,12 @@ To update this e-book with new content you will need access to docker to generat
 coe ebook generate
 ```
 
+If you are building an e-book for a a branch that is not the main branch you can specify the path to the git hub repository e.g
+
+```bash
+coe ebook generate -r https://github.com/microsoft/coe-starter-kit/tree/coe-cli/coe-cli/docs
+```
+
 2. Change to the docs folder
 
 ```bash
@@ -42,3 +48,24 @@ docker build -t cli-mdbook .
 ```powershell
 .\build.ps1
 ```
+
+## Spell Check Process
+
+The [build.sh](..\build.sh) make use of [mdspell](https://www.npmjs.com/package/markdown-spellcheck) to spell check the markdown files using US english (en-US).
+
+mdspell is installed inside the [cli-mdbook docker image](../dockerfile) and executed by the [build.ps1](../build.ps1). If you need to add an exclusion for a work you can add changes to [.spelling](../.spelling) file. Each work should be on a separate line.
+
+## E-Book Customization
+
+The [ebook.ts](../../src/commands/ebook.ts) controls the process of 
+
+1. Parsing the markdown files
+
+2. Combining the markdown files into a single HTML file
+
+3. Updating references between files and within a markdown file 
+
+4. Adding links between files
+
+5. Referencing links to non markdown links to reference the GitHub project
+
