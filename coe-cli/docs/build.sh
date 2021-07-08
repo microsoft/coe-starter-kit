@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sed -i 's/class="undefined/class="language-/g' 'COE Toolkit Command Line Interface.html' 
+
 echo '-----------------------------------------------------------------------------------------'
 echo Documents Spell Check
 echo '-----------------------------------------------------------------------------------------'
