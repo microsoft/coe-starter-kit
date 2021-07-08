@@ -1,6 +1,6 @@
-# Overview
+# CLI Development
 
-This document outlines the following key sections on the COE CLI. The information below can help guide you in making contributions back to the open source repository.
+This section outlines the following key sections on the COE CLI. The information below can help guide you in making contributions back to the open source repository.
 
 - [Quick Start](#quick-start) - Provides set of links of the technology used to build and test the CLI
 
@@ -16,7 +16,7 @@ This document outlines the following key sections on the COE CLI. The informatio
 
 The coe-cli command line application makes use of following components
 
-1. NodeJs to provide cross platform support
+1. NodeJS to provide cross platform support
 1. TypeScript to leverage published type definitions for dependent components
 1. Jest for unit tests. 
 
@@ -39,7 +39,7 @@ You can edit and debug the cli using Visual Studio Code
 
 1. Once installed Open the coe-cli folder in Visual Studio Code
 
-1. The [.vscode\launch.json](..\..\.vscode\launch.json) file contains a pre configured debug launch command
+1. The [.vscode\launch.json](..\..\.vscode\launch.json) file contains a preconfigured debug launch command
 
 1. You can edit the [sample.json](..\..\sample.json) file to the commands that you want to debug
 
@@ -47,7 +47,7 @@ You can edit and debug the cli using Visual Studio Code
 
 NOTES:
 
-- Depending on the command you want to debug you mey be prompted to login in the DEBUG CONSOLE
+- Depending on the command you want to debug you may be prompted to login in the DEBUG CONSOLE
 
 - If you are testing with a different account you will need to log out of any existing Azure CLI sessions
 

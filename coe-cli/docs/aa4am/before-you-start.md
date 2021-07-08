@@ -1,4 +1,4 @@
-# Overview
+# Before You Start
 
 Before you start an install of AA4AM ensure that you have the following in place
 
@@ -13,17 +13,17 @@ Environment | Description
 ALM Environment | Environment with Dataverse enabled. Will be used to deploy managed solution.
 ALM Environment - Dataverse Connection | See [Maker Environment Dataverse](#maker-environment-dataverse) below to create the Dataverse Connection
 Validation | Environment used to validate builds before merging into a solution branch              |
-Test | Pre production Environment used to test solutions before moving to production          |
+Test | Preproduction Environment used to test solutions before moving to production          |
 Production | Production Environment for managed solutions                                          |
 
 Notes:
 
 1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Advanced Makers
    1) Visit https://docs.microsoft.com/en-us/partner-center/mpn-demos for more information
-   2) Go to https://demos.microsoft.com to request a new enviroment
+   2) Go to https://demos.microsoft.com to request a new environment
    3) Select My Environments
    4) Select Create Tenant
-   5) Select tennat location
+   5) Select tenant location
    6) Select "Dynamics 365 Customer Engagement"
 3. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
 
@@ -34,7 +34,7 @@ Notes:
 In the maker environment you will a Dataverse connection to be created by install user.
 
 This can be done using the following steps
-1. Goto https://make.powerapps.com/
+1. Go to https://make.powerapps.com/
 
 2. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
 
@@ -59,8 +59,8 @@ Global Administrator or Privileged Role Administrator|Grant tenant-wide admin co
 Component | Description
 --------- | ----------
 Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
-Project | An Azure DevOps project to integtrate with. This guide uses the name **alm-sandbox** as the project name
-Extensions | Review the [extensions configuration](./config/AzureDevOpsExtensionsDetails.json) that will be installed
+Project | An Azure DevOps project to integrate with. This guide uses the name **alm-sandbox** as the project name
+Extensions | Review the [extensions configuration](../../config/AzureDevOpsExtensionsDetails.json) that will be installed
 Repository | Ensure the git repository has been initialized with an initial commit
 
 Notes:
@@ -76,7 +76,7 @@ Notes:
 
    - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
 
-   - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
+   - [RegexReplace Azure Pipelines Task](https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task)
   
    - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 

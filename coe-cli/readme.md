@@ -55,7 +55,7 @@ Authentication for tasks is managed using the Azure CLI. Using standard az cli c
 ```bash
 az login
 coe aa4am install -c add
-az logoff
+az logout
 ```
 
 Notes:

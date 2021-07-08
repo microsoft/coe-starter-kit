@@ -1,16 +1,18 @@
 "use strict";
-import commander, { command, Command, option, Option, opts } from 'commander';
+import commander, { command, Command, helpOption, option, Option, opts, requiredOption } from 'commander';
 import { LoginCommand } from './login';
 import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMCommand, AA4AMMakerAddArguments } from './aa4am';
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
 import { RunArguments, RunCommand } from './run';
 import { CLIArguments, CLICommand } from './cli';
+import { EbookArguments, EbookCommand } from './ebook';
 import * as winston from 'winston';
 import * as readline from 'readline';
 import * as fs from 'fs';
 const path = require('path')
 import { FileHandle } from 'fs/promises';
 import { Environment } from '../common/enviroment';
+import * as marked from 'marked'
 
 interface TextParseFunction {
     parse: (text:string) => { [id: string] : string } | string | string[]
@@ -26,11 +28,14 @@ class CoeCliCommands {
     createDevOpsCommand: () => DevOpsCommand
     createRunCommand: () => RunCommand
     createCliCommand: () => CLICommand
+    createEBookCommand: () => EbookCommand
     logger: winston.Logger
     readline: readline.ReadLine
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
     writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array, options?: fs.BaseEncodingOptions & { mode?: fs.Mode, flag?: fs.OpenMode } | BufferEncoding | null) => Promise<void>
+    existsSync: (path: fs.PathLike) => boolean
     outputText: (text: string) => void
+    _logOption: commander.Option
     
     constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null, defaultFs: any = null ) {
         if (typeof logger === "undefined") {
@@ -41,21 +46,29 @@ class CoeCliCommands {
         this.createDevOpsCommand = () => new DevOpsCommand(this.logger)
         this.createRunCommand = () => new RunCommand(this.logger)
         this.createCliCommand = () => new CLICommand(this.logger)
+        this.createEBookCommand = () => new EbookCommand(this.logger)
         this.readline = defaultReadline
+        
+        if (defaultFs == null) {
+            this.readFile = fs.promises.readFile
+            this.writeFile = fs.promises.writeFile
+            this.existsSync = fs.existsSync
+        } else {
+            this.readFile = defaultFs.readFile
+            this.writeFile = defaultFs.writeFile
+            this.existsSync = defaultFs.existsSync
+        }
+        this.outputText = (text: string) => console.log(text)
+        this._logOption = new Option('-l, --log <log>', 'The log level').default(["info"]).choices(['error', 'warn', "info", "verbose", "debug"]);
+    }
+
+    setupReadLine() {
         if (this.readline == null) {
             this.readline = readline.createInterface({
                 input: process.stdin,
                 output: process.stdout
               })
         }
-        if (defaultFs == null) {
-            this.readFile = fs.promises.readFile
-            this.writeFile = fs.promises.writeFile
-        } else {
-            this.readFile = defaultFs.readFile
-            this.writeFile = defaultFs.writeFile
-        }
-        this.outputText = (text: string) => console.log(text)
     }
 
     /**
@@ -69,9 +82,11 @@ class CoeCliCommands {
         const program = new Command();
         program.version('0.0.1');
 
+        this.AddHelpCommands(program)
         this.AddALMAcceleratorForAdvancedMakerCommands(program);
         this.AddRunCommand(program);
         this.AddCliCommand(program);
+        this.AddEbookCommand(program);
        
         await program
             .parseAsync(argv);
@@ -101,6 +116,53 @@ class CoeCliCommands {
             });
     }
 
+    AddHelpCommands(program: commander.Command) {
+       
+
+        
+        var help = program.command('help')
+            .description('Center of Excellence Command Line Interface Help');
+
+        this.addHelpAction(help, 'help/readme.md')
+        
+        var aa4am = help.command('aa4am')
+            .description("ALM Accelerator for Advanced Makers Help")
+
+        this.addHelpAction(aa4am, "help/aa4am/readme.md")
+
+        let aa4amGenerate = aa4am.command('generate')
+        .description("AA4AM Generate Help")
+
+        this.addHelpAction(aa4amGenerate,
+            "help/aa4am/generate/readme.md")
+
+        this.addHelpAction(aa4amGenerate.command('install').description("AA4AM install help"),
+                "help/aa4am/generate/install.md")
+
+        this.addHelpAction(aa4am.command('install')
+                .description("AA4AM Install Help"),
+                "help/aa4am/install.md")
+        
+                
+    }
+
+    addHelpAction(command: commander.Command, filename: string) {
+        command.action(async () => {
+            this.outputMarkdown(await this.readFile(path.join(__dirname, '..', '..', '..', 'docs', filename), 'utf-8'))
+        })
+    }
+
+    outputMarkdown(text: string) {
+        var marked = require('marked');
+        var TerminalRenderer = require('marked-terminal');
+        marked.setOptions({
+            // Define custom renderer
+            renderer: new TerminalRenderer()
+        });
+
+        this.outputText(marked(text))
+    }
+
     AddALMAcceleratorForAdvancedMakerCommands(program: commander.Command) {
         var aa4am = program.command('aa4am')
         .description('ALM Accelerator For Advanced Makers');
@@ -114,7 +176,7 @@ class CoeCliCommands {
 
         let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops', 'development']);
 
-        let logOption = new Option('-l, --log <log>', 'The log level').default(["info"]).choices(['error', 'warn', "info", "verbose", "debug"]);
+        
 
         let regionOptions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
@@ -137,24 +199,25 @@ class CoeCliCommands {
 
         aa4am.command('create')
             .description('Create key services')
-            .addOption(logOption)
+            .addOption(this._logOption)
             .addOption(createTypeOption)
             .action((options:any) => {
                 this.setupLogger(options)
                 let command = this.createAA4AMCommand()
                 command.create(options.type);
-                this.readline.close()
             });
 
         let generate = aa4am.command('generate')
         
         generate.command('install')
             .option('-o, --output <name>', 'The output file to generate')
-            .addOption(logOption)
+            .addOption(this._logOption)
             .option('-s, --includeSchema <name>', 'Include schema', "true")
             .allowExcessArguments()
             .action(async (options:any) => {
                 this.setupLogger(options)
+                this.setupReadLine()
+                
                 this.logger?.info("Generate Install start")
 
                 let parse : { [id: string] : TextParseFunction } = {}
@@ -191,7 +254,7 @@ class CoeCliCommands {
                 }
 
                 this.logger?.debug("Prompting for values")
-                let results = await this.promptForValues(aa4am, 'install', ["file"], parse)
+                let results = await this.promptForValues(aa4am, 'install', ["devOpsOrganization", "environments"], ["file"], parse, 'help/aa4am/install.md')
 
                 if (typeof results.settings === "string") {
                     results.settings = this.parseSettings(results.settings)
@@ -228,7 +291,7 @@ class CoeCliCommands {
             generate.command('maker')
                 .command("add")
                 .option('-o, --output <name>', 'The output file to generate')
-                .addOption(logOption)
+                .addOption(this._logOption)
                 .allowExcessArguments()
                 .action(async (options:any) => {
                     this.setupLogger(options)
@@ -247,7 +310,7 @@ class CoeCliCommands {
                     }
 
                     this.logger?.debug("Prompting for values")
-                    let results = await this.promptForValues(maker, 'add', ["file"], parse)
+                    let results = await this.promptForValues(maker, 'add', [], ["file"], parse)
 
                     if (typeof results.settings === "string") {
                         results.settings = this.parseSettings(results.settings)
@@ -267,14 +330,13 @@ class CoeCliCommands {
                         this.outputText(JSON.stringify(results, null, 2))
                     }
 
-                    this.readline.close()
                     this.logger?.info("Generate maker end")
                 })
     
         aa4am.command('install')
             .description('Initialize a new ALM Accelerators for Makers instance')
             .option('-f, --file <name>', 'The install configuration parameters file')
-            .addOption(logOption)
+            .addOption(this._logOption)
             .addOption(componentOption)
             .option('-d, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
             .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
@@ -351,7 +413,6 @@ class CoeCliCommands {
                 this.logger?.info("Starting install")
                 await command.install(args);
 
-                this.readline.close()
                 this.logger?.info("Install end")
             });
 
@@ -364,7 +425,7 @@ class CoeCliCommands {
             .option('-p, --project <name>', 'The Azure DevOps name')
             .addOption(installEndpoint)
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository', "pipelines")
-            .addOption(logOption).action(async (options:any) => {
+            .addOption(this._logOption).action(async (options:any) => {
                 this.setupLogger(options)
                 this.logger?.info("Build start")
 
@@ -379,7 +440,6 @@ class CoeCliCommands {
 
                 await command.createAdvancedMakersBuildPipelines(args, null, null)
 
-                this.readline.close()
                 this.logger?.info("Build end")
             })
 
@@ -395,7 +455,7 @@ class CoeCliCommands {
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-u, --user <name>', 'The optional azure active directory user to assign to the connection')
             .option('-s, --settings <namevalues>', 'Optional settings')
-            .addOption(logOption)
+            .addOption(this._logOption)
             .action(async (options:any) => {                
                 this.setupLogger(options)
                 this.logger?.info("Add start")
@@ -421,7 +481,6 @@ class CoeCliCommands {
                     this.logger?.error(err)
                 }
 
-                this.readline.close()
                 this.logger?.info("Add end")
             })
 
@@ -487,7 +546,7 @@ class CoeCliCommands {
             .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
             .option('-s, --settings <namevalues>', 'Optional settings')
-            .addOption(logOption)
+            .addOption(this._logOption)
             .action(async (options: any) => {
                 this.setupLogger(options)
                 this.logger?.info("Add start")
@@ -503,7 +562,6 @@ class CoeCliCommands {
                 args.settings = this.parseSettings(options.settings)
                 await command.addUser(args);
 
-                this.readline.close()
                 this.logger?.info("Add end")
             });
 
@@ -516,7 +574,7 @@ class CoeCliCommands {
             .option('--source-build <name>', 'The source build to copy from')
             .option('-d, --destination <name>', 'The branch to create')
             .option('-s, --settings <namevalues>', 'Optional settings')
-            .addOption(logOption)
+            .addOption(this._logOption)
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 this.logger?.info("Branch start")
@@ -532,7 +590,6 @@ class CoeCliCommands {
                 let command = this.createAA4AMCommand()
                 await command.branch(args)
 
-                this.readline.close()
                 this.logger?.info("Branch end")
             });
 
@@ -549,8 +606,6 @@ class CoeCliCommands {
                 args.file = options.file;
                 let command = this.createRunCommand();
                 await command.execute(args)
-
-                this.readline.close()
             });
     }
 
@@ -563,8 +618,6 @@ class CoeCliCommands {
                 this.setupLogger(options)
                 let command = this.createCliCommand()
                 await command.about()
-
-                this.readline.close()
             })
         run.command("add")
             .description('Add a new command to the cli application')
@@ -575,9 +628,28 @@ class CoeCliCommands {
                 args.name = options.name;
                 let command = this.createCliCommand();
                 await command.add(args)
-
-                this.readline.close()
             });
+    }
+
+    AddEbookCommand(program: commander.Command) {
+        let ebook = program.command('ebook')
+            .description('Manage the cli e-book')
+
+        ebook.command("generate")
+            .description('Generate e-book')
+            .option('-d, --docs <docs path>', 'The documents folder name', 'docs')
+            .option('-h, --html <htmlfile>', 'The html file to create in docs folder', 'COE Toolkit Command Line Interface.html')
+            .option('-r, --repo <name>', 'The repository where the docs are located', 'https://github.com/microsoft/coe-starter-kit/tree/main/coe-cli/docs')
+            .addOption(this._logOption)
+            .action(async (options: any) : Promise<void> => {
+                this.setupLogger(options)
+                let command = this.createEBookCommand()
+                let args = new EbookArguments()
+                args.docsPath = options.docs
+                args.htmlFile = options.html
+                args.repoPath = options.repo
+                await command.create(args)
+            })
     }
 
     parseSettings(setting: string) : { [id: string] : string } {
@@ -611,7 +683,7 @@ class CoeCliCommands {
         }
     }
 
-    async promptForValues(command: commander.Command, name: string, ignore: string[], parse:  { [id: string] : TextParseFunction }) : Promise<any> {
+    async promptForValues(command: commander.Command, name: string, required: string[], ignore: string[], parse:  { [id: string] : TextParseFunction }, helpFile: string = '') : Promise<any> {
         let values: any = {}
         let match = command.commands.filter( (c: commander.Command) => c.name() == name)
         let parseKeys = Object.keys(parse)
@@ -619,7 +691,9 @@ class CoeCliCommands {
         if (match.length == 1) {
             let options : Option[] = <Option[]>(<any>match[0]).options
 
-            this.outputText(`NOTE: To accept any default value just press ENTER`)
+            this.outputMarkdown(`NOTES:
+1. To accept any default value just press **ENTER**
+2. Unsure of what value is required repond with **?** then press **ENTER**`)
             this.outputText('');
             this.outputText(`Please provide your ${name} options`)
             for ( var i = 0; i < options.length ; i++ ) {
@@ -637,33 +711,42 @@ class CoeCliCommands {
 
                     this.outputText(`> Which options for ${options[i].description}`)
                     for ( var c = 0 ; c < childOptions.length; c++ ) {
-                        await this.promptOption(childOptions[c], childValues, parse, 2)
+                        await this.promptOption(helpFile, required, childOptions[c], childValues, parse, 2)
                     }
 
                     values[optionName] = childValues
                 } else {
-                    await this.promptOption(options[i], values, parse)
+                    await this.promptOption(helpFile, required, options[i], values, parse)
                 }
             }
         }
-        this.readline.close()
         return values
     }
 
-    async promptOption(option: Option, data: any, parse:  { [id: string] : TextParseFunction }, offset: number = 0) : Promise<void> {
+    async promptOption(helpFile: string, required: string[],  option: Option, data: any, parse:  { [id: string] : TextParseFunction }, offset: number = 0) : Promise<void> {
         return new Promise((resolve, reject) => {
             try {
+                this.setupReadLine()
                 if (option.argChoices?.length > 0) {
-                    let offsetText = new Array(offset).join( ' ' )
-                    this.outputText(`${offsetText}> Which choices for ${option.description}`)
+                    let markdown = `Which choices for ${option.description}\r\n`
+
                     for ( let c = 0; c < option.argChoices.length; c++) {
-                        this.outputText(`  ${c}: ${option.argChoices[c]}`)
+                        markdown += `- **${c}**: ${option.argChoices[c]} \r\n`
                     }
                     if (typeof option.defaultValue !== "undefined") {
-                        this.outputText(`Default value(s) ${option.defaultValue}`)
+                        markdown += `\r\nDefault value(s) **${option.defaultValue}**\r\n`
                     }
-                    this.readline.question(`+ Your selection(s) seperated by commas for ${option.long?.replace("--","")}:`, (answer: string) => {
+                    this.outputMarkdown(markdown)
+                    this.readline.question(`+ Your selection(s) seperated by commas for ${option.long?.replace("--","")}: `, async (answer: string) => {
+                        let optionName = option.name()
+
                         if (answer?.length > 0) {
+                            if (answer == "?") {
+                                await this.showHelp(helpFile, required, option, data, parse, offset)
+                                resolve()
+                                return;
+                            }
+
                             let indexes : number[] = []
                             let results: string[] = []
                             this.logger?.debug(`Received answer ${answer}`)
@@ -683,11 +766,18 @@ class CoeCliCommands {
                                 }
                             }
             
-                            let optionName = option.name()
                             data[optionName] = results.join(',')
                             resolve()
                             return
                         }
+
+                        if (answer?.length == 0 && typeof option.defaultValue === "undefined" && (option.required || required.filter( (r: string) => r == optionName).length == 1)) {
+                            this.outputText("Required value.")
+                            await this.promptOption(helpFile, required, option, data, parse, offset)
+                            resolve()
+                            return;
+                        }
+
                         if (typeof option.defaultValue !== "undefined") {
                             let optionName = option.name()
                             data[optionName] = option.defaultValue
@@ -699,9 +789,15 @@ class CoeCliCommands {
                     if (typeof option.defaultValue !== "undefined") {
                         defaultText = ` (Default ${option.defaultValue})`
                     }
-                    this.readline.question(`> ${option.description}${defaultText}:`, (answer: string) => {
+                    this.readline.question(`> ${option.description}${defaultText}: `, async (answer: string) => {
                         let optionName = option.name()
                         if (answer?.length > 0) {
+                            if (answer == "?") {
+                                await this.showHelp(helpFile, required, option, data, parse, offset)
+                                resolve()
+                                return;
+                            }
+
                             let parser = parse[optionName]
                             if ( typeof parser !== "undefined") {
                                 data[optionName] = parser.parse(answer)
@@ -709,7 +805,7 @@ class CoeCliCommands {
                                 return;
                             }
 
-                            if (option.flags.indexOf("[") > 0 && answer.indexOf(',') > 0) {
+                            if (option.flags?.indexOf("[") > 0 && answer.indexOf(',') > 0) {
                                 data[optionName] = answer.split(',')
                             } else {
                                 data[optionName] = answer
@@ -717,6 +813,14 @@ class CoeCliCommands {
                             resolve()  
                             return                        
                         }
+
+                        if (answer?.length == 0 && typeof option.defaultValue === "undefined" && (option.required || required.filter( (r: string) => r == optionName).length == 1)) {
+                            this.outputText("Required value.")
+                            await this.promptOption(helpFile, required, option, data, parse, offset)
+                            resolve()
+                            return;
+                        }
+
                         if (typeof option.defaultValue !== "undefined") {
                             data[optionName] = option.defaultValue
                             resolve()
@@ -732,6 +836,52 @@ class CoeCliCommands {
                 reject()
             }   
         })
+    }
+
+    async showHelp(helpFile: any, required: string[], option: Option, data: any, parse: { [id: string]: TextParseFunction; }, offset: number) : Promise<void> {
+        let markdownFile = path.join(__dirname, '..', '..', '..', helpFile)
+
+        let optionName = option.flags
+        let foundCommand = false
+        let commandMarkdown : string[] = []
+
+        this.logger?.debug(`Searching for help ${optionName}`)
+
+        if (this.existsSync(markdownFile)) {
+            let markdown = await this.readFile(markdownFile, 'utf-8')
+
+            const tokens = marked.lexer(markdown);
+            let inCommand = false
+            let commandDepth: number
+
+            for ( let i = 0; i < tokens.length; i++ ) {
+                if ( tokens[i].type == "heading" ) {
+                    let heading : any =  tokens[i]
+                    
+                    if ( !inCommand && heading.text.indexOf(optionName) >= 0) {
+                        this.logger?.debug(`Found command help`)
+                        inCommand = true
+                        commandDepth = heading.depth
+                        foundCommand = true
+                        continue
+                    }
+                    if (inCommand && heading.depth <= commandDepth) {
+                        inCommand = false
+                    }
+                }
+                if (inCommand) {
+                    commandMarkdown.push(tokens[i].raw)
+                }
+            }
+        }
+
+        if ( !foundCommand ) {
+            this.outputText(`No further help for option ${optionName}`)
+        } else {
+            this.outputMarkdown(commandMarkdown.join("\r\n"))
+        }
+
+        await this.promptOption(helpFile, required, option, data, parse, offset)
     }
 }
 

@@ -1,4 +1,4 @@
-# Overview
+# Admin Install
 
 To complete the initial steps of an AA4AM deployment you will need to complete the administrative tasks. Once this is done Advances Makers can create and register development environments.
 
@@ -59,7 +59,7 @@ Which will generate a file similar to
 }
 ```
 
-2. Review the json and being the install using the following command
+2. Review the JSON and being the install using the following command
 
 ```bash
 coe aa4am install -f test.json

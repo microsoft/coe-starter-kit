@@ -58,17 +58,7 @@ class CLICommand {
             if (!fs.existsSync(commmandScript)) {
                 this.logger?.info(`Creating ${commmandScript}`)
                 await this.writeFile(commmandScript, `"use strict";
-logger: winston.Logger
-
-/**
- * ${newCommandName} Command Arguments
- */
-class ${newCommandName}Arguments {
-    /**
-     * Some text argument
-     */
-    comments: string
-}
+import * as winston from 'winston';
 
 /**
  * ${newCommandName} commands
@@ -91,6 +81,16 @@ class ${newCommandName}Command {
     }
 }
 
+/**
+ * Ebook Command Arguments
+ */
+ class EbookArguments {
+    /**
+     * Some text argument
+     */
+    comments: string
+}
+
 export { 
     ${newCommandName}Arguments,
     ${newCommandName}Command
@@ -108,11 +108,14 @@ export {
                 this.logger?.info(`Creating ${commmandScript}`)
                 await this.writeFile(commmandScript, `"use strict";
 import { ${newCommandName}Arguments, ${newCommandName}Command } from '../../src/commands/${name.toLowerCase()}';
+import { mock } from 'jest-mock-extended';
+import winston from 'winston';
             
 describe('Related Tests', () => {
     test('Default', async () => {
         // Arrange
-        var command = new ${newCommandName}Command;
+        let logger = mock<winston.Logger>()
+        var command = new ${newCommandName}Command(logger);
         let args = new ${newCommandName}Arguments();
     
         // Act

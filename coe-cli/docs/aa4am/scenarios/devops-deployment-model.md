@@ -4,7 +4,7 @@
 
 ## Factors to Consider
 
-As yoy play you DevOps deployment mode the following factors may help you decide the best approach:
+As you play you DevOps deployment mode the following factors may help you decide the best approach:
 
 - Do different teams and / or business units require separate locations to store and manage solutions?
 
