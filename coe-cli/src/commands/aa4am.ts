@@ -97,7 +97,7 @@ class AA4AMCommand {
     this.logger?.info("Install AAD application")
 
     let install = new AADAppInstallArguments()
-    install.account = args.account
+    install.subscription = args.subscription
     install.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     install.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
     install.accessTokens = args.accessTokens
@@ -120,7 +120,7 @@ class AA4AMCommand {
     devOpsInstall.accessTokens = args.accessTokens
     devOpsInstall.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     devOpsInstall.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
-    devOpsInstall.account = args.account
+    devOpsInstall.subscription = args.subscription
     devOpsInstall.createSecretIfNoExist = args.createSecretIfNoExist
     devOpsInstall.environment = args.environment
     devOpsInstall.environments = args.environments
@@ -179,6 +179,10 @@ class AA4AMCommand {
     }
 
     await command.importSolution(importArgs)
+
+    let aadCommand = this.createAADCommand()
+    let aadId = aadCommand.getAADApplication(args)
+    await command.addAdminUser(aadId, args)
   }
 
   /**
@@ -397,9 +401,9 @@ class AA4AMCommand {
   components: string[]
   
   /**
-   * The Azure active directory account to setup and install to
+   * The Azure active directory subscription to setup and install to
    */
-  account: string
+  subscription: string
 
   /**
    * The azure active directory services principal application name

@@ -27,12 +27,13 @@ describe('AA4AM', () => {
         mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-c', 'aad', '-a', '123'])
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-c', 'aad', '--subscription', '123'])
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
         expect(JSON.stringify(mockAA4AMCommand.install.mock.calls[0][0].components)).toBe(JSON.stringify(['aad']))
-        expect(mockAA4AMCommand.install.mock.calls[0][0].account).toBe("123")
+
+        expect(mockAA4AMCommand.install.mock.calls[0][0].subscription).toBe("123")
         expect(mockAA4AMCommand.install.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe("ALMAcceleratorServicePrincipal")
     })
 
@@ -69,11 +70,11 @@ describe('AA4AM', () => {
         mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-a', '123', '-o', 'testorg', '-p', 'alm-sandbox', '-e', 'crm-org', "-r", "repo1"])
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', '-e', 'crm-org', "-r", "repo1"])
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(mockAA4AMCommand.install.mock.calls[0][0].account).toBe("123")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].subscription).toBe("123")
         expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
         expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
         expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
@@ -105,7 +106,6 @@ describe('AA4AM', () => {
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(mockAA4AMCommand.install.mock.calls[0][0].account).toBe("123")
         expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
         expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
         expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
@@ -125,11 +125,11 @@ describe('AA4AM', () => {
         mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-a', '123', '-o', 'testorg', '-p', 'alm-sandbox', "-r", "repo1", "-e", "validation=test1,test=test2"])
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', "-r", "repo1", "-e", "validation=test1,test=test2"])
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(mockAA4AMCommand.install.mock.calls[0][0].account).toBe("123")
+        expect(mockAA4AMCommand.install.mock.calls[0][0].subscription).toBe("123")
         expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
         expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
         expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("")
