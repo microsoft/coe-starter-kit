@@ -2,13 +2,13 @@
 
 Once you have an install of the command line interface and it's [prerequisites](#prerequisites) you can review the following commands
 
-- [Install](./install.md) - How to install the COE cli.
+- [Install](./install.md) - How to install the COE CLI.
 
 - [ALM Accelerator for Advanced Makers](./aa4am/readme.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to do more.
 
 ## Background
 
-![Why CLI](./images/cli-why.png)
+![Why COE CLI](./images/cli-why.png)
 
 The COE CLI has been design to provide a set of commands that different [personas](./aa4am/personas.md) across the organization can use to automate the process of installing COE components covering Azure, Azure DevOps and the Power Platform. 
 

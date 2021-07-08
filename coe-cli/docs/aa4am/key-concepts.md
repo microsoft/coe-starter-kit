@@ -6,7 +6,7 @@ As you deploy and use the AA4AM CLI it is important to understand the following 
 
 ### Azure Active Directory Application
 
-The CLI application can create a Azure Active Directory application that automate the following key steps.
+The COE CLI application can create a Azure Active Directory application that automate the following key steps.
 
 1. User authenticated via Azure CLI
    - [Azure Login](https://docs.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az_login)
@@ -31,7 +31,7 @@ The CLI application can create a Azure Active Directory application that automat
 
 ### Azure Active Directory Group
 
-The CLI application can create a Azure Active Directory group that is used for Azure DevOps and Power Platform authentication and role based access security.
+The COE CLI application can create a Azure Active Directory group that is used for Azure DevOps and Power Platform authentication and role based access security.
 
 1. Group Created via Azure CLI
    - [Create Group](https://docs.microsoft.com/en-us/cli/azure/ad/group?view=azure-cli-latest#az_ad_group_create)
@@ -40,7 +40,7 @@ The CLI application can create a Azure Active Directory group that is used for A
 
 ### Install Automation
 
-The CLI application assumes that an Azure DevOps organization and project have already been created. it performs the following key steps
+The COE CLI application assumes that an Azure DevOps organization and project have already been created. it performs the following key steps
 
 1. Install Azure DevOps Extensions defined in [AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json)
 
@@ -92,7 +92,7 @@ In addition to install automation the following concepts are also assumed for Ad
 
 ### Automation
 
-The CLI provides the following key steps.
+The COE CLI provides the following key steps.
 
 1. Import Managed solution into environment to allow Advanced Makers to Manage git import, create branches, pull requests and updates to test and production.
 
@@ -106,7 +106,7 @@ The CLI provides the following key steps.
 
 ### Environments
 
-The AA4AM CLI commands currently assume the following environments have been created https://aka.ms/ppac as a Global Administrator or Environment Administrator
+The COE CLI commands currently assume the following environments have been created https://aka.ms/ppac as a Global Administrator or Environment Administrator
 
 1. Maker Environment
 

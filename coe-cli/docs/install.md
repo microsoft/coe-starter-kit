@@ -60,7 +60,7 @@ npm run build
 
 ```
 
-3. Link to the CLI application
+3. Link to the COE CLI application
 
 ```bash
 npm link

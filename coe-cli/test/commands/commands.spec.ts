@@ -27,7 +27,7 @@ describe('AA4AM', () => {
         mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-c', 'aad', '--subscription', '123'])
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-c', 'aad', '--subscription=123'])
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
@@ -70,7 +70,7 @@ describe('AA4AM', () => {
         mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', '-e', 'crm-org', "-r", "repo1"])
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', '--environments', 'crm-org', "-r", "repo1"])
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
@@ -125,7 +125,7 @@ describe('AA4AM', () => {
         mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', "-r", "repo1", "-e", "validation=test1,test=test2"])
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription=123', '-o', 'testorg', '-p', 'alm-sandbox', "-r", "repo1", "-e", "validation=test1,test=test2"])
 
         // Assert
         expect(mockAA4AMCommand.install).toHaveBeenCalled()
@@ -358,7 +358,7 @@ describe('Prompt for Option', () => {
 
 ## Options
 
-### --foo
+### --option1
 Some text
 
 ### --next

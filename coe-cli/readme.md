@@ -1,14 +1,14 @@
 # Overview
 
-Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/readme.md) and will add more features over time.
+Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your COE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The COE CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/readme.md) and will add more features over time.
 
 ![Overview](./docs/images/overview.jpg)
 
 ## Objectives
 
 - Create as common command line that can be installed cross platform and allows easy distribution and upgrade process as the COE toolkit evolves
-- Allows cli to be extensible for new verbs and actions
-- Where existing features exist in other cli tools provide consider a convenience wrapper vs native implementation in the cli app
+- Allows COE CLI to be extensible for new verbs and actions
+- Where existing features exist in other cli tools provide consider a convenience wrapper vs native implementation in the COE CLI app
 - Allow the process to be run by single user or split process to different
 -- Allow for future expansion where commands could be run as part of build process
 
@@ -62,10 +62,10 @@ Notes:
 1. If not logged into Azure cli you will be prompted to login
 1. Azure CLI has been selected as it allows integration of CLi command to manage Azure resources that integrate with the Power Platform e.g. Azure Active Directory, Azure API Management, Azure Functions
 
-## CLI Development
+## COE CLI Development
 
-Looking to understand how the CLI commands works? The [CLI Development](./docs/cli-development/readme.md) dives technically deeper into the CLI commands and discusses how to debug and add / extend commands.
+Looking to understand how the COE CLI commands works? The [COE CLI Development](./docs/cli-development/readme.md) dives technically deeper into the COE CLI commands and discusses how to debug and add / extend commands.
 
 ## Contributions
 
-The [Contribution Guide](./CONTRIBUTING.md) includes technical details on how to contribute additional CLI commands.
+The [Contribution Guide](./CONTRIBUTING.md) includes technical details on how to contribute additional COE CLI commands.

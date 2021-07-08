@@ -167,7 +167,7 @@ class CoeCliCommands {
         var aa4am = program.command('aa4am')
         .description('ALM Accelerator For Advanced Makers');
 
-        let componentOption = new Option('-c, --components [component]', 'The component(s) to install').default(["all"]).choices(['all', 'aad', 'devops', 'environment']);
+        let componentOption = new Option('-c, --components <component>', 'The component(s) to install').default(["all"]).choices(['all', 'aad', 'devops', 'environment']);
         componentOption.variadic = true
 
         let installOption = new Option('-m, --importMethod <method>', 'The import method').default("api").choices(['browser', 'pac', 'api']);
@@ -175,6 +175,9 @@ class CoeCliCommands {
         let installEndpoint = new Option('--endpoint <name>', 'The endpoint').default("prod").choices(['prod', 'usgov', 'usgovhigh', 'dod', 'china', 'preview', 'tip1', 'tip2']);
 
         let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops', 'development']);
+
+        let subscriptionOption = new Option('--subscription <subscription>', 'The Azure Active directory subscription (Optional select azure subscription if access to multiple subscriptions)');
+        subscriptionOption.optional = true
 
         let regionOptions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
@@ -330,6 +333,10 @@ class CoeCliCommands {
 
                     this.logger?.info("Generate maker end")
                 })
+
+        let settingsOption = new Option('-s, --settings <namevalues>', 'Optional settings')
+        settingsOption.defaultValue = "createSecret=true"
+        settingsOption.optional = true
     
         let install = aa4am.command('install')
             .description('Initialize a new ALM Accelerators for Makers instance')
@@ -341,12 +348,13 @@ class CoeCliCommands {
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
-            .option('-e, --environments <names>', 'The Power Platform environment to install Managed solution to')
-            .option('-s, --settings <namevalues>', 'Optional settings', "createSecret=true")
+            .option('-e, --environments <environments>', 'The Power Platform environment to install Managed solution to')
+            .addOption(settingsOption)
             .addOption(installOption)
             .addOption(installEndpoint)
-            .option('--subscription <name>', 'The Azure Active directory subscription (Optional select azure subscription if access to multiple subscriptions)')
-            .action(async (options:any) => {
+            .addOption(subscriptionOption)
+
+        install.action(async (options:any) => {
                 this.setupLogger(options)
                 this.logger?.info("Install start")
 
@@ -416,8 +424,8 @@ class CoeCliCommands {
 
         let installOptions = <Option[]>(<any>install).options
         for ( let i = 0; i < installOptions.length; i++) {
-            if ( installOptions[i].name() == "account" ) {
-                // Account is optional unset required if it has been requested
+            if ( installOptions[i].name() == "subscription" ) {
+                // subscription is optional unset required if it has been requested
                 installOptions[i].required = false
             }
         }
@@ -845,15 +853,16 @@ class CoeCliCommands {
     }
 
     async showHelp(helpFile: any, required: string[], option: Option, data: any, parse: { [id: string]: TextParseFunction; }, offset: number) : Promise<void> {
-        let markdownFile = path.join(__dirname, '..', '..', '..', helpFile)
+        let markdownFile = path.normalize(path.join(__dirname, '..', '..', '..', 'docs', helpFile))
 
-        let optionName = option.flags
+        let optionName = option.name()
         let foundCommand = false
         let commandMarkdown : string[] = []
 
-        this.logger?.debug(`Searching for help ${optionName}`)
+        this.logger?.debug(`Searching for help ${optionName} in ${markdownFile}`)
 
         if (this.existsSync(markdownFile)) {
+            this.logger?.debug("Markdown help file found")
             let markdown = await this.readFile(markdownFile, 'utf-8')
 
             const tokens = marked.lexer(markdown);
