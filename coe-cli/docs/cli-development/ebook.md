@@ -49,7 +49,7 @@ docker build -t cli-mdbook .
 .\build.ps1
 ```
 
-5. script will generate a file named **COE Toolkit Command Line Interface.pdf** in the docs folder
+5. The script will generate a file named **COE Toolkit Command Line Interface.pdf** in the docs folder
 
 ## Spell Check Process
 
