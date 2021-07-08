@@ -1,0 +1,45 @@
+# ALM Accelerator for Advanced Makers
+
+The ALM Accelerator for Advanced Makers (AA4AM) command line actions allows to you install and configure Azure Active Directory, Azure DevOps and Power Platform.
+
+## Key Commands
+
+### Generate 
+
+Creates configuration files for the install command
+
+```
+coe help aa4am generate
+```
+
+### Install
+
+Allows Administrators to install and configure key components
+
+```
+coe help aa4am install
+```
+
+### Connection
+
+Allows DevOps Administrators to create connections from Azure DevOps to Power Platform environments
+
+```
+coe help aa4am connection
+```
+
+### Maker
+
+Allows administrators to add makers to AA4AM
+
+```
+coe help aa4am maker
+```
+
+### Branch
+
+Allows Advanced makers to add solution branches to an Azure DevOps repository
+
+```
+coe help aa4am branch
+```

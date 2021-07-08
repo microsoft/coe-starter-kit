@@ -1,6 +1,6 @@
 # Overview
 
-Once you have an install of the command line interface and it's [pre-requisites](#prerequisites) you can review the following commands
+Once you have an install of the command line interface and it's [prerequisites](#prerequisites) you can review the following commands
 
 - [Install](./install.md) - How to install the COE cli.
 
@@ -23,7 +23,6 @@ Once installed can use -h argument to see help options
 
 ```bash
 coe -h
-
 ```
 
 Authentication for tasks is managed using the Azure CLI. Using standard az cli commands you can login, logout and select accounts. For example
@@ -31,7 +30,7 @@ Authentication for tasks is managed using the Azure CLI. Using standard az cli c
 ```bash
 az login
 coe aa4am install -c add
-az logoff
+az logout
 ```
 
 ## Read More

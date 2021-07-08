@@ -10,7 +10,7 @@ Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
 - Does ALM for Low Code solutions introduce new concepts to parts of the business that has not been exposed to them before?
 
-- Would a demo environment deployment provide an environment allow the different [personas](./personas.md) to experiment and accelerate adoption of ALM processes?
+- Would a demo environment deployment provide an environment allow the different [personas](../personas.md) to experiment and accelerate adoption of ALM processes?
 
 - Who will manage and operate the ALM process?
 

@@ -377,9 +377,6 @@ describe('Share', () => {
                 response = [ { roleId: "R1"} ]
             }
 
-            console.log(url)
-            console.log(response)
-
             return Promise.resolve({data:{ value: response }})
         })
 

@@ -1,4 +1,4 @@
-# Overview
+# Key Concepts
 
 As you deploy and use the AA4AM CLI it is important to understand the following key concepts that the CLI is automating.
 
@@ -10,17 +10,15 @@ The CLI application can create a Azure Active Directory application that automat
 
 1. User authenticated via Azure CLI
    - [Azure Login](https://docs.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az_login)
-   - [Source Reference - login Method](../../src/commands/login.ts)
 
 2. Create Azure Active Directory Application using Azure CLI
    - [Create AD Application](https://docs.microsoft.com/en-us/cli/azure/ad/app?view=azure-cli-latest#az_ad_app_create)
    - [Create Service Principal](https://docs.microsoft.com/en-us/cli/azure/ad/sp?view=azure-cli-latest#az_ad_sp_create)
-   - [Source Reference - installAADApplication](../../src/commands/aad.ts)
 
 3. Grant Tenant Consent for Applications using Azure CLI
    - [Permissions Admin Consent](https://docs.microsoft.com/en-us/cli/azure/ad/app/permission?view=azure-cli-latest#az_ad_app_permission_admin_consent)
 
-4. Azure Application Granted rights via [manifest config](../../config/manifest.json) to call
+4. Azure Application Granted rights via [manifest configuration file](../../config/manifest.json) to call
    - Azure DevOps
    - Dataverse
    - PowerApps Checker Module - [Read More](https://docs.microsoft.com/en-us/powershell/powerapps/get-started-powerapps-checker?view=pa-ps-latest)
@@ -38,21 +36,17 @@ The CLI application can create a Azure Active Directory group that is used for A
 1. Group Created via Azure CLI
    - [Create Group](https://docs.microsoft.com/en-us/cli/azure/ad/group?view=azure-cli-latest#az_ad_group_create)
 
-   - [Source Reference - installAADGroup](../../src/commands/aad.ts)
-
 ## Azure DevOps
 
 ### Install Automation
 
 The CLI application assumes that an Azure DevOps organization and project have already been created. it performs the following key steps
 
-1. Source reference [devops.ts - DevOpsCommand](../../src/commands/devops.ts)
+1. Install Azure DevOps Extensions defined in [AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json)
 
-1. Install Azure DevOps Extensions defined in [AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json) (Source reference - installExtensions)
+2. Clone Azure Templates https://github.com/microsoft/coe-alm-accelerator-templates.git into a Azure DevOps git repository named **pipelines** by default
 
-2. Clone Azure Templates https://github.com/microsoft/coe-alm-accelerator-templates.git into a Azure DevOps git repository named **pipelines** by default  (Source reference - importPipelineRepository).
-
-3. Create Azure DevOps build pipelines (Source reference - createAdvancedMakersBuildPipelines)
+3. Create Azure DevOps build pipelines
   
 - [export-solution-to-git.yml](https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/export-solution-to-git.yml) - Export a solution from a Dataverse environment and commit it to a git branch.
 
@@ -60,13 +54,13 @@ The CLI application assumes that an Azure DevOps organization and project have a
 
 - [delete-unmanaged-solution-and-components.yml](https://github.com/microsoft/coe-alm-accelerator-templates/blob/main/Pipelines/delete-unmanaged-solution-and-components.yml) - Delete or "clean up" an unmanaged solution from a Dataverse environment
 
-4. Setup Azure Active Group access the Azure DevOps project (Source reference - setupSecurity)
+4. Setup Azure Active Group access the Azure DevOps project
 
-5. Create Variable Groups for shared variables used by build pipelines (Source reference - createAdvancedMakersBuildVariables)
+5. Create Variable Groups for shared variables used by build pipelines 
 
    - [Read More](https://docs.microsoft.com/en-us/azure/devops/pipelines/library/variable-groups?view=azure-devops&tabs=yaml)
 
-6. Create Service connections to Power Platform Environments Source reference - createAdvancedMakersServiceConnections) using the Azure Active Directory Service Principal
+6. Create Service connections to Power Platform Environments using the Azure Active Directory Service Principal
 
    - NOTE: Each service connection will receive a separate Azure Active Directory secret.
 
@@ -90,7 +84,7 @@ In addition to install automation the following concepts are also assumed for Ad
 
   - The AA4AM assumes a branch per solution
 
-  - Changes merged back into main branch can be promoetd to production evironment
+  - Changes merged back into main branch can be promoted to production environment
 
 1. Manage Pull Requests to merge changes into Solution Branches https://docs.microsoft.com/en-us/azure/devops/repos/git/pull-requests?view=azure-devops
 
@@ -98,7 +92,7 @@ In addition to install automation the following concepts are also assumed for Ad
 
 ### Automation
 
-The CLI provides the following key steps. (Source code file [powerplatform.ts](../../src/commands/powerplatform.ts))
+The CLI provides the following key steps.
 
 1. Import Managed solution into environment to allow Advanced Makers to Manage git import, create branches, pull requests and updates to test and production.
 

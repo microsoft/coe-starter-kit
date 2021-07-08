@@ -1,4 +1,4 @@
-# Overview
+# Upgrade
 
 Upgrade will depend on how you installed the COE cli
 
@@ -43,7 +43,7 @@ npm run build
 
 ```
 
-6. Update coe to new version
+6. Update coe-cli to new version
 
 ```bash
 npm link --force

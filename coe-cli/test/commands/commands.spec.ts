@@ -8,7 +8,10 @@ import { mock } from 'jest-mock-extended';
 import { DevOpsCommand } from '../../src/commands/devops';
 import winston from 'winston';
 import readline = require('readline');
-import commander, { command, Command, Option } from 'commander';
+import { Command, Option } from 'commander';
+import { OpenMode, PathLike } from 'fs';
+import { FileHandle } from 'fs/promises';
+import EventEmitter = require('events');
 
 describe('AA4AM', () => {
 
@@ -16,6 +19,8 @@ describe('AA4AM', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
+
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -35,6 +40,8 @@ describe('AA4AM', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
+
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -54,6 +61,8 @@ describe('AA4AM', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
+
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -84,6 +93,8 @@ describe('AA4AM', () => {
                 "repository": "repo1"
             }`)
         });
+        commands.outputText = (text:string) => {}
+
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -106,6 +117,8 @@ describe('AA4AM', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
+
         let mockAA4AMCommand = mock<AA4AMCommand>(); 
         commands.createAA4AMCommand = () => mockAA4AMCommand;
 
@@ -130,6 +143,8 @@ describe('AA4AM', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
+
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
@@ -153,6 +168,7 @@ describe('Prompt For Values', () => {
         let logger = mock<winston.Logger>()
         let readline = mock<readline.ReadLine>()
         var commands = new CoeCliCommands(logger, readline);
+        
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
@@ -168,11 +184,10 @@ describe('Prompt For Values', () => {
             .option("-m, mode <name>", "Mode name")
 
         // Act
-        let result = await commands.promptForValues(program, 'install', [], {})
+        let result = await commands.promptForValues(program, 'install', [], [], {})
 
         // Assert
         expect(result.mode).toBe("foo")
-        expect(readline.close).toBeCalledTimes(1)
     })
 
     test('Generate sub settings', async () => {
@@ -208,7 +223,7 @@ describe('Prompt For Values', () => {
         settings.option("-i, --item1", "Item 1");          
 
         // Act
-        let result = await commands.promptForValues(program, 'install', [], { 'settings': {
+        let result = await commands.promptForValues(program, 'install', [], [], { 'settings': {
             parse: (text) => text,
             command: settings
         } })
@@ -216,7 +231,6 @@ describe('Prompt For Values', () => {
         // Assert
         expect(result.mode).toBe("foo")
         expect(result.settings['item1']).toBe("test1")
-        expect(readline.close).toBeCalledTimes(1)
     })
 
     test('Generate Array property', async () => {
@@ -239,11 +253,10 @@ describe('Prompt For Values', () => {
             .option("-m, modes [name]", "Mode name")
 
         // Act
-        let result = await commands.promptForValues(program, 'install', [], {})
+        let result = await commands.promptForValues(program, 'install', [], [], {})
 
         // Assert
         expect(JSON.stringify(result.modes)).toBe(JSON.stringify(["1", "2"]))
-        expect(readline.close).toBeCalledTimes(1)
     })
 
     test('Generate Option - Default', async () => {
@@ -268,19 +281,211 @@ describe('Prompt For Values', () => {
             .addOption(componentOption)
 
         // Act
-        let result = await commands.promptForValues(program, 'install', [], {})
+        let result = await commands.promptForValues(program, 'install', [], [], {})
 
         // Assert
         expect(JSON.stringify(result.components)).toBe(JSON.stringify(["A"]))
-        expect(readline.close).toBeCalledTimes(1)
     })
 });
+
+describe('Prompt for Option', () => {
+    test('Default Value', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        commands.outputText = (text:string) => {}
+
+        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
+            callback('')
+        })
+
+        let option = <Option> {
+            description: 'Option1',
+            argChoices: [],
+            name: () => { return "option1"},
+            defaultValue: 'ABC'
+
+        }
+
+        let data : any = {}
+
+        // Act
+        await commands.promptOption('', [], option, data, {})
+
+        // Assert
+        expect(data.option1).toBe('ABC')
+    })
+
+    test('Single Arg', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        commands.outputText = (text:string) => {}
+
+        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
+            callback('a')
+        })
+
+        let option = <Option> {
+            description: 'Option1',
+            argChoices: [],
+            name: () => { return "option1"}
+        }
+
+        let data : any = {}
+
+        // Act
+        await commands.promptOption('', [], option, data, {})
+
+        // Assert
+        expect(data.option1).toBe('a')
+    })
+
+    test('Single Arg - Help', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        let output: string[] = []
+        commands.outputText = (text)=> output.push(text)
+        commands.readline = readline
+
+        commands.existsSync = (path: PathLike) => true
+        commands.readFile = (path: PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: OpenMode } | BufferEncoding) => {
+            return Promise.resolve(`# Test
+
+## Options
+
+### --foo
+Some text
+
+### --next
+
+Other`)
+         }
+
+        let call : number = 0
+
+        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
+            call++
+            if (call == 1) {
+                callback('?')
+            }
+            else {
+                callback('a')
+            }
+        })
+
+        let option = <Option> {
+            description: 'Option1',
+            argChoices: [],
+            long: 'name',
+            flags: '--foo',
+            name: () => { return "option1"}
+        }
+
+        let data : any = {}
+
+        // Act
+        await commands.promptOption('help/foo.md', [], option, data, {})
+
+        // Assert
+        expect(data.option1).toBe('a')
+        expect(output.filter((text: string) => text.indexOf("Some text")>= 0).length).toBe(1)
+    })
+
+    test('Array', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        commands.outputText = (text:string) => {}
+        commands.readline = readline
+
+        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
+            callback('a,b')
+        })
+
+        let option = <Option> {
+            description: 'Option1',
+            flags: '--value [values]',
+            argChoices: [],
+            name: () => { return "option1"}
+        }
+
+        let data : any = {}
+
+        // Act
+        await commands.promptOption('', [], option, data, {})
+
+        // Assert
+        expect(JSON.stringify(data.option1)).toBe(JSON.stringify(['a','b']))
+    })
+
+    test('Args - Select Multiple', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        commands.outputText = (text:string) => {}
+
+        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
+            callback('0,1')
+        })
+
+        let option = <Option> {
+            description: 'Option1',
+            flags: '--value [values]',
+            argChoices: [ 'Arg 1', 'Arg 2', 'Arg 3' ],
+            name: () => { return "option1"}
+        }
+
+        let data : any = {}
+
+        // Act
+        await commands.promptOption('', [], option, data, {})
+
+        // Assert
+        expect(data.option1).toBe('Arg 1,Arg 2')
+    })
+
+    test('Args - Select Default', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        let readline = mock<readline.ReadLine>()
+        var commands = new CoeCliCommands(logger, readline);
+        commands.outputText = (text:string) => {}
+
+        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
+            callback('')
+        })
+
+        let option = <Option> {
+            description: 'Option1',
+            flags: '--value [values]',
+            argChoices: [ 'Arg 1', 'Arg 2', 'Arg 3' ],
+            name: () => { return "option1"},
+            defaultValue: [ 'Arg 1' ],
+        }
+
+        let data : any = {}
+
+        // Act
+        await commands.promptOption('', [], option, data, {})
+
+        // Assert
+        expect(JSON.stringify(data.option1)).toBe(JSON.stringify(['Arg 1']))
+    })
+})
 
 describe('Run', () => {
     test('Execute', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
         let mockRunCommand = mock<RunCommand>(); 
 
         commands.createRunCommand = () => mockRunCommand
@@ -311,3 +516,44 @@ describe('CLI', () => {
         expect(mockCliCommand.add).toHaveBeenCalled()
     })
 });
+
+describe('Help', () => {
+    test('Main', async () => {
+        await expectFile(['node', 'commands.spec', 'help'], 'help\\readme.md')
+    })
+
+    test('aa4am', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'aa4am'], 'help\\aa4am\\readme.md')
+    })
+
+    test('aa4am genenerate', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'aa4am', 'generate'], 'help\\aa4am\\generate\\readme.md')
+    })
+    
+    test('aa4am genenerate install', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'aa4am', 'generate', 'install'], 'help\\aa4am\\generate\\install.md')
+    })
+
+    test('aa4am install', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'aa4am', 'install'], 'help\\aa4am\\install.md')
+    })
+});
+
+const expectFile = async (args: string[], name: string) : Promise<void> => {
+    // Arrange
+    let logger = mock<winston.Logger>()
+    var commands = new CoeCliCommands(logger);
+    let readFileName = ''
+
+    commands.readFile = (path: PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: OpenMode } | BufferEncoding) => {
+       readFileName = <string>path
+       return Promise.resolve('')
+    }
+    commands.outputText = (text) => {}
+   
+    // Act
+    await commands.execute(args)
+
+    // Assert
+    expect(readFileName.indexOf(name) >= 0).toBeTruthy()
+}

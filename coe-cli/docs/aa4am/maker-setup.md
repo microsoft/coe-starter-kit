@@ -42,11 +42,11 @@ coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MySolution1
 ```
 
 NOTES:
-  - -o is the name of your DevOps Organization
+  - **-o** is the name of your DevOps Organization
 
-  - -p is the name of the Azure DevOps Project
+  - **-p** is the name of the Azure DevOps Project
 
-  - -d os the name of the solution branch to create
+  - **-d** is the name of the solution branch to create
 
   - If the repository you want to create a branch for is empty you will need to commit an initial commit before a branch can be created.
 
@@ -66,7 +66,7 @@ After setting up an advanced maker you may need to verify the following
 
 1. If this is your first branch created you will need to check variables applied for the the created pipeline
 
-2. The first time that each pipeline is run frm the administration application you will need to open the pipeline in Azure DevOps and approve the resources used by the pipeline.
+2. The first time that each pipeline is run from the administration application you will need to open the pipeline in Azure DevOps and approve the resources used by the pipeline.
 
 3. Select the blue icon for the Azure DevOps Build in the application
 

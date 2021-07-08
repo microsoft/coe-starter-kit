@@ -8,7 +8,7 @@ Not sure what AA4AM is and how it can help? The main GitHub project [README](htt
 ## Getting Started
 
 - [Scenarios](./scenarios/readme.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments
-- [Personas](./personas.md) - Understand the key personas and how they may to AA4AML CLI commands and the wider AA4AM process.
+- [Personas](./personas.md) - Understand the key personas and how they may to AA4AM CLI commands and the wider AA4AM process.
 - [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are being automated under the hood by the CLI commands
 
 ## Overview
@@ -19,7 +19,7 @@ The diagram below provides an overview of the key components required and permis
 
 ## Sample Install
 
-The following recording shows a sample generating a install configuration file and installing AA4AM using the config file using a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment).
+The following recording shows a sample generating a install configuration file and installing AA4AM using the configuration file using a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment).
 
 ![Example](./install.svg)
 
