@@ -43,11 +43,13 @@ cd coe-cli/docs
 docker build -t cli-mdbook .
 ```
 
-3. Generate a new version of the e-book using PowerShell and the docker image created above.
+4. Generate a new version of the e-book using PowerShell and the docker image created above.
 
 ```powershell
 .\build.ps1
 ```
+
+5. script will generate a file named **COE Toolkit Command Line Interface.pdf** in the docs folder
 
 ## Spell Check Process
 
