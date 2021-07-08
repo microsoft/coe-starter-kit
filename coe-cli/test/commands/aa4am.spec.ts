@@ -41,7 +41,7 @@ describe('Install - AAD', () => {
 
         let args = new AA4AMInstallArguments();
         args.components = [ 'aad' ]
-        args.account = 'A1'
+        args.subscription = 'A1'
         args.azureActiveDirectoryServicePrincipal = 'P1'
         
         // Act
@@ -49,7 +49,7 @@ describe('Install - AAD', () => {
 
         // Assert
         expect(mockAADCommand.installAADApplication).toBeCalledTimes(1)
-        expect(mockAADCommand.installAADApplication.mock.calls[0][0].account).toBe("A1")
+        expect(mockAADCommand.installAADApplication.mock.calls[0][0].subscription).toBe("A1")
         expect(mockAADCommand.installAADApplication.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe("P1")
     })
 })

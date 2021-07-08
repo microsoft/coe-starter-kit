@@ -336,7 +336,7 @@ class CoeCliCommands {
             .option('-f, --file <name>', 'The install configuration parameters file')
             .addOption(this._logOption)
             .addOption(componentOption)
-            .option('-d, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
+            .option('-a, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
             .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
@@ -345,7 +345,7 @@ class CoeCliCommands {
             .option('-s, --settings <namevalues>', 'Optional settings', "createSecret=true")
             .addOption(installOption)
             .addOption(installEndpoint)
-            .option('-a, --account <name>', 'The Azure Active directory account (Optional select azure subscription if access to multiple subscriptions)')
+            .option('--subscription <name>', 'The Azure Active directory subscription (Optional select azure subscription if access to multiple subscriptions)')
             .action(async (options:any) => {
                 this.setupLogger(options)
                 this.logger?.info("Install start")
@@ -389,7 +389,7 @@ class CoeCliCommands {
                     settings = typeof optionsFile.settings === "string" ? this.parseSettings(optionsFile.settings) : optionsFile.settings
                 } else {
                     args.components = options.components
-                    args.account = options.account
+                    args.subscription = options.subscription
                     args.azureActiveDirectoryServicePrincipal = options.aad
                     args.azureActiveDirectoryMakersGroup = options.group
                     args.organizationName = options.devOpsOrganization
@@ -458,7 +458,7 @@ class CoeCliCommands {
             .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
             .requiredOption('-e, --environment <name>', 'The environment add conection to')
             .addOption(installEndpoint)
-            .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('--aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-u, --user <name>', 'The optional azure active directory user to assign to the connection')
             .option('-s, --settings <namevalues>', 'Optional settings')
             .addOption(this._logOption)
@@ -500,7 +500,7 @@ class CoeCliCommands {
             .requiredOption('-e, --environment <organization>', 'The environment to create the Service Principal Application User in')
             .requiredOption('-u, --user <name>', 'The user to add as a advanced maker')
             .requiredOption('-g, --group <name>', 'The azure active directory makers group.', 'ALMAcceleratorForAdvancedMakers')
-            .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('--aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
             .addOption(installEndpoint)
             .option('-s, --settings <namevalues>', 'Optional settings')
@@ -549,7 +549,7 @@ class CoeCliCommands {
         user.command("add")
             .requiredOption('-e, --environment <organization>', 'The environment to create the user in')
             .option('-i, --id <id>', 'The unique identifier of the user')
-            .option('-a, --aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
+            .option('--aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
             .option('-r, --role <name>', 'The user role', 'System Administrator')
             .option('-s, --settings <namevalues>', 'Optional settings')
             .addOption(this._logOption)

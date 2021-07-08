@@ -445,7 +445,7 @@ class DevOpsCommand {
             let aadCommand = this.createAADCommand()
 
             let aadArgs = new AADAppInstallArguments()
-            aadArgs.account = args.account
+            aadArgs.subscription = args.subscription
             aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
             aadArgs.createSecret = args.createSecretIfNoExist
             aadArgs.accessTokens = args.accessTokens
@@ -566,7 +566,7 @@ class DevOpsCommand {
 
         let aadCommand = this.createAADCommand()
         let aadArgs = new AADAppInstallArguments()
-        aadArgs.account = args.account
+        aadArgs.subscription = args.subscription
         aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
         aadArgs.createSecret = args.createSecretIfNoExist
         aadArgs.accessTokens = args.accessTokens
@@ -1263,9 +1263,9 @@ type GraphMembership = {
     projectName: string
 
     /**
-     * The name of the Azure account. Required if access to more than one Azure account
+     * The name of the Azure subscription. Required if access to more than one Azure subscription
      */
-    account: string
+    subscription: string
 
     /**
      * The client id to use for authentication

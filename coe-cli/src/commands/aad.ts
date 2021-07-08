@@ -63,7 +63,7 @@ class AADCommand {
         return group
     }
     
-    getAADApplication(args: AADAppInstallArguments): string {
+    getAADApplication(args: IAADApplicationArguments): string {
         let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
         if (app.length == 1) {
@@ -172,28 +172,6 @@ class AADCommand {
                     this.logger.info("Unable to verify that Administration permissions set")
                 }
 
-                let pp = new PowerPlatformCommand(this.logger)
-                let bapUrl = pp.mapEndpoint("bap", args.endpoint)
-                let apiVersion = "2020-06-01"
-                let authService = Environment.getAuthenticationUrl(bapUrl)
-                let accessToken = args.accessTokens[authService]
-                let results: AxiosResponse<any>
-                try{
-                    // Reference
-                    // Source: Microsoft.PowerApps.Administration.PowerShell
-                    results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${app[0].appId}?api-version=${apiVersion}`, {}, {
-                        headers: {
-                            "Authorization": `Bearer ${accessToken}`,
-                            "Content-Type": "application/json"
-                        }
-                    })
-                    this.logger?.info("Added Admin Application for Azure Application")
-                } catch (err) {
-                    this.logger?.info("Error adding Admin Application for Azure Application")
-                    this.logger?.error(err.response.data.error)
-                    return Promise.reject(err)
-                }
-
                 let match = 0
                 app[0].replyUrls?.forEach( (u:string) => {
                     if ( u == "https://global.consent.azure-apim.net/redirect") {
@@ -281,7 +259,7 @@ class AADCommand {
             }
 
             // Check if tenant assigned
-            if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
+            if (typeof (args.subscription) == "undefined" || (args.subscription.length == 0)) {
                 if (accounts.length == 0) {
                     // No accounts are available probably not logged in ... prompt to login
                     let ok = await this.prompt.yesno('You are not logged into an account. Try login now (y/n)?', true)
@@ -295,28 +273,28 @@ class AADCommand {
                 if (accounts.length > 0) {
                     let defaultAccount = accounts.filter((a: any) => (a.isDefault));
                     if (accounts.length == 1) {
-                        // Only one accounr assigned to the user account use that
-                        args.account = accounts[0].id
+                        // Only one subscription assigned to the user account use that
+                        args.subscription = accounts[0].id
                     }
                     if (defaultAccount.length == 1 && accounts.length > 1) {
                         // More than one account assigned to this account .. confirm if want to use the current default tenant
                         let ok = await this.prompt.yesno(`Use default tenant ${defaultAccount[0].tenantId} in account ${defaultAccount[0].name} (y/n)?`, true);
                         if (ok) {
                             // Use the default account
-                            args.account = defaultAccount[0].id
+                            args.subscription = defaultAccount[0].id
                         }
                     }
-                    if (typeof (args.account) == "undefined" || (args.account.length == 0)) {
-                        this.logger?.info("Missing account, run az account list to and it -a argument to assign the account")
+                    if (typeof (args.subscription) == "undefined" || (args.subscription.length == 0)) {
+                        this.logger?.info("Missing subscription, run az account list to and it -a argument to assign the default subscription/account")
                         return Promise.resolve(false);
                     }
                 }
             }
 
             if (accounts.length > 0) {
-                let match = accounts.filter((a: any) => (a.id == args.account || a.name == args.account) && (a.isDefault));
+                let match = accounts.filter((a: any) => (a.id == args.subscription || a.name == args.subscription) && (a.isDefault));
                 if (match.length != 1) {
-                    this.logger?.info(`${args.account} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
+                    this.logger?.info(`${args.subscription} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
                     this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
@@ -348,9 +326,9 @@ class AADCommand {
     accessTokens: { [id: string] : string }
 
     /**
-    * The name of the Azure account
+    * The name of the Azure subscription
     */
-    account: string
+    subscription: string
 
     /**
      * Azure Active directory application name
@@ -383,8 +361,13 @@ interface IMakerGroup {
     azureActiveDirectoryMakersGroup: string
 }
 
+interface IAADApplicationArguments {
+    azureActiveDirectoryServicePrincipal: string
+}
+
 export {
     AADAppInstallArguments,
     AADAppSecret,
-    AADCommand
+    AADCommand,
+    IAADApplicationArguments
 };
