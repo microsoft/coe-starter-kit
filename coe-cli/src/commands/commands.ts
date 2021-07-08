@@ -176,8 +176,6 @@ class CoeCliCommands {
 
         let createTypeOption = new Option('-t, --type <type>', 'The service type to create').choices(['devops', 'development']);
 
-        
-
         let regionOptions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
                     'DEU',
@@ -333,7 +331,7 @@ class CoeCliCommands {
                     this.logger?.info("Generate maker end")
                 })
     
-        aa4am.command('install')
+        let install = aa4am.command('install')
             .description('Initialize a new ALM Accelerators for Makers instance')
             .option('-f, --file <name>', 'The install configuration parameters file')
             .addOption(this._logOption)
@@ -415,6 +413,14 @@ class CoeCliCommands {
 
                 this.logger?.info("Install end")
             });
+
+        let installOptions = <Option[]>(<any>install).options
+        for ( let i = 0; i < installOptions.length; i++) {
+            if ( installOptions[i].name() == "account" ) {
+                // Account is optional unset required if it has been requested
+                installOptions[i].required = false
+            }
+        }
 
         let fix = aa4am.command('fix')
             .description('Attempt to fix install components')
