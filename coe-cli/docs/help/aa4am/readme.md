@@ -2,7 +2,7 @@
 
 The ALM Accelerator for Advanced Makers (AA4AM) command line actions allows to you install and configure Azure Active Directory, Azure DevOps and Power Platform.
 
-## Key Commands
+## Examples
 
 ### Generate 
 
@@ -12,6 +12,8 @@ Creates configuration files for the install command
 coe help aa4am generate
 ```
 
+Help for [generate](./generate/readme.md)
+
 ### Install
 
 Allows Administrators to install and configure key components
@@ -19,6 +21,8 @@ Allows Administrators to install and configure key components
 ```
 coe help aa4am install
 ```
+
+Help for [install](./generate/install.md)
 
 ### Connection
 
