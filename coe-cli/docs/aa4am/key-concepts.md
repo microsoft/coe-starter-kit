@@ -40,7 +40,9 @@ The COE CLI application can create a Azure Active Directory group that is used f
 
 ### Install Automation
 
-The COE CLI application assumes that an Azure DevOps organization and project have already been created. it performs the following key steps
+The COE CLI application assumes that an Azure DevOps organization and project have already been created. 
+
+The install performs the following key steps:
 
 1. Install Azure DevOps Extensions defined in [AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json)
 

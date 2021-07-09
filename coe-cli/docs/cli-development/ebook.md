@@ -25,7 +25,7 @@ To update this e-book with new content you will need access to docker to generat
 coe ebook generate
 ```
 
-If you are building an e-book for a a branch that is not the main branch you can specify the path to the git hub repository e.g
+If you are building an e-book for a branch that is not the main branch you can specify the path to the git hub repository e.g.
 
 ```bash
 coe ebook generate -r https://github.com/microsoft/coe-starter-kit/tree/coe-cli/coe-cli/docs
@@ -55,7 +55,11 @@ docker build -t cli-mdbook .
 
 The [build.sh](..\build.sh) make use of [mdspell](https://www.npmjs.com/package/markdown-spellcheck) to spell check the markdown files using US english (en-US).
 
-mdspell is installed inside the [cli-mdbook docker image](../dockerfile) and executed by the [build.ps1](../build.ps1). If you need to add an exclusion for a work you can add changes to [.spelling](../.spelling) file. Each work should be on a separate line.
+The mdspell node application is installed inside the [cli-mdbook docker image](../dockerfile) and executed by the [build.ps1](../build.ps1). If you need to add an exclusion for a work you can add changes to [.spelling](../.spelling) file. Each work should be on a separate line.
+
+## Grammar Checks
+
+The [LanguageTool](https://languagetool.org/) writing assistant uses the Java bases command line tool inside the docker image to perform duplication, grammar and typographical check using en-US. The language tool integration is implemented in [grammar.js](../grammar.js). The [grammar-ignore.txt](../grammar-ignore.txt) file contains a list of rules that will be ignored.
 
 ## E-Book Customization
 

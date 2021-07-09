@@ -29,13 +29,13 @@ If you are new to unit testing with Jest you can start with
 
 ## Contributions
 
-Review review the general [Contribution Guidance](../../../CONTRIBUTING).
+Review the general [Contribution Guidance](../../../CONTRIBUTING).
 
 ## Development Environment Setup
 
 You can edit and debug the cli using Visual Studio Code
 
-1. If you do not have Visual Studio Code you can visit visit [https://code.visualstudio.com/Download](https://code.visualstudio.com/Download)
+1. If you do not have Visual Studio Code you can visit [https://code.visualstudio.com/Download](https://code.visualstudio.com/Download)
 
 1. Once installed Open the coe-cli folder in Visual Studio Code
 

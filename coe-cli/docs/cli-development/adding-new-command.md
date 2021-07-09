@@ -72,7 +72,8 @@ describe('Sample', () => {
         var commands = new CoeCliCommands();
         let mockSampleCommand = mock<SampleCommand>(); 
 
-        commands.createSampleCommand = () => mockSampleCommand
+        commands.createSampleCommand = () => { return mockSampleCommand }
+
         mockSampleCommand.execute.mockResolvedValue()
         
         // Act

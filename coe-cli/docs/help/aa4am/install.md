@@ -55,7 +55,7 @@ For **aad** or **environment** the group will be used to share access to run the
 
 ### -o, --devOpsOrganization
 
-The Azure DevOps organization that will will be installed to or referenced.
+The Azure DevOps organization that will be installed to or referenced.
 
 The value can be in the format https://dev.azure.com/contoso or contoso. If the fully qualified Url is not specified then https://dev.azure.com/ will be inserted before the provided value.
 
