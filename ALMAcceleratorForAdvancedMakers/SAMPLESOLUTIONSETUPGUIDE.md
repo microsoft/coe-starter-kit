@@ -197,7 +197,7 @@ In order to leverage executing the build pipeline for the ALM Accelerator Sample
 
 ### Setting Deployment Pipeline Variables
 
-The ALM Accelerator uses JSON formatted Pipeline variables for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. **EnvironmentName** and **ServiceConnection** variables are **required** for each pipeline. All other pipeline variables are **optional** and depend on what type of components the ALM Accelerator Sample Solution pipelines deploy. For instance, if the ALM Accelerator Sample Solutions only contain Dataverse Tables, Columns and Model Driven Apps **some of these steps may not be necessary** and can be skipped. The following variables allow you to fully automate the deployment of the ALM Accelerator Sample Solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
+The ALM Accelerator uses json formatted Pipeline variables for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. **EnvironmentName** and **ServiceConnection** variables are **required** for each pipeline. All other pipeline variables are **optional** and depend on what type of components the ALM Accelerator Sample Solution pipelines deploy. For instance, if the ALM Accelerator Sample Solutions only contain Dataverse Tables, Columns and Model Driven Apps **some of these steps may not be necessary** and can be skipped. The following variables allow you to fully automate the deployment of the ALM Accelerator Sample Solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
 
 > [!IMPORTANT] These pipeline variables will be set for each **deployment pipeline** you've configured above based on the environment to which your pipeline deploys.
 
@@ -235,9 +235,9 @@ The **EnvironmentName** variable is used to specify the Azure DevOps environment
 
 The connection reference variable is **ConnectionReferences**. This pipeline variable is used for setting connection references in the ALM Accelerator Sample Solution to specific connections configured in a target environment after the solution is imported into an environment. Additionally, the **ConnectionReferences** variable is used to enable flows after the solution is imported based on owner of the connection specified in the variable.
 
-1. You will need to create the connection manually in your target environments and copy the IDs for the connection to use in the JSON value below
+1. You will need to create the connection manually in your target environments and copy the IDs for the connection to use in the json value below
 
-1. The format of the JSON for these variables take the form of an array of name/value pairs.
+1. The format of the json for these variables take the form of an array of name/value pairs.
 
    ```json
    [
@@ -268,7 +268,7 @@ The connection reference variable is **ConnectionReferences**. This pipeline var
 
 The environment variable pipeline variable is **EnvironmentVariables**. This pipeline variable is used for setting Dataverse **Environment variables** in the ALM Accelerator Sample Solution after the solution is imported into an environment.
 
-1. The format of the JSON for these variables take the form of an array of name/value pairs.
+1. The format of the json for these variables take the form of an array of name/value pairs.
 
    ```json
    [
@@ -281,7 +281,7 @@ The environment variable pipeline variable is **EnvironmentVariables**. This pip
          "1"
       ],
       [
-         "cat_JsonEnvironmentVariable",
+         "cat_jsonEnvironmentVariable",
          "{\"some\":\"json formatted value\"}"
       ]
    ]
@@ -307,7 +307,7 @@ The environment variable pipeline variable is **EnvironmentVariables**. This pip
 
 The aad group canvas configuration pipeline variable is **AadGroupCanvasConfiguration**. This pipeline variable is used for **sharing canvas apps** in the ALM Accelerator Sample Solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
 
-1. The format of the JSON for these variables take the form of an array of objects. The **roleName** can be one of **CanView**, **CanViewWithShare** and **CanEdit**
+1. The format of the json for these variables take the form of an array of objects. The **roleName** can be one of **CanView**, **CanViewWithShare** and **CanEdit**
 
    ```json
    [
@@ -342,7 +342,7 @@ The aad group canvas configuration pipeline variable is **AadGroupCanvasConfigur
 
 The pipeline variable is **AadGroupTeamConfiguration**. This pipeline variable is used for mapping **Dataverse Teams and Roles** to specific **Azure Active Directory Groups** after the solution is imported into an environment. The security roles will need to added to the ALM Accelerator Sample Solution if they are not manually created in the target environment.
 
-1. The format of the JSON for these variables take the form of an array of objects. One or many roles can be applied to any given team and these roles provide permissions to solution components required by the users in the group.
+1. The format of the json for these variables take the form of an array of objects. One or many roles can be applied to any given team and these roles provide permissions to solution components required by the users in the group.
 
    ```json
    [
