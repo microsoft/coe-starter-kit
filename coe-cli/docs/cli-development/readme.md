@@ -39,9 +39,9 @@ You can edit and debug the cli using Visual Studio Code
 
 1. Once installed Open the coe-cli folder in Visual Studio Code
 
-1. The [.vscode\launch.json](..\..\.vscode\launch.json) file contains a preconfigured debug launch command
+1. The [.vscode/launch.json](../../.vscode/launch.json) file contains a preconfigured debug launch command
 
-1. You can edit the [sample.json](..\..\sample.json) file to the commands that you want to debug
+1. You can edit the [sample.json](../../sample.json) file to the commands that you want to debug
 
 1. Place breakpoints in the TypeScript files you want to debug and Press F5 to start debugging
 

@@ -53,9 +53,9 @@ docker build -t cli-mdbook .
 
 ## Spell Check Process
 
-The [build.sh](..\build.sh) make use of [mdspell](https://www.npmjs.com/package/markdown-spellcheck) to spell check the markdown files using US english (en-US).
+The [build.sh](../build.sh) make use of [mdspell](https://www.npmjs.com/package/markdown-spellcheck) to spell check the markdown files using US english (en-US).
 
-The mdspell node application is installed inside the [cli-mdbook docker image](../dockerfile) and executed by the [build.ps1](../build.ps1). If you need to add an exclusion for a work you can add changes to [.spelling](../.spelling) file. Each work should be on a separate line.
+The mdspell node application is installed inside the [cli-mdbook docker image](../dockerfile) and executed by the [build.ps1](../build.ps1). If you need to add an exclusion for a work you can add changes to [.spelling](../.spelling) file. Each word or phrase should be on a separate line.
 
 ## Grammar Checks
 

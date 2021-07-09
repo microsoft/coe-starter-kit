@@ -10,7 +10,7 @@ Using the Center of Excellence (COE) toolkit command line interface (CLI), you c
 - Allows COE CLI to be extensible for new verbs and actions
 - Where existing features exist in other cli tools provide consider a convenience wrapper vs native implementation in the COE CLI app
 - Allow the process to be run by single user or split process to different
--- Allow for future expansion where commands could be run as part of build process
+- Allow for future expansion where commands can be run as part of build process
 
 ## Documentation
 
@@ -27,7 +27,7 @@ To run the application you will require local install of the following or Docker
 
 ## Installation
 
-Download zip or clone repository from GitHub repository. Once downloaded you have two options install locally with NodeJs and Azure CLI or create a docker image.
+Download zip or clone repository from GitHub repository. Once downloaded you have two options install locally with NodeJS and Azure CLI or create a docker image.
 
 ### Local Install
 
