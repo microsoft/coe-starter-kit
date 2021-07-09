@@ -21,42 +21,38 @@ The GETTINGSTARTED.md is structured into 7 main sections
 - **Troubleshooting** - A few pointers on some know issues and how to remediate these.
 
 ## Table of Contents
-
-- [Set up ALM Accelerator for Advanced Maker components](#set-up-alm-accelerator-for-advanced-maker-components)
-  - [Document structure](#document-structure)
-  - [Table of Contents](#table-of-contents)
-  - [Prerequisites](#prerequisites)
-    - [Environments](#environments)
-    - [Users and Permissions](#users-and-permissions)
-    - [Connectors and DLPs](#connectors-and-dlps)
-  - [Foundational Setup](#foundational-setup)
-    - [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
-    - [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
-    - [Install Azure DevOps Extensions.](#install-azure-devops-extensions)
-    - [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
-    - [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
-    - [Get the Pipeline ID for the Export Solution Pipeline to use for global variables](#get-the-pipeline-id-for-the-export-solution-pipeline-to-use-for-global-variables)
-    - [Create Pipeline global variables](#create-pipeline-global-variables)
-    - [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
-  - [Development Project Setup](#development-project-setup)
-    - [Create an App User in your Dataverse Environments](#create-an-app-user-in-your-dataverse-environments)
-    - [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
-  - [Solution Setup](#solution-setup)
-    - [Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)](#validate-your-setup-using-the-alm-accelerator-sample-solution-optional)
-    - [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
-    - [Create the Solution Deployment Pipeline(s) (Optional)](#create-the-solution-deployment-pipelines-optional)
-    - [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
-    - [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
-    - [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
-      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
-      - [Create Deployment Configuration File (Optional)](#create-connection-reference-pipeline-variable-optional)
-  - [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
-    - [Install ALM Accelerator Solutions in Dataverse](#install-alm-accelerator-solutions-in-dataverse)
-    - [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
-  - [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
-  - [Troubleshooting](#troubleshooting)
-
-
+- [Set up ALM Accelerator for Advanced Makers (AA4AM) components](#set-up-alm-accelerator-for-advanced-makers--aa4am--components)
+  * [Document structure](#document-structure)
+  * [Table of Contents](#table-of-contents)
+  * [Prerequisites](#prerequisites)
+    + [Environments](#environments)
+    + [Users and Permissions](#users-and-permissions)
+    + [Connectors and DLPs](#connectors-and-dlps)
+  * [Foundational Setup](#foundational-setup)
+    + [Create an App Registration in your AAD Environment](#create-an-app-registration-in-your-aad-environment)
+    + [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
+    + [Install Azure DevOps Extensions](#install-azure-devops-extensions)
+    + [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
+    + [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import--delete-and-export-of-solutions)
+    + [Create Pipeline global variables](#create-pipeline-global-variables)
+    + [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
+  * [Development Project Setup](#development-project-setup)
+    + [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
+    + [Create an App User in your Dataverse Environments](#create-an-app-user-in-your-dataverse-environments)
+  * [Solution Setup](#solution-setup)
+    + [Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)](#validate-your-setup-using-the-alm-accelerator-sample-solution--optional-)
+    + [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipeline-s-)
+    + [Create the Solution Deployment Pipeline (Optional)](#create-the-solution-deployment-pipeline--optional-)
+    + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
+      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection--required-)
+    + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
+    + [Create Deployment Configuration (Optional)](#create-deployment-configuration--optional-)
+  * [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
+    + [Install ALM Accelerator Solution in Dataverse](#install-alm-accelerator-solution-in-dataverse)
+    + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
+  * [Setup Makers to Use the ALM Accelerator App](#setup-makers-to-use-the-alm-accelerator-app)
+  * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
+  * [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -74,7 +70,8 @@ In order to complete the steps below you will need the following users and permi
 
 - A licensed **Azure user** with Permissions to **create and view AAD Groups**, **create App Registrations** and **Grant Admin consent** to App Registrations in Azure Active Directory.
 - A licensed **Azure DevOps** user with Permissions to **create and manage Pipelines, Service Connections, Repos and Extensions**.
-- A licensed **Power Platform** user with Permissions to **create Application Users** and **grant Administrative Permissions** to the Application User
+- A licensed **Power Platform** user with Permissions to **create Application Users** and **grant Administrative Permissions** to the Application User.
+- Ability to assign Power Platform Admin level permissions to an App Registration in Azure. See [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app) for more information.
 
 ### Connectors and DLPs
 
@@ -90,7 +87,7 @@ The following steps will guide you through setting up the foundations of the AA4
 
 ### Create an App Registration in your AAD Environment
 
-Creating an App Registration for the ALM Accelerator is a one time setup step to grant permissions to the App and the associated pipelines the permissions required to perform operations in **Azure DevOps** and **Power Apps / Dataverse**
+Creating an App Registration for the ALM Accelerator is a one time setup step to grant permissions to the App and the associated pipelines the permissions required to perform operations in **Azure DevOps** and **Power Apps / Dataverse**. The steps below demonstrate creating a single app registration with the appropriate permissions for both Dataverse and Azure DevOps. However, you may **choose to separate responsibilities into specifically Dataverse and Azure DevOps as separate app registrations**.
 Sign in to [portal.azure.com](https://portal.azure.com).
 
 1. Go to **Azure Active Directory** > **App registrations**.
@@ -144,6 +141,8 @@ Sign in to [portal.azure.com](https://portal.azure.com).
 
 In order for the pipelines to perform certain actions against the environments in your Power Platform tenant you will need to grant Power App Management permissions to your App registration. To do so you will need to run the following PowerShell commandlet as an interactive user that has Power Apps administrative privileges. You will need to run this command once, using an interactive user, in PowerShell after your app registration has been created. The command gives permissions to the Service Principal to be able to execute environment related functions including querying for environments and connections via Microsoft.PowerApps.Administration.PowerShell (https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp?view=pa-ps-latest). For more information on the **New-PowerAppManagementApp** cmdlet see here https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp?view=pa-ps-latest
 
+> [IMPORTANT!] Currently this commandlet gives elevated permissions (e.g. Power Platform Admin) to the app registration. Your organization's security policies may not allow for these types of permissions. Ensure that these permissions are allowed before continuing. In the case that these elevated permissions are not allowed you will not be able to use the AA4AM pipelines.
+
 ```powershell
 Install-Module -Name Microsoft.PowerApps.Administration.PowerShell
 Install-Module -Name Microsoft.PowerApps.PowerShell -AllowClobber
@@ -162,10 +161,24 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 
    - **Power DevOps Tools (required)**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
 
-   - **Replace Tokens (required)**: This extension is used by the pipelines to replace tokens in configuration files in order to be able to store secure values in private variables configured for a pipeline. (https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens | https://github.com/qetza/vsts-replacetokens-task)
+   - **Replace Tokens (optional)**: This extension is used by the pipelines to replace tokens in configuration files in order to be able to store secure values in private variables configured for a pipeline. While this extension is optional, if it is not installed you will be required to manually edit the pipeline YAML in order to disable it usage. (https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens | https://github.com/qetza/vsts-replacetokens-task)
 
+      - If you choose not to install the 'Replace Tokens' extension you will need to modify the deploySolution.yml pipeline template to exclude the call to the extension as the example below shows.
+
+      ```
+      # Third party task to replace tokens in files. The FileTransform above replaces json tokens based on their path as opposed to replacing text tokens in a file which can be more error prone in some cases.
+      # If you aren't using this task it can be safely removed. Sample token: #{VariableNameToReplace}#
+      #- task: qetza.replacetokens.replacetokens-task.replacetokens@3
+      #  displayName: 'Replace Tokens: deploymentSettings.json'
+      #  inputs:
+      #    rootDirectory: '$(ArtifactDropPath)'
+      #    targetFiles: '*deploymentSettings*.json'
+      #    actionOnMissing: 'silently continue'
+      #  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], 3'')))
+      ```
+   
    - **SARIF SAST Scans Tab (optional)**: This extension can be used to visualize the .**sarif files** that get generated by the **Solution Checker** during a build. ([SARIF SAST Scans Tab - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sariftools.scans))
-
+   
      ![image-20210217102344719](.attachments/GETTINGSTARTED/image-20210217102344719.png)
 
 
@@ -251,6 +264,8 @@ The following section will guide you through the setup steps required for each o
 Each Dataverse environment (e.g Development, Validation, Test and Production) will need to have a **Power Platform service connection in DevOps**. For each of your environments follow the steps below to setup the service connection.
 
 >[!NOTE] Users of the AA4AM app will only see environments for which they have either User or Administrator role on the Service Connection in Azure DevOps. If using personal development environments all developers should have User or Administrator role for the Service Connection for their own development environment.
+>
+>Validation, Test and Production environment service connections only need permissions granted to pipelines (e.g. Build Service)
 
 1. Go to https://dev.azure.com and select your **Project**
 
@@ -265,9 +280,11 @@ Each Dataverse environment (e.g Development, Validation, Test and Production) wi
 
     >[!IMPORTANT] AA4AM will use the Service connection name to identify the service connection to use per environment so this needs to be the same URL you entered above **including the trailing forward slash**).
 
-1. Enter the **Tenant ID**, **Application (client) ID** and **Client Secret** you copied from AAD when you created your App Registration and select **Save**.
+1. Enter the **Tenant ID**, **Application (client) ID** and **Client Secret** you copied from AAD when you created your App Registration and select **Grant access permissions to all pipelines** then select **Save**.
 
-1. In order for users to be able to use the service connection from the ALM Accelerator App the Service Connections must provide **User** permissions to all users to be able to **use** the Service Connections. Update Permissions as follows:
+    ![image-20210709131833638](.attachments/SETUPGUIDE/image-20210709131833638.png)
+
+1. In order for users to be able to use the service connection from the ALM Accelerator App the Service Connections must provide **User** permissions to all users to be able to **use** the Service Connections. Update Permissions as follows for environments that user's should be able to access from the App e.g. Development environment(s):
 
     - Select the **Service Connection** to be **shared with users** from the **Service Connections** list.
 
@@ -572,6 +589,10 @@ Download the **latest managed solution**(s) from GitHub (https://github.com/micr
     - Select **Test operation** and verify you **Response Status returned is 200**.
 
     ![image-20210222135128137](.attachments/GETTINGSTARTED/image-20210222135128137.png)
+
+## Setup Makers to Use the ALM Accelerator App
+
+See the [User Setup Guide](USERSETUPGUIDE.md) for the recommended setup of a maker's user account in Dataverse and Azure DevOps.
 
 ## Using the ALM Accelerator App
 

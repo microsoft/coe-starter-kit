@@ -4,7 +4,18 @@ The ALM Accelerator uses json formatted files for updating **connection referenc
 
 > [!NOTE] For an example of configuration and data deployment configuration see the ALMAcceleratorSampleSolution here https://github.com/microsoft/coe-starter-kit/tree/ALMAcceleratorSampleSolution/ALMAcceleratorSampleSolution/config
 
-## Creating a Custom Deployment Settings json File
+### Table of Contents
+- [Configuration and Data Deployment in Pipelines](#configuration-and-data-deployment-in-pipelines)
+    + [Table of Contents](#table-of-contents)
+    + [Creating a Custom Deployment Settings Json File](#creating-a-custom-deployment-settings-json-file)
+      - [Create Connection Reference Json](#create-connection-reference-json)
+      - [Create Environment Variable Json](#create-environment-variable-json)
+      - [Create AAD Group Canvas Configuration Json](#create-aad-group-canvas-configuration-json)
+      - [Create AAD Group / Team Configuration Json](#create-aad-group---team-configuration-json)
+      - [Create Solution Component Ownership Json](#create-solution-component-ownership-json)
+    + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
+
+### Creating a Custom Deployment Settings Json File
 
 The deployment settings json file contains all of the configuration settings required to automate the deployment of your solution. The following is a sample of a custom deployment settings json file which will provide your pipelines with the necessary information required to configure a solution after it's been deployed to an environment.
 
@@ -55,7 +66,7 @@ There are a few things to note about the sample above.
 
 1. There is an alternative to using the Replace Tokens 3rd Party extension which uses **File Transformation task** without the need for any Azure DevOps extensions. You can **read more about using the File Transformation task** here https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/transforms-variable-substitution?view=azure-devops&tabs=Classic#jsonvarsubs. 
 
-1. If you choose not to install the 'Replace Tokens' extension you will need to modify the deploySolution.yml pipeline template to exclude the call to the extension as the example below shows.
+1. **If you choose not to install the 'Replace Tokens' extension** you will need to modify the deploySolution.yml pipeline template to exclude the call to the extension as the example below shows.
 
    ```
    # Third party task to replace tokens in files. The FileTransform above replaces json tokens based on their path as opposed to replacing text tokens in a file which can be more error prone in some cases.
@@ -84,7 +95,7 @@ To create the custom deployment settings json file follow the steps below
    >
    > ![image-20210622130424580](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622130424580.png)
 
-#### Create Connection Reference json
+#### Create Connection Reference Json
 
 The connection reference property in the customDeploymentConfiguration.json is **ConnectionReferences**. This is used for setting connection references in your solution to specific connections configured in a target environment after the solution is imported into an environment. Additionally, the **ConnectionReferences** are used to **enable flows after the solution is imported based on owner of the connection** specified in the variable.
 
@@ -131,7 +142,7 @@ The connection reference property in the customDeploymentConfiguration.json is *
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create Environment Variable Pipeline Variable
+#### Create Environment Variable Json
 
 The environment variable property in the customDeploymentConfiguration.json is **EnvironmentVariables**. This is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
 
@@ -178,7 +189,7 @@ The environment variable property in the customDeploymentConfiguration.json is *
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create AAD Group Canvas Configuration Pipeline Variable
+#### Create AAD Group Canvas Configuration Json
 
 The AAD group canvas configuration property in the customDeploymentConfiguration.json is **AadGroupCanvasConfiguration**. This is used for **sharing canvas apps** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
 
@@ -241,7 +252,7 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
 
-#### Create AAD Group / Team Configuration Pipeline Variable (Optional)
+#### Create AAD Group / Team Configuration Json
 
 The AAD group canvas configuration property in the customDeploymentConfiguration.json is **AadGroupTeamConfiguration**. This is used for **mapping Dataverse Teams and Roles** to specific **Azure Active Directory Groups** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
 
@@ -314,7 +325,7 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
-#### Create Solution Component Ownership Pipeline Variable (Optional)
+#### Create Solution Component Ownership Json
 
 The solution component ownership property in the customDeploymentConfiguration.json is **SolutionComponentOwnershipConfiguration**. This is used for assigning ownership of solution components to Dataverse Users after the solution is imported into an environment. This is particularly useful for components such as Flows that will be owned by default by the Service Principal user when the solution is imported by the pipeline and organizations want to reassign them after import. Additionally, the  **SolutionComponentOwnershipConfiguration** will be used to enable flows that don't have any connection references. The flow will be enabled by the user specified when no connection references are found to use to enable the flow.
 

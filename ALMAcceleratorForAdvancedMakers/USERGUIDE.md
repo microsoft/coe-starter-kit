@@ -16,9 +16,15 @@
 
 1. By default the **unmanaged solutions** in your Environment should be displayed in the main window with buttons to **Push Changes** and **Create Pull Requests**.
 
-1. To import an unmanaged solution from an existing Azure DevOps project to begin making changes select the **+ Import Solutions** button and select a solution and version.
+1. To import an unmanaged solution from an existing Azure DevOps project to begin making changes select the **+ Import Solutions** button and select a **Branch Name, Solution Folder and Configuration (Optional)**.
 
-   > [!NOTE] the solutions available are based on previous builds of your pipelines. The idea is that others have previously built the solutions and you are pulling the latest copy of the solution into your new development environment. If the solution has never been built previously you would begin with the next step.
+   - **Branch Name** is based on the branches in Azure DevOps for the Project you selected in the configuration. 
+
+   - **Solution Folder** is a list of folders in the selected branch that contain a **SolutionPackage folder** from a previous export.
+
+   - **Configuration** is a directory under the config directory in the Solution Folder that contains deployment settings and configuration data. For more information on this see the [DEPLOYMENTCONFIGGUIDE](DEPLOYMENTCONFIGGUIDE.md)
+
+   > [NOTE!] The idea here is that you are either pulling the latest from the Solution branch or possibly want to pull another makers branch into your own environment. The configuration allows you to ensure that all of the necessary post solution import configuration and data exists in your environment.
 
    ![image-20210303085946610](.attachments/GETTINGSTARTED/image-20210303085946610.png)
 
