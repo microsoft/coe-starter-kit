@@ -64,7 +64,7 @@ NOTES:
 
 After setting up an advanced maker you may need to verify the following
 
-1. If this is your first branch created you will need to check variables applied for the the created pipeline
+1. If this is your first branch created you will need to check variables applied for the created pipeline
 
 2. The first time that each pipeline is run from the administration application you will need to open the pipeline in Azure DevOps and approve the resources used by the pipeline.
 

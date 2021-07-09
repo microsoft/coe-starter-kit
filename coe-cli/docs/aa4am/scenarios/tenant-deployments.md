@@ -48,7 +48,7 @@ coe aa4am maker add -e https://alans-dev.crm.dynamics.com \
    -u alans@crm716415.onmicrosoft.com
 ```
 
-Finally makers can then [Setup Managed Solutions](./maker-setup.md)
+Once these steps are completed makers can then [Setup Managed Solutions](./maker-setup.md)
 
 ## Enterprise Deployment
 
@@ -66,7 +66,7 @@ In this scenario the aim is to install AA4AM inside an enterprise tenant and the
 
 The tenant administration team will need to create the following
 
-1. Azure Active Directory Application that will be used as Service Principal in Azure DevOps and Power Power Environments
+1. Azure Active Directory Application that will be used as Service Principal in Azure DevOps and Power Platform Environments
 1. Azure Active Directory Group that will be used to grant access to Advanced Makers to Azure DevOps resources and Maker Canvas Application and Dataverse Tables.
 1. Grant Tenant Consent for Azure Active Directory Application. This required as the Azure DevOps pipeline uses APIs where an interactive user is not involved. As a result the tenant administrator consent is required.
 
@@ -189,7 +189,7 @@ The multi tenant deployment is assumed to have one or more of the following
 
 1. External users from outside the organization maybe invited to the development tenant and not have access to the main tenant
 
-### Active Active Directory Implications
+### Azure Active Directory Implications
 
 To support multi tenant deployments the Azure Active Directory application will need to be configured to support multi tenant authentication.
 

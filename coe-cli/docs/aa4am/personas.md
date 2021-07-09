@@ -8,7 +8,7 @@ Understanding the roles that different personas play in ALM Accelerator for Adva
 
 ### Solution Setup
 
-The first command to run will will be the **coe aa4am user add** command that will register an Application User as System administrator in their development environment to integrate with the solution.
+The first command to run will be the **coe aa4am user add** command that will register an Application User as System administrator in their development environment to integrate with the solution.
 
 ```bash
 coe aa4am user add -e https://mydevorg.crm.dynamics.com
@@ -92,7 +92,7 @@ coe aa4am install -f install.json
   coe aa4am install -f data.json
   ```
 
-  - **Power Platform Environment Administrator** - Manage One ore more Power Platform Environments - Import solution, add users assign roles
+  - **Power Platform Environment Administrator** - Manage One or more Power Platform Environments - Import solution, add users assign roles
 
   ```bash
   coe aa4am generate install -o data.json

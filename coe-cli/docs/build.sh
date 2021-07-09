@@ -8,6 +8,13 @@ echo '--------------------------------------------------------------------------
 mdspell --en-us -n -r "**/*.md"
 
 echo '-----------------------------------------------------------------------------------------'
+echo Documents Grammer Check
+echo '-----------------------------------------------------------------------------------------'
+cd /lang
+node grammar.js
+
+echo '-----------------------------------------------------------------------------------------'
 echo Generating PDF File
 echo '-----------------------------------------------------------------------------------------'
+cd /docs
 chromium --headless --disable-gpu --print-to-pdf='COE Toolkit Command Line Interface.pdf' --no-margin 'COE Toolkit Command Line Interface.html' --no-sandbox

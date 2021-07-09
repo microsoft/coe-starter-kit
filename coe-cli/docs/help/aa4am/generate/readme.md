@@ -1,6 +1,6 @@
 # Generate
 
-The a generate command allows to to create JSON files for the install command using an interactive set of questions.
+The generate command allows you to create JSON files for the install command using an interactive set of questions.
 
 ## Examples
 

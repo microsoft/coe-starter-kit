@@ -48,7 +48,7 @@ This can be done using the following steps
 
 ## Azure
 
-Ensure the user you run with has the the following permissions
+Ensure the user you run with has the following permissions
 
 Component | Description
 --------- | ----------
