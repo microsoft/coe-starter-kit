@@ -88,12 +88,12 @@ To create the custom deployment settings json file follow the steps below
 
 2. Create a **new Directory called config** and save the new file **under the config folder** in git.
 
-   ![image-20210622125523627](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622125523627.png)
+   ![Directory Structure in Azure DevOps SolutionName/config/customDeploymentSettings.json](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622125523627.png)
 
    - When storing the customDeploymentSettings.json in the root of the config directory the same configuration will apply to all envionments. Assuming that you are using File Transformation or Token Replacement to store all of the environment specific information, you can specify the environment specific values in your Pipeline Variables. However, **you can also create environment specific customDeploymentSettings.json files** by creating sub-directories in the config directory with the name of the Environment to allow for more flexibility. The directory name in this case **must match the EnvironmentName pipeline variable** you created when setting up your pipeline (e.g. Validate, Test, Production). If no environment specific deployment settings json / directory is found the pipelines will revert to the configuration in the root of the config directory.
    - Additionally, you can **create user specific configuration files** (e.g. the JohannaDev directory pictured above) for individual developers to use when importing unmanaged solutions from source control. When the user imports an unmanaged solution from source control they will be presented with the option to choose a specific configuration.
    >
-   > ![image-20210622130424580](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622130424580.png)
+   > ![Select a configuration from the list](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622130424580.png)
 
 #### Create Connection Reference Json
 
@@ -117,7 +117,7 @@ The connection reference property in the customDeploymentConfiguration.json is *
    ```
 
    - The **schema name** for the connection reference can be obtained from the **connection reference component** in your solution.
-     ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/connrefschema.png)
+     ![Schema Name in the disabled text field below Name *](.attachments/DEPLOYMENTCONFIGGUIDE/connrefschema.png)
 
    - The **connection id** can be obtained via the URL of the connection after you create it. For example the id of the connection below is **9f66d1d455f3474ebf24e4fa2c04cea2** where the URL is https://.../connections/shared_commondataservice/9f66d1d455f3474ebf24e4fa2c04cea2/details#
      ![image.png](.attachments/DEPLOYMENTCONFIGGUIDE/connid.png)
@@ -419,7 +419,7 @@ In many cases there will be configuration or seed data that you will want to imp
 
 1. Open the **Configuration Migration tool** select **Create schema** and select **Continue**
 
-   ![image-20210217093038901](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217093038901.png)
+   ![Select Create Schema](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210217093038901.png)
 
 1. **Login to the tenant** from which you want to **export your configuration data**
 

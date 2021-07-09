@@ -5,12 +5,12 @@
    > [!NOTE] When you first launch the app you may need to consent to the app using your connections.
 
 1. Select the **Cog** in the top right to select your **Azure DevOps Environment**, **Project** and **Repo** to which you'll push your changes and submit your pull requests and select **Save**
-   ![image-20210303085854533](.attachments/GETTINGSTARTED/image-20210303085854533.png)
+   ![Configure Settings for AA4AM](.attachments/GETTINGSTARTED/image-20210303085854533.png)
 
    > [!NOTE] If you don't see your DevOps Organization / Project in the dropdown double check that the Custom connector is working correctly after updating it's Security settings.
 
 1. From the Environment Drop Down **Select the Dataverse Environment** in which you will be doing your development work.
-   ![image-20210303085806618](.attachments/GETTINGSTARTED/image-20210303085806618.png)
+   ![Select Dataverse Environment](.attachments/GETTINGSTARTED/image-20210303085806618.png)
 
    > [!NOTE] In order for your Environment to show up in this drop down a service connection in the Azure DevOps project you just selected is required (see [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform). Additionally, verify that you've followed the steps to reconnect the flow above if you do not see any environments in the list.
 
@@ -24,16 +24,16 @@
 
    - **Configuration** is a directory under the config directory in the Solution Folder that contains deployment settings and configuration data. For more information on this see the [DEPLOYMENTCONFIGGUIDE](DEPLOYMENTCONFIGGUIDE.md)
 
-   > [NOTE!] The idea here is that you are either pulling the latest from the Solution branch or possibly want to pull another makers branch into your own environment. The configuration allows you to ensure that all of the necessary post solution import configuration and data exists in your environment.
+   > [!NOTE] The idea here is that you are either pulling the latest from the Solution branch or possibly want to pull another makers branch into your own environment. The configuration allows you to ensure that all of the necessary post solution import configuration and data exists in your environment.
 
-   ![image-20210303085946610](.attachments/GETTINGSTARTED/image-20210303085946610.png)
+   ![Import Solution from Branch in Azure DevOps](.attachments/GETTINGSTARTED/image-20210303085946610.png)
 
 1. Once your solution is imported into Dataverse, or you've created a new unmanaged solution and made your customizations, you can push your changes to Git using the **Push Changes to Git** button for your solution.
 
    >[!NOTE]: Be sure to publish your changes before initiating the push. If a newly created solution doesn't show in your list immediately. Click the Refresh button to reload all solutions.
 
    - Select an **existing branch** or **create a new branch** based on an existing branch and enter a **comment**. Use the hashtag notation e.g. `#123` to link the changes to a specific work item in Azure DevOps and Select **Commit**.
-     ![image-20210303085710535](.attachments/GETTINGSTARTED/image-20210303085710535.png)
+     ![Export Solution from Dataverse to New Azure DevOps Branch](.attachments/GETTINGSTARTED/image-20210303085710535.png)
 
    >[!NOTE]: There is an option to specify if the latest changes contain Delete Components. This allows the user to specify whether to perform an **update** or an **upgrade** of the solution when it is deployed. The former will increase the performance of the pipelines and reduce the overall time to deploy.
 

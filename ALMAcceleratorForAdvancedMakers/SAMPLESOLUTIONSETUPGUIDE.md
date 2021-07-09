@@ -44,7 +44,7 @@ In this step you'll be creating the Validation and Test Pipelines for reference 
    
 1. Create a new Branch based on **your default branch** in the Repo called **ALMAcceleratorSampleSolution**
    
-   >  [NOTE!] This branch will be your v-next branch in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
+   >  [!NOTE] This branch will be your v-next branch in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
    
    ![image-20210505162502432](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505162502432.png)
    
@@ -221,7 +221,7 @@ The **EnvironmentName** variable is used to specify the Azure DevOps environment
 
 5. Repeat the steps above to create the **ServiceConnection** variable. This is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created during setup [Create a Service Connection for DevOps to access Power Platform](SETUPGUIDE.md#create-service-connections-for-devops-to-access-power-platform)
 
-   > [NOTE!] The Value for the ServiceConnection variable must be identical to the Name of the Service Connection. Including any trailing slashes.
+   > [!NOTE] The Value for the ServiceConnection variable must be identical to the Name of the Service Connection. Including any trailing slashes.
 
    ![image-20210506102307068](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210506102307068.png)
 
@@ -240,7 +240,7 @@ To get started using the ALM Accelerator For Advanced Makers App follow the inst
 
 1. Download the **latest unmanaged solution** of the **ALM Accelerator Sample Solution** from the latest release of the ALM Accelerator For Advanced Makers on GitHub (https://github.com/microsoft/coe-starter-kit/releases).
 
-    > [NOTE!] The screenshot below is for reference as to where the unmanaged solution exists under a release. The actual version should be the most recent release.
+    > [!NOTE] The screenshot below is for reference as to where the unmanaged solution exists under a release. The actual version should be the most recent release.
     
     ![image-20210506140023521](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210506140023521.png)
 

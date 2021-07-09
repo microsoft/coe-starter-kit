@@ -354,7 +354,7 @@ The following steps show how to **create a pipeline from the sample pipeline YAM
 | build-deploy-test-MyNewSolution.yml       | deploy-test-MyNewSolution       | No                    | Yes                   |
 | build-deploy-prod-MyNewSolution.yml       | deploy-prod-MyNewSolution       | No                    | No (See next section) |
 
-> [NOTE!] The following steps will create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for **only the Validation and Test environment** and then skip to the next section to see how to configure your release pipeline.
+> [!NOTE] The following steps will create pipelines that **build and deploy for each environment** (Validation, Test and Production). However, you may want to only build and deploy for Validation and Test and then deploy the artifacts from the Test build to Production. Included in [the section following this section](#create-the-solution-deployment-pipelines-optional) are instructions for doing the latter. If this is your preferred method of setting up the pipelines follow the steps below for **only the Validation and Test environment** and then skip to the next section to see how to configure your release pipeline.
 
 1. In Azure DevOps go to the **Repo** that contains the [Pipelines folder you committed](#copy-the-YAML-pipelines-from-github-to-your-azure-devops-instance) and select the Pipelines folder
 
@@ -366,7 +366,7 @@ The following steps show how to **create a pipeline from the sample pipeline YAM
    
 1. Create a new Branch based on **your default branch** in the Repo with the name of your solution (e.g. **MyNewSolution**) 
 
-    > [NOTE!] This branch will be your next version (v-next) branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
+    > [!NOTE] This branch will be your next version (v-next) branch for your Solution in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
 
     ![image-20210507110620258](.attachments/SETUPGUIDE/image-20210507110620258.png)
 
@@ -543,7 +543,7 @@ If your solution requires these additional configuration settings and / or data 
 
 Download the **latest managed solution**(s) from GitHub (https://github.com/microsoft/coe-starter-kit/releases).
 
-1. > [NOTE!] The screenshot below is for reference as to where the managed solution exists under a release. The actual version should be the most recent release.
+1. > [!NOTE] The screenshot below is for reference as to where the managed solution exists under a release. The actual version should be the most recent release.
 
    ![image-20210430150752479](.attachments/SETUPGUIDE/image-20210430150752479.png)
 
@@ -606,4 +606,4 @@ When you setup your pipelines such that the pipeline templates are stored in a d
 
 Alternatively, to disable this notification for all pipelines you can turn off Limit Job authorization scope to referenced Azure DevOps repositories in **Project -> Settings -> General**. This setting is turned on by default when you create a new project.  ![image-20210426143538533](.attachments/GETTINGSTARTED/image-20210426143538533.png)
 
->  [NOTE!] that the project settings can be overridden at the Azure DevOps organization level, so if the option to change this is disabled in project settings, check in Organization Settings.
+>  [!NOTE] that the project settings can be overridden at the Azure DevOps organization level, so if the option to change this is disabled in project settings, check in Organization Settings.
