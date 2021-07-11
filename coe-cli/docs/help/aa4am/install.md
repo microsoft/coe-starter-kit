@@ -8,6 +8,12 @@ Common command to install using generated install configuration file
 coe aa4am install -f install.json
 ```
 
+To generate an install file you can use the [generate install](./generate/install) command
+
+```bash
+coe aa4am gnerate install -o install.json
+```
+
 ## Parameters
 
 #### -l, --log
@@ -16,7 +22,7 @@ The level of logging to created when running the install in the log file combine
 
 Read more https://github.com/winstonjs/winston#logging-levels
 
-### -f, --file
+#### -f, --file
 
 The install configuration parameters file. Example command to generate install configuration file
 
@@ -24,7 +30,7 @@ The install configuration parameters file. Example command to generate install c
 coe aa4am generate install -o istall.json
 ```
 
-### -c, --components
+#### -c, --components
 
 The component(s) to install
 
@@ -33,17 +39,17 @@ The component(s) to install
 - **devops** - Install and configure Azure DevOps components only
 - **environment** - Install and configure Power Platform components only
 
-### --a, --aad
+#### --a, --aad
 
 The Azure Active Directory Application name that will be used as Service Principal connect from Azure DevOps Service Connectors and Power Platform Environments.
 
-The application will be created if it does not exists is component **aad** or **all** is selected. Requires Azure Active Directory Directory permissions. [Read More](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+The application will be created if it does not exists is component **aad** or **all** is selected. Requires Azure Active Directory permissions. [Read More](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
 
 For **aad** or **devops** install the AAD application will be used to assign as the identity to for the service connection.
 
 For **aad** or **environment** install the AAD application will be used to assign as the Application User in the environment with System Administrator access to allow import/export of solutions.
 
-### -g, --group
+#### -g, --group
 
 The Azure Active Directory Group name that will be used to grant access to Advanced makers in Azure DevOps and the Power Platform.
 
@@ -53,13 +59,13 @@ For **aad** or **devops** the group will be used to grant access to Variable gro
 
 For **aad** or **environment** the group will be used to share access to run the Canvas application.
 
-### -o, --devOpsOrganization
+#### -o, --devOpsOrganization
 
 The Azure DevOps organization that will be installed to or referenced.
 
 The value can be in the format https://dev.azure.com/contoso or contoso. If the fully qualified Url is not specified then https://dev.azure.com/ will be inserted before the provided value.
 
-### -p, --project
+#### -p, --project
 
 The Azure DevOps project name. The project must already be created in your Azure DevOps organization. This value will be used to:
  - Create Variable Group
@@ -68,26 +74,26 @@ The Azure DevOps project name. The project must already be created in your Azure
 
 The default value is **alm-sandbox**
 
-### -r, --repository
+#### -r, --repository
 
 The Azure DevOps repository where Azure DevOps pipeline templates will be cloned from https://github.com/microsoft/coe-alm-accelerator-templates.git
 
 The default value is **pipelines**
 
-### -e, --installEnvironments
+#### -e, --environments
 
-The Power Platform environment where the ALM Accelerator for Advanced Makers solution will be installed. You can enter either the
+The Power Platform environment where the ALM Accelerator for Advanced Maker solution will be installed. You can enter either the
 
 1. Organization name e.g. contoso-dev1234. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-dev1234.crm.dynamics.com
 
-You can visit https://aka.ms/ppac to view environments that you have access to to get environments that you have access to.
+You can visit https://aka.ms/ppac to view environments that you have access to get environments that you have access to.
 
-### -s, --settings
+#### -s, --settings
 
-A dictionary of settings used by by the install process
+A dictionary of settings used by the install process
 
-#### --validation
+##### --validation
 
 The name of the build validation environment that will be used to validate pull requests before committing changes to a solution branch.
 
@@ -95,7 +101,7 @@ The value can be either the
 1. Organization name e.g. contoso-validation. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-validation.crm.dynamics.com
 
-#### --test
+##### --test
 
 The name of the build test environment that solutions will be promoted to
 
@@ -103,7 +109,7 @@ The value can be either the
 1. Organization name e.g. contoso-test. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-test.crm.dynamics.com
 
-#### --prod
+##### --prod
 
 The name of the build production environment that solutions will be promoted to
 
@@ -111,7 +117,7 @@ The value can be either the
 1. Organization name e.g. contoso-prod. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-prod.crm.dynamics.com
 
-#### --createSecret
+##### --createSecret
 
 Determine if secrets should be created and assigned to resources that require Service Principal Name (SPN) authentication for **aad** parameter. To create a secret for an Azure Active Directory application you must be assigned as an owner of the Azure Active Directory application
 
@@ -119,15 +125,16 @@ Default value is **true**.
 
 Read more on [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
 
-#### --region
+##### --region
 
 The region that environments are deployed to. This setting will be used if a fully qualified domain name are not supplied. The default value is **NAM** North America
 
 Further reading:
 
 - [Regions overview](https://docs.microsoft.com/en-us/power-platform/admin/regions-overview)
+- [Region List](https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions)
 
-### -m, --importMethod
+#### -m, --importMethod
 
 The method to import the managed ALM Accelerator for Advanced Makers into Power Platform environment.
 
@@ -137,7 +144,7 @@ The method to import the managed ALM Accelerator for Advanced Makers into Power 
 
 - **pac** - Install using the Power Platform CLI. See https://docs.microsoft.com/en-us/powerapps/developer/data-platform/powerapps-cli#solution for the **pac solution import** and install requirements
 
-### --endpoint
+#### --endpoint
 
 The Power Platform Administration environment to interact with. The default value is **prod**
 
@@ -156,7 +163,7 @@ Read More
 - [Power Apps Preview Program](https://docs.microsoft.com/en-us/power-platform/admin/preview-environments)
 - [What is a CDS endpoint](https://powerusers.microsoft.com/t5/Building-Power-Apps/What-is-a-CDS-Endpoint/m-p/44969#M18758)
 
-### --subscription
+#### --subscription
 
 The name of the Azure Active Directory that should be selected. This value is optional in the case you only have access to a single Azure Active Tenant.
 

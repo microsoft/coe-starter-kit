@@ -12,14 +12,15 @@ The first command to run will be the **coe aa4am user add** command that will re
 
 ```bash
 coe aa4am user add -e https://mydevorg.crm.dynamics.com
-
 ```
 
 The **coe aa4am branch** command will be run each time a new solution is created. This command allows a new solution branch to be created in Azure DevOps with the associated ALM DevOps pipeline to validate pull requests and push changes to test and production environments.
 
 ```bash
-coe aa4am branch -o https://dev.azure.com/contoso -p alm-sandbox -d MySolution
-
+coe aa4am branch \
+  -o https://dev.azure.com/contoso \
+  -p alm-sandbox \
+  -d MySolution
 ```
 
 ### Administrator Setup
@@ -27,22 +28,33 @@ coe aa4am branch -o https://dev.azure.com/contoso -p alm-sandbox -d MySolution
 As each Advanced Maker or Professional Developer creates a development environment it will need to be registered with Azure DevOps and the Azure Active Directory Application. THe user running this command requires Project Administrator rights in Azure DevOps and Owner rights of the Azure Active Directory Application.
 
 ```bash
-coe aa4am maker add -o https://dev.azure.com/contso -p alm-sandbox \
-   -e https://contoso-userdev.crm.dynamics.com -a aa4am-ado-service-principal \
-   -g aa4am-makers -u user@contoso.com
+coe aa4am maker add \
+  -o https://dev.azure.com/contso \
+  -p alm-sandbox \
+  -e https://contoso-userdev.crm.dynamics.com -a aa4am-ado-service-principal \
+  -g aa4am-makers -u user@contoso.com
 ```
 
 Each Azure DevOps project will also require connections to deployment environments used by Azure DevOps pipelines
 
 ```bash
-coe aa4am connection add -o https://dev.azure.com/contso -p alm-sandbox \
-  -e https://contoso-build.crm.dynamics.com -a aa4am-ado-service-principal
+coe aa4am connection add \
+  -o https://dev.azure.com/contso \
+  -p alm-sandbox \
+  -e https://contoso-build.crm.dynamics.com \
+  -a aa4am-ado-service-principal
 
-coe aa4am connection add -o https://dev.azure.com/contso -p alm-sandbox \
-  -e https://contoso-test.crm.dynamics.com -a aa4am-ado-service-principal
+coe aa4am connection add \
+  -o https://dev.azure.com/contso \
+  -p alm-sandbox \
+  -e https://contoso-test.crm.dynamics.com \
+  -a aa4am-ado-service-principal
 
-coe aa4am connection add -o https://dev.azure.com/contso -p alm-sandbox \
-  -e https://contoso-prod.crm.dynamics.com -a aa4am-ado-service-principal
+coe aa4am connection add \
+  -o https://dev.azure.com/contso \
+  -p alm-sandbox \
+  -e https://contoso-prod.crm.dynamics.com \
+  -a aa4am-ado-service-principal
 ```
 
 ### Install
@@ -96,16 +108,19 @@ coe aa4am install -f install.json
 
   ```bash
   coe aa4am generate install -o data.json
-  coe aa4am install -c environment -e https://contoso-maker.crm.dynamics.com
+  coe aa4am install \
+    -c environment \
+    -e https://contoso-maker.crm.dynamics.com
   ```
 
   Add makers to an environment (Assuming they also have Azure DevOps Administrator rights)
 
     ```bash
-    coe aa4am maker add -e https://user-Dev.crm.dynamics.com \
-       -o https://dev.azure.com/dev12345 \
-       -p alm-sandbox \
-       -u user@contoso.com
+    coe aa4am maker add \
+      -e https://user-Dev.crm.dynamics.com \
+      -o https://dev.azure.com/dev12345 \
+      -p alm-sandbox \
+      -u user@contoso.com
     ```
 
   **Azure Tenant Administrator** Manage the AAD Tenant - Create User, Groups,  Applications and Service Principals (O365 or Azure Administrators). Common commands
@@ -120,7 +135,8 @@ coe aa4am install -f install.json
   **Azure DevOps Project Administrators**
 
   ```bash
-  coe aa4am install -c devops -o https://dev.azure.com/dev12345 -p alm-sandbox
-  
+  coe aa4am install -c devops \
+    -o https://dev.azure.com/dev12345 \
+    -p alm-sandbox
   ``` 
   

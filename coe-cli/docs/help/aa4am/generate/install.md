@@ -9,8 +9,16 @@ Generate install configuration file for installation of the ALM Accelerator for 
 Example command line
 
 ```bash
-coe aa4am generate install -o test.json
+coe aa4am generate install -o install.json
 ```
+
+To use the generated install file
+
+```bash
+coe aa4am install -f install.json
+```
+
+Read more on [install command](../install.md)
 
 ### Parameters
 

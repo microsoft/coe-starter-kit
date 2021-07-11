@@ -28,7 +28,8 @@ coe ebook generate
 If you are building an e-book for a branch that is not the main branch you can specify the path to the git hub repository e.g.
 
 ```bash
-coe ebook generate -r https://github.com/microsoft/coe-starter-kit/tree/coe-cli/coe-cli/docs
+coe ebook generate \
+    -r https://github.com/microsoft/coe-starter-kit/tree/coe-cli/coe-cli/docs
 ```
 
 2. Change to the docs folder
