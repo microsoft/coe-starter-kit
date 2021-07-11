@@ -5,6 +5,42 @@ command allows you to manage common tasks for Advanced Makers.
 
 Not sure what AA4AM is and how it can help? The main GitHub project [README](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/README.md) provides further context and examples of usage.
 
+## Quick Start
+
+1. Create your [Power Platform Environments](./key-concepts.md#environments) and Azure DevOps Organization for example create a [Azure DevOps Organization](https://azure.microsoft.com/en-us/services/devops/).
+
+1. Create an install configuration. Review the [install help](../help/aa4am/install.md) for install parameters
+
+```bash
+coe aa4am generate install -o quickstart.json
+```
+
+2. If you are a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment) us the following command
+
+```bash
+coe aa4am install -f quickstart.json
+```
+
+If you are deploying to your enterprise refer to [Enterprise Deployment](./scenarios/tenant-deployments.md#enterprise-deployment) for further information.
+
+3. Add Advanced Makers to Azure DevOps and share the Canvas Application
+
+```bash
+coe aa4am maker add \
+   -o https://dev.azure.com/contso \
+   -p alm-sandbox \
+   -e https://contoso-userdev.crm.dynamics.com -a aa4am-ado-service-principal \
+   -g aa4am-makers -u user@contoso.com
+```
+
+You can also generate a user configuration file. Using this approach will allow to you explore each parameter and review the settings before adding the maker.
+
+```bash
+coe aa4am generate maker add -o user.config
+coe aa4am maker add \
+   -f user.config
+```
+
 ## Getting Started
 
 - [Scenarios](./scenarios/readme.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments

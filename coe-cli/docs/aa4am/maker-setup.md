@@ -37,7 +37,10 @@ Once the environment has been setup and your development environment created and
 4. Create Solution branch using the following CLI command
 
 ```bash
-coe aa4am branch -o https://dev.azure.com/dev12345 -p alm-sandbox -d MySolution1
+coe aa4am branch \
+  -o https://dev.azure.com/dev12345 \
+  -p alm-sandbox \
+  -d MySolution1
 
 ```
 

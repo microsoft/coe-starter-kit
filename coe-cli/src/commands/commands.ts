@@ -117,9 +117,6 @@ class CoeCliCommands {
     }
 
     AddHelpCommands(program: commander.Command) {
-       
-
-        
         var help = program.command('help')
             .description('Center of Excellence Command Line Interface Help');
 
@@ -139,11 +136,20 @@ class CoeCliCommands {
         this.addHelpAction(aa4amGenerate.command('install').description("AA4AM install help"),
                 "help/aa4am/generate/install.md")
 
+        let helpGenerateMaker = aa4amGenerate.command('maker')
+
+        this.addHelpAction(helpGenerateMaker.command('add').description("AA4AM Generate Maker Add help"),
+                "help/aa4am/generate/maker/add.md")
+
         this.addHelpAction(aa4am.command('install')
                 .description("AA4AM Install Help"),
                 "help/aa4am/install.md")
-        
-                
+
+        let connection = aa4am.command('connection')
+
+        this.addHelpAction(connection.command('add')
+            .description("AA4AM Connection Add Help"),
+            "help/aa4am/connection/add.md")
     }
 
     addHelpAction(command: commander.Command, filename: string) {
@@ -311,7 +317,7 @@ class CoeCliCommands {
                     }
 
                     this.logger?.debug("Prompting for values")
-                    let results = await this.promptForValues(maker, 'add', [], ["file"], parse)
+                    let results = await this.promptForValues(maker, 'add', [], ["file"], parse, 'help/aa4am/maker/add.md')
 
                     if (typeof results.settings === "string") {
                         results.settings = this.parseSettings(results.settings)
@@ -331,6 +337,7 @@ class CoeCliCommands {
                         this.outputText(JSON.stringify(results, null, 2))
                     }
 
+                    this.readline.close()
                     this.logger?.info("Generate maker end")
                 })
 
@@ -505,11 +512,10 @@ class CoeCliCommands {
             .option('-f, --file <name>', 'The install configuration parameters file from')
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
             .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
-            .requiredOption('-e, --environment <organization>', 'The environment to create the Service Principal Application User in')
             .requiredOption('-u, --user <name>', 'The user to add as a advanced maker')
-            .requiredOption('-g, --group <name>', 'The azure active directory makers group.', 'ALMAcceleratorForAdvancedMakers')
-            .option('--aad <name>', 'The azure active directory service principal application', 'ALMAcceleratorServicePrincipal')
-            .option('-r, --role <name>', 'The user role', 'System Administrator')
+            .requiredOption('-e, --environment <organization>', 'The development environment to create the create service connection to for user')
+            .requiredOption('-g, --group <name>', 'The azure active directory makers group to add user to.', 'ALMAcceleratorForAdvancedMakers')
+            .option('--aad <name>', 'The Azure Active Directory application to create service connection with', 'ALMAcceleratorServicePrincipal')
             .addOption(installEndpoint)
             .option('-s, --settings <namevalues>', 'Optional settings')
             .action(async (options: any) => {
@@ -533,7 +539,6 @@ class CoeCliCommands {
                     args.project = options.project
                     args.azureActiveDirectoryServicePrincipal = options.aad
                     args.azureActiveDirectoryMakersGroup = options.group
-                    args.role = options.role
                     args.endpoint = options.endpoint
                     args.environment = options.environment
                     args.settings = this.parseSettings(options.settings)

@@ -555,11 +555,6 @@ class AA4AMUserArguments {
   azureActiveDirectoryMakersGroup: string
 
   /**
-  * The user role for the service principal
-  */
-  role: string
-
-  /**
     * Optional settings
     */
   settings:  { [id: string] : string }

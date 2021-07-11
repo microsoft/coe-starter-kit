@@ -309,11 +309,13 @@ describe('Share', () => {
     test('Application not found', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
+        let mockAAD = mock<AADCommand>()
         var command = new PowerPlatformCommand(logger);
         
         let args = new PowerPlatformImportSolutionArguments()
         let mockAxios = mock<AxiosStatic>()
         command.getAxios = () => mockAxios
+        command.createAADCommand = () => mockAAD
 
         args.endpoint = "prod"
 
