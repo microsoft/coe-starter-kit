@@ -29,8 +29,10 @@ Help for [install](./generate/install.md)
 Allows DevOps Administrators to create connections from Azure DevOps to Power Platform environments
 
 ```
-coe help aa4am connection
+coe help aa4am connection add
 ```
+
+Help for [connection add](./connection/add.md)
 
 ### Maker
 
@@ -40,6 +42,8 @@ Allows administrators to add makers to AA4AM
 coe help aa4am maker
 ```
 
+Help for [maker add](./maker/add.md)
+
 ### Branch
 
 Allows Advanced makers to add solution branches to an Azure DevOps repository
@@ -47,3 +51,5 @@ Allows Advanced makers to add solution branches to an Azure DevOps repository
 ```
 coe help aa4am branch
 ```
+
+Help for [branch](./branch.md)

@@ -145,6 +145,10 @@ class CoeCliCommands {
                 .description("AA4AM Install Help"),
                 "help/aa4am/install.md")
 
+        this.addHelpAction(aa4am.command('branch')
+                .description("AA4AM Branch Help"),
+                "help/aa4am/branch.md")
+
         let connection = aa4am.command('connection')
 
         this.addHelpAction(connection.command('add')
@@ -586,12 +590,12 @@ class CoeCliCommands {
 
         aa4am.command('branch')
             .description('Create a new Application Branch')
-            .option('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
+            .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
+            .requiredOption('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
-            .option('-p, --project <name>', 'The Azure DevOps name')
+            .requiredOption('-d, --destination <name>', 'The branch to create')
             .option('--source <name>', 'The source branch to copy from')
             .option('--source-build <name>', 'The source build to copy from')
-            .option('-d, --destination <name>', 'The branch to create')
             .option('-s, --settings <namevalues>', 'Optional settings')
             .addOption(this._logOption)
             .action(async (options: any) : Promise<void> => {
