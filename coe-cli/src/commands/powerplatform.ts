@@ -8,6 +8,8 @@ import * as winston from 'winston';
 import { Environment } from '../common/enviroment';
 import * as urlModule from 'url';
 import { AA4AMCommand, AA4AMUserArguments } from './aa4am';
+import * as readline from 'readline';
+import { ReadLineManagement } from '../common/readLineManagement'
 
 /**
  * Powerplatform commands
@@ -24,8 +26,10 @@ class PowerPlatformCommand {
     createAADCommand: () => AADCommand
     createAA4AMCommand: () => AA4AMCommand
     logger: winston.Logger
+    readline: readline.ReadLine
+    outputText: (text: string) => void
 
-    constructor(logger: winston.Logger) {
+    constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null) {
         this.logger = logger
 
         this.getAxios = () => axios
@@ -48,6 +52,8 @@ class PowerPlatformCommand {
         this.cli = new CommandLineHelper
         this.createAADCommand = () => { return new AADCommand(this.logger) }
         this.createAA4AMCommand = () => { return new AA4AMCommand(this.logger) }
+        this.readline = defaultReadline
+        this.outputText = (text: string) => console.log(text)
     }
 
     /**
@@ -107,8 +113,8 @@ class PowerPlatformCommand {
  * @param args 
  */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
-        let solutions: any = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
 
         if (solutions.value.length == 0) {
             let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
@@ -123,14 +129,14 @@ class PowerPlatformCommand {
 
             this.logger?.info('Importing managed solution')
             // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
-            await this.getAxios().post(`${enviromentUrl}api/data/v9.0/ImportSolution`, importData, {
+            await this.getAxios().post(`${environmentUrl}api/data/v9.0/ImportSolution`, importData, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
             // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
-            solutions = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
         } else {
             this.logger?.info('Solution already exists')
         }
@@ -225,9 +231,9 @@ class PowerPlatformCommand {
     async fixCustomConnectors(environment: string, args: PowerPlatformImportSolutionArguments): Promise<void> {
         this.logger?.info("Checking connectors")
 
-        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        let connectors = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/connectors`, args.accessToken)).value
+        let connectors = (await this.getSecureJson(`${environmentUrl}api/data/v9.0/connectors`, args.accessToken)).value
         let connectorMatch = connectors?.filter((c: any) => c.name.startsWith('cat_5Fcustomazuredevops'))
 
         if (connectorMatch?.length == 1) {
@@ -358,11 +364,11 @@ class PowerPlatformCommand {
     async fixConnectionReferences(environment: string, solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
         this.logger?.info("Check connection reference")
 
-        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        let whoAmI = await this.getSecureJson(`${enviromentUrl}api/data/v9.0/WhoAmI`, args.accessToken)
+        let whoAmI = await this.getSecureJson(`${environmentUrl}api/data/v9.0/WhoAmI`, args.accessToken)
 
-        let aadInfo = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
+        let aadInfo = (await this.getSecureJson(`${environmentUrl}api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
         this.logger?.debug('Query environment connecctions')
         let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
@@ -370,49 +376,88 @@ class PowerPlatformCommand {
         let token = args.accessTokens[bapUrl]
         // Source: Microsoft.PowerApps.Administration.PowerShell.psm1
         let url = `${powerAppsUrl}providers/Microsoft.PowerApps/scopes/admin/environments/${environment}/connections?api-version=2016-11-01`
-        let connectionResults = await this.getAxios().get(url, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        })
-        let connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId?.split('apis/')[1] == 'shared_commondataservice')
 
-        if (connection.length == 0) {
-            this.logger?.error('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
+        let connection: any[]
+
+        let stopped = false
+        while ( !stopped ) {
+            let connectionResults = await this.getAxios().get(url, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
+
+            this.logger?.info(`Found ${connectionResults.data.value.length} connection(s)`)
             
-            return Promise.resolve();
-        } else {
-
-            let connectionReferences = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
-            let connectionMatch = connectionReferences?.filter((c: any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps'))
-
-            if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
-                this.logger?.info('Dataverse Connection not found')
-                return Promise.resolve();
-            } else {
-                this.logger?.info("Connection found")
-                if (connectionMatch[0].connectionid == null) {
-                    this.logger?.info("Connection id needs to be updated")
-                    let update = {
-                        "connectionid": `${connection[0].name}`
-                    }
-                    try {
-                        await this.getAxios().patch(`${enviromentUrl}api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, {
-                            headers: {
-                                'Authorization': 'Bearer ' + args.accessToken,
-                                'Content-Type': 'application/json',
-                                'OData-MaxVersion': '4.0',
-                                'OData-Version': '4.0',
-                                'If-Match': '*'
+            connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId?.endsWith('/shared_commondataservice'))
+    
+            if (connection.length == 0) {
+                this.logger?.error('No Microsoft Dataverse (Legacy Found) in environment ${environmentUrl}.')
+                this.readline = ReadLineManagement.setupReadLine(this.readline)
+                let result = await new Promise((resolve, reject) => {
+                    this.readline.question("Create connection now (Y/n)? ", (answer: string) => {
+                        if ( answer.length == 0 || answer.toLowerCase() == 'y') {
+                            resolve('y')
+                        } else {
+                            resolve('n')
+                        }
+                    })
+                })
+                if (result == 'y') {
+                    this.outputText(`Create a connection by open page https://make.powerapps.com/environments/${environment}/connections/available?apiName=shared_commondataservice`)
+                    result = await new Promise((resolve, reject) => {
+                        this.readline.question("Check again now (Y/n)? ", (answer: string) => {
+                            if ( answer.length == 0 || answer.toLowerCase() == 'y') {
+                                resolve('y')
+                            } else {
+                                resolve('n')
                             }
                         })
-                        this.logger?.info("Connection reference updated")
-                    } catch (err) {
-                        this.logger?.error(err)
-                    }
-                } else {
-                    this.logger?.debug("Connection already connected")
+                    })                    
                 }
+                if (result == 'n') {
+                    this.logger?.info("Exiting install")
+                    stopped = true
+                    return Promise.resolve();
+                }
+            } else {
+                // Found a connection
+                stopped = true
+            }
+        }
+
+        this.readline?.close()
+        this.readline = null
+
+        let connectionReferences = (await this.getSecureJson(`${environmentUrl}api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
+        let connectionMatch = connectionReferences?.filter((c: any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps'))
+
+        if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
+            this.logger?.info('Dataverse Connection not found')
+            return Promise.resolve();
+        } else {
+            this.logger?.info("Connection found")
+            if (connectionMatch[0].connectionid == null) {
+                this.logger?.info("Connection id needs to be updated")
+                let update = {
+                    "connectionid": `${connection[0].name}`
+                }
+                try {
+                    await this.getAxios().patch(`${environmentUrl}api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, {
+                        headers: {
+                            'Authorization': 'Bearer ' + args.accessToken,
+                            'Content-Type': 'application/json',
+                            'OData-MaxVersion': '4.0',
+                            'OData-Version': '4.0',
+                            'If-Match': '*'
+                        }
+                    })
+                    this.logger?.info("Connection reference updated")
+                } catch (err) {
+                    this.logger?.error(err)
+                }
+            } else {
+                this.logger?.debug("Connection already connected")
             }
         }
     }
@@ -430,9 +475,9 @@ class PowerPlatformCommand {
             return Promise.resolve()
         }
 
-        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        let flows = (await this.getSecureJson(`${enviromentUrl}api/data/v9.0/workflows?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken))
+        let flows = (await this.getSecureJson(`${environmentUrl}api/data/v9.0/workflows?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken))
         for (let i = 0; i < flows.value?.length; i++) {
             let flow = flows.value[i]
             if (flow.statecode == 0 && flow.statuscode == 1) {
@@ -441,7 +486,7 @@ class PowerPlatformCommand {
                     statuscode: 2
                 }
                 this.logger?.debug(`Enabling flow ${flow.name}`)
-                await this.getAxios().patch(`${enviromentUrl}api/data/v9.0/workflows(${flow.workflowid})`, flowUpdate, {
+                await this.getAxios().patch(`${environmentUrl}api/data/v9.0/workflows(${flow.workflowid})`, flowUpdate, {
                     headers: {
                         'Authorization': 'Bearer ' + args.accessToken,
                         'Content-Type': 'application/json',
@@ -477,7 +522,7 @@ class PowerPlatformCommand {
     }
 
     async shareMakerApplication(solution: Solution, environment: string, args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
         let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
         let bapUrl = this.mapEndpoint("bap", args.endpoint)
@@ -508,7 +553,7 @@ class PowerPlatformCommand {
 
         this.logger?.debug("Searching for solution components")
         // https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/entities/msdyn_solutioncomponentsummary?view=op-9-1
-        let componentQuery = await this.getAxios().get(`${enviromentUrl}api/data/v9.0/msdyn_solutioncomponentsummaries?%24filter=(msdyn_solutionid%20eq%20${solution.solutionid})&api-version=9.1`, config)
+        let componentQuery = await this.getAxios().get(`${environmentUrl}api/data/v9.0/msdyn_solutioncomponentsummaries?%24filter=(msdyn_solutionid%20eq%20${solution.solutionid})&api-version=9.1`, config)
 
         let components = <Component[]>componentQuery.data.value
         this.logger?.verbose(components)
@@ -557,24 +602,24 @@ class PowerPlatformCommand {
         }
 
         this.logger?.info(`Checking ${args.azureActiveDirectoryMakersGroup} permissions`)
-        await this.assignRoleToAADGroup(args.azureActiveDirectoryMakersGroup, aadGroupId, 'ALM Power App Access', enviromentUrl, config)
+        await this.assignRoleToAADGroup(args.azureActiveDirectoryMakersGroup, aadGroupId, 'ALM Power App Access', environmentUrl, config)
     }
 
-    async assignRoleToAADGroup(aadGroupName: string, aadGroupId: string, roleName: string, enviromentUrl: string, config: { headers: { Authorization: string; 'Content-Type': string; 'OData-MaxVersion': string; 'OData-Version': string; 'If-Match': string; }; }) {
+    async assignRoleToAADGroup(aadGroupName: string, aadGroupId: string, roleName: string, environmentUrl: string, config: { headers: { Authorization: string; 'Content-Type': string; 'OData-MaxVersion': string; 'OData-Version': string; 'If-Match': string; }; }) {
 
         this.logger?.info(`Checking if role ${roleName} exists`)
-        let roleQuery = await this.getAxios().get(`${enviromentUrl}api/data/v9.0/roles?$filter=name eq '${roleName}'`, config)
+        let roleQuery = await this.getAxios().get(`${environmentUrl}api/data/v9.0/roles?$filter=name eq '${roleName}'`, config)
         if (roleQuery.data.value?.length == 1) {
             this.logger?.info("Role found")
             let roleId = roleQuery.data.value[0].roleid
 
             this.logger?.info(`Searching for assigned roles for ${aadGroupName}`)
-            let aadPermissionsQuery = await this.getAxios().get(`${enviromentUrl}api/data/v9.0/teams(azureactivedirectoryobjectid=${aadGroupId},membershiptype=0)/teamroles_association/$ref`, config)
+            let aadPermissionsQuery = await this.getAxios().get(`${environmentUrl}api/data/v9.0/teams(azureactivedirectoryobjectid=${aadGroupId},membershiptype=0)/teamroles_association/$ref`, config)
             let match = aadPermissionsQuery.data.value?.filter((r: any) => (r['@odata.id'].indexOf(roleId) >= 0))
             if (match.length == 0) {
                 this.logger?.info("Role not yet assigned, adding role")
-                let aadPermissionsUpdate = await this.getAxios().post(`${enviromentUrl}api/data/v9.0/teams(azureactivedirectoryobjectid=${aadGroupId},membershiptype=0)/teamroles_association/$ref`, {
-                    "@odata.id": `${enviromentUrl}api/data/v9.0/roles(${roleId})`
+                let aadPermissionsUpdate = await this.getAxios().post(`${environmentUrl}api/data/v9.0/teams(azureactivedirectoryobjectid=${aadGroupId},membershiptype=0)/teamroles_association/$ref`, {
+                    "@odata.id": `${environmentUrl}api/data/v9.0/roles(${roleId})`
                 }, config)
 
                 if (aadPermissionsUpdate.status == 200 || aadPermissionsUpdate.status == 204) {
