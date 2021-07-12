@@ -67,7 +67,7 @@ class AA4AMCommand {
   }
 
   /**
-   * Install the components required to run the ALM Accelerator for Advanecd Makers
+   * Install the components required to run the ALM Accelerator for Advanced Makers
    * @param args {AA4AMInstallArguments} - The install parameters
    */
   async install(args: AA4AMInstallArguments) : Promise<void> { 

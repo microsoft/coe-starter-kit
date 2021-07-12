@@ -33,6 +33,16 @@ coe aa4am install -c add
 az logout
 ```
 
+## Getting Help
+
+You can get short descriptions of any command by adding **--help** to the command line. To get more detailed help you can use the help command. For example to get help on the ALM Accelerator for Advance Makers Help use the command
+
+```
+coe help aa4am install
+```
+
+Read more in [help](./help/readme.md) pages for detailed description for each command.
+
 ## Quick Starts
 
 - [ALM Accelerator for Advanced Makers Quick Start](./aa4am/readme.md#quick-start)
