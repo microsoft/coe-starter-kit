@@ -46,6 +46,8 @@ The install performs the following key steps:
 
 1. Install Azure DevOps Extensions defined in [AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json)
 
+   a. New extensions can be added from https://marketplace.visualstudio.com/item. Visit each extension and add the publisher and them **itemName** from the query string in the browser
+
 2. Clone Azure Templates https://github.com/microsoft/coe-alm-accelerator-templates.git into a Azure DevOps git repository named **pipelines** by default
 
 3. Create Azure DevOps build pipelines

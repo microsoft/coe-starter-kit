@@ -15,7 +15,7 @@ Not sure what AA4AM is and how it can help? The main GitHub project [README](htt
 coe aa4am generate install -o quickstart.json
 ```
 
-2. If you are a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment) us the following command
+2. If you are a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment) use the following command
 
 ```bash
 coe aa4am install -f quickstart.json
@@ -25,7 +25,7 @@ If you are deploying to your enterprise refer to [Enterprise Deployment](./scena
 
 3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
 
-4. Add Advanced Makers to Azure DevOps and share the Canvas Application
+4. Have Advanced Makers create [development environments](./development-environments.md) then Add Advanced Makers to Azure DevOps and share the Canvas Application
 
 ```bash
 coe aa4am maker add \
