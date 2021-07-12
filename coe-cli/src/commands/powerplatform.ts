@@ -379,6 +379,7 @@ class PowerPlatformCommand {
 
         if (connection.length == 0) {
             this.logger?.error('No Microsoft Dataverse (Legacy Found). Please create and rerun setup')
+            
             return Promise.resolve();
         } else {
 
