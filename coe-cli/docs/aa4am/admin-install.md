@@ -63,8 +63,9 @@ Which will generate a file similar to
 
 ```bash
 coe aa4am install -f test.json
-
 ```
+
+3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
 
 ## Read Next
 

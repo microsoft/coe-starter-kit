@@ -7,7 +7,7 @@ Not sure what AA4AM is and how it can help? The main GitHub project [README](htt
 
 ## Quick Start
 
-1. Create your [Power Platform Environments](./key-concepts.md#environments) and Azure DevOps Organization for example create a [Azure DevOps Organization](https://azure.microsoft.com/en-us/services/devops/).
+1. Create your [Power Platform Environments](./before-you-start.md#power-platform) and [Azure DevOps](./before-you-start.md#azure-devops) Organization.
 
 1. Create an install configuration. Review the [install help](../help/aa4am/install.md) for install parameters
 
@@ -23,7 +23,9 @@ coe aa4am install -f quickstart.json
 
 If you are deploying to your enterprise refer to [Enterprise Deployment](./scenarios/tenant-deployments.md#enterprise-deployment) for further information.
 
-3. Add Advanced Makers to Azure DevOps and share the Canvas Application
+3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
+
+4. Add Advanced Makers to Azure DevOps and share the Canvas Application
 
 ```bash
 coe aa4am maker add \
