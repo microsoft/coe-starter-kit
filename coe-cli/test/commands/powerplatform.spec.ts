@@ -5,6 +5,7 @@ import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
 import winston from 'winston';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
 import { CommandLineHelper } from '../../src/common/cli';
+import * as readline from 'readline';
             
 describe('Import', () => {
     test('Default', async () => {
@@ -40,11 +41,20 @@ describe('API Import', () => {
         }
         let mockAxios = mock<AxiosStatic>();
         let mockCli = mock<CommandLineHelper>()
-
+        let mockReadline = mock<readline.ReadLine>()
+        
         command.getAxios = () => mockAxios
         command.cli = mockCli
 
+        command.readline = mockReadline
+        command.outputText = (text: string) => {}
+
         mockCli.validateAzCliReady.mockResolvedValue(true)
+
+        // Respond dont want to create connection
+        mockReadline.question.mockImplementationOnce( (query: string, callback: (answer: string) => void) => {
+            callback('n')
+        })
 
         mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
@@ -53,7 +63,7 @@ describe('API Import', () => {
                 return response
             }
 
-            response = mockResponse(url, '/environments', { value: [ { properties: {
+            response = mockResponse(url, '/environments?', { value: [ { properties: {
                 namne: 'ENV1',
                 linkedEnvironmentMetadata: { domainName: "test", name: "ABC" }
             }}] })
@@ -127,12 +137,12 @@ describe('API Import', () => {
 
         mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
-            response = mockResponse(url, '/solutions', { value: [ { solitionid: 'S1' }] })
+            response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
             if (response != null ) {
                 return response
             }
 
-            response = mockResponse(url, '/environments', { value: [ { properties: {
+            response = mockResponse(url, '/environments?', { value: [ { properties: {
                 name: "ABC",
                 linkedEnvironmentMetadata: { domainName: "test" }
             }}] })
@@ -172,9 +182,9 @@ describe('API Import', () => {
             response = mockResponse(url, '/connections', { value: [{
                 properties: {
                     createdBy: {
-                        id: 'U123',
-                        apiId: 'http://text.crm.dynamics.com/apis/CONNECTION-NAME'
-                    }
+                        id: 'A123'
+                    },
+                    apiId: 'http://text.crm.dynamics.com/apis/shared_commondataservice'
                 }
             }] })
 

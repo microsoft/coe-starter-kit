@@ -13,6 +13,7 @@ const path = require('path')
 import { FileHandle } from 'fs/promises';
 import { Environment } from '../common/enviroment';
 import * as marked from 'marked'
+import { ReadLineManagement } from '../common/readLineManagement'
 
 interface TextParseFunction {
     parse: (text:string) => { [id: string] : string } | string | string[]
@@ -60,15 +61,6 @@ class CoeCliCommands {
         }
         this.outputText = (text: string) => console.log(text)
         this._logOption = new Option('-l, --log <log>', 'The log level').default(["info"]).choices(['error', 'warn', "info", "verbose", "debug"]);
-    }
-
-    setupReadLine() {
-        if (this.readline == null) {
-            this.readline = readline.createInterface({
-                input: process.stdin,
-                output: process.stdout
-              })
-        }
     }
 
     /**
@@ -227,7 +219,7 @@ class CoeCliCommands {
             .allowExcessArguments()
             .action(async (options:any) => {
                 this.setupLogger(options)
-                this.setupReadLine()
+                this.readline = ReadLineManagement.setupReadLine(this.readline)
                 
                 this.logger?.info("Generate Install start")
 
@@ -749,7 +741,7 @@ class CoeCliCommands {
     async promptOption(helpFile: string, required: string[],  option: Option, data: any, parse:  { [id: string] : TextParseFunction }, offset: number = 0) : Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                this.setupReadLine()
+                this.readline = ReadLineManagement.setupReadLine(this.readline)
                 if (option.argChoices?.length > 0) {
                     let markdown = `Which choices for ${option.description}\r\n`
 
