@@ -8,6 +8,7 @@ This solution uses Azure DevOps for source control and deployments (pipelines). 
 
 >[!NOTE] The pipelines in the ALM Accelerator components rely on some third party extensions to fill gaps in areas where native utilities are not available or the effort to recreate the functionality is prohibitive. We recognize that this isn't ideal and are working toward eliminating these utilities as we grow the solution and native capabilities become available. However, in the interest of providing a sample implementation of full end to end Power Platform Pipelines it was decided that this would be necessary at the moment. The documentation below calls out these third party tools, their purpose and their documentation / source code.
 
+
 ## Document structure
 
 The GETTINGSTARTED.md is structured into 7 main sections
@@ -63,6 +64,8 @@ The application will manage deploying solutions from Development to Validation t
 - The environment into which you are deploying the ALM Accelerator app will need to be created with a Dataverse database. Additionally, any target environment requires a Dataverse database in order to deploy your solutions.
 
 > [!NOTE] Currently the ALM Accelerator is not compatible with Dataverse for Teams. Both the AA4AM App and the associated AzDO pipelines assume the full version of Dataverse is being used in all environments.
+
+You'll need to **create an environment in which to set up the AA4AM Solution**. It's recommended to install AA4AM in the same environment as other CoE Starter Kit Solutions. For more information about how to decide on the best strategy for your organization, go to <a href="/en-us/power-platform/guidance/adoption/environment-strategy" data-linktype="absolute-path">Establishing an Environment Strategy for Microsoft Power Platform</a> and <a href="/en-us/power-platform/alm/environment-strategy-alm" data-linktype="absolute-path">Environment strategy for ALM</a>.
 
 ### Users and Permissions
 

@@ -146,6 +146,8 @@ The connection reference property in the customDeploymentConfiguration.json is *
 
 The environment variable property in the customDeploymentConfiguration.json is **EnvironmentVariables**. This is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
 
+> [!NOTE] When exporting and source controlling solutions. Environment variable values are exported with the solution. In some cases this could be a security risk if the environment variables contain sensitive information although it's recommended that you not store sensitive information in environment variables. One way to ensure that your environment variable values are not source controlled is to create a solution specifically for environment variable values in your development environment(s) and set the current value of the environment variables in that solution. This will prevent the current values from being exported during the solution export and being stored in source control.
+
 1. The format of the json for these variables take the form of an array of name/value pairs.
 
    ```
