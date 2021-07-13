@@ -38,7 +38,7 @@ In this step you'll be creating the Validation and Test Pipelines for reference 
 
 1. Open the sample deployment pipeline (i.e. **build-deploy-validation-SampleSolution.yml or build-deploy-test-SampleSolution.yml**) and copy the YAML to use in your new Pipeline. **Note the name of this repo** for use in your pipeline.
 
-   ![image-20210408172106137](.attachments/GETTINGSTARTED/image-20210408172106137.png)
+   ![build-deploy-validation-SampleSolution.yml under Pipelines folder in templates repo](.attachments/GETTINGSTARTED/image-20210408172106137.png)
 
 1. Navigate to the **Repo where you want to source control the ALM Accelerator Sample Solution**.
    
@@ -46,29 +46,29 @@ In this step you'll be creating the Validation and Test Pipelines for reference 
    
    >  [!NOTE] This branch will be your v-next branch in the repo. All development work should be branched from this branch to a developers personal working branch and then merged into the v-next branch in order to push to Validation and Testing. Later when a release is ready the v-next branch can be merged into the main or default branch.
    
-   ![image-20210505162502432](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505162502432.png)
+   ![Create New Branch for Solution](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505162502432.png)
    
 1. Select **New** from the top menu and then **Folder**
    
-   ![image-20210505162848092](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505162848092.png)
+   ![Create New Folder for Solution in New Branch](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505162848092.png)
    
 1. Give the new Folder the name **ALMAcceleratorSampleSolution** and the new Pipeline YAML file a name (e.g. **build-deploy-validation-ALMAcceleratorSampleSolution.yml** or **build-deploy-test-ALMAcceleratorSampleSolution.yml**). Select **Create**.
 
-   ![image-20210505163013011](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163013011.png)
+   ![Create New Folder and Pipeline yaml file for Solution in New Branch](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163013011.png)
 
 1. Paste the YAML from **build-deploy-validation-SampleSolution.yml** or **build-deploy-test-SampleSolution.yml** into your new Pipeline YAML file.
 
-   ![image-20210505163334414](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163334414.png)
+   ![Copy and Paste YAML from build-deploy-validation-SampleSolution.yml or build-deploy-test-SampleSolution.yml](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163334414.png)
 
 1. Update the following values in your new Pipeline YAML.
 
    - Change the **resources -> repositories -> name**  to the repo name that contains your pipeline templates. If your template repository is in another AzDO project you can use the format **projectname/reponame** here. In this case the repo is called **coe-alm-accelerator-templates** (remember we told you to remember the pipeline repo name?) and it exists in the same project as our **ALMAcceleratorSampleSolution repo**. Additionally, you can specify a branch for where your templates live using the **ref** parameter if required.
 
-      ![image-20210505163452491](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163452491.png)
+      ![Update ref and name in the pipeline YAML based on where the pipeline templates are stored in Azure DevOps](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163452491.png)
 
     - Change any value that references **SampleSolutionName** to the unique name of the ALM Accelerator Sample Solution (i.e. **ALMAcceleratorSampleSolution**).
 
-      ![image-20210505163733070](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163733070.png)
+      ![Update the paths for the triggers](.attachments/SAMPLESOLUTIONSETUPGUIDE/image-20210505163733070.png)
 
     - Select **Commit** to save your changes.
 
