@@ -1,6 +1,6 @@
 # Upgrade
 
-Upgrade will depend on how you installed the COE cli
+Upgrade will depend on how you installed the COE CLI
 
 ## Download
 

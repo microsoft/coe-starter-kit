@@ -1,8 +1,8 @@
-# Development Environments
+## Development Environments
 
 Each advanced maker will need a development environment created. Advanced makers can use a community environment to work in. Community environments can be accessed from the sign-up page https://web.powerapps.com/community/signup
 
-## Admin Maker Setup
+### Admin Maker Setup
 
 As Azure DevOps Administrator you will need to register each advanced maker environment. The following command will add the required service connection to development environment and setup security for the user
 
@@ -14,6 +14,6 @@ coe aa4am maker add \
   -u username@contoso.com
 ```
 
-## Read Next
+### Read Next
 
 - Complete the [Install Overview](./readme.md#install-overview)

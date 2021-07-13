@@ -6,11 +6,10 @@ To install the COE CLI
 
 2. Change to unzipped or cloned repository
 
-3. cd coe-cli
+3. Change to the coe-cli folder
 
 ```bash
 cd coe-cli
-
 ```
 
 Next select either [Local Install](#local-install) or [Docker Install](#docker-install)
@@ -22,8 +21,11 @@ Next select either [Local Install](#local-install) or [Docker Install](#docker-i
 To run the COE CLI application you will require the following
 
 1. An installation of Node 11+ for versions (12, 14, 16)
+
    a) https://nodejs.org/en/download/
-2. Azure CLI is required for user authentication and Azure Active Directory Integration
+
+2. Azure CLI (version 2.24.0 or greater) is required for user authentication and Azure Active Directory Integration
+
    a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### Checking Prerequisites
@@ -34,14 +36,12 @@ To check prerequisites installed at the command prompt
 
 ```bash
 node --version
-
 ```
 
 2. Verify Azure CLI Version
 
 ```bash
 az --version
-
 ```
 
 ### Install
@@ -50,27 +50,24 @@ az --version
 
 ```bash
 npm install
-
 ```
 
 2. Build the application
 
 ```bash
 npm run build
-
 ```
 
 3. Link to the COE CLI application
 
 ```bash
 npm link
-
 ```
 
 NOTE:
 1. On Windows you may need to add %APPDATA%\npm to your PATH environment variable to access the coe command
 
-4. Install Azure CLI. Follow install instructions for you operating system at https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+2. Install Azure CLI. Follow install instructions for your operating system at https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ## Docker Install
 
@@ -80,11 +77,11 @@ One method of installation is via docker.
 
 To run the COE CLI application you will require the following
 
-1. A local install of [Docker](https://docs.docker.com/get-docker/)
+1. A local install of [Docker](https://docs.docker.com/get-docker/) this can be either Community Edition or Enterprise Edition. If you are installing onto a desktop environment you will normally pick a Community Edition deployment.
 
 ### Install
 
-NOTE: Note on some operating systems you may need to use sudo before each of the docker commands.
+NOTE: On some operating systems you may need to use sudo before each of the docker commands.
 
 1. Build docker image. 
 

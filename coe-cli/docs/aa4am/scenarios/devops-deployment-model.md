@@ -1,8 +1,8 @@
-# DevOps Deployment Model
+## DevOps Deployment Model
 
 ![DevOps Scenarios](../../images/aa4am-devops-deployment-model.png)
 
-## Factors to Consider
+### Factors to Consider
 
 As you play you DevOps deployment mode the following factors may help you decide the best approach:
 
@@ -16,7 +16,7 @@ As you play you DevOps deployment mode the following factors may help you decide
 
 - Azure Active Directory security model. Will each team manage and maintain Active Directory Applications and Service Principals or will they be shared across different Power Platform environments and Azure DevOps organizations?
 
-## Power Platform 1 to 1 DevOps
+### Power Platform 1 to 1 DevOps
 
 In this scenario the following is assumed:
 
@@ -24,7 +24,7 @@ In this scenario the following is assumed:
 
 - Single Shared Azure DevOps where all Advanced Makers collaborate on Solutions.
 
-## Power Platform 1 to Many DevOps
+### Power Platform 1 to Many DevOps
 
 In this scenario the following is assumed:
 
@@ -36,7 +36,7 @@ In this scenario the following is assumed:
 
 - Multiple pipelines can be defined and used at an Azure DevOps level that allow solutions to be deployed to different validation, test and production environments.
 
-## Multiple Power Platform Environments and DevOps
+### Multiple Power Platform Environments and DevOps
 
 This scenario is not a recommended deployment model as is requires the deployment and management of multiple AA4AM deployments withing the organization.
 

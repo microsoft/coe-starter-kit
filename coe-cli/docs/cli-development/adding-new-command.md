@@ -1,4 +1,4 @@
-# Adding a new Command
+## Adding a new Command
 
 To add a new sample command you can use the following command to template the initial setup of the TypeScript command and the jest unit test. 
 
@@ -7,7 +7,7 @@ cd coe-cli
 coe cli add -n sample
 ```
 
-## Connecting the command to the command line
+### Connecting the command to the command line
 
 One you have unit test completed for your new command 
 

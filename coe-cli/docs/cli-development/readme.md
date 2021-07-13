@@ -16,9 +16,43 @@ This section outlines the following key sections on the COE CLI. The information
 
 The coe-cli command line application makes use of following components
 
-1. NodeJS to provide cross platform support
+1. [NodeJS](https://nodejs.org/en/) to provide cross platform support
 1. TypeScript to leverage published type definitions for dependent components
 1. Jest for unit tests. 
+
+### Initial Commands
+
+1. Change to co-cli folder
+
+```bash
+cd coe-cli
+```
+
+2. Install dependent components
+
+```bash
+npm install
+```
+
+3. Build from the source code
+
+```bash
+npm run build
+```
+
+4. Install the coe command
+
+```bash
+npm link
+```
+
+## Understand The Concepts
+
+### Documentation 
+
+Documentation is critical for users of the COE understanding the commands. The [documentation](./documentation.md) pages describe how to add or modify COE CLI, the generated [E-Book](./e-book.md) and associated help documentation.
+
+### Development Frameworks
 
 If you are new to TypeScript the following links may help
 - [Typescript docs](https://www.typescriptlang.org/docs/)
@@ -27,11 +61,11 @@ If you are new to TypeScript the following links may help
 If you are new to unit testing with Jest you can start with 
 - [Jest getting started](https://jestjs.io/docs/getting-started)
 
-## Contributions
+### Contributions
 
 Review the general [Contribution Guidance](../../../CONTRIBUTING).
 
-## Development Environment Setup
+### Development Environment Setup
 
 You can edit and debug the cli using Visual Studio Code
 
@@ -64,4 +98,3 @@ You can debug the coe-cli application commands using Visual Studio Code.
 1. Open the coe-cli folder in Visual Studio Code
 1. Place breakpoints in the TypeScript code you want to debug
 1. Press F5 or Select Run -> Start Debugging
-

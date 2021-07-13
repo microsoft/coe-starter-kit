@@ -1,8 +1,8 @@
-# Maker Setup
+## Maker Setup
 
 Once a user has been setup with a development environment [Read More](./development-environments.md) they will need to use the following sections to provide access to the service principal and create a solution branch.
 
-## Setup Service Principal
+### Setup Service Principal
 
 The Azure DevOps Pipeline uses a Azure Active Directory service principal to connect to the development environment and import and export the solution. To enable access to the environment the following command will add the service principal as a System Administrator to the developer Power Platform environment.
 
@@ -20,7 +20,7 @@ coe aa4am user add -e https://org12345-dev.crm.dynamics.com
 
 ```
 
-## Maker Create Solution
+### Maker Create Solution
 
 Once the environment has been setup and your development environment created and registered as a service connection in Azure DevOps you can use the following steps to create a source control managed solution.
 
@@ -63,7 +63,7 @@ NOTES:
 7. Click on Latest Push Status 
    a. Permit permissions for pipeline to run (Variable Group, Service Connection, Pipeline)
 
-## Post Setup Checks
+### Post Setup Checks
 
 After setting up an advanced maker you may need to verify the following
 
@@ -86,6 +86,6 @@ After setting up an advanced maker you may need to verify the following
 NOTES:
 1. If you are using a free Azure Subscription you may receive error "No hosted parallelism has been purchased or granted.". To resolve this issue visit to request Azure Pipeline build compute https://aka.ms/azpipelines-parallelism-request
 
-## Read Next
+### Read Next
 
 - Complete the [Install Overview](./readme.md#install-overview)

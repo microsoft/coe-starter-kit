@@ -24,7 +24,7 @@ class CLICommand {
      * Open the about page for the cli
      */
     async about() : Promise<void> {
-        await open('https://github.com/microsoft/coe-starter-kit/blob/main/coe-cli/readme.md')
+        await open('https://aka.ms/coe-cli')
     }
 
     /**

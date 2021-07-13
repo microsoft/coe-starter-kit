@@ -1,12 +1,12 @@
-# Before You Start
+## Before You Start
 
 Before you start an install of AA4AM ensure that you have the following in place
 
-## COE Command Line
+### COE Command Line
 
 Install the COE CLI [locally](../install.md#local-install) or via a [docker image](../install.md#docker-install)
 
-## Power Platform
+### Power Platform
 
 Environment | Description
 ----------- | -------------
@@ -29,7 +29,7 @@ Notes:
 
    ![Environments](../images/environments.jpg)
 
-## Maker Environment Dataverse
+### Maker Environment Dataverse
 
 In the maker environment you will a Dataverse connection to be created by install user.
 
@@ -46,7 +46,7 @@ This can be done using the following steps
 
 6. Select Create
 
-## Azure
+### Azure
 
 Ensure the user you run with has the following permissions
 
@@ -54,7 +54,7 @@ Component | Description
 --------- | ----------
 Global Administrator or Privileged Role Administrator|Grant tenant-wide admin consent to an application [Read More](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/grant-admin-consent)
 
-## Azure DevOps
+### Azure DevOps
 
 Component | Description
 --------- | ----------
@@ -80,10 +80,9 @@ Notes:
   
    - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 
-## Read Next
+### Read Next
 
 Once you have verified the above
 
 1. Determine the install [deployment scenario](./scenarios/readme.md) you are targeting
 1. Complete the [Admin Install](./admin-install.md)
-  
