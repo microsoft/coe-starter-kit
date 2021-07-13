@@ -1,10 +1,10 @@
-# Key Concepts
+## Key Concepts
 
 As you deploy and use the AA4AM CLI it is important to understand the following key concepts that the CLI is automating.
 
-## Azure Active Directory 
+### Azure Active Directory 
 
-### Azure Active Directory Application
+#### Azure Active Directory Application
 
 The COE CLI application can create a Azure Active Directory application that automate the following key steps.
 
@@ -29,16 +29,16 @@ The COE CLI application can create a Azure Active Directory application that aut
 
    - After new keys are generated old keys should be removed
 
-### Azure Active Directory Group
+#### Azure Active Directory Group
 
 The COE CLI application can create a Azure Active Directory group that is used for Azure DevOps and Power Platform authentication and role based access security.
 
 1. Group Created via Azure CLI
    - [Create Group](https://docs.microsoft.com/en-us/cli/azure/ad/group?view=azure-cli-latest#az_ad_group_create)
 
-## Azure DevOps
+### Azure DevOps
 
-### Install Automation
+#### Install Automation
 
 The COE CLI application assumes that an Azure DevOps organization and project have already been created. 
 
@@ -70,7 +70,7 @@ The install performs the following key steps:
 
    - [Read More - Service Connections](https://docs.microsoft.com/en-us/azure/devops/pipelines/library/service-endpoints?view=azure-devops&tabs=yaml)
 
-### Branch Automation
+#### Branch Automation
 
 The [coe aa4am branch](./maker-setup.md#create-solution-branch) command performs the following steps
 
@@ -80,7 +80,7 @@ The [coe aa4am branch](./maker-setup.md#create-solution-branch) command performs
 
 1. Create [Branch Policies](https://docs.microsoft.com/en-us/azure/devops/repos/git/branch-policies-overview?view=azure-devops) to ensure validation build completes successfully
 
-### Other Concepts
+#### Other Concepts
 
 In addition to install automation the following concepts are also assumed for Advanced Makers
 
@@ -92,9 +92,9 @@ In addition to install automation the following concepts are also assumed for Ad
 
 1. Manage Pull Requests to merge changes into Solution Branches https://docs.microsoft.com/en-us/azure/devops/repos/git/pull-requests?view=azure-devops
 
-## Power Platform
+### Power Platform
 
-### Automation
+#### Automation
 
 The COE CLI provides the following key steps.
 
@@ -108,7 +108,7 @@ The COE CLI provides the following key steps.
 
 5. Share the Canvas application with the Maker Azure Active Directory Group
 
-### Environments
+#### Environments
 
 The COE CLI commands currently assume the following environments have been created https://aka.ms/ppac as a Global Administrator or Environment Administrator
 

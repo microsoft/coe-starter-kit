@@ -1,9 +1,7 @@
 # ALM Accelerator for Advanced Makers
 
 The [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) (AA4AM) 
-command allows you to manage common tasks for Advanced Makers. 
-
-Not sure what AA4AM is and how it can help? The main GitHub project [README](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/README.md) provides further context and examples of usage.
+command allows you to manage common tasks for Advanced Makers to install, setup and administer common ALM tasks. 
 
 ## Quick Start
 
@@ -43,25 +41,29 @@ coe aa4am maker add \
    -f user.config
 ```
 
-## Getting Started
+## Understand the Concepts
+
+Not sure what AA4AM is and how it can help? The main GitHub project [README](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/README.md) provides further context and examples of usage.
+
+### Getting Started
 
 - [Scenarios](./scenarios/readme.md) - Discusses different install scenarios for AA4AM from Demo Installs to Enterprise Deployments
 - [Personas](./personas.md) - Understand the key personas and how they may to AA4AM CLI commands and the wider AA4AM process.
 - [Key Concepts](./key-concepts.md) - Understand the key concepts for the components that are being automated under the hood by the CLI commands
 
-## Overview
+### Overview
 
 The diagram below provides an overview of the key components required and permissions required.
 
 ![ALM Accelerator for Advanced Makers Overview](../images/aa4am-overview.jpg)
 
-## Sample Install
+### Sample Install
 
 The following recording shows a sample generating a install configuration file and installing AA4AM using the configuration file using a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment).
 
 ![Example](./install.svg)
 
-## Install Overview
+### Install Overview
 
 1. Review the [Before You Start](./before-you-start.md) to ensure you have the required Power Platform environments and Azure DevOps organizations created
 
@@ -74,7 +76,7 @@ The following recording shows a sample generating a install configuration file a
 Notes:
 1. If this is your first build pipeline you will need to set Pipeline Variables for your environment. At a minimum you will need to set **ServiceConnection** variable to your environment you have setup for validation, test and production.
 
-## Read Next
+### Read Next
 
 - [Command Reference](./command-reference.md)
 - [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) - Overview for AA4AM

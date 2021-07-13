@@ -628,7 +628,7 @@ class CoeCliCommands {
         let run = program.command('cli')
             .description('Manage the cli applicaton')
         run.command("about")
-            .description('Open web page to discover more about COE cli')
+            .description('Open web page to discover more about COE CLI')
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 let command = this.createCliCommand()

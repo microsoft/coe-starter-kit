@@ -1,4 +1,4 @@
-# Tenant Deployments
+## Tenant Deployments
 
 AA4AM can be deployed in the following scenarios single demo tenant, single enterprise tenant.
 
@@ -6,7 +6,7 @@ Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
 ![Deployments Scenarios](../../images/aa4am-deployments.png)
 
-## Factors to Consider
+### Factors to Consider
 
 - Does ALM for Low Code solutions introduce new concepts to parts of the business that has not been exposed to them before?
 
@@ -18,7 +18,7 @@ Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
 - What steps can be put in place to adopt a self service model to provision environments and move between validation, test and production environments.
 
-## Demonstration Deployment
+### Demonstration Deployment
 
 In this scenario you are looking to quickly install AA4AM to demonstrate how it works and demonstrate the end to end process. For this scenario the following is expected.
 
@@ -51,7 +51,7 @@ coe aa4am maker add \
 
 Once these steps are completed makers can then [Setup Managed Solutions](./maker-setup.md)
 
-## Enterprise Deployment
+### Enterprise Deployment
 
 In this scenario the aim is to install AA4AM inside an enterprise tenant and the following is expected.
 
@@ -63,7 +63,7 @@ In this scenario the aim is to install AA4AM inside an enterprise tenant and the
 1. Advanced Makers have separate development environments to work on changes
 1. AA4AM Azure DevOps pipeline used to validate and promote to Test and Production environments
 
-### Azure Active Directory Administrators
+#### Azure Active Directory Administrators
 
 The tenant administration team will need to create the following
 
@@ -73,7 +73,7 @@ The tenant administration team will need to create the following
 
 To install the solution resources the following options can be used
 
-#### Azure Active Directory
+##### Azure Active Directory
 
 1. Use the CLI to install the AAD components. For example using the default install parameters
 
@@ -116,7 +116,7 @@ coe aa4am install -c aad
 }
 ```
 
-#### Azure DevOps
+##### Azure DevOps
 
 ```bash
 coe aa4am install -c devops \
@@ -124,7 +124,7 @@ coe aa4am install -c devops \
   -p alm-sandbox
 ```
 
-#### Power Platform Environment
+##### Power Platform Environment
 
 ```bash
 coe aa4am install -f install.json
@@ -166,7 +166,7 @@ coe aa4am install -f install.json
 
 3. Manual install using the [Create An App Registration in your AAD environment](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#create-an-app-registration-in-your-aad-environment)
 
-## Multi Tenant Deployment
+### Multi Tenant Deployment
 
 This deployment type is involves different Azure Active Directory deployments that separate development, test and production systems. For example the following Azure Active Directory tenants
 
@@ -176,7 +176,7 @@ This deployment type is involves different Azure Active Directory deployments th
 
 Currently the AA4AM installation does not support a multi-tenant deployment
 
-### Multi Tenant Deployment Assumptions
+#### Multi Tenant Deployment Assumptions
 
 The multi tenant deployment is assumed to have one or more of the following
 
@@ -190,7 +190,7 @@ The multi tenant deployment is assumed to have one or more of the following
 
 1. External users from outside the organization maybe invited to the development tenant and not have access to the main tenant
 
-### Azure Active Directory Implications
+#### Azure Active Directory Implications
 
 To support multi tenant deployments the Azure Active Directory application will need to be configured to support multi tenant authentication.
 

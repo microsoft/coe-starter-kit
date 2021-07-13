@@ -1,4 +1,4 @@
-# Admin Install
+## Admin Install
 
 To complete the initial steps of an AA4AM deployment you will need to complete the administrative tasks. Once this is done Advances Makers can create and register development environments.
 
@@ -6,7 +6,7 @@ To complete the initial steps of an AA4AM deployment you will need to complete t
 
 Assumes that will be run by a single user that has Power Platform Global Administrator, DevOps Administrator rights and Azure Active directory Administrator rights.
 
-## Before You Start
+### Before You Start
 
 Complete [Before You Start](./before-you-start.md) to ensure that:
 
@@ -16,7 +16,7 @@ B. Azure DevOps Organization and Project has been created
 
 C. COE CLI installed
 
-## Initial Install
+### Initial Install
 
 1. Create install configuration file and review the generated JSON file and confirm the settings before you start the install process
 
@@ -67,6 +67,6 @@ coe aa4am install -f test.json
 
 3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
 
-## Read Next
+### Read Next
 
 - Complete the [Install Overview](./readme.md#install-overview)

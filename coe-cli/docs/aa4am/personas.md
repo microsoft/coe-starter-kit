@@ -1,12 +1,12 @@
-# Personas
+## Personas
 
 Understanding the roles that different personas play in ALM Accelerator for Advanced Makers is important in helping you plan for and implement a AA4AM deployment in your organization.
 
-## Persona Command Mapping
+### Persona Command Mapping
 
 ![Common Commands](../images/aa4am-command-summary.png)
 
-### Solution Setup
+#### Solution Setup
 
 The first command to run will be the **coe aa4am user add** command that will register an Application User as System administrator in their development environment to integrate with the solution.
 
@@ -23,7 +23,7 @@ coe aa4am branch \
   -d MySolution
 ```
 
-### Administrator Setup
+#### Administrator Setup
 
 As each Advanced Maker or Professional Developer creates a development environment it will need to be registered with Azure DevOps and the Azure Active Directory Application. THe user running this command requires Project Administrator rights in Azure DevOps and Owner rights of the Azure Active Directory Application.
 
@@ -57,7 +57,7 @@ coe aa4am connection add \
   -a aa4am-ado-service-principal
 ```
 
-### Install
+#### Install
 
 To deploy an instance of AA4AM in your organization the **coe aa4am generate install** and **coe aa4am install** commands are used once to deploy the Managed solution. The install will automate key elements 
 - Azure Active Directory
@@ -76,7 +76,7 @@ coe aa4am generate install -o install.json
 coe aa4am install -f install.json
 ```
 
-## Persona Description
+### Persona Description
 
 - **Business Users** - Licensed internal users of the created solutions. Will not directly use the AA4AM tools they will be able to see the shared applications. May report version number of application to the support team.
 

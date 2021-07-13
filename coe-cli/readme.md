@@ -21,9 +21,12 @@ Read the [Documentation](./docs/readme.md) for information on supported commands
 To run the application you will require local install of the following or Docker installed.
 
 1. An installation of Node 11+ for versions (12, 14, 16)
-   a) https://nodejs.org/en/download/
+
+   a. https://nodejs.org/en/download/
+
 1. Azure CLI Required for user authentication and Azure Active Directory Integration
-   a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+
+   a. https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ## Installation
 
