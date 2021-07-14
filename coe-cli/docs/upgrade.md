@@ -1,10 +1,10 @@
 # Upgrade
 
-Upgrade will depend on how you installed the COE CLI
+Upgrade will depend on how you installed the CoE CLI
 
 ## Download
 
-It you downloaded the COE CLI as a zip file or a git clone
+It you downloaded the CoE CLI as a zip file or a git clone
 
 - Download the new zip file
 - Unzip the zip file to a new folder 
@@ -18,7 +18,7 @@ git pull
 
 ```
 
-ONe you have a local version of the coe-cli change to coe-cli folder
+Once you have a local version of the coe-cli change to coe-cli folder
 
 ```
 cd coe-cli

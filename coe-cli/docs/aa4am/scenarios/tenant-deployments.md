@@ -2,7 +2,7 @@
 
 AA4AM can be deployed in the following scenarios single demo tenant, single enterprise tenant.
 
-Currently AA4AM **does not** support a multi tenant enterprise deployment model.
+Currently AA4AM **does not** automatically support a multi tenant enterprise deployment model and additional manual configuration will be required to configure this scenario.
 
 ![Deployments Scenarios](../../images/aa4am-deployments.png)
 
@@ -10,7 +10,7 @@ Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
 - Does ALM for Low Code solutions introduce new concepts to parts of the business that has not been exposed to them before?
 
-- Would a demo environment deployment provide an environment allow the different [personas](../personas.md) to experiment and accelerate adoption of ALM processes?
+- Would a demo deployment provide an environment to allow the different [personas](../personas.md) to experiment and accelerate adoption of ALM processes?
 
 - Who will manage and operate the ALM process?
 
@@ -20,24 +20,27 @@ Currently AA4AM **does not** support a multi tenant enterprise deployment model.
 
 ### Demonstration Deployment
 
-In this scenario you are looking to quickly install AA4AM to demonstrate how it works and demonstrate the end to end process. For this scenario the following is expected.
+In this scenario you are looking to quickly install AA4AM to demonstrate how it works and showcase the end to end process. For this scenario the following is expected.
 
 1. Using Trial tenant and environments to demonstrate the solution
-1. Single Administrator that has rights to the
+1. Single Administrator that has rights to the following:
    - Azure Active Directory tenant administrator
    - Power Platform Global Administrator
    - Power Platform Organization Administrator
-1. Demo non administration Maker users that will be used to show process of creating ALM process for Power Platform solutions
+1. Demo non administration maker users that will be used to show process of creating ALM process for Power Platform solutions
 1. Non production applications
 
-Once you have the [Admin Install](./admin-install.md) completed Advanced makers can create [Development environments](./development-environments.md) and have Administrators add them to Azure DevOps and the required Azure Active Directory Security Group. 
+Once you have the [Admin Install](./admin-install.md) completed, Advanced makers can create [Development environments](./development-environments.md) and have Administrators add them to Azure DevOps and the required Azure Active Directory Security Group. 
 
 This will typically use the following commands as the **single administrator**
 
 ```bash
-coe aa4am generate install -o test.json
-coe aa4am install -f test.json
+coe aa4am generate install -o quickstart.json
+coe aa4am install -f quickstart.json
 ```
+
+More information on the [coe aa4am generate install](../../help/aa4am/generate/install.md) command
+More information on the [coe aa4am install](../../help/aa4am/install.md) command
 
 Then add a demo user as a maker
 
@@ -48,6 +51,8 @@ coe aa4am maker add \
   -p alm-sandbox \
   -u alans@crm716415.onmicrosoft.com
 ```
+
+More information on the [coe aa4am maker add](../../help/aa4am/maker/add.md) command
 
 Once these steps are completed makers can then [Setup Managed Solutions](./maker-setup.md)
 
@@ -68,7 +73,7 @@ In this scenario the aim is to install AA4AM inside an enterprise tenant and the
 The tenant administration team will need to create the following
 
 1. Azure Active Directory Application that will be used as Service Principal in Azure DevOps and Power Platform Environments
-1. Azure Active Directory Group that will be used to grant access to Advanced Makers to Azure DevOps resources and Maker Canvas Application and Dataverse Tables.
+1. Azure Active Directory Group that will be used to grant access to Advanced Makers to Azure DevOps resources, Maker Canvas Application and Dataverse Tables.
 1. Grant Tenant Consent for Azure Active Directory Application. This required as the Azure DevOps pipeline uses APIs where an interactive user is not involved. As a result the tenant administrator consent is required.
 
 To install the solution resources the following options can be used
@@ -79,7 +84,6 @@ To install the solution resources the following options can be used
 
 ```bash
 coe aa4am install -c aad
-
 ```
 
 2. Using a shared configuration file and setting components array value to be [ "aad" ]
@@ -168,13 +172,13 @@ coe aa4am install -f install.json
 
 ### Multi Tenant Deployment
 
-This deployment type is involves different Azure Active Directory deployments that separate development, test and production systems. For example the following Azure Active Directory tenants
+This deployment type involves different Azure Active Directory deployments that separate development, test and production systems. For example the following Azure Active Directory tenants
 
 - contoso.onmicrosoft.com
 
-- contoso-dev.onmicosoft.com
+- contoso-dev.onmicrosoft.com
 
-Currently the AA4AM installation does not support a multi-tenant deployment
+Currently the AA4AM installation does not automatically support a multi-tenant deployment without further manual updated.
 
 #### Multi Tenant Deployment Assumptions
 

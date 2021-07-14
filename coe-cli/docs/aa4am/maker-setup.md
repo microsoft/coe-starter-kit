@@ -16,9 +16,11 @@ az logout
 2. To ensure the Application User has access to the development environment you need to run the following command
 
 ```bash
-coe aa4am user add -e https://org12345-dev.crm.dynamics.com
-
+coe aa4am user add \
+   -e https://org12345-dev.crm.dynamics.com
 ```
+
+More information on the [coe aa4am user add](../help/aa4am/user/add.md) command
 
 ### Maker Create Solution
 
@@ -29,9 +31,13 @@ Once the environment has been setup and your development environment created and
 2. Create new solution e.g. NewSolution1
 
 3. Add items to the solution. For example
+
    a. Select Solution
+
    b. Add Canvas Application
+
    c. Add Button
+
    d. Save Application and Close
 
 4. Create Solution branch using the following CLI command
@@ -43,6 +49,8 @@ coe aa4am branch \
   -d MySolution1
 
 ```
+
+More information on the [coe aa4am branch](../help/aa4am/branch.md) command
 
 NOTES:
   - **-o** is the name of your DevOps Organization
@@ -56,11 +64,15 @@ NOTES:
 5. Open ALM Accelerator for Advanced Maker Application
 
 6. Select Push change to Git
+
    a. Create New Branch e.g. MySolution1-WIP
+
    b. From existing Solution Branch created above e.g. MySolution1
+
    c. Add a comment e.g. Initial version
 
 7. Click on Latest Push Status 
+
    a. Permit permissions for pipeline to run (Variable Group, Service Connection, Pipeline)
 
 ### Post Setup Checks
@@ -79,7 +91,7 @@ After setting up an advanced maker you may need to verify the following
 
    ![Azure DevOps Permissions](../images/devops-pipeline-permissions.jpg)
 
-5. If required select "View" and permit the build pipeline to
+5. If required select "View" and permit the build pipeline to access the required resources (Variable group. Repository and Service Connection)
 
    ![Azure DevOps Permit](../images/devops-pipeline-permit.jpg)
 

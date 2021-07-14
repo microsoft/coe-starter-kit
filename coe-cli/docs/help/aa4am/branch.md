@@ -13,7 +13,9 @@ The process will
 coe aa4am branch \
     -o https://dev.azure.com/contoso \
     -p alm-sandbox \
-    -d MyTestSolution
+    -r Operations \
+    -d MyTestSolution \
+    -s validation=https://contoso-validation.crm.dynamics.com,test=https://contoso-test.crm.dynamics.com,https://contoso.crm.dynamics.com
 ```
 
 ### Parameters
@@ -54,4 +56,10 @@ The source build to copy build variable from. If not supplied the process will
 2. Get values from Variable Groups
 
 3. Use placeholder values that must be manually updated by a Build Administrator
+
+#### -s, --settings
+
+The optional settings. Can be used to set the service connections for the build pipelines **validation**, **test** and **prod**
+
+
 

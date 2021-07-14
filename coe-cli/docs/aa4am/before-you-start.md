@@ -2,9 +2,9 @@
 
 Before you start an install of AA4AM ensure that you have the following in place
 
-### COE Command Line
+### CoE Command Line
 
-Install the COE CLI [locally](../install.md#local-install) or via a [docker image](../install.md#docker-install)
+Install the CoE CLI [locally](../install.md#local-install) or via a [docker image](../install.md#docker-install)
 
 ### Power Platform
 
@@ -31,7 +31,7 @@ Notes:
 
 ### Maker Environment Dataverse
 
-In the maker environment you will a Dataverse connection to be created by install user.
+In the maker environment you will need a Dataverse connection to be created by the install user.
 
 This can be done using the following steps
 1. Go to https://make.powerapps.com/

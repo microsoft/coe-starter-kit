@@ -142,7 +142,7 @@ The method to import the managed ALM Accelerator for Advanced Makers into Power 
 
 - **api** - The default option that uses the Power Platform APIs to import the solution and fix Dataverse and custom connectors
 
-- **browser** - Indicates that a manual install will be done. The COE CLI will download the latest release from GitHub for you to manually install.
+- **browser** - Indicates that a manual install will be done. The CoE CLI will download the latest release from GitHub for you to manually install.
 
 - **pac** - Install using the Power Platform CLI. See https://docs.microsoft.com/en-us/powerapps/developer/data-platform/powerapps-cli#solution for the **pac solution import** and install requirements
 

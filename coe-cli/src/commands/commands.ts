@@ -21,7 +21,7 @@ interface TextParseFunction {
 }
 
 /**
- * Define supported commands across COE Toolkit
+ * Define supported commands across CoE Toolkit
  */
 class CoeCliCommands {
     createLoginCommand: () => LoginCommand
@@ -146,6 +146,12 @@ class CoeCliCommands {
         this.addHelpAction(connection.command('add')
             .description("AA4AM Connection Add Help"),
             "help/aa4am/connection/add.md")
+
+        let user = aa4am.command('user')
+
+        this.addHelpAction(user.command('add')
+            .description("AA4AM User Add Help"),
+            "help/aa4am/user/add.md")
     }
 
     addHelpAction(command: commander.Command, filename: string) {
@@ -628,7 +634,7 @@ class CoeCliCommands {
         let run = program.command('cli')
             .description('Manage the cli applicaton')
         run.command("about")
-            .description('Open web page to discover more about COE CLI')
+            .description('Open web page to discover more about CoE CLI')
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 let command = this.createCliCommand()

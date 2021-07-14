@@ -4,7 +4,7 @@ Each advanced maker will need a development environment created. Advanced makers
 
 ### Admin Maker Setup
 
-As Azure DevOps Administrator you will need to register each advanced maker environment. The following command will add the required service connection to development environment and setup security for the user
+As Azure DevOps Administrator you will need to register each advanced maker environment. The following command will add the required service connection to the development environment and setup security for the user
 
 ```bash
 coe aa4am maker add \
@@ -13,6 +13,8 @@ coe aa4am maker add \
   -e https://org12345-dev.crm.dynamics.com \
   -u username@contoso.com
 ```
+
+More information on the [coe aa4am maker add](../help/aa4am/maker/add.md) command
 
 ### Read Next
 
