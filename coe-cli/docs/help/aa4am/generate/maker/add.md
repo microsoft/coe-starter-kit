@@ -2,7 +2,7 @@
 
 ### Description
 
-Generate configuration file for to add an Advanced Maker to an installed the ALM Accelerator for Advanced Makers (AA4AM)
+Generate configuration file to add an Advanced Maker to an installed the ALM Accelerator for Advanced Makers (AA4AM)
 
 ### Examples
 
@@ -20,8 +20,6 @@ coe aa4am maker add \
 ```
 
 Read more on [maker add command](../../maker/add.md)
-
-### Parameters
 
 ### Parameters
 
