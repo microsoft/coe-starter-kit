@@ -76,13 +76,13 @@ docker build -t cli-mdbook .
 
 #### Spell Check Process
 
-The [build.sh](../build.sh) make use of [mdspell](https://www.npmjs.com/package/markdown-spellcheck) to spell check the markdown files using US english (en-US).
+The [build.sh](../build.sh) makes use of [mdspell](https://www.npmjs.com/package/markdown-spellcheck) to spell check the markdown files using US english (en-US).
 
 The mdspell node application is installed inside the [cli-mdbook docker image](../dockerfile) and executed by the [build.ps1](../build.ps1). If you need to add an exclusion for a work you can add changes to [.spelling](../.spelling) file. Each word or phrase should be on a separate line.
 
 #### Grammar Checks
 
-The [LanguageTool](https://languagetool.org/) writing assistant uses the Java bases command line tool inside the docker image to perform duplication, grammar and typographical check using en-US. The language tool integration is implemented in [grammar.js](../grammar.js). The [grammar-ignore.txt](../grammar-ignore.txt) file contains a list of rules that will be ignored.
+The [LanguageTool](https://languagetool.org/) writing assistant uses the Java bases command line tool inside the docker image to perform duplication, grammar and typographical checks using en-US. The language tool integration is implemented in [grammar.js](../grammar.js). The [grammar-ignore.txt](../grammar-ignore.txt) file contains a list of rules that will be ignored.
 
 #### E-Book Customization
 

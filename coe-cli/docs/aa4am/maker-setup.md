@@ -96,7 +96,7 @@ After setting up an advanced maker you may need to verify the following
    ![Azure DevOps Permit](../images/devops-pipeline-permit.jpg)
 
 NOTES:
-1. If you are using a free Azure Subscription you may receive error "No hosted parallelism has been purchased or granted.". To resolve this issue visit to request Azure Pipeline build compute https://aka.ms/azpipelines-parallelism-request
+1. If you are using a free Azure Subscription you may receive error "No hosted parallelism has been purchased or granted.". To resolve this issue visit https://aka.ms/azpipelines-parallelism-request to request Azure Pipeline build compute 
 
 ### Read Next
 

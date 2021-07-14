@@ -39,7 +39,7 @@ coe aa4am maker add \
   -e https://contoso-userdev.crm.dynamics.com \
   -a aa4am-ado-service-principal \
   -g aa4am-makers \
-  -u alans@contoso.com
+  -u alan-s@contoso.com
 ```
 
 More information on the [coe aa4am maker add](../help/aa4am/maker/add.md) command
@@ -133,7 +133,7 @@ More information on the [coe aa4am install](../help/aa4am/install.md) command
   ```
 
   More information on the [coe aa4am generate install](../help/aa4am/generate/install.md) command
-  
+
   More information on the [coe aa4am install](../help/aa4am/install.md) command
 
   Add makers to an environment (Assuming they also have Azure DevOps Administrator rights)

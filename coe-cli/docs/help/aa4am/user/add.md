@@ -20,7 +20,7 @@ The Power Platform development environment to add the Azure Active Directory as 
 1. Organization name e.g. contoso-alans-dev. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-alans-dev.crm.dynamics.com
 
-You can visit https://aka.ms/ppac to view environments that you have access to get environments that you have access to.
+You can visit https://aka.ms/ppac to list environments that you have access to.
 
 #### --aad <name>
 
@@ -36,7 +36,7 @@ The user role to assign. The default value is **System Administrator**
 
 ##### --region
 
-The region that environments are deployed to. This setting will be used if a fully qualified domain name are not supplied. The default value is **NAM** North America
+The region that environments are deployed to. This setting will be used if a fully qualified domain name is not supplied. The default value is **NAM** North America
 
 Further reading:
 

@@ -1,6 +1,6 @@
 # ALM Accelerator for Advanced Makers
 
-The ALM Accelerator for Advanced Makers (AA4AM) command line actions allows to you install and configure Azure Active Directory, Azure DevOps and Power Platform.
+The ALM Accelerator for Advanced Makers (AA4AM) command line actions allows you to install and configure Azure Active Directory, Azure DevOps and Power Platform.
 
 ## Examples
 

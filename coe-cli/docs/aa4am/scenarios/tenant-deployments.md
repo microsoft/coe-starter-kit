@@ -49,7 +49,7 @@ coe aa4am maker add \
   -e https://alans-dev.crm.dynamics.com \
   -o https://dev.azure.com/contoso-dev \
   -p alm-sandbox \
-  -u alans@crm716415.onmicrosoft.com
+  -u alan-s@crm716415.onmicrosoft.com
 ```
 
 More information on the [coe aa4am maker add](../../help/aa4am/maker/add.md) command
