@@ -1,4 +1,6 @@
-# Use the ALM Accelerator for Advanced Maker App
+# Use the ALM Accelerator for Advanced Maker App (Preview)
+
+>  [!NOTE] ALM Accelerator for Advanced Makers is currently in public preview. Please see Issues currently tagged as [vnext](https://github.com/microsoft/coe-starter-kit/issues?q=is%3Aopen+is%3Aissue+label%3Aalm-accelerator+label%3Avnext) for the Roadmap to be completed prior to general availability. While in Public Preview it can be expected that there will be breaking changes and frequent updates to address feedback from preview members. Additionally, the Public Preview is reliant on the experimental [Power Apps Source File Pack and Unpack Utility](https://github.com/microsoft/PowerApps-Language-Tooling) that is being developed separately from AA4AM.
 
 1. Once the app is installed and configured launch it from your Environment under Apps.
 
@@ -12,7 +14,7 @@
 1. From the Environment Drop Down **Select the Dataverse Environment** in which you will be doing your development work.
    ![Select Dataverse Environment](.attachments/GETTINGSTARTED/image-20210303085806618.png)
 
-   > [!NOTE] In order for your Environment to show up in this drop down a service connection in the Azure DevOps project you just selected is required (see [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform). Additionally, verify that you've followed the steps to reconnect the flow above if you do not see any environments in the list.
+   > [!NOTE] In order for your Environment to show up in this drop down a service connection in the Azure DevOps project you just selected is required (see [Create a Service Connection for DevOps to access Power Platform](SETUPGUIDE.md#create-service-connections-for-devops-to-access-power-platform). Additionally, verify that you've followed the steps to reconnect the flow above if you do not see any environments in the list.
 
 1. By default the **unmanaged solutions** in your Environment should be displayed in the main window with buttons to **Push Changes** and **Create Pull Requests**.
 
@@ -35,11 +37,9 @@
    - Select an **existing branch** or **create a new branch** based on an existing branch and enter a **comment**. Use the hashtag notation e.g. `#123` to link the changes to a specific work item in Azure DevOps and Select **Commit**.
      ![Export Solution from Dataverse to New Azure DevOps Branch](.attachments/GETTINGSTARTED/image-20210303085710535.png)
 
-   >[!NOTE]: There is an option to specify if the latest changes contain Delete Components. This allows the user to specify whether to perform an **update** or an **upgrade** of the solution when it is deployed. The former will increase the performance of the pipelines and reduce the overall time to deploy.
-
    - When the push begins a waiting indicator will appear. If the push is successful a checkbox will appear otherwise a red x will appear. In order to see the progress of your push select the progress indicator which will take you to the running pipeline in Azure DevOps.
    - Repeat the pushes as you iterate on your solution.
-
+   
 1. When you are ready to create a pull request for the changes to your branch select the Create Pull Request button.
 
    >[!NOTE]: Be sure to publish your changes before initiating the push.

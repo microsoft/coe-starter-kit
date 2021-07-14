@@ -1,4 +1,6 @@
-# ALM Accelerator for Advanced Maker User Setup
+# ALM Accelerator for Advanced Maker User Setup (Preview)
+
+>  [!NOTE] ALM Accelerator for Advanced Makers is currently in public preview. Please see Issues currently tagged as [vnext](https://github.com/microsoft/coe-starter-kit/issues?q=is%3Aopen+is%3Aissue+label%3Aalm-accelerator+label%3Avnext) for the Roadmap to be completed prior to general availability. While in Public Preview it can be expected that there will be breaking changes and frequent updates to address feedback from preview members. Additionally, the Public Preview is reliant on the experimental [Power Apps Source File Pack and Unpack Utility](https://github.com/microsoft/PowerApps-Language-Tooling) that is being developed separately from AA4AM.
 
 The AA4AM App is intended to be used by makers to increase productivity while developing solutions in Power Platform. The following is instructions for the recommended setup of a maker's user account in Dataverse and Azure DevOps. It's recommended that you use Azure AD groups and Dataverse Group Teams to control access to Dataverse resources and Azure DevOps Groups to control access to Azure DevOps resources. However, assigning permissions on a user by user basis is possible as well.
 
