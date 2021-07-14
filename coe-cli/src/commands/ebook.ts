@@ -169,12 +169,12 @@ class EbookCommand {
                   const escapedText = "#" + fileid + '-' + text.toLowerCase().replace(/[^\w]+/g, '-');
               
                   return `
-                          <h${level}>
-                            <a id="${escapedText}" class="anchor" href="#${escapedText}">
-                              <span class="header-link"></span>
-                            </a>
-                            ${text}
-                          </h${level}>`;
+<h${level}>
+    <a id="${escapedText}" class="anchor">
+        <span class="header-link"></span>
+    </a>
+    ${text}
+</h${level}>`;
                 }
     
             const parser = new marked.Parser({ renderer: renderer });

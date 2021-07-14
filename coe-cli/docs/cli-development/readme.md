@@ -1,6 +1,6 @@
 # CLI Development
 
-This section outlines the following key sections on the COE CLI. The information below can help guide you in making contributions back to the open source repository.
+This section outlines the following key sections on the CoE CLI. The information below can help guide you in making contributions back to the open source repository.
 
 - [Quick Start](#quick-start) - Provides set of links of the technology used to build and test the CLI
 
@@ -50,7 +50,7 @@ npm link
 
 ### Documentation 
 
-Documentation is critical for users of the COE understanding the commands. The [documentation](./documentation.md) pages describe how to add or modify COE CLI, the generated [E-Book](./e-book.md) and associated help documentation.
+Documentation is critical for users of the CoE understanding the commands. The [documentation](./documentation.md) pages describe how to add or modify CoE CLI, the generated [E-Book](./e-book.md) and associated help documentation.
 
 ### Development Frameworks
 

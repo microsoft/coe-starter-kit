@@ -1,11 +1,21 @@
 <#
         .SYNOPSIS
-        Build the COE CLI E-book
+        Build the CoE CLI E-book
 
         .DESCRIPTION
         Generate PDF version of the ebook from docs markdown files
+
+        .EXAMPLE
+
+        .\build.ps1
+        
+        Will run spell check, grammar check and generate pdf file
+
+        .\build.ps1 -format docx
+
+        Will run spell check and create Microsoft Word Document Version of the ebook
 #>
-param ([string] $branch = "main", [boolean] $skipGrammar = $FALSE, [string] $format = "pdf")
+param ([string] $branch = "main", [string] $skipGrammar = "", [string] $format = "pdf")
 $path = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Path))
 Write-Host $path
 if ($branch.Length -gt 0) {
@@ -17,14 +27,20 @@ if ($branch.Length -gt 0) {
     coe ebook generate
 }
 
-if ( $skipGrammar -and $format -eq "docx" ) {
+if ( $format -eq "docx" ) {
     docker run -it --rm -e "DOCX=true" -v ${path}:/docs cli-mdbook
+    return
 }
 
-if ( $skipGrammar -and $format -eq "pdf" ) {
+$skip = $false
+switch($skipGrammar.ToLower()) {
+    "true" { $skip = $true }
+}
+
+if ( $skip -and $format -eq "pdf" ) {
     docker run -it --rm -e "SKIP_GRAMMAR=yes" -v ${path}:/docs cli-mdbook
 }
 
-if ( -not $skipGrammar -and $format -eq "pdf" ) {
+if ( -not $skip -and $format -eq "pdf" ) {
     docker run -it --rm -v ${path}:/docs cli-mdbook
 }

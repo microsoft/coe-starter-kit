@@ -6,7 +6,7 @@ As you deploy and use the AA4AM CLI it is important to understand the following 
 
 #### Azure Active Directory Application
 
-The COE CLI application can create a Azure Active Directory application that automate the following key steps.
+The CoE CLI application can create a Azure Active Directory application that automates the following key steps.
 
 1. User authenticated via Azure CLI
    - [Azure Login](https://docs.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az_login)
@@ -31,7 +31,7 @@ The COE CLI application can create a Azure Active Directory application that aut
 
 #### Azure Active Directory Group
 
-The COE CLI application can create a Azure Active Directory group that is used for Azure DevOps and Power Platform authentication and role based access security.
+The CoE CLI application can create a Azure Active Directory group that is used for Azure DevOps and Power Platform authentication and role based access security.
 
 1. Group Created via Azure CLI
    - [Create Group](https://docs.microsoft.com/en-us/cli/azure/ad/group?view=azure-cli-latest#az_ad_group_create)
@@ -40,13 +40,13 @@ The COE CLI application can create a Azure Active Directory group that is used f
 
 #### Install Automation
 
-The COE CLI application assumes that an Azure DevOps organization and project have already been created. 
+The CoE CLI application assumes that an Azure DevOps organization and project have already been created. 
 
 The install performs the following key steps:
 
 1. Install Azure DevOps Extensions defined in [AzureDevOpsExtensionsDetails.json](../../config/AzureDevOpsExtensionsDetails.json)
 
-   a. New extensions can be added from https://marketplace.visualstudio.com/item. Visit each extension and add the publisher and them **itemName** from the query string in the browser
+   a. New extensions can be added from https://marketplace.visualstudio.com/item. Visit each extension and add the publisher and the **itemName** from the query string in the browser
 
 2. Clone Azure Templates https://github.com/microsoft/coe-alm-accelerator-templates.git into a Azure DevOps git repository named **pipelines** by default
 
@@ -74,17 +74,17 @@ The install performs the following key steps:
 
 The [coe aa4am branch](./maker-setup.md#create-solution-branch) command performs the following steps
 
-1. Create a new branch to store the Solution (Source code reference branch function)
+1. Create a new branch to store the Solution
 
 1. Create build pipelines for the Solution Branch (Validation, Test, Production)
 
-1. Create [Branch Policies](https://docs.microsoft.com/en-us/azure/devops/repos/git/branch-policies-overview?view=azure-devops) to ensure validation build completes successfully
+1. Create [Branch Policies](https://docs.microsoft.com/en-us/azure/devops/repos/git/branch-policies-overview?view=azure-devops) to ensure validation build completes successfully for pull requests
 
 #### Other Concepts
 
 In addition to install automation the following concepts are also assumed for Advanced Makers
 
-1. A git branching strategy https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops
+1. A git [branching strategy](./branching-and-merging.md)
 
   - The AA4AM assumes a branch per solution
 
@@ -96,7 +96,7 @@ In addition to install automation the following concepts are also assumed for Ad
 
 #### Automation
 
-The COE CLI provides the following key steps.
+The CoE CLI provides the following key steps.
 
 1. Import Managed solution into environment to allow Advanced Makers to Manage git import, create branches, pull requests and updates to test and production.
 
@@ -104,13 +104,13 @@ The COE CLI provides the following key steps.
 
 3. Connect Flow to Dataverse
 
-4. Add the user to the Azure Active Directory Service Principal to the power platform environments
+4. Add the user to the Azure Active Directory Service Principal to the Power Platform environments
 
 5. Share the Canvas application with the Maker Azure Active Directory Group
 
 #### Environments
 
-The COE CLI commands currently assume the following environments have been created https://aka.ms/ppac as a Global Administrator or Environment Administrator
+The CoE CLI commands currently assume the following environments have been created https://aka.ms/ppac as a Global Administrator or Environment Administrator
 
 1. Maker Environment
 

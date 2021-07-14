@@ -1,6 +1,6 @@
 ## E-Book
 
-The COE CLI command packages up the documentation and associated help files as a single e-book that can be distributed a PDF file. This approach allows offline consumption of the documentation and ordering of the content to help the reader consume the content.
+The CoE CLI command packages up the documentation and associated help files as a single e-book that can be distributed a PDF file. This approach allows offline consumption of the documentation and ordering of the content to help the reader consume the content.
 
 ### Quick Start
 

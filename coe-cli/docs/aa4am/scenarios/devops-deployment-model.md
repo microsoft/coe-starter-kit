@@ -4,7 +4,7 @@
 
 ### Factors to Consider
 
-As you play you DevOps deployment mode the following factors may help you decide the best approach:
+As you plan your DevOps deployment model the following factors may help you decide the best approach:
 
 - Do different teams and / or business units require separate locations to store and manage solutions?
 
@@ -32,7 +32,7 @@ In this scenario the following is assumed:
 
 - Multiple Azure DevOps for different teams or Business Units.
 
-- Each Azure DevOps organization can have a different set of users protected bu different Role Based Access Security Rules
+- Each Azure DevOps organization can have a different set of users protected buy different Role Based Access Security Rules
 
 - Multiple pipelines can be defined and used at an Azure DevOps level that allow solutions to be deployed to different validation, test and production environments.
 
@@ -44,6 +44,6 @@ In this scenario the following is assumed:
 
 - Multiple Power Platform Advanced Maker Deployment with Shared Power Platform Environments for the Advanced Maker Canvas Application, Validation, Test and Production Environments
 
-- Multiple Azure DevOps for different teams or Business UNits.
+- Multiple Azure DevOps for different teams or Business Units
 
-- Each Azure DevOps organization can have a different set of users protected bu different Role Based Access Security Rules
+- Each Azure DevOps organization can have a different set of users protected buy different Role Based Access Security Rules

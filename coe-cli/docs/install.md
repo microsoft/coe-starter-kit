@@ -1,10 +1,14 @@
 # Installation
 
-To install the COE CLI
+To install the CoE CLI
 
 1. Download zip or clone repository
 
 2. Change to unzipped or cloned repository
+
+```bash
+cd coe-starter-kit
+```
 
 3. Change to the coe-cli folder
 
@@ -18,19 +22,19 @@ Next select either [Local Install](#local-install) or [Docker Install](#docker-i
 
 ### Prerequisites
 
-To run the COE CLI application you will require the following
+To run the CoE CLI application you will require the following
 
-1. An installation of Node 11+ for versions (12, 14, 16)
+1. An installation of Node 11+
 
-   a) https://nodejs.org/en/download/
+   a. https://nodejs.org/en/download/
 
 2. Azure CLI (version 2.24.0 or greater) is required for user authentication and Azure Active Directory Integration
 
-   a) https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+   a. https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### Checking Prerequisites
 
-To check prerequisites installed at the command prompt
+To check prerequisites have been installed correctly and have the correct versions at the command prompt
 
 1. Verify node version
 
@@ -58,7 +62,7 @@ npm install
 npm run build
 ```
 
-3. Link to the COE CLI application
+3. Link to the CoE CLI application
 
 ```bash
 npm link
@@ -75,7 +79,7 @@ One method of installation is via docker.
 
 ### Prerequisites
 
-To run the COE CLI application you will require the following
+To run the CoE CLI application you will require the following
 
 1. A local install of [Docker](https://docs.docker.com/get-docker/) this can be either Community Edition or Enterprise Edition. If you are installing onto a desktop environment you will normally pick a Community Edition deployment.
 
