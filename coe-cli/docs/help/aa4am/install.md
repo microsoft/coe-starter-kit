@@ -2,8 +2,6 @@
 
 The ALM Accelerator for Advanced Makers (AA4AM) install command allows components to be installed 
 
-Common command to install using generated install configuration file
-
 ### Examples
 
 ```bash
@@ -13,14 +11,14 @@ coe aa4am install -f install.json
 To generate an install file you can use the [generate install](./generate/install) command
 
 ```bash
-coe aa4am gnerate install -o install.json
+coe aa4am generate install -o install.json
 ```
 
 ### Parameters
 
 ##### -l, --log
 
-The level of logging to created when running the install in the log file combined.log
+The level of logging to be created when running the install in the log file combined.log
 
 Read more https://github.com/winstonjs/winston#logging-levels
 
@@ -36,26 +34,26 @@ coe aa4am generate install -o istall.json
 
 The component(s) to install
 
-- **all** - All components in Azure Active Directory, Azure DevOps and Power Platform environment
+- **all** - All components required from Azure Active Directory, Azure DevOps and Power Platform environment
 - **aad** - Install and configure Azure active directory components only
 - **devops** - Install and configure Azure DevOps components only
 - **environment** - Install and configure Power Platform components only
 
 ##### --a, --aad
 
-The Azure Active Directory Application name that will be used as Service Principal connect from Azure DevOps Service Connectors and Power Platform Environments.
+The Azure Active Directory Application name that will be used as Service Principal to connect from Azure DevOps via Service Connectors to Power Platform Environments.
 
-The application will be created if it does not exists is component **aad** or **all** is selected. Requires Azure Active Directory permissions. [Read More](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+The application will be created if it does not exists if component **aad** or **all** is selected. Requires Azure Active Directory permissions. [Read More](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
 
-For **aad** or **devops** install the AAD application will be used to assign as the identity to for the service connection.
+For **aad** or **devops** install the AAD application will be assigned as the identity to for the service connection.
 
-For **aad** or **environment** install the AAD application will be used to assign as the Application User in the environment with System Administrator access to allow import/export of solutions.
+For **aad** or **environment** install the AAD application will be assigned as the Application User in the Power Platform environment with System Administrator privileges to allow import/export of solutions.
 
 ##### -g, --group
 
 The Azure Active Directory Group name that will be used to grant access to Advanced makers in Azure DevOps and the Power Platform.
 
-The group will be created if it does not exists is component **aad** or **all** is selected.
+The group will be created if it does not exists if component **aad** or **all** is selected.
 
 For **aad** or **devops** the group will be used to grant access to Variable group used by Azure DevOps pipelines.
 
@@ -89,7 +87,7 @@ The Power Platform environment where the ALM Accelerator for Advanced Maker solu
 1. Organization name e.g. contoso-dev1234. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-dev1234.crm.dynamics.com
 
-You can visit https://aka.ms/ppac to view environments that you have access to get environments that you have access to.
+You can visit https://aka.ms/ppac to list environments that you have access to.
 
 ##### -s, --settings
 
@@ -105,7 +103,7 @@ The value can be either the
 
 ###### --test
 
-The name of the build test environment that solutions will be promoted to
+The name of the test environment that solutions will be promoted to
 
 The value can be either the
 1. Organization name e.g. contoso-test. The **region** parameter will be used to create the full qualified domain name
@@ -113,7 +111,7 @@ The value can be either the
 
 ###### --prod
 
-The name of the build production environment that solutions will be promoted to
+The name of the production environment that solutions will be promoted to
 
 The value can be either the
 1. Organization name e.g. contoso-prod. The **region** parameter will be used to create the full qualified domain name
@@ -129,7 +127,7 @@ Read more on [Manage user assignment for an app in Azure Active Directory](https
 
 ###### --region
 
-The region that environments are deployed to. This setting will be used if a fully qualified domain name are not supplied. The default value is **NAM** North America
+The region that environments are deployed to. This setting will be used if a fully qualified domain name is not supplied. The default value is **NAM** North America
 
 Further reading:
 
