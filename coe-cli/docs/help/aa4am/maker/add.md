@@ -15,7 +15,7 @@ coe aa4am maker add \
 
 #### -f, --file
 
-The install configuration parameters file from. Refer to the [coe aa4am generate maker](../generate/maker.md) for more information.
+The install configuration parameters file from. Refer to the [coe aa4am generate maker](../generate/maker/add.md) for more information.
 
 #### -o, --devOpsOrganization
 

@@ -90,7 +90,6 @@ Notes:
 
 ### Read Next
 
-- [Command Reference](./command-reference.md)
 - [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) - Overview for AA4AM
 - Manual Setup - Understand the key steps that the CLI is automating
   - [Foundational Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#foundational-setup) - Foundational Setup for Manual steps automated by the CLI install command

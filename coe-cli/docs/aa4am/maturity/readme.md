@@ -12,7 +12,7 @@ AA4AM is a good match if you can check to see if the following apply:
 - Do you have license prerequisites in place?
   - Do you have Basic or above Azure DevOps licenses for Makers?
   - Per App or Per User Power Apps licenses to access the AA4AM Maker Solution?
-- Are you looking to move to [Level 300 - Defined](#level-300---defined) or beyond
+- Are you looking to move to [Level 300 - Defined](#level-300-defined) or beyond
 - Do any of the following apply that indicate the need for ALM?
    - Are the applications classified as Critical or High [Business Impact](#business-impact)?
    - Who is using the application?
@@ -49,11 +49,11 @@ Where some gaps exist then a set of proactive training and or workshops can help
 
 The maturity model has the following levels
 
-##### Level 100 – Initial
+##### Level 100 Initial
 
 (_organic, chaotic, ad-hoc, individual heroics_): This phase describes the starting point for use of a new or undocumented process. In the Initial phase the organization has pockets of success or experimentation with Power Platform, but without any visibility into organization-wide adoption and use. There is no overall strategy or governance approach, apps are largely in the Default environment and no DLP policies have been put in place. Apps are mostly used by a single team and supported by the makers. Apps primarily use Excel and SharePoint as their data sources. The organization sees the potential of a strategic investment in the Power Platform, but there is no clear path forward for organization-wide execution.
 
-##### Level 200 – Repeatable
+##### Level 200 Repeatable
 
 This phase describes a process that is at least documented sufficiently such that repeating the same steps may be attempted.
 
@@ -63,7 +63,7 @@ The CoE Starter Kit is deployed to provide tenant-wide visibility into the use o
 
 Environments are used as needed, but in an ad-hoc manner – for example, various Production environments and different DLP policies might be created without a consistent strategy. These organizations sometimes believe that the use of the Power Platform is running “out of control” until they shape their use of the administrative and governance controls available for Power Platform, transitioning to the Defined Stage.
 
-##### Level 300 – Defined
+##### Level 300 Defined
 
 This phase describes a process that is defined/confirmed as a standard business process.
 
@@ -71,7 +71,7 @@ The Defined organization is standardizing the repeatable practices that evolved 
 
 Much of this transformation may still reflect the organic growth that got the organization to this point, but the Center of Excellence team is working to automate those processes and define standard approaches that will move the organization to the Capable stage.
 
-##### Level 400 – Capable
+##### Level 400 Capable
 
 This phrase describes a process that is quantitatively managed in accordance with agreed-upon metrics. 
 

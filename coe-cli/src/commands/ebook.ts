@@ -70,6 +70,9 @@ class EbookCommand {
 
         let data = await this.readFile(indexFile, 'utf-8')
         const lines = data.split(/\r?\n/);
+        let fileReferences : { [id: string]: string[]; } = {}
+        let links: string[] = []
+
         for ( var i = 0; i < lines.length; i++ ) {
             content.push('<div class="page">') 
             if ( lines[i].startsWith("#") || lines[i]?.trim().length == 0 ) {
@@ -82,7 +85,9 @@ class EbookCommand {
             let tokens = marked.lexer(md)
             let fileid = lines[i].replace(/\//g, '-').replace(".md", '')
 
-            this.logger?.info(`Importing ${file}`)
+            this.logger?.debug(`Importing ${file}`)
+
+            fileReferences[fileid] = []
     
             marked.walkTokens(tokens, (token) => {
                 
@@ -98,6 +103,11 @@ class EbookCommand {
                     if (token.href.startsWith("#")) {
                         let oldLink = token.href
                         token.href = "#" + fileid + "-" + token.href.replace("#","").replace(/ /g,'-')
+
+                        if ( fileReferences[fileid].indexOf(token.href) < 0 ) {
+                            fileReferences[fileid].push(token.href)
+                        }
+                        
                         this.logger?.debug(`Updating markdown link ${oldLink} to ${token.href}`)
                         return
                     }
@@ -112,11 +122,25 @@ class EbookCommand {
                         if (relativeFile.startsWith('/')) {
                             relativeFile = relativeFile.substr(1)
                         }
-                        let newReference = "#section-" + relativeFile.replace(/\//g,'-').replace(".md","")
+
+                        let newReference = ""
+                        if ( section.length == 0 ) {
+                            // Not a reference fo an internal part of the file
+                            // Assume link is to the start of the file
+                            newReference += "#section-"
+                        }
+                        newReference += relativeFile.replace(/\//g,'-').replace(".md","")
                         if ( section.length > 0 ) {
+                            // Add link to heaing inside the document
                             newReference += "-" + section.toLowerCase().replace(/ /g,'-')
                         }
+
                         this.logger?.debug(`Updating markdown link ${token.href} to ${newReference}`)
+
+                        if ( fileReferences[fileid].indexOf(newReference) < 0 ) {
+                            fileReferences[fileid].push(newReference)
+                        }
+
                         token.href = newReference
                         return
                     }
@@ -142,8 +166,6 @@ class EbookCommand {
                             }
                         }
 
-                        
-
                         let newPath = "."
                         if ( args.repoPath?.length > 0 ) {
                             newPath = args.repoPath
@@ -155,7 +177,9 @@ class EbookCommand {
                             relativePath = newPath + relativePath
                         }
 
-                        
+                        if ( fileReferences[fileid].indexOf(relativePath) < 0 ) {
+                            fileReferences[fileid].push(relativePath)
+                        }
 
                         this.logger?.debug(`Updating link from ${href} to ${relativePath}`)
                         token.href = relativePath
@@ -167,6 +191,10 @@ class EbookCommand {
     
             renderer.heading = (text, level) => {
                   const escapedText = "#" + fileid + '-' + text.toLowerCase().replace(/[^\w]+/g, '-');
+
+                  if (links.indexOf(escapedText) < 0) {
+                    links.push(escapedText)
+                  }
               
                   return `
 <h${level}>
@@ -180,7 +208,13 @@ class EbookCommand {
             const parser = new marked.Parser({ renderer: renderer });
 
             let html = parser.parse(tokens)
-            let documentLink = `<a id="section-${fileid}" class="section"></a>`
+            let fileReference = `section-${fileid}`
+            let documentLink = `<a id="${fileReference}" class="section"></a>`
+
+            if (links.indexOf(`#${fileReference}`) < 0) {
+                // Add link to document start
+                links.push(`#${fileReference}`)
+            }
 
             if ( typeof args.htmlFile === "undefined" || args.htmlFile?.length == 0) {
                 this.outputText(documentLink);
@@ -202,6 +236,29 @@ class EbookCommand {
             }
 
             await this.writeFile(htmlFile, content.join(EOL))
+        }
+
+        this.logger?.info("Checking links")
+        for ( var i = 0; i < lines.length; i++ ) {
+            let fileid = lines[i].replace(/\//g, '-').replace(".md", '')
+            let missing: string[] = []
+            for ( var l = 0; l < fileReferences[fileid]?.length; l++ ) {
+                if ( fileReferences[fileid][l].startsWith("#") && links.indexOf(fileReferences[fileid][l]) < 0 ) {
+                    if (fileReferences[fileid][l].startsWith("#section-"))
+                        missing.push(`Unable to page ${fileReferences[fileid][l].replace('#section-','')}`)
+                    else {
+                        missing.push(`Unable to find heading ${fileReferences[fileid][l]}`)
+                    }
+                }
+            }
+
+            if ( missing.length > 0 ) {
+                this.logger?.info(lines[i])
+                for ( var l = 0; l < missing.length; l ++) {
+                    this.logger?.error(missing[l])
+                }
+            }
+
         }
 
         return Promise.resolve();
