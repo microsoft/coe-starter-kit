@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
-const { exec } = require('child_process');
+const child_process = require('child_process');
 
 (async () => {
     let indexFile = path.join("/docs", "index.txt")
@@ -34,7 +33,7 @@ const { exec } = require('child_process');
                 case 'grammer': 
                 case 'duplication': 
                 case 'typographical': 
-                    display = grammarIgnore.filter( ignore => ignore == results.matches[i].rule.id).length == 0
+                    display = grammarIgnore.filter( ignore => ignore == results.matches[i].rule.id || ignore == results.matches[i].rule.category.id ).length == 0
                     break;
             }
             if ( display ) {
@@ -64,14 +63,9 @@ const { exec } = require('child_process');
 
 function checkFile(file) {
     return new Promise((resolve, reject) => {
-        let command = `cat ${file} | java -jar /lang/node_modules/@funboxteam/languagetool-node/languagetool/languagetool-commandline.jar -l en-US --json -`
-        let child = exec(command, (error, stdout, stderr) => {
-            if (error) {
-                reject(error);
-            }
-            resolve(stdout);
-        });
-
-        child.on("error", () => reject)
+        let command = `cat ${file} | java -jar /lang/LanguageTool-5.4/languagetool-commandline.jar -l en-US --json - > /lang/response.json`
+        child_process.execSync(command);
+        const data = fs.readFileSync('/lang/response.json',{encoding:'utf8', flag:'r'});
+        resolve(data)
     })
 }
