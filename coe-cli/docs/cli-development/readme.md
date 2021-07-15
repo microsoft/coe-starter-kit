@@ -50,7 +50,7 @@ npm link
 
 ### Documentation 
 
-Documentation is critical for users of the CoE understanding the commands. The [documentation](./documentation.md) pages describe how to add or modify CoE CLI, the generated [E-Book](./e-book.md) and associated help documentation.
+Documentation is critical for users of the CoE understanding the commands. The [documentation](./documentation.md) pages describe how to add or modify CoE CLI, the generated [E-Book](./ebook.md) and associated help documentation.
 
 ### Development Frameworks
 

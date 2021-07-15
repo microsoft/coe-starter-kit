@@ -8,7 +8,7 @@ For each set of major commands, this guide is organized in the following tracks 
 
 3. [How does it work](#how-does-it-work) - Dives deeper into how to build, extend and contribute to the CoE CLI.
 
-## Quick Starts
+## Quick Start
 
 The following quick start guides exist
 
@@ -38,11 +38,9 @@ Comparing and contrasting the CoE CLI to other CLI / APIs:
 
 As you consider an enterprise deployment the following sections outline the key concepts you will need to understand:
 
-1. CoE CLI [prerequisites](#prerequisites) 
+1. [Install](./install.md) - How to install the CoE CLI.
 
-2. [Install](./install.md) - How to install the CoE CLI.
-
-3. [ALM Accelerator for Advanced Makers](./aa4am/readme.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to achieve more within your organization. 
+2. [ALM Accelerator for Advanced Makers](./aa4am/readme.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to achieve more within your organization. 
 
 ### Getting Started
 

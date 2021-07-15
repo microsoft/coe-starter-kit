@@ -30,7 +30,7 @@ In this scenario you are looking to quickly install AA4AM to demonstrate how it 
 1. Demo non administration maker users that will be used to show process of creating ALM process for Power Platform solutions
 1. Non production applications
 
-Once you have the [Admin Install](./admin-install.md) completed, Advanced makers can create [Development environments](./development-environments.md) and have Administrators add them to Azure DevOps and the required Azure Active Directory Security Group. 
+Once you have the [Admin Install](../admin-install.md) completed, Advanced makers can create [Development environments](../development-environments.md) and have Administrators add them to Azure DevOps and the required Azure Active Directory Security Group. 
 
 This will typically use the following commands as the **single administrator**
 
@@ -54,7 +54,7 @@ coe aa4am maker add \
 
 More information on the [coe aa4am maker add](../../help/aa4am/maker/add.md) command
 
-Once these steps are completed makers can then [Setup Managed Solutions](./maker-setup.md)
+Once these steps are completed makers can then [Setup Managed Solutions](../maker-setup.md)
 
 ### Enterprise Deployment
 

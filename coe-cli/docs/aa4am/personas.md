@@ -15,7 +15,7 @@ coe aa4am user add \
   -e https://contoso-alans-dev.crm.dynamics.com
 ```
 
-Read more on the [coe aa4am user add](..\help\aa4am\user\add.md)
+Read more on the [coe aa4am user add](../help/aa4am/user/add.md)
 
 The **coe aa4am branch** command will be run each time a new solution is created. This command allows a new solution branch to be created in Azure DevOps with the associated ALM DevOps pipeline to validate pull requests and push changes to test and production environments.
 
