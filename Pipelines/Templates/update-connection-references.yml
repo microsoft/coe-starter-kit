@@ -1,7 +1,11 @@
 parameters:
+- name: displayName
+  type: string
 - name: serviceConnection
   type: string
 - name: connectionReferences
+  type: string
+- name: updateConnectionReferences
   type: string
 - name: enableFlows
   type: string
@@ -42,38 +46,42 @@ steps:
       $impersonationCallerId = $systemusers.CrmRecords[0].systemuserid
       $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
       $connRefOwnerCollection.Add($c[0],$impersonationCallerId)
-      Set-CrmRecord -conn $impersonationConn -EntityLogicalName connectionreference -Id $connRef.connectionreferenceid -Fields @{"connectionid" = $c[1] }
+      if('${{parameters.updateConnectionReferences}}' -ne "false") {
+        Set-CrmRecord -conn $impersonationConn -EntityLogicalName connectionreference -Id $connRef.connectionreferenceid -Fields @{"connectionid" = $c[1] }
+      }
     }
 
-    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "$(SolutionName)"
-    $solutionId = $solutions.CrmRecords[0].solutionid
+    if('${{parameters.enableFlows}}' -ne "false") {
+        $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "$(SolutionName)"
+        $solutionId = $solutions.CrmRecords[0].solutionid
 
-    $result = Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields objectid,componenttype
-    $solutionComponents = $result.CrmRecords
+        $result = Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields objectid,componenttype
+        $solutionComponents = $result.CrmRecords
 
-    foreach ($c in $solutionComponents){
-        if ($c.componenttype -eq "Workflow"){
-            # Flows can only be turned on if the user turning them on has permissions to connections being referenced by the connection reference
-            # As of authoring this script, the Service Principal (SPN) we use to connect to the Dataverse API cannot turn on the Flow
-            # The temporary workaround is use a brute force approach for now.  We use the identity of the connection for the first connection
-            # reference we find to turn on the Flow.  This may have side effects or unintended consequences we haven't fully tested.
-            # Need a better long term solution.  Will replace when we find one.
-            $wf = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $c.objectid -Fields clientdata,category
-            if ($wf.category -eq "Modern Flow"){
-              $impersonationCallerId = ""
-              foreach ($key in $connRefOwnerCollection.AllKeys){
-                if($wf.clientdata.Contains($key)){
-                  $impersonationCallerId = $connRefOwnerCollection[$key]
-                  break
-                }
-              }
-              if ($impersonationCallerId -ne "" -and '${{parameters.enableFlows}}' -ne "false") {
-                  Write-Host "Enabling Flows"
-                  $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
-                  Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $c.objectid -StateCode Activated -StatusCode Activated
-              }
-            }            
+        foreach ($c in $solutionComponents){
+            if ($c.componenttype -eq "Workflow"){
+                # Flows can only be turned on if the user turning them on has permissions to connections being referenced by the connection reference
+                # As of authoring this script, the Service Principal (SPN) we use to connect to the Dataverse API cannot turn on the Flow
+                # The temporary workaround is use a brute force approach for now.  We use the identity of the connection for the first connection
+                # reference we find to turn on the Flow.  This may have side effects or unintended consequences we haven't fully tested.
+                # Need a better long term solution.  Will replace when we find one.
+                $wf = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $c.objectid -Fields clientdata,category
+                if ($wf.category -eq "Modern Flow"){
+                  $impersonationCallerId = ""
+                  foreach ($key in $connRefOwnerCollection.AllKeys){
+                    if($wf.clientdata.Contains($key)){
+                      $impersonationCallerId = $connRefOwnerCollection[$key]
+                      break
+                    }
+                  }
+                  if ($impersonationCallerId -ne "") {
+                      Write-Host "Enabling Flows"
+                      $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
+                      Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $c.objectid -StateCode Activated -StatusCode Activated
+                  }
+                }            
+            }
         }
     }
-  displayName: 'Update Connection References'
+  displayName: '${{parameters.displayName}}'
   condition: and(succeeded(), ne('${{parameters.connectionReferences}}', ''))
