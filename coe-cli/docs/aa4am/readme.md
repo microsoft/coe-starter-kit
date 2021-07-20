@@ -3,11 +3,16 @@
 The [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) (AA4AM) 
 command allows you to manage common Application Lifecycle Management (ALM) tasks for Advanced Makers to install, setup and administration of Power Platform Solutions. 
 
+- [Quick Start](#quick-start) - Guides you through the process of a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment)
+- [Understand the Concepts](#understand-the-concepts) - Discuses Scenarios, Personas and Key Concepts behind AA4AM and the install process using the CoE CLI
+
 ## Quick Start
+
+This quick start should take around 30 minutes and by the end as an Administrator configure Azure Active Directory, Azure DevOps and the Power Platform environments.
 
 1. Validate organization [maturity model](./maturity/readme.md#quick-start) for AA4AM
 
-1. Create your [Power Platform Environments](./before-you-start.md#power-platform) and [Azure DevOps](./before-you-start.md#azure-devops) Organization.
+1. Create your [Power Platform Environments](./before-you-start.md#power-platform) and [Azure DevOps](./before-you-start.md#azure-devops) Organization and Azure DevOps project.
 
 1. Create an install configuration. Review the [install help](../help/aa4am/install.md) for install parameters
 
@@ -15,21 +20,21 @@ command allows you to manage common Application Lifecycle Management (ALM) tasks
 coe aa4am generate install -o quickstart.json
 ```
 
-More information on the [coe aa4am generate install](../help/aa4am/generate/install.md) command
+   More information on the [coe aa4am generate install](../help/aa4am/generate/install.md) command
 
-2. If you are creating a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment) use the following command
+1. If you are creating a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment) use the following command
 
 ```bash
 coe aa4am install -f quickstart.json
 ```
 
-More information on the [coe aa4am install](../help/aa4am/install.md) command
+   More information on the [coe aa4am install](../help/aa4am/install.md) command
 
-If you are deploying to your enterprise refer to [Enterprise Deployment](./scenarios/tenant-deployments.md#enterprise-deployment) for further information.
+   If you are deploying to your enterprise refer to [Enterprise Deployment](./scenarios/tenant-deployments.md#enterprise-deployment) for further information.
 
-3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
+1. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
 
-4. Have Advanced Makers create [development environments](./development-environments.md) then Add Advanced Makers to Azure DevOps and share the Canvas Application
+1. Have Advanced Makers create [development environments](./development-environments.md) then Add Advanced Makers to Azure DevOps and share the Canvas Application
 
 ```bash
 coe aa4am maker add \
@@ -40,9 +45,9 @@ coe aa4am maker add \
    -g aa4am-makers -u user@contoso.com
 ```
 
-More information on the [coe aa4am maker add](../help/aa4am/maker/add.md) command
+   More information on the [coe aa4am maker add](../help/aa4am/maker/add.md) command
 
-You can also generate a user configuration file. Using this approach will allow you to explore each parameter and review the settings before adding the maker.
+   You can also generate a user configuration file. Using this approach will allow you to explore each parameter and review the settings before adding the maker.
 
 ```bash
 coe aa4am generate maker add -o user.config
@@ -50,7 +55,7 @@ coe aa4am maker add \
    -f user.config
 ```
 
-More information on the [coe aa4am generate maker add](../help/aa4am/generate/maker/add.md) command
+    More information on the [coe aa4am generate maker add](../help/aa4am/generate/maker/add.md) command
 
 ## Understand the Concepts
 
