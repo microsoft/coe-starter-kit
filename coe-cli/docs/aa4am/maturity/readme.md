@@ -4,16 +4,11 @@ The [Power CAT adoption maturity model](https://powerapps.microsoft.com/en-us/bl
 
 ### Quick Start
 
+![Decision Tree](./decision-tree.png)
+
 AA4AM is a good match if you can check to see if the following apply:
 
-- Do you have the prerequisites in place?
-  - Do you have a defined [Environment strategy](../before-you-start.md#power-platform) for Development, Validation, Test and Production?
-  - Do you use Azure DevOps or can you integrate with Azure DevOps for Source Control and Build Pipelines?
-- Do you have license prerequisites in place?
-  - Do you have Basic or above Azure DevOps licenses for Makers?
-  - Per App or Per User Power Apps licenses to access the AA4AM Maker Solution?
-- Are you looking to move to [Level 300 - Defined](#level-300-defined) or beyond
-- Do any of the following apply that indicate the need for ALM?
+- What is the impact of the solution?
    - Are the applications classified as Critical or High [Business Impact](#business-impact)?
    - Who is using the application?
       - Is this a Productivity application used by everyone in your organization?
@@ -22,6 +17,13 @@ AA4AM is a good match if you can check to see if the following apply:
    - Are there specific Compliance and Auditing needs?
       - How important is tracking and auditing who is using the application?
       - Is there compliance and auditing requirements of the solution?       
+- Do you have the prerequisites in place?
+  - Do you have a defined [Environment strategy](../before-you-start.md#power-platform) for Development, Validation, Test and Production?
+  - Do you use Azure DevOps or can you integrate with Azure DevOps for Source Control and Build Pipelines?
+  - Do you have license prerequisites in place?
+    - Do you have Basic or above Azure DevOps licenses for Makers?
+    - Per App or Per User Power Apps licenses to access the AA4AM Maker Solution?
+- Are you looking to move to [Level 300 - Defined](#level-300-defined) or beyond
 - Administration
     - Do you have Environment Strategy in place?
     - What is the request strategy for environments?
@@ -44,6 +46,8 @@ AA4AM is a good match if you can check to see if the following apply:
 Where some gaps exist then a set of proactive training and or workshops can help grow the maturity of people, process and technology to assist them in moving toward Advanced Maker integration inside your organization.
 
 ### Understand the Concepts
+
+![Maturity](./maturity.png)
 
 #### Levels
 

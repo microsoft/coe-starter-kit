@@ -10,6 +10,7 @@ Install the CoE CLI [locally](../install.md#local-install) or via a [docker imag
 
 Environment | Description
 ----------- | -------------
+Developer | Development environments that each Advanced Maker will use to create and manage source controlled solutions
 ALM Environment | Environment with Dataverse enabled. Will be used to deploy managed solution.
 ALM Environment - Dataverse Connection | See [Maker Environment Dataverse](#maker-environment-dataverse) below to create the Dataverse Connection
 Validation | Environment used to validate builds before merging into a solution branch              |
@@ -25,7 +26,7 @@ Notes:
    4) Select Create Tenant
    5) Select tenant location
    6) Select "Dynamics 365 Customer Engagement"
-3. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
+2. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
 
    ![Environments](../images/environments.jpg)
 
@@ -56,10 +57,17 @@ Global Administrator or Privileged Role Administrator|Grant tenant-wide admin co
 
 ### Azure DevOps
 
+The following must be installed before the CoE CLI AA4AM install cab begin
+
 Component | Description
 --------- | ----------
 Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
 Project | An Azure DevOps project to integrate with. This guide uses the name **alm-sandbox** as the project name
+
+The following will be setup or used as part of the install and follow on [coe aa4am branch](../help/aa4am/branch.md)
+
+Component | Description
+--------- | ----------
 Extensions | Review the [extensions configuration](../../config/AzureDevOpsExtensionsDetails.json) that will be installed
 Repository | Ensure the git repository has been initialized with an initial commit
 

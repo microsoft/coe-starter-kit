@@ -12,8 +12,8 @@ For each set of major commands, this guide is organized in the following tracks 
 
 The following quick start guides exist
 
-- [Install](./install.md)
-- [ALM Accelerator for Advanced Makers Quick Start](./aa4am/readme.md#quick-start)
+- [Install CoE CLI](./install.md) - Install the CoE CLI to your local environment or as a docker container
+- [ALM Accelerator for Advanced Makers Quick Start](./aa4am/readme.md#quick-start) - Install a demonstration environment or an enterprise deployment with Azure Active Directory, Azure DevOps and Power Platform Administration permissions
 
 ## Explain the Concepts
 
@@ -38,7 +38,7 @@ Comparing and contrasting the CoE CLI to other CLI / APIs:
 
 As you consider an enterprise deployment the following sections outline the key concepts you will need to understand:
 
-1. [Install](./install.md) - How to install the CoE CLI.
+1. [Install CoE CLI](./install.md) - How to install the CoE CLI using local host computer or via a docker container.
 
 2. [ALM Accelerator for Advanced Makers](./aa4am/readme.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to achieve more within your organization. 
 
