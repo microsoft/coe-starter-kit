@@ -13,8 +13,8 @@ for ( let i = 0; i < paths.length; i++) {
     let css = fullPath.replace(".mmd", ".css")
     if (fs.existsSync(css)) {
         execSync(`${mmdc} -i ${fullPath} -o ${newPath} -C ${css}`)
+        execSync(`${mmdc} -i ${fullPath} -o ${newPath.replace(".png", ".svg")} -C ${css}`)
     } else {
         execSync(`${mmdc} -i ${fullPath} -o ${newPath}`)
     }
-    
 }
