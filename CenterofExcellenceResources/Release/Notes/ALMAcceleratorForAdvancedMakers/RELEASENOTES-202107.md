@@ -5,7 +5,10 @@
 https://github.com/microsoft/coe-starter-kit/milestone/10
 
 ## First Time Setup Instructions
-To get started with the ALM Accelerator For Advanced Makers the setup documentation can be found at https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md
+To get started with the ALM Accelerator For Advanced Makers you can
+1. Use the preview CoE CLI to automate the install at https://github.com/microsoft/coe-starter-kit/blob/main/coe-cli/docs/aa4am/readme.md or in the [Power Platform CoE CLI E-Book](https://aka.ms/coe-cli-ebook)
+2. Use the  manual setup documentation can be found at https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md
+
 
 ## Upgrade Instructions
 If you are upgrading to the latest release you will need to perform the following steps.
