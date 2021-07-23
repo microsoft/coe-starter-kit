@@ -50,6 +50,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
     + [Create the Solution Deployment Pipeline (Optional)](#create-the-solution-deployment-pipeline-optional)
     + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
       - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
+      - [Create EnableFlows Variable (Optional)](#create-enableflows-variable-optional)
     + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
     + [Create Deployment Configuration (Optional)](#create-deployment-configuration-optional)
   * [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
@@ -79,7 +80,7 @@ In order to complete the steps below you will need the following users and permi
 - A licensed **Azure user** with Permissions to **create and view AAD Groups**, **create App Registrations** and **Grant Admin consent** to App Registrations in Azure Active Directory.
 - A licensed **Azure DevOps** user with Permissions to **create and manage Pipelines, Service Connections, Repos and Extensions**.
 - A licensed **Power Platform** user with Permissions to **create Application Users** and **grant Administrative Permissions** to the Application User.
-- Ability to assign Power Platform Admin level permissions to an App Registration in Azure. See [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app) for more information.
+- Ability to assign **Power Platform Admin level permissions** to an App Registration in Azure. See [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app) for more information.
 
 ### Connectors and DLPs
 
@@ -520,6 +521,10 @@ The **EnvironmentName** variable is used to specify the Azure DevOps environment
 The **ServiceConnection** variable is used to specify how the deployment pipeline connects to the Power Platform. The values used for the Service Connection variable are the names of the Service Connections created above [Create a Service Connection for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
 
 ![image-20210414170210916](.attachments/GETTINGSTARTED/image-20210414170210916.png)
+
+#### Create EnableFlows Variable (Optional)
+
+You can optionally set a pipeline variable on your deployment pipelines to turn off the automatic enabling of Flows after your solution is imported. This variable is **EnableFlows**. Setting EnableFlows to 'false' will result in the pipeline skipping the steps to enable Power Automate Flows as part of your deployment. The default of the EnableFlows variable value is 'true'. **You only need to set this variable if you want to skip enabling flows after your solution is imported.**
 
 ### Setting Branch Policies for Pull Request Validation
 
