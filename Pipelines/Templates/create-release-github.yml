@@ -1,5 +1,7 @@
-#Template to create coe-starter-kit releases in Github based on defined milestones for Month/Year
+#Template to create releases in Github based on defined milestones for Month/Year
 parameters:
+- name: gitHubApiUrl
+  type: string
 - name: solutionName
   type: string
 - name: solutionDisplayName
@@ -12,6 +14,9 @@ parameters:
   type: string
 - name: releaseNotesPath
   type: string
+- name: issueClosingComment
+  type: string
+  default: ''
 - name: isPreRelease
   type: boolean
   default: false
@@ -30,8 +35,13 @@ steps:
     $releaseMonthPadded = ([string]${{parameters.releaseMonth}}).PadLeft(2,'0')
     $fullReleaseNotesPath = '${{ parameters.releaseNotesPath }}/${{parameters.solutionName}}/RELEASENOTES-${{parameters.releaseYear}}' + $releaseMonthPadded + '.md'
     Write-Host "##vso[task.setvariable variable=ReleaseNotesPath]$fullReleaseNotesPath"
-
-    $releaseNotes = Get-Content $fullReleaseNotesPath -Raw
+    $releaseNotes = ''
+    if(Test-Path $fullReleaseNotesPath) {
+        $releaseNotes = Get-Content $fullReleaseNotesPath -Raw
+    }
+    else {
+        New-Item $fullReleaseNotesPath
+    }
     $releaseNotes = $releaseNotes + [Environment]::NewLine + '## Change Log'
 
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -39,7 +49,7 @@ steps:
     $headers.Add("Authorization", "Bearer $(GitHubPAT)")
 
     #Find the milestone for this release e.g. 'CoE Starter Kit - July 2021
-    $milestoneRequest = "https://api.github.com/repos/microsoft/coe-starter-kit/milestones?sort=due_on&direction=desc"
+    $milestoneRequest = "${{ parameters.gitHubApiUrl }}/milestones?sort=due_on&direction=desc"
     $milestoneResponse = Invoke-RestMethod $milestoneRequest -Method 'GET' -Headers $headers
     $currentMilestone = $null
     $milestoneName = '${{ parameters.solutionDisplayName }} - ' + $releaseMonthName + ' ' + ${{ parameters.releaseYear }}
@@ -51,12 +61,25 @@ steps:
     }
 
     if($currentMilestone -ne $null){
-        # NOTE: Since this is for internal use only right now, we are hardcoding microsoft/coe-starter-kit
-        #       We will consider improving this in the future, but needed minimum to get it working for preview release
-        $issuesRequest = "https://api.github.com/repos/microsoft/coe-starter-kit/issues?state=closed&filter=all&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
-        $issueResponse = Invoke-RestMethod $issuesRequest -Method 'GET' -Headers $headers
-
+        $issuesRequestUrl = "${{ parameters.gitHubApiUrl }}/issues?state=all&filter=all&sort=created&direction=asc&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
+        $issueResponse = Invoke-RestMethod $issuesRequestUrl -Method 'GET' -Headers $headers
         foreach($issue in $issueResponse){
+            if('${{ parameters.issueClosingComment }}' -ne ''){
+                # Add the comment to the issue
+                # /repos/{owner}/{repo}/issues/{issue_number}/comments
+                $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
+                $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
+                $commentBody = "{`"body`": `"$commentFormatted`"}"
+                Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+
+                # Close the issue if not closed
+                if($issue.state -ne 'closed') {
+                    #/repos/{owner}/{repo}/issues/{issue_number}
+                    $issueRequestClosingUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number
+                    $closeRequestBody = "{`"state`": `"closed`"}"
+                    Invoke-RestMethod $issueRequestClosingUrl -Method 'PATCH' -Headers $headers -Body $closeRequestBody
+                }
+            }
             $releaseNotes = $releaseNotes + [Environment]::NewLine + "  - #" + $issue.number + "-" + $issue.title #Add a line for each issue with number and title. Add more here as necessary
         }
 
@@ -64,8 +87,8 @@ steps:
     }
     else{
       # The milestone was not found could be a naming error
-      Write-Error 'No milestone was found for $milestoneName'
-      Write-Host '##vso[task.logissue type=error]No milestone was found for $milestoneName'
+      Write-Error "No milestone was found for $milestoneName"
+      Write-Host "##vso[task.logissue type=error]No milestone was found for $milestoneName"
       exit(1)
     }
   displayName: Build Release Notes from Milestone
