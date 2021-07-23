@@ -46,7 +46,7 @@ graph
 ```
 
 NOTES:
-1. Review the [node shapes](https://mermaid-js.github.io/mermaid/#/flowchart?id=node-shapes) to control the symboles displayed
+1. Review the [node shapes](https://mermaid-js.github.io/mermaid/#/flowchart?id=node-shapes) to control the symbols displayed
 
 2. When css file is requested a svg file will also be generated so that you can look at the class and SVG elements generated to apply css styles
 
