@@ -1,6 +1,6 @@
 ## Center of Excellence - Command Line Interface Help
 
-The Center of Excellence Command (COE) CLI help command provide further information on how to use the provided functionality. 
+The Center of Excellence Command (CoE) CLI help command provide further information on how to use the provided functionality. 
 
 For more information on the CoE CLI you can visit [https://aka.ms/coe-cli](https://aka.ms/coe-cli)
 

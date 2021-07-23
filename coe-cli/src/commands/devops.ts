@@ -451,7 +451,7 @@ class DevOpsCommand {
             aadArgs.accessTokens = args.accessTokens
             aadArgs.endpoint = args.endpoint
 
-            let secretInfo = await aadCommand.addSecret(aadArgs, "COE-AA4AM")
+            let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-AA4AM")
 
             if (!aadArgs.createSecret) {
                 this.logger?.warn('Client secret not added for variable group global-variable-group it wil need to be added manually')

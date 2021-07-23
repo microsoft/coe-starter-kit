@@ -1,10 +1,10 @@
-# Generate
+## Generate
 
 The generate command allows you to create JSON files for the install command using an interactive set of questions.
 
-## Examples
+### Examples
 
-### Install
+#### Install
 
 ```
 coe help aa4am generate install
@@ -12,7 +12,7 @@ coe help aa4am generate install
 
 Help for [generate install](./install.md)
 
-### Maker Add
+#### Maker Add
 
 ```
 coe help aa4am generate maker add

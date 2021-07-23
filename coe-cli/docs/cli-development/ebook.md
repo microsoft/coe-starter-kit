@@ -18,21 +18,21 @@ docker build -t cli-mdbook .
 
 2. Create the e-book using PowerShell
 
-```powershell
-./build.ps1
+```bash
+npm run ebook
 ```
 
 ### Understand the Concepts
 
 The generated e-book approach has the following main components
 
-1. A cover page **ebook-cover.md** that that is inserted as the first page of the e-book
+1. A cover page [ebook-cover.png](../images/ebook-cover.png) image and table of contents are automatically as first pages of the e-book
 
-2. A **index.txt** file that controls the reading order of the content
+2. A [index.txt](../index.txt) file that controls the reading order of the content
 
-3. The e-book style sheet **book.css**
+3. The e-book style sheet [book.css](../book.css)
 
-4. Prism.js stylesheet **prism.css** and JavaScript **prism.js** required for formatting of the code samples
+4. Prism.js stylesheet [prism.css](../prism.css) and JavaScript [prism.js](../prism.js) required for formatting of the code samples
 
 5. **build.sh** shell script to create the PDF document
 
@@ -40,39 +40,33 @@ The generated e-book approach has the following main components
 
 To update this e-book with new content you will need access to docker to generate new versions of the pdf file using the following steps
 
-
-1. Build the HTML e-book version
-
-```bash
-coe ebook generate
-```
-
-If you are building an e-book for a branch that is not the main branch you can specify the path to the git hub repository e.g.
-
-```bash
-coe ebook generate \
-    -r https://github.com/microsoft/coe-starter-kit/tree/coe-cli/coe-cli/docs
-```
-
-2. Change to the docs folder
+1. Change to the docs folder
 
 ```bash
 cd coe-cli/docs
 ```
 
-3. Build e-book generation docker image
+2. Build e-book generation docker image
 
 ```bash
 docker build -t cli-mdbook .
 ```
 
-4. Generate a new version of the e-book using PowerShell and the docker image created above.
+3. Generate a new version of the e-book using PowerShell and the docker image created above.
 
 ```powershell
-.\build.ps1
+npm run ebook
 ```
 
-5. The script will generate a file named **COE Toolkit Command Line Interface.pdf** in the docs folder
+4. The script will generate a file named **Power Platform CoE Toolkit Command Line Interface.pdf** in the docs folder
+
+Notes: 
+- If you are building an e-book for a branch that is not the main branch you can specify the path to the git hub repository e.g.
+
+```bash
+coe ebook generate \
+    -r https://github.com/microsoft/coe-starter-kit/tree/coe-cli/coe-cli/docs
+```
 
 #### Spell Check Process
 

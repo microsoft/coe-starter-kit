@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sed -i 's/class="undefined/class="language-/g' 'COE Toolkit Command Line Interface.html' 
+sed -i 's/class="undefined/class="language-/g' 'Power Platform CoE Toolkit Command Line Interface.html' 
 
 echo '-----------------------------------------------------------------------------------------'
 echo Documents Spell Check
@@ -21,11 +21,11 @@ if [[ ${#DOCX} -gt 0 ]]; then
     echo '-----------------------------------------------------------------------------------------'
     echo Generating DOCX File
     echo '-----------------------------------------------------------------------------------------'
-    pandoc 'COE Toolkit Command Line Interface.html' -o 'COE Toolkit Command Line Interface.docx'
+    pandoc 'Power Platform CoE Toolkit Command Line Interface.html' -o 'Power Platform CoE Toolkit Command Line Interface.docx'
 else
     echo '-----------------------------------------------------------------------------------------'
     echo Generating PDF File
     echo '-----------------------------------------------------------------------------------------'
     cd /docs
-    chromium --headless --disable-gpu --print-to-pdf='COE Toolkit Command Line Interface.pdf' --no-margin 'COE Toolkit Command Line Interface.html' --no-sandbox
+    chromium --headless --disable-gpu --print-to-pdf='Power Platform CoE Toolkit Command Line Interface.pdf' --no-margin 'Power Platform CoE Toolkit Command Line Interface.html' --no-sandbox
 fi
