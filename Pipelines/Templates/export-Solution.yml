@@ -161,6 +161,51 @@ steps:
   condition: and(succeeded(), eq(variables.DisableFlows, 'true'))
 
 - powershell: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\environmentvariabledefinitions" -Recurse -Filter environmentvariablevalues.json | Remove-Item
+  displayName: 'Verify Environment Variable Current Value Not Exported'
+  condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'))
+
+# Set paths to deployment settings
+- template: set-deployment-configuration-paths.yml
+  parameters:
+    configPath: '$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\config\'
+    environmentName: ''
+
+# Set deployment variable for default environment variables
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outDefaultEnvironmentVariables'
+    pipelineVariableValue: ''
+    deploymentSettingsPath: $(CustomDeploymentSettingsPath)
+    deploymentSettingsNode: 'DefaultEnvironmentVariables'
+    displayName: 'Retrieve Default Environment Variable Config'
+
+- powershell: |
+   if('$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)' -ne '') {
+       $config = ConvertFrom-Json '$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)'
+       foreach ($c in $config) {
+           $envVariableName = $c[0]
+           Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 
+           ForEach-Object {
+             $xml=[xml](Get-Content $_.FullName)
+             $definitionNode = $xml.SelectSingleNode("//environmentvariabledefinition")
+             $valueExists = $definitionNode.defaultvalue
+             if($valueExists){
+                $definitionNode.defaultvalue = $c[1]
+             }
+             else {
+                $defaultValue = $xml.CreateElement("defaultvalue")
+                $defaultValue.InnerText = $c[1]
+                $definitionNode.AppendChild($defaultValue)
+             }
+             $xml.Save($_.FullName)
+        }
+       }
+    }
+  displayName: 'Verify Default Environment Variables Are Set'
+  condition: and(succeeded(), eq(variables.VerifyDefaultEnvironmentVariableValues, 'true'))
+
+- powershell: |
     git add --all
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
   displayName: 'Add Changes to Git Branch'
