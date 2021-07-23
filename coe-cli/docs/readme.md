@@ -1,6 +1,6 @@
 # Overview
 
-For each set of major commands, this guide is organized in the following tracks to explain the Center of Excellence Command Line Interface (COE CLI):
+For each set of major commands, this guide is organized in the following tracks to explain the Center of Excellence Command Line Interface (CoE CLI):
 
 1. [Quick start](#quick-start) - Follow this track if your goal is to quickly setup a demonstration environment. Using this approach you can rapidly provide a hands on environment that you can use to illustrate the system end to end
 
@@ -72,7 +72,7 @@ Read more in [help](./help/readme.md) pages for detailed description for each co
 
 Further reading
 
-- [COE CLI Upgrade](./upgrade.md) How to upgrade to a new version of the CoE CLI install.
+- [CoE CLI Upgrade](./upgrade.md) How to upgrade to a new version of the CoE CLI install.
 
 ## How does it work
 

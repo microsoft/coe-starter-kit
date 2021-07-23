@@ -43,6 +43,13 @@ class EbookCommand {
     async create(args: EbookArguments) : Promise<void> {
         let content : string[] = ['<html><head><link href="prism.css" rel="stylesheet" /><link href="book.css" rel="stylesheet" /></head><body><img class="cover" src="./images/ebook-cover.png" />']
 
+        let toc : string[] = ['<div class="page"><ul class="toc">']
+        let tocLevels: number[] = []
+
+        for ( let l = 0; l < args.tocLevel; l++) {
+            tocLevels.push(0)
+        }
+
         marked.use({
             pedantic: false,
             gfm: true,
@@ -195,10 +202,27 @@ class EbookCommand {
                   if (links.indexOf(escapedText) < 0) {
                     links.push(escapedText)
                   }
+
+                  if (level <= args.tocLevel) {
+                      if ( level < args.tocLevel) {
+                          for ( let l = level; l < args.tocLevel; l++) {
+                              tocLevels[l] = 0
+                          }
+                      }
+                      tocLevels[level - 1] = tocLevels[level - 1] + 1
+                      let label = ''
+                      for (let l = 0; l < level; l++) {
+                        if (label.length > 0) {
+                            label += "."
+                        }
+                        label += tocLevels[l]
+                      }
+                    toc.push(`<li class="toc-${level}"><a href="${escapedText}">${label} ${text}</a><li>`)
+                  }
               
                   return `
 <h${level}>
-    <a id="${escapedText}" class="anchor">
+    <a id="${escapedText.replace("#", "")}" class="anchor">
         <span class="header-link"></span>
     </a>
     ${text}
@@ -235,6 +259,9 @@ class EbookCommand {
                 htmlFile = path.normalize(path.join(docsPath, htmlFile))
             }
 
+            toc.push("</ul></div>")
+
+            content.splice(1, 0, toc.join(EOL))
             await this.writeFile(htmlFile, content.join(EOL))
         }
 
@@ -283,6 +310,11 @@ class EbookCommand {
      * The name of the combined HTML file to create
      */
     htmlFile: string
+
+     /**
+     * The table of contents level
+     */
+    tocLevel: number
 }
 
 export { 

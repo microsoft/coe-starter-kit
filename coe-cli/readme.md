@@ -1,6 +1,6 @@
 # Overview
 
-Using the Center of Excellence (COE) toolkit command line interface (CLI), you can manage your CoE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CoE CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/readme.md) and will add more features over time.
+Using the Center of Excellence (CoE) toolkit command line interface (CLI), you can manage your CoE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CoE CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/readme.md) and will add more features over time.
 
 ![Overview](./docs/images/overview.jpg)
 
@@ -67,7 +67,7 @@ Notes:
 
 ## CoE CLI Development
 
-Looking to understand how the CoE CLI commands works? The [COE CLI Development](./docs/cli-development/readme.md) dives technically deeper into the CoE CLI commands and discusses how to debug and add / extend commands.
+Looking to understand how the CoE CLI commands works? The [CoE CLI Development](./docs/cli-development/readme.md) dives technically deeper into the CoE CLI commands and discusses how to debug and add / extend commands.
 
 ## Contributions
 

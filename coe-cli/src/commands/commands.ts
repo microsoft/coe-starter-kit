@@ -659,7 +659,8 @@ class CoeCliCommands {
         ebook.command("generate")
             .description('Generate e-book')
             .option('-d, --docs <docs path>', 'The documents folder name', 'docs')
-            .option('-h, --html <htmlfile>', 'The html file to create in docs folder', 'COE Toolkit Command Line Interface.html')
+            .option('-t, --tocLevel <elevl>', 'The toc level to generate', '3')
+            .option('-h, --html <htmlfile>', 'The html file to create in docs folder', 'Power Platform CoE Toolkit Command Line Interface.html')
             .option('-r, --repo <name>', 'The repository where the docs are located', 'https://github.com/microsoft/coe-starter-kit/tree/main/coe-cli/docs')
             .addOption(this._logOption)
             .action(async (options: any) : Promise<void> => {
@@ -669,6 +670,7 @@ class CoeCliCommands {
                 args.docsPath = options.docs
                 args.htmlFile = options.html
                 args.repoPath = options.repo
+                args.tocLevel = Number.parseInt(options.tocLevel)
                 await command.create(args)
             })
     }
