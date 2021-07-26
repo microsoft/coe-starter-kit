@@ -11,7 +11,7 @@ When you create a solution in Dataverse you'll need to create pipelines specific
 ### Table of Contents
 - [ALM Accelerator Sample Solution Setup](#alm-accelerator-sample-solution-setup)
   * [Table of Contents](#table-of-contents)
-  * [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipeline-s-)
+  * [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
     + [Create the Validation and Test Pipelines](#create-the-validation-and-test-pipelines)
     + [Create the Production Solution Deployment Pipeline](#create-the-production-solution-deployment-pipeline)
   * [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)

@@ -4,14 +4,15 @@
 
 The ALM Accelerator uses json formatted files for updating **connection references, environment variables, setting permissions for AAD Groups and Dataverse teams** as well as **sharing Canvas Apps and updating ownership of solution components** such as Power Automate flows. The instructions below are **optional** and depend on what type of components your solution pipelines deploy. For instance, if your solutions only contain Dataverse Tables, Columns and Model Driven Apps with no per environment configuration or data needed then **some of these steps may not be necessary** and can be skipped. The following configuration file allow you to fully automate the deployment of your solutions and specify how to configure items that are specific to the environment to which the solution is being deployed.
 
-> [!NOTE] For an example of configuration and data deployment configuration see the ALMAcceleratorSampleSolution here https://github.com/microsoft/coe-starter-kit/tree/ALMAcceleratorSampleSolution/ALMAcceleratorSampleSolution/config
+> [!NOTE] For an example of configuration and data deployment configuration see the ALMAcceleratorSampleSolution here https://github.com/microsoft/coe-starter-kit/blob/ALMAcceleratorSampleSolution/ALMAcceleratorSampleSolution/config/customDeploymentSettings.json
 
 ### Table of Contents
-- [Configuration and Data Deployment in Pipelines](#configuration-and-data-deployment-in-pipelines)
+- [Configuration and Data Deployment in Pipelines (Preview)](#configuration-and-data-deployment-in-pipelines-preview)
     + [Table of Contents](#table-of-contents)
     + [Creating a Custom Deployment Settings Json File](#creating-a-custom-deployment-settings-json-file)
       - [Create Connection Reference Json](#create-connection-reference-json)
       - [Create Environment Variable Json](#create-environment-variable-json)
+      - [Create Default Environment Variable Json](#create-default-environment-variable-json)
       - [Create AAD Group Canvas Configuration Json](#create-aad-group-canvas-configuration-json)
       - [Create AAD Group / Team Configuration Json](#create-aad-group---team-configuration-json)
       - [Create Solution Component Ownership Json](#create-solution-component-ownership-json)
@@ -26,11 +27,21 @@ The deployment settings json file contains all of the configuration settings req
   "ConnectionReferences": [
     [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
   ],
+  "DefaultEnvironmentVariables": [
+    [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+    [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+    [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+  ],    
   "EnvironmentVariables": [
     [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
     [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
     [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
   ],
+  "DefaultEnvironmentVariables": [
+    [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+    [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+    [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+  ],    
   "AadGroupCanvasConfiguration": [
     {
       "aadGroupId": "#{canvasshare.aadGroupId}#",
@@ -193,6 +204,63 @@ The environment variable property in the customDeploymentConfiguration.json is *
 
 1. Where applicable repeat the steps above for each solution / pipeline you create.
 
+#### Create Default Environment Variable Json
+
+The environment variable property in the customDeploymentConfiguration.json is **DefaultEnvironmentVariables**. This is used in the export pipeline for setting Dataverse **Default Environment variables** in your solution when the solution is exported and stored in source control.
+
+> [!NOTE] The Default Environment variables settings only applies if the export pipeline is configured with the pipeline variable **VerifyDefaultEnvironmentVariableValues = true**. See the 
+
+1. The format of the json for these variables take the form of an array of name/value pairs.
+
+   ```json
+   [
+      [
+         "environment variable1 schema name",
+         "default environment variable1 value"
+      ],
+      [
+         "environment variable2 schema name",
+         "default environment variable2 value"
+      ]
+   ]
+   ```
+
+   - The **schema name** for the environment variable can be obtained from the **environment variable component** in your solution.
+     ![Schema name of environment variable in disabled text box under Name label](.attachments/DEPLOYMENTCONFIGGUIDE/envvariableschema.png)
+
+1. Once you've gathered the environment variable schema names and values go to the **customDeploymentSettings.json** and paste the json in the **DefaultEnvironmentVariables property**.
+
+   ```json
+   {
+     "ConnectionReferences": [
+       [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
+     ],
+     "DefaultEnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ],    
+     "EnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ],
+     "DefaultEnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ]
+   }
+   ```
+
+1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
+
+1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. **defaultvariable.cat_TextEnvironmentVariable**).
+
+   ![image-20210723173238713](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210723173238713.png)
+
+1. Where applicable repeat the steps above for each solution / pipeline you create.
+
 #### Create AAD Group Canvas Configuration Json
 
 The AAD group canvas configuration property in the customDeploymentConfiguration.json is **AadGroupCanvasConfiguration**. This is used for **sharing canvas apps** in your solution with specific **Azure Active Directory Groups** after the solution is imported into an environment.
@@ -232,11 +300,21 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
      "ConnectionReferences": [
        [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
      ],
+     "DefaultEnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ],    
      "EnvironmentVariables": [
        [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
        [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_JsonEnvironmentVariable", "{\"name\":\"#{variable.cat_JsonEnvironmentVariable.name}#\"}" ]
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
      ],
+     "DefaultEnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ],    
      "AadGroupCanvasConfiguration": [
        {
          "aadGroupId": "#{canvasshare.aadGroupId}#",
@@ -297,11 +375,21 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
       "ConnectionReferences": [
         [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
       ],
+      "DefaultEnvironmentVariables": [
+        [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+        [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+        [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+      ],    
       "EnvironmentVariables": [
         [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
         [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-        [ "cat_JsonEnvironmentVariable", "{\"name\":\"#{variable.cat_JsonEnvironmentVariable.name}#\"}" ]
+        [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
       ],
+      "DefaultEnvironmentVariables": [
+        [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+        [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+        [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+      ],    
       "AadGroupCanvasConfiguration": [
         {
           "aadGroupId": "#{canvasshare.aadGroupId}#",
@@ -365,11 +453,21 @@ The solution component ownership property in the customDeploymentConfiguration.j
      "ConnectionReferences": [
        [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
      ],
+     "DefaultEnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ],    
      "EnvironmentVariables": [
        [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
        [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_JsonEnvironmentVariable", "{\"name\":\"#{variable.cat_JsonEnvironmentVariable.name}#\"}" ]
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
      ],
+     "DefaultEnvironmentVariables": [
+       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
+       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
+       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
+     ],    
      "AadGroupCanvasConfiguration": [
        {
          "aadGroupId": "#{canvasshare.aadGroupId}#",
@@ -389,12 +487,12 @@ The solution component ownership property in the customDeploymentConfiguration.j
      "SolutionComponentOwnershipConfiguration": [
        {
          "solutionComponentType": 29,
-         "solutionComponentUniqueName": "71cc728c-2487-eb11-a812-000d3a8fe6a3",
+         "solutionComponentUniqueName": "00000000-0000-0000-0000-00000000000",
          "ownerEmail": "#{owner.ownerEmail}#"
        },
        {
          "solutionComponentType": 29,
-         "solutionComponentUniqueName": "d2f7f0e2-a1a9-eb11-b1ac-000d3a53c3c2",
+         "solutionComponentUniqueName": "00000000-0000-0000-0000-00000000000",
          "ownerEmail": "#{owner.ownerEmail}#"
        }
      ]
