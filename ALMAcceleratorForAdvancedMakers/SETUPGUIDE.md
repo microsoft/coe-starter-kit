@@ -24,7 +24,8 @@ The GETTINGSTARTED.md is structured into 7 main sections
 - **Troubleshooting** - A few pointers on some know issues and how to remediate these.
 
 ## Table of Contents
-- [Set up ALM Accelerator for Advanced Makers (AA4AM) components](#set-up-alm-accelerator-for-advanced-makers--aa4am--components)
+
+- [Set up ALM Accelerator for Advanced Makers (AA4AM) components (Preview)](#set-up-alm-accelerator-for-advanced-makers-aa4am-components-preview
   * [Document structure](#document-structure)
   * [Table of Contents](#table-of-contents)
   * [Prerequisites](#prerequisites)
@@ -36,26 +37,29 @@ The GETTINGSTARTED.md is structured into 7 main sections
     + [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app)
     + [Install Azure DevOps Extensions](#install-azure-devops-extensions)
     + [Clone the YAML Pipelines from GitHub to your Azure DevOps instance](#clone-the-yaml-pipelines-from-github-to-your-azure-devops-instance)
-    + [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import--delete-and-export-of-solutions)
+    + [Create Pipelines for Import, Delete and Export of Solutions](#create-pipelines-for-import-delete-and-export-of-solutions)
+    + [Create Export Pipeline variables (Optional)](#create-export-pipeline-variables-optional)
     + [Create Pipeline global variables](#create-pipeline-global-variables)
     + [Update Permissions for the Project Build Service](#update-permissions-for-the-project-build-service)
   * [Development Project Setup](#development-project-setup)
     + [Create Service Connections for DevOps to access Power Platform](#create-service-connections-for-devops-to-access-power-platform)
     + [Create an App User in your Dataverse Environments](#create-an-app-user-in-your-dataverse-environments)
   * [Solution Setup](#solution-setup)
-    + [Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)](#validate-your-setup-using-the-alm-accelerator-sample-solution--optional-)
-    + [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipeline-s-)
-    + [Create the Solution Deployment Pipeline (Optional)](#create-the-solution-deployment-pipeline--optional-)
+    + [Validate Your Setup Using the ALM Accelerator Sample Solution (Optional)](#validate-your-setup-using-the-alm-accelerator-sample-solution-optional)
+    + [Create the Solution Build and Deployment Pipeline(s)](#create-the-solution-build-and-deployment-pipelines)
+    + [Create the Solution Deployment Pipeline (Optional)](#create-the-solution-deployment-pipeline-optional)
     + [Setting Deployment Pipeline Variables](#setting-deployment-pipeline-variables)
-      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection--required-)
+      - [Create Environment and Service Connection (Required)](#create-environment-and-service-connection-required)
+      - [Create EnableFlows Variable (Optional)](#create-enableflows-variable-optional)
     + [Setting Branch Policies for Pull Request Validation](#setting-branch-policies-for-pull-request-validation)
-    + [Create Deployment Configuration (Optional)](#create-deployment-configuration--optional-)
+    + [Create Deployment Configuration (Optional)](#create-deployment-configuration-optional)
   * [Importing the Solution and Configuring the App](#importing-the-solution-and-configuring-the-app)
     + [Install ALM Accelerator Solution in Dataverse](#install-alm-accelerator-solution-in-dataverse)
-    + [Configure the Azure DevOps Custom Connector.](#configure-the-azure-devops-custom-connector)
+    + [Configure the Azure DevOps Custom Connector](#configure-the-azure-devops-custom-connector)
   * [Setup Makers to Use the ALM Accelerator App](#setup-makers-to-use-the-alm-accelerator-app)
   * [Using the ALM Accelerator App](#using-the-alm-accelerator-app)
   * [Troubleshooting](#troubleshooting)
+
 
 ## Prerequisites
 
@@ -76,7 +80,7 @@ In order to complete the steps below you will need the following users and permi
 - A licensed **Azure user** with Permissions to **create and view AAD Groups**, **create App Registrations** and **Grant Admin consent** to App Registrations in Azure Active Directory.
 - A licensed **Azure DevOps** user with Permissions to **create and manage Pipelines, Service Connections, Repos and Extensions**.
 - A licensed **Power Platform** user with Permissions to **create Application Users** and **grant Administrative Permissions** to the Application User.
-- Ability to assign Power Platform Admin level permissions to an App Registration in Azure. See [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app) for more information.
+- Ability to assign **Power Platform Admin level permissions** to an App Registration in Azure. See [Give Power App Management Permission to your App](#give-power-app-management-permission-to-your-app) for more information.
 
 ### Connectors and DLPs
 
@@ -205,7 +209,9 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 
 ### Create Pipelines for Import, Delete and Export of Solutions
 
-Following the steps below to create the following pipelines based on the YAML in the DevOps Repo. These pipelines will run when you **Commit to Git**, **Import a Solution** or **Delete a Solution** from the App, respectively.
+Following the steps below to create the following pipelines based on the YAML in the DevOps Repo. These pipelines will run when you **Commit to Git**, **Import a Solution** or **Delete a Solution** from the App, respectively. 
+
+> [!NOTE] If all of your exports are expected to perform the same actions regardless of the solution for which the pipeline is running it's sufficient to create a single export pipeline as described below. However, there may be circumstances where you want to do things differently based on the specific solution when exporting. In that case you can append the Solution name to the export-solution-to-git pipeline to have the app execute your specific solution pipeline(s) when you perform the actions in the app (e.g. export-solution-to-git-SampleSolution).
 
 | YAML File                                    | Pipeline Name                            |
 | -------------------------------------------- | ---------------------------------------- |
@@ -215,12 +221,24 @@ Following the steps below to create the following pipelines based on the YAML in
 
 1. In Azure DevOps go to **Pipelines** and **Create a New Pipeline**
 1. Select **Azure Repos Git** for your code Repository and point to Azure DevOps repo you created and seeded with the pipeline templates in the steps above.
-![image.png](.attachments/GETTINGSTARTED/image-b27c7dc5-7fe7-449f-99bc-73b9b351cc94.png)
+    ![image.png](.attachments/GETTINGSTARTED/image-b27c7dc5-7fe7-449f-99bc-73b9b351cc94.png)
 1. On the **Configure your pipeline** page select **Existing Azure Pipelines YAML file** and point to **/Pipelines/export-solution-to-git.yml**, **/Pipelines/import-unmanaged-to-dev-environment.yml** or **/Pipelines/delete-unmanaged-solution-and-components.yml**  and Select **Continue**.
-![image-20210309102040713](.attachments/GETTINGSTARTED/image-20210309102040713.png)
+    ![image-20210309102040713](.attachments/GETTINGSTARTED/image-20210309102040713.png)
 1. On the next screen Select **Save** and then Select the **3 dots next to Run Pipeline** and Select **Rename/Move**.
-![image.png](.attachments/GETTINGSTARTED/image-c4e3cc16-3abd-453b-a420-9366ef587e8c.png)
+    ![image.png](.attachments/GETTINGSTARTED/image-c4e3cc16-3abd-453b-a420-9366ef587e8c.png)
 1. Update the pipeline name to **export-solution-to-git**, **import-unmanaged-to-dev-environment** or **delete-unmanaged-solution-and-components** and select **Save**.
+
+### Create Export Pipeline variables (Optional)
+
+There are a few optional pipeline variables that can be set on the export-solution-to-git pipeline to control what information is persisted to source control. If you want to **apply these settings globally** you can set the following variables on your export-solution-to-git pipeline or in the case that you want to **apply these to specific solutions on export** you can create a specific export pipeline for your solution as described above and setting the following variables on your solution specific export pipeline.
+
+The **DoNotExportCurrentEnvironmentVariableValues** variable can be used to ensure that the current value of environment variables are never committed to source control during the export process.
+
+![image-20210723164226271](.attachments/SETUPGUIDE/image-20210723164226271.png)
+
+The **VerifyDefaultEnvironmentVariableValues** can be used to ensure that specific default environment variable values are set during the export of a solution. The default environment variable values can be configured as part of the customDeploymentSettings.json configuration in the [Configuration and Data Deployment in Pipelines](DEPLOYMENTCONFIGGUIDE)
+
+![image-20210723164756178](.attachments/SETUPGUIDE/image-20210723164756178.png)
 
 ### Create Pipeline global variables
 
@@ -504,6 +522,10 @@ The **ServiceConnection** variable is used to specify how the deployment pipelin
 
 ![image-20210414170210916](.attachments/GETTINGSTARTED/image-20210414170210916.png)
 
+#### Create EnableFlows Variable (Optional)
+
+You can optionally set a pipeline variable on your deployment pipelines to turn off the automatic enabling of Flows after your solution is imported. This variable is **EnableFlows**. Setting EnableFlows to 'false' will result in the pipeline skipping the steps to enable Power Automate Flows as part of your deployment. The default of the EnableFlows variable value is 'true'. **You only need to set this variable if you want to skip enabling flows after your solution is imported.**
+
 ### Setting Branch Policies for Pull Request Validation
 
 In order to leverage executing the build pipeline for your solution when a **Pull Request is created** you'll need to create a **Branch Policy** to execute the Pipeline you created in the previous step. Use the following steps to set your Branch Policy. For more information on Branch Policies see here https://docs.microsoft.com/en-us/azure/devops/repos/git/branch-policies?view=azure-devops
@@ -564,7 +586,7 @@ Download the **latest managed solution**(s) from GitHub (https://github.com/micr
 
 7. Select **Import** and wait for the solution to complete the import process.
 
-### Configure the Azure DevOps Custom Connector.
+### Configure the Azure DevOps Custom Connector
 
 1. In the Power App maker portal select your **Environment** and Select **Data** > **Custom Connectors** > **CustomAzureDevOps**
 
