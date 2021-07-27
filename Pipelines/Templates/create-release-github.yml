@@ -1,0 +1,108 @@
+#Template to create releases in Github based on defined milestones for Month/Year
+parameters:
+- name: gitHubApiUrl
+  type: string
+- name: solutionName
+  type: string
+- name: solutionDisplayName
+  type: string
+- name: releaseMonth
+  type: number
+- name: releaseYear
+  type: number
+- name: connectionName
+  type: string
+- name: releaseNotesPath
+  type: string
+- name: issueClosingComment
+  type: string
+  default: ''
+- name: isPreRelease
+  type: boolean
+  default: false
+
+steps:
+
+#This step will read the release notes into a variable and append a list of issues based on the milestone defined by:
+#'${{ parameters.solutionDisplayName }} - ${{ parameters.releaseMonth }} ${{ parameters.releaseYear }}'
+#Example Milestone 'CoE Starter Kit - July 2021'
+#If a milestone with the specific name is not found an error will be thrown
+- powershell: |
+
+    #Convert release month number to name
+    $releaseMonthName = (Get-Culture).DateTimeFormat.GetMonthName(${{ parameters.releaseMonth }})
+    Write-Host "##vso[task.setvariable variable=ReleaseMonthName]$releaseMonthName"
+    $releaseMonthPadded = ([string]${{parameters.releaseMonth}}).PadLeft(2,'0')
+    $fullReleaseNotesPath = '${{ parameters.releaseNotesPath }}/${{parameters.solutionName}}/RELEASENOTES-${{parameters.releaseYear}}' + $releaseMonthPadded + '.md'
+    Write-Host "##vso[task.setvariable variable=ReleaseNotesPath]$fullReleaseNotesPath"
+    $releaseNotes = ''
+    if(Test-Path $fullReleaseNotesPath) {
+        $releaseNotes = Get-Content $fullReleaseNotesPath -Raw
+    }
+    else {
+        New-Item $fullReleaseNotesPath
+    }
+    $releaseNotes = $releaseNotes + [Environment]::NewLine + '## Change Log'
+
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+    $headers.Add("Accept", "application/vnd.github.groot-preview+json")
+    $headers.Add("Authorization", "Bearer $(GitHubPAT)")
+
+    #Find the milestone for this release e.g. 'CoE Starter Kit - July 2021
+    $milestoneRequest = "${{ parameters.gitHubApiUrl }}/milestones?sort=due_on&direction=desc"
+    $milestoneResponse = Invoke-RestMethod $milestoneRequest -Method 'GET' -Headers $headers
+    $currentMilestone = $null
+    $milestoneName = '${{ parameters.solutionDisplayName }} - ' + $releaseMonthName + ' ' + ${{ parameters.releaseYear }}
+    foreach($milestone in $milestoneResponse){
+        if($milestone.title -eq $milestoneName){
+            $currentMilestone = $milestone
+            break
+        }
+    }
+
+    if($currentMilestone -ne $null){
+        $issuesRequestUrl = "${{ parameters.gitHubApiUrl }}/issues?state=all&filter=all&sort=created&direction=asc&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
+        $issueResponse = Invoke-RestMethod $issuesRequestUrl -Method 'GET' -Headers $headers
+        foreach($issue in $issueResponse){
+            if('${{ parameters.issueClosingComment }}' -ne ''){
+                # Add the comment to the issue
+                # /repos/{owner}/{repo}/issues/{issue_number}/comments
+                $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
+                $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
+                $commentBody = "{`"body`": `"$commentFormatted`"}"
+                Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+
+                # Close the issue if not closed
+                if($issue.state -ne 'closed') {
+                    #/repos/{owner}/{repo}/issues/{issue_number}
+                    $issueRequestClosingUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number
+                    $closeRequestBody = "{`"state`": `"closed`"}"
+                    Invoke-RestMethod $issueRequestClosingUrl -Method 'PATCH' -Headers $headers -Body $closeRequestBody
+                }
+            }
+            $releaseNotes = $releaseNotes + [Environment]::NewLine + "  - #" + $issue.number + "-" + $issue.title #Add a line for each issue with number and title. Add more here as necessary
+        }
+
+        Set-Content -Path $fullReleaseNotesPath -Value $releaseNotes
+    }
+    else{
+      # The milestone was not found could be a naming error
+      Write-Error "No milestone was found for $milestoneName"
+      Write-Host "##vso[task.logissue type=error]No milestone was found for $milestoneName"
+      exit(1)
+    }
+  displayName: Build Release Notes from Milestone
+
+- task: GitHubRelease@1
+  inputs:
+    gitHubConnection: ${{ parameters.connectionName }}
+    tagSource: 'userSpecifiedTag'
+    tag: '${{ parameters.solutionName }}-$(ReleaseMonthName)${{ parameters.releaseYear }}'
+    title: '${{ parameters.solutionDisplayName }} $(ReleaseMonthName) ${{ parameters.releaseYear }}'
+    releaseNotesFilePath: '$(ReleaseNotesPath)'
+    addChangeLog: false #The OOB changelog doesn't allow for filtering based on milestone so we created our own changelog above
+    isDraft: true #Always mark as draft for someone to review before publishing
+    isPreRelease: ${{ parameters.isPreRelease }}
+    assets: |
+      $(Pipeline.Workspace)/releaseassets/*.*
+  displayName: 'Create ${{ parameters.solutionDisplayName }} Release'

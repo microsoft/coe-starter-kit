@@ -92,25 +92,40 @@ steps:
     SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage'
     SolutionType: Both
 
-# Solution version in source control is not used.  We create the solution version at build time from the current build number.  
-# Therefore, we will zero out the solution version in source control.
-- task: knom.regexreplace-task.regex-replace.RegexReplace@3
+- pwsh: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\**\Solution.xml" | 
+   ForEach-Object {
+        (Get-Content $_.FullName) `
+            -replace '<Version>[\s\S]*?<\/Version>', '<Version>0.0.0.0</Version>' |
+        Out-File $_.FullName
+   }
   displayName: 'Update Solution XML with Build Number'
-  inputs:
-    InputSearchPattern: |
-      $(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\**\Solution.xml
-    FindRegex: '<Version>[\s\S]*?<\/Version>'
-    ReplaceRegex: '<Version>0.0.0.0</Version>'
+
+# TEMPORARY WORKAROUND: Power Apps CLI functionality will eventually be surfaced in Azure DevOps tasks.
+# However, to use functionality ahead of the tasks, we install the CLI.  Once the task is available, we move to using the task.
+- template: install-pac.yml
 
 # Use temp exe from PowerShell to unpack source files into a folder
 - pwsh: |
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}" -Recurse -Filter *.msapp | 
    ForEach-Object {
       $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
-      $(Pipeline.Workspace)\PipelineUtils\Pipelines\temp-canvas-packager\temp-canvas-packager.exe -unpack $_.FullName $unpackedPath
+      $env:PATH = $env:PATH + ";" + "$(pacPath)"
+      pac canvas unpack --msapp $_.FullName --sources $unpackedPath
       del $_.FullName
    }
   displayName: 'unpack msapp files'
+  enabled: true
+
+# TEMPORARY until Solution export supports not exporting custom connector configurations
+# We need to clear out the contents of any *_connectionparameters.json file.  This is to ensure those valuse
+# are not overwritten when the Solution is imported to a downstream environment.
+- powershell: |   
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}" -Recurse -Filter *_connectionparameters.json | 
+   ForEach-Object {
+      Clear-Content $_.FullName
+   }
+  displayName: 'Clear contents of *_connectionparameters.json files'
   enabled: true
 
 # TEMPORARY until SolutionPackager supports formatting json files on unpack we
@@ -121,17 +136,74 @@ steps:
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage" -Recurse -Filter *.json | 
    ForEach-Object {
     #skip canvas app folder because canvas team already handles this for canvas unpack
-    if(-not $_.FullName.Contains('CanvasApps')) {
-      Write-Host $_.FullName
-      $formatted = .\jq.exe . $_.FullName --sort-keys
-      $formatted | Out-File $_.FullName -Encoding UTF8
-    }
+     if(-not $_.FullName.Contains('CanvasApps')) {
+       Write-Host $_.FullName
+       $formatted = .\jq.exe . $_.FullName --sort-keys
+       $formatted | Out-File $_.FullName -Encoding UTF8
+     }
    }
    del jq.exe
    del $(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}.zip
    del $(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}_managed.zip
   displayName: 'Format JSON files'
   enabled: true
+
+- powershell: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
+   ForEach-Object {
+     $xml=[xml](Get-Content $_.FullName)
+     $workflowNode = $xml.SelectSingleNode("//Workflow")
+     $workflowNode.StateCode = '0'
+     $workflowNode.StatusCode = '1'
+     $xml.Save($_.FullName)
+   }
+  displayName: 'Conditionally Disable Flows'
+  condition: and(succeeded(), eq(variables.DisableFlows, 'true'))
+
+- powershell: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\environmentvariabledefinitions" -Recurse -Filter environmentvariablevalues.json | Remove-Item
+  displayName: 'Verify Environment Variable Current Value Not Exported'
+  condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'))
+
+# Set paths to deployment settings
+- template: set-deployment-configuration-paths.yml
+  parameters:
+    configPath: '$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\config\'
+    environmentName: ''
+
+# Set deployment variable for default environment variables
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outDefaultEnvironmentVariables'
+    pipelineVariableValue: ''
+    deploymentSettingsPath: $(CustomDeploymentSettingsPath)
+    deploymentSettingsNode: 'DefaultEnvironmentVariables'
+    displayName: 'Retrieve Default Environment Variable Config'
+
+- powershell: |
+   if('$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)' -ne '') {
+       $config = ConvertFrom-Json '$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)'
+       foreach ($c in $config) {
+           $envVariableName = $c[0]
+           Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 
+           ForEach-Object {
+             $xml=[xml](Get-Content $_.FullName)
+             $definitionNode = $xml.SelectSingleNode("//environmentvariabledefinition")
+             $valueExists = $definitionNode.defaultvalue
+             if($valueExists){
+                $definitionNode.defaultvalue = $c[1]
+             }
+             else {
+                $defaultValue = $xml.CreateElement("defaultvalue")
+                $defaultValue.InnerText = $c[1]
+                $definitionNode.AppendChild($defaultValue)
+             }
+             $xml.Save($_.FullName)
+        }
+       }
+    }
+  displayName: 'Verify Default Environment Variables Are Set'
+  condition: and(succeeded(), eq(variables.VerifyDefaultEnvironmentVariableValues, 'true'))
 
 - powershell: |
     git add --all
@@ -141,12 +213,10 @@ steps:
 # Commit all changes to Git branch. If there are no changes we want to warn the user that there was nothing to commit. As this could mean there was a user error involved.
 - powershell: |
     $gitStatus = iex "git status --porcelain"
-    if ($gitStatus) 
-    {
+    if ($gitStatus) {
         git commit -m "$(CommitMessage)"
     }
-    else 
-    {
+    else {
         Write-Host "##vso[task.logissue type=warning]There is nothing to commit. No changes have been made since the previous commit. If this is unexpected make sure your changes have been published before committing again."
         exit 1;
     }
@@ -168,13 +238,13 @@ steps:
   displayName: 'Push to ${{parameters.BranchToCreate}} Local Branch'
   condition: and(eq('${{parameters.GitAccessUrl}}', ''), succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
 
-# If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
+# If BranchToCreate variable value is '', then push to the branch specified in the BranchToCreate variable
 - script: |
    git remote set-url origin ${{parameters.GitAccessUrl}}
    git push origin ${{parameters.Branch}}
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
   displayName: 'Push to ${{parameters.BranchToCreate}} Remote Branch'
-  condition: and(ne('${{parameters.GitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
+  condition: and(ne('${{parameters.GitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then run this task
 
 # If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
 - script: |

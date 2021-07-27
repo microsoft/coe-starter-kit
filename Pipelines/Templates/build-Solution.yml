@@ -18,24 +18,34 @@ steps:
     Write-Host "##vso[task.setvariable variable=RepoName]$repoName"
   displayName: 'Set Source Repo Name'
   condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
-    
-# Solution version in source control is not used.  Instead, create version at build time from the current build number.
-- task: knom.regexreplace-task.regex-replace.RegexReplace@3
-  displayName: 'Update Solution XML with Build Number'
-  inputs:
-    InputSearchPattern: |
-      $(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\SolutionPackage\**\Solution.xml
-    FindRegex: '<Version>[\s\S]*?<\/Version>'
-    ReplaceRegex: '<Version>$(Build.BuildNumber)</Version>'
-  condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
 
+# Solution version in source control is not used.  Instead, create version at build time from the current build number.
+- pwsh: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\SolutionPackage\**\Solution.xml" | 
+   ForEach-Object {
+        (Get-Content $_.FullName) `
+            -replace '<Version>[\s\S]*?<\/Version>', '<Version>$(Build.BuildNumber)</Version>' |
+        Out-File $_.FullName
+   }
+  displayName: 'Update Solution XML with Build Number'
+  condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
+    
 # Before we committed changes, we formatted all json files for readability in source control.  This breaks solution package, so we need to flatten them before packing   
 - pwsh: |
     #When we unpack the solution files, we format the json, but it causes solution import failures so we need to flatten the files
     Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)" -Recurse -Filter *.json |
-    ForEach-Object {(Get-Content $_.FullName) -join ' ' | Set-Content $_.FullName}
+    ForEach-Object {
+        $fileContent = (Get-Content $_.FullName) -join ' '
+        if(-Not [string]::IsNullOrWhiteSpace($fileContent)) {
+            Set-Content $_.FullName $fileContent
+        }
+    }
   displayName: 'Flatten JSON files'
   enabled: true
+
+# TEMPORARY WORKAROUND: Power Apps CLI functionality will eventually be surfaced in Azure DevOps tasks.
+# However, to use functionality ahead of the tasks, we install the CLI.  Once the task is available, we move to using the task.
+- template: install-pac.yml
 
 # Use temp exe from PowerShell to pack source files into msapp
 - pwsh: |
@@ -43,12 +53,14 @@ steps:
    ForEach-Object {     
      $unpackedPath = $_.FullName
      $packedFileName = $unpackedPath.Replace("_msapp_src", ".msapp")
-     $(Pipeline.Workspace)\PipelineUtils\Pipelines\temp-canvas-packager\temp-canvas-packager.exe -pack $packedFileName $unpackedPath
+     $env:PATH = $env:PATH + ";" + "$(pacPath)"
+     pac canvas pack --sources $unpackedPath --msapp $packedFileName
      Remove-Item -Path $unpackedPath -Recurse
    }
   displayName: 'pack msapp files'
   enabled: true
 
+#Pack the solution based on the build type parameter (Unmanaged, Managed or Both)
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.pack-solution.PowerPlatformPackSolution@0
   displayName: 'Pack Solutions (Unmanaged and/or Managed)'
   inputs:
@@ -56,6 +68,56 @@ steps:
     SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\$(SolutionName)_$(Build.BuildNumber).zip'
     SolutionType: ${{parameters.buildType}}
 
+# We'll store configuration data as artifacts on the build pipeline to be used during deployment. This includes configuration data created via Configuration data migration tool and deploymentSettings.json and customDeploymentSettings.json 
+- powershell: |
+    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\ConfigurationMigrationData"
+    if(Test-Path $path) {
+        $compress = @{
+            Path = $path + '\*.*'
+            CompressionLevel = 'Fastest'
+            DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
+        }
+        Compress-Archive @compress
+    }
+    $settingFiles = @("deploymentSettings","customDeploymentSettings")
+
+    foreach ($settingFile in $settingFiles) {
+        $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$settingFile.json"
+        if(Test-Path $path) {
+            Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile.json"
+        }
+    }
+
+    if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
+        Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
+        ForEach-Object {
+            $environment = $_.Name
+            $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
+            if(Test-Path $path) {
+                $compress = @{
+                    Path = $path + '\*.*'
+                    CompressionLevel = 'Fastest'
+                    DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData-' + $environment + '.zip'
+                }
+                Compress-Archive @compress
+            }
+            foreach ($settingFile in $settingFiles) {
+                $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\$settingFile.json"
+                if(Test-Path $path) {
+                    Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile-$environment.json"
+                }
+            }
+        }
+    }
+  displayName: 'Archive Configuration Migration Data'
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish Artifacts'
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)'
+    artifact: drop
+
+#Run Solution Checker against our solution. This is currently only triggered for pipelines that trigger for Pull Requests
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.checker.PowerPlatformChecker@0
   displayName: 'Run Solution Checker'
   inputs:
@@ -64,26 +126,3 @@ steps:
     FilesToAnalyze: '$(Build.ArtifactStagingDirectory)\$(SolutionName)_$(Build.BuildNumber).zip'
     RuleSet: '0ad12346-e108-40b8-a956-9a8f95ea18c9'
   condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
-
-- powershell: |
-    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\ConfigurationMigrationData"
-    $configurationMigrationExists = Test-Path $path
-    Write-Host "##vso[task.setvariable variable=ConfigurationMigrationExists]$configurationMigrationExists"
-  displayName: 'Check if Configuration Migration Data exists'
-
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/$(RepoName)/$(SolutionName)/ConfigurationMigrationData'
-    includeRootFolder: false
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
-    replaceExistingArchive: true
-  displayName: 'Zip Configuration Migration Data'
-  condition: and(succeeded(), eq(variables['ConfigurationMigrationExists'], 'True'))
-  #skip task if there is no ConfigurationMigrationData in source control
-
-- task: PublishPipelineArtifact@1
-  displayName: 'Publish Artifacts'
-  inputs:
-    targetPath: '$(Build.ArtifactStagingDirectory)'
-    artifact: drop

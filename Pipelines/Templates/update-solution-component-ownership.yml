@@ -1,7 +1,13 @@
 parameters:
+- name: displayName
+  type: string
 - name: serviceConnection
   type: string
 - name: solutionComponentOwnershipConfiguration
+  type: string
+- name: updateComponentOnwership
+  type: string
+- name: enableFlows
   type: string
 
 steps:
@@ -43,15 +49,20 @@ steps:
       }
       $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $c.ownerEmail
       $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
-      Set-CrmRecordOwner -conn $conn $solutionComponentResults.CrmRecords[0] $systemUserId
+
+      if('${{parameters.updateComponentOnwership}}' -ne "false") {
+        Set-CrmRecordOwner -conn $conn $solutionComponentResults.CrmRecords[0] $systemUserId
+      }
+
       #Activate the workflow using the owner.
-      if($solutionComponentResults.CrmRecords[0].statecode -ne "Activated"){
+      if($solutionComponentResults.CrmRecords[0].statecode -ne "Activated" -and '${{parameters.enableFlows}}' -ne "false"){
         $impersonationConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
         $impersonationCallerId = $systemUserId
         $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
+        Write-Host "Enabling Flows"
         Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $c.solutionComponentUniqueName -StateCode Activated -StatusCode Activated
       }
     }
     
-  displayName: 'Update Solution Component Ownership'
-  condition: and(succeeded(), ne(variables['setSolutionComponentOwnershipConfigurationOutput.outSolutionComponentOwnershipConfiguration'], ''))
+  displayName: '${{parameters.displayName}}'
+  condition: and(succeeded(), ne('${{parameters.solutionComponentOwnershipConfiguration}}', ''))
