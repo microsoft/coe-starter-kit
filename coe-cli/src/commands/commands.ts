@@ -357,7 +357,7 @@ class CoeCliCommands {
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps solution repository. Will be created if not exists', "alm-sandbox")
-            .option('-p, --pipelineRepository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
+            .option('--pipelineRepository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
             .option('-e, --environments <environments>', 'The Power Platform environment to install Managed solution to')
             .addOption(settingsOption)
             .addOption(installOption)
@@ -593,6 +593,7 @@ class CoeCliCommands {
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .requiredOption('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
+            .option('--pipelineRepository <name>', 'The Azure DevOps pipelines temaples name', 'pipelines')
             .requiredOption('-d, --destination <name>', 'The branch to create')
             .option('--source <name>', 'The source branch to copy from')
             .option('--source-build <name>', 'The source build to copy from')
@@ -604,6 +605,7 @@ class CoeCliCommands {
                 let args = new AA4AMBranchArguments();
                 args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
+                args.pipelineRepository = options.pipelineRepository
                 args.projectName = options.project
                 args.sourceBranch = options.source
                 args.sourceBuildName = options.sourceBuild

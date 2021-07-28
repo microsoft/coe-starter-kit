@@ -539,6 +539,25 @@ describe('Help', () => {
     })
 });
 
+describe('Branch', () => {
+    test('Main', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var commands = new CoeCliCommands(logger);
+        commands.outputText = (text:string) => {}
+        let mockAA4AMCommand = mock<AA4AMCommand>(); 
+
+        commands.createAA4AMCommand = () => mockAA4AMCommand
+        mockAA4AMCommand.branch.mockResolvedValue()
+        
+        // Act
+        await commands.execute(['node', 'commands.spec', 'aa4am', 'branch', '-o', 'https://dev.azure.com/contoso', '-p', 'alm-sandbox', '--pipelineRepository', 'templates', '-d', 'NewSolution1'])
+
+        // Assert
+        expect(mockAA4AMCommand.branch).toHaveBeenCalled()
+    })
+});
+
 const expectFile = async (args: string[], name: string) : Promise<void> => {
     // Arrange
     let logger = mock<winston.Logger>()

@@ -340,6 +340,7 @@ class AA4AMCommand {
     branchArgs.organizationName = args.organizationName;
     branchArgs.projectName = args.projectName;
     branchArgs.repositoryName = args.repositoryName;
+    branchArgs.pipelineRepository = args.pipelineRepository;
     branchArgs.sourceBuildName = args.sourceBuildName;
     branchArgs.destinationBranch = args.destinationBranch;
     branchArgs.openDefaultPages = true;
@@ -599,6 +600,11 @@ class AA4AMBranchArguments {
    * The Azure repo name that AA4AM installed to
    */
   repositoryName: string;
+
+   /**
+   * The Azure repo name that contains AA4AM pipeline templates
+   */
+  pipelineRepository: string
 
   /**
    * The source branch to copy from
