@@ -117,6 +117,7 @@ class AA4AMCommand {
     devOpsInstall.organizationName = args.organizationName
     devOpsInstall.projectName = args.project
     devOpsInstall.repositoryName = args.repository
+    devOpsInstall.pipelineRepositoryName = args.pipelineRepository
     devOpsInstall.accessTokens = args.accessTokens
     devOpsInstall.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     devOpsInstall.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
@@ -426,9 +427,14 @@ class AA4AMCommand {
   project: string
 
   /**
-   * The name of the Azure DevOps pipeline repository
+   * The name of the Azure DevOps solution repository
    */
   repository: string
+
+  /**
+   * The name of the Azure DevOps pipeline repository
+   */
+  pipelineRepository: string
 
   /**
    * The Power Platform organization
