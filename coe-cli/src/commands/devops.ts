@@ -890,7 +890,7 @@ class DevOpsCommand {
 
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
-                newGitCommit.changes = await this.getGitCommitChanges(args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
+                newGitCommit.changes = await this.getGitCommitChanges(args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
 
                 let gitPush = <GitPush>{}
                 gitPush.refUpdates = [newRef]
@@ -1123,7 +1123,7 @@ class DevOpsCommand {
         }
     }
 
-    async getGitCommitChanges(destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
+    async getGitCommitChanges(destinationBranch: string, defaultBranch: string, templatesRepository:string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         for (let i = 0; i < names.length; i++) {
             let url = util.format("https://raw.githubusercontent.com/microsoft/coe-alm-accelerator-templates/main/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]);
@@ -1136,7 +1136,7 @@ class DevOpsCommand {
             commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
             commit.newContent = <ItemContent>{}
             commit.newContent.content = (response)?.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-            commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, 'pipelines')
+            commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, templatesRepository)
             commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
             commit.newContent.contentType = ItemContentType.RawText
 
@@ -1353,10 +1353,17 @@ class DevOpsBranchArguments {
      * The name of the Azure DevOps Organization
      */
     organizationName: string
+
     /**
-     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
+     * The name of repository that the Accelerator has been deployed to or will be deployed to
      */
     repositoryName: string
+
+    /**
+     * The name of pipeline templates repository that the Accelerator has been imported
+     */
+    pipelineRepository: string
+
     /**
      * The name of the project that the Accelerator has been deployed to
      */
