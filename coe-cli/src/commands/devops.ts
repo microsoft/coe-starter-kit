@@ -315,7 +315,7 @@ class DevOpsCommand {
         let gitApi = await connection.getGitApi()
 
         this.logger.info(`Checking pipeline repository`)
-        let repo = await this.getRepository(args, gitApi)
+        let repo = await this.getRepository(args, gitApi, args.pipelineRepositoryName)
 
         if (repo == null) {
             return Promise.resolve(null)
@@ -354,7 +354,7 @@ class DevOpsCommand {
         return repo;
     }
 
-    private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi): Promise<GitRepository> {
+    private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi, repositoryName: string): Promise<GitRepository> {
         let repos = await gitApi.getRepositories(args.projectName);
 
         if (repos == null) {
@@ -362,9 +362,9 @@ class DevOpsCommand {
             return Promise.resolve(null)
         }
 
-        if (repos?.filter(r => r.name == args.repositoryName).length == 0) {
+        if (repos?.filter(r => r.name == repositoryName).length == 0) {
             this.logger?.debug(`Creating repository ${args.repositoryName}`)
-            return await gitApi.createRepository(<GitRepositoryCreateOptions>{ name: args.repositoryName }, args.projectName)
+            return await gitApi.createRepository(<GitRepositoryCreateOptions>{ name: repositoryName }, args.projectName)
         } else {
             return repos.filter(r => r.name == args.repositoryName)[0]
         }
@@ -385,7 +385,7 @@ class DevOpsCommand {
 
         if (repo == null) {
             let gitApi = await connection.getGitApi()
-            repo = await this.getRepository(args, gitApi)
+            repo = await this.getRepository(args, gitApi, args.repositoryName)
         }
 
         let buildApi = await connection.getBuildApi();
@@ -1254,9 +1254,15 @@ type GraphMembership = {
      */
     organizationName: string
     /**
-     * The name of repository that the Accelerator has been deployed to or wil lbe deployed to
+     * The name of repository that the Accelerator has been deployed to or will be deployed to
      */
     repositoryName: string
+
+    /**
+     * The name of repository that the Accelerator pipeline has been deployed to or will be deployed to
+     */
+    pipelineRepositoryName: string
+
     /**
      * The name of the project that the Accelerator has been deployed to
      */
