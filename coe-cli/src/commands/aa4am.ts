@@ -117,6 +117,7 @@ class AA4AMCommand {
     devOpsInstall.organizationName = args.organizationName
     devOpsInstall.projectName = args.project
     devOpsInstall.repositoryName = args.repository
+    devOpsInstall.pipelineRepositoryName = args.pipelineRepository
     devOpsInstall.accessTokens = args.accessTokens
     devOpsInstall.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
     devOpsInstall.azureActiveDirectoryMakersGroup = args.azureActiveDirectoryMakersGroup
@@ -339,6 +340,7 @@ class AA4AMCommand {
     branchArgs.organizationName = args.organizationName;
     branchArgs.projectName = args.projectName;
     branchArgs.repositoryName = args.repositoryName;
+    branchArgs.pipelineRepository = args.pipelineRepository;
     branchArgs.sourceBuildName = args.sourceBuildName;
     branchArgs.destinationBranch = args.destinationBranch;
     branchArgs.openDefaultPages = true;
@@ -426,9 +428,14 @@ class AA4AMCommand {
   project: string
 
   /**
-   * The name of the Azure DevOps pipeline repository
+   * The name of the Azure DevOps solution repository
    */
   repository: string
+
+  /**
+   * The name of the Azure DevOps pipeline repository
+   */
+  pipelineRepository: string
 
   /**
    * The Power Platform organization
@@ -593,6 +600,11 @@ class AA4AMBranchArguments {
    * The Azure repo name that AA4AM installed to
    */
   repositoryName: string;
+
+   /**
+   * The Azure repo name that contains AA4AM pipeline templates
+   */
+  pipelineRepository: string
 
   /**
    * The source branch to copy from
