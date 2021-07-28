@@ -76,6 +76,12 @@ The default value is **alm-sandbox**
 
 ##### -r, --repository
 
+The Azure DevOps repository where Azure DevOps solutions will be installed
+
+The default value is **alm-sandbox**
+
+##### --pipelineRepository
+
 The Azure DevOps repository where Azure DevOps pipeline templates will be cloned from https://github.com/microsoft/coe-alm-accelerator-templates.git
 
 The default value is **pipelines**
