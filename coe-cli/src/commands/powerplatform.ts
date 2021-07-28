@@ -135,6 +135,7 @@ class PowerPlatformCommand {
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
+            
             // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
             solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
         } else {
@@ -246,10 +247,58 @@ class PowerPlatformCommand {
             addInstallArgs.accessTokens = args.accessTokens
             addInstallArgs.endpoint = args.endpoint
 
-            let connectionParameters = JSON.parse(connectorMatch[0].connectionparameters)
-
             let clientid = aad.getAADApplication(addInstallArgs)
-            if (connectionParameters.token.oAuthSettings.clientId != clientid) {
+
+            if (connectorMatch[0].connectionparameters?.length == 0 || connectorMatch[0].connectionparameters == "{}" ) {
+                this.logger?.info("Applying default connection information")
+                connectorMatch[0].connectionparameters = JSON.stringify({
+                    "token": {
+                        "type": "oauthSetting",
+                        "oAuthSettings": {
+                            "identityProvider": "aad",
+                            "clientId": "UPDATE",
+                            "scopes": [],
+                            "redirectMode": "Global",
+                            "redirectUrl": "https://global.consent.azure-apim.net/redirect",
+                            "properties": {
+                                "IsFirstParty": "False",
+                                "AzureActiveDirectoryResourceId": "499b84ac-1321-427f-aa17-267ca6975798",
+                                "IsOnbehalfofLoginSupported": true
+                            },
+                            "customParameters": {
+                                "loginUri": {
+                                    "value": "https://login.windows.net"
+                                },
+                                "tenantId": {
+                                    "value": "common"
+                                },
+                                "resourceUri": {
+                                    "value": "499b84ac-1321-427f-aa17-267ca6975798"
+                                },
+                                "enableOnbehalfOfLogin": {
+                                    "value": "false"
+                                }
+                            }
+                        }
+                    },
+                    "token:TenantId": {
+                        "type": "string",
+                        "metadata": {
+                            "sourceType": "AzureActiveDirectoryTenant"
+                        },
+                        "uiDefinition": {
+                            "constraints": {
+                                "required": "false",
+                                "hidden": "true"
+                            }
+                        }
+                    }
+                })
+            }
+
+            let connectionParameters = JSON.parse(connectorMatch[0].connectionparameters)
+            
+            if (connectionParameters.token.oAuthSettings.clientId != clientid || connectionParameters.token.oAuthSettings.properties.AzureActiveDirectoryResourceId != "499b84ac-1321-427f-aa17-267ca6975798") {
                 this.logger?.debug("Connector needs update")
                 let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
                 let bapUrl = this.mapEndpoint("bap", args.endpoint)
@@ -282,6 +331,15 @@ class PowerPlatformCommand {
                 try {
                     // Based on work of paconn update of 
                     // https://github.com/microsoft/PowerPlatformConnectors/blob/1b81ada7b083302b59c33d9ed6b14cb2ac8a0785/tools/paconn-cli/paconn/operations/upsert.py
+
+                    if (typeof data.properties.connectionParameters.token.oAuthSettings.customParameters !== "undefined") {
+                        data.properties.connectionParameters.token.oAuthSettings.customParameters.resourceUri.value = "499b84ac-1321-427f-aa17-267ca6975798"
+                    }
+                    
+                    if (typeof data.properties.connectionParameters.token.oAuthSettings.properties !== "undefined") {
+                        data.properties.connectionParameters.token.oAuthSettings.properties.AzureActiveDirectoryResourceId = "499b84ac-1321-427f-aa17-267ca6975798"
+                    }
+
                     let update = {
                         properties: {
                             connectionParameters: {
@@ -289,6 +347,7 @@ class PowerPlatformCommand {
                                     oAuthSettings: {
                                         clientId: clientid,
                                         clientSecret: secret.clientSecret,
+                                        properties: data.properties.connectionParameters.token.oAuthSettings.properties,
                                         customParameters: data.properties.connectionParameters.token.oAuthSettings.customParameters,
                                         identityProvider: data.properties.connectionParameters.token.oAuthSettings.identityProvider,
                                         redirectMode: data.properties.connectionParameters.token.oAuthSettings.redirectMode,

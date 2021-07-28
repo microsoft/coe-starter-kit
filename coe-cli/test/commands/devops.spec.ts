@@ -251,6 +251,7 @@ describe('Branch', () => {
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "repo1"        
+        args.pipelineRepository = "templates"
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
@@ -313,7 +314,8 @@ describe('Branch', () => {
         args.accessToken = "FOO"
         args.organizationName = "org"
         args.projectName = "P1"
-        args.repositoryName = "REPO1"        
+        args.repositoryName = "REPO1"
+        args.pipelineRepository = "templates"        
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
@@ -339,7 +341,8 @@ describe('Branch', () => {
         args.accessToken = "FOO"
         args.organizationName = "org"
         args.projectName = "P1"
-        args.repositoryName = "repo1"        
+        args.repositoryName = "repo1"
+        args.pipelineRepository = "templates"        
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
@@ -385,7 +388,8 @@ describe('Branch', () => {
         args.accessToken = "FOO"
         args.organizationName = "org"
         args.projectName = "P1"
-        args.repositoryName = "repo1"        
+        args.repositoryName = "repo1"
+        args.pipelineRepository = "templates"        
         args.sourceBranch = "main"  
         args.destinationBranch = "NewSolution"  
 
@@ -432,7 +436,8 @@ describe('Branch', () => {
         args.accessToken = "FOO"
         args.organizationName = "org"
         args.projectName = "P1"
-        args.repositoryName = "repo1"        
+        args.repositoryName = "repo1"
+        args.pipelineRepository = "templates"        
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
 
@@ -550,6 +555,7 @@ describe('Build', () => {
 
         args.projectName = 'test'
         args.destinationBranch = "New"
+        args.pipelineRepository = "templates"
 
         gitMock.getRepositories.mockResolvedValue([repo])
         gitMock.getRefs.mockResolvedValue([refSource])
@@ -564,7 +570,7 @@ describe('Build', () => {
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].item.path).toBe("/New/deploy-validation-New.yml")
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].newContent.content).toBe(`[New]
 -[main]
--[pipelines]
+-[templates]
 -[New]`)
     })
 });

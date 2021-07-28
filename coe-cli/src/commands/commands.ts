@@ -356,7 +356,8 @@ class CoeCliCommands {
             .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
-            .option('-r, --repository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
+            .option('-r, --repository <name>', 'The Azure DevOps solution repository. Will be created if not exists', "alm-sandbox")
+            .option('--pipelineRepository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
             .option('-e, --environments <environments>', 'The Power Platform environment to install Managed solution to')
             .addOption(settingsOption)
             .addOption(installOption)
@@ -412,6 +413,7 @@ class CoeCliCommands {
                     args.organizationName = options.devOpsOrganization
                     args.project = options.project
                     args.repository = options.repository
+                    args.pipelineRepository = options.pipelineRepository
                     if (options.environments?.length > 0 && options.environments?.indexOf('=')>0) {
                         args.environments = this.parseSettings(options.environments)
                         args.environment = ''
@@ -512,11 +514,11 @@ class CoeCliCommands {
 
         maker.command("add")
             .option('-f, --file <name>', 'The install configuration parameters file from')
-            .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
-            .requiredOption('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
-            .requiredOption('-u, --user <name>', 'The user to add as a advanced maker')
-            .requiredOption('-e, --environment <organization>', 'The development environment to create the create service connection to for user')
-            .requiredOption('-g, --group <name>', 'The azure active directory makers group to add user to.', 'ALMAcceleratorForAdvancedMakers')
+            .option('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
+            .option('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
+            .option('-u, --user <name>', 'The user to add as a advanced maker')
+            .option('-e, --environment <organization>', 'The development environment to create the create service connection to for user')
+            .option('-g, --group <name>', 'The azure active directory makers group to add user to.', 'ALMAcceleratorForAdvancedMakers')
             .option('--aad <name>', 'The Azure Active Directory application to create service connection with', 'ALMAcceleratorServicePrincipal')
             .addOption(installEndpoint)
             .option('-s, --settings <namevalues>', 'Optional settings')
@@ -591,6 +593,7 @@ class CoeCliCommands {
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .requiredOption('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
+            .option('--pipelineRepository <name>', 'The Azure DevOps pipelines temaples name', 'pipelines')
             .requiredOption('-d, --destination <name>', 'The branch to create')
             .option('--source <name>', 'The source branch to copy from')
             .option('--source-build <name>', 'The source build to copy from')
@@ -602,6 +605,7 @@ class CoeCliCommands {
                 let args = new AA4AMBranchArguments();
                 args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
+                args.pipelineRepository = options.pipelineRepository
                 args.projectName = options.project
                 args.sourceBranch = options.source
                 args.sourceBuildName = options.sourceBuild
