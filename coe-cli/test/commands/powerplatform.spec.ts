@@ -245,6 +245,132 @@ describe('API Import', () => {
         // Assert
         expect(mockAad.addSecret).toBeCalledTimes(1)
     })
+
+    test('Solution found - New Connection', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new PowerPlatformCommand(logger);
+        command.getUrl = (url: string) => { return Promise.resolve('{"value":[]}') }
+        command.getBinaryUrl = (url: string) => {
+            return Promise.resolve(Buffer.from(''))
+        }
+        let mockAxios = mock<AxiosStatic>();
+        let mockAad = mock<AADCommand>()
+        let mockCli = mock<CommandLineHelper>()
+        command.getAxios = () => mockAxios
+        command.createAADCommand = () => mockAad
+        command.cli = mockCli 
+
+        mockCli.validateAzCliReady.mockResolvedValue(true)
+
+        mockAad.addSecret.mockResolvedValue(<AADAppSecret> {
+            clientSecret: "VALUE"
+        })
+
+        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+            let response : Promise<AxiosResponse<any>> = null
+            response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/environments?', { value: [ { properties: {
+                name: "ABC",
+                linkedEnvironmentMetadata: { domainName: "test" }
+            }}] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/connectors', { value: [
+                {
+                    name: 'cat_5Fcustomazuredevops',
+                    connectorinternalid: 'CONNECTION1',
+                    connectionparameters: ''
+                }
+            ] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/WhoAmI', { UserId: "U123" })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/systemusers', { value: [
+                { azureactivedirectoryobjectid: "A123"}
+            ] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/connections', { value: [{
+                properties: {
+                    createdBy: {
+                        id: 'A123'
+                    },
+                    apiId: 'http://text.crm.dynamics.com/apis/shared_commondataservice'
+                }
+            }] })
+
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/workflows', { value: [ {
+                solutionid: "S1",
+                statecode: 1,
+                statuscode: 2
+            }] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/apis/CONNECTION1', {
+                properties: {
+                    apiDefinitions: {
+                        originalSwaggerUrl: 'http://www.microsoft.com/XYZZY'
+                    }
+                }
+            })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, 'http://www.microsoft.com/XYZZY', {
+                data: ''
+            })
+            if (response != null ) {
+                return response
+            }
+
+            return mockResponse(url, '', {})
+        })
+
+        mockAxios.patch.mockImplementation((url: string, config: AxiosRequestConfig) => {
+            console.log(url)
+            let response = mockResponse(url, '/apis/CONNECTION1', {
+                status: 'Updated'
+            })
+            if (response != null ) {
+                return response
+            }
+        })
+
+        let args = new PowerPlatformImportSolutionArguments();
+        args.importMethod = 'api'
+        args.environment = "test"
+        args.endpoint = "prod"
+        args.setupPermissions = false
+
+        // Act
+        
+        await command.importSolution(args)
+
+        // Assert
+        expect(mockAad.addSecret).toBeCalledTimes(1)
+    })
 });
 
 describe('Get Environment', () => {

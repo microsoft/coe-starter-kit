@@ -43,6 +43,10 @@ The destination solution branch name to create
 
 The Azure DevOps repository to create the branch in. If the name of the repository is not supplied then it will be assumed to be the name of the project.
 
+##### --pipelineRepository
+
+The Azure DevOps repository where Azure DevOps pipeline templates cloned from https://github.com/microsoft/coe-alm-accelerator-templates.git
+
 #### --source
 
 The source branch to copy from. If not supplied assume that a new branch is being created
