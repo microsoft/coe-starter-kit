@@ -17,6 +17,8 @@ parameters:
 - name: issueClosingComment
   type: string
   default: ''
+- name: closeIssues
+  type: boolean
 - name: isPreRelease
   type: boolean
   default: false
@@ -64,13 +66,15 @@ steps:
         $issuesRequestUrl = "${{ parameters.gitHubApiUrl }}/issues?state=all&filter=all&sort=created&direction=asc&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
         $issueResponse = Invoke-RestMethod $issuesRequestUrl -Method 'GET' -Headers $headers
         foreach($issue in $issueResponse){
-            if('${{ parameters.issueClosingComment }}' -ne ''){
-                # Add the comment to the issue
-                # /repos/{owner}/{repo}/issues/{issue_number}/comments
-                $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
-                $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
-                $commentBody = "{`"body`": `"$commentFormatted`"}"
-                Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+            if(${{ parameters.closeIssues }} -eq $true){
+                if('${{ parameters.issueClosingComment }}' -ne '') {
+                    # Add the comment to the issue
+                    # /repos/{owner}/{repo}/issues/{issue_number}/comments
+                    $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
+                    $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
+                    $commentBody = "{`"body`": `"$commentFormatted`"}"
+                    Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+                }
 
                 # Close the issue if not closed
                 if($issue.state -ne 'closed') {
@@ -82,14 +86,13 @@ steps:
             }
             $releaseNotes = $releaseNotes + [Environment]::NewLine + "  - #" + $issue.number + "-" + $issue.title #Add a line for each issue with number and title. Add more here as necessary
         }
+        Write-Host "Updating new release notes file"
 
         Set-Content -Path $fullReleaseNotesPath -Value $releaseNotes
-    }
-    else{
-      # The milestone was not found could be a naming error
-      Write-Error "No milestone was found for $milestoneName"
-      Write-Host "##vso[task.logissue type=error]No milestone was found for $milestoneName"
-      exit(1)
+
+        Write-Host "Release notes updated $fullReleaseNotesPath"
+
+        exit 0
     }
   displayName: Build Release Notes from Milestone
 
