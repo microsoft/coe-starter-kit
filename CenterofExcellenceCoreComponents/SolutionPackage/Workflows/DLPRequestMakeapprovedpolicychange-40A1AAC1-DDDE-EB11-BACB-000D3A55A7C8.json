@@ -1,0 +1,322 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Get_a_row_by_ID": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "entityName": "coe_dlppolicychangerequests",
+              "recordId": "@triggerOutputs()?['body/coe_dlppolicychangerequestid']"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {},
+          "type": "OpenApiConnection"
+        },
+        "Initialize_variable_-_arrEnvironments": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "arrEnvironments",
+                "type": "array"
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_a_row_by_ID": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Scope_-_Process_DLP_Policy_change": {
+          "actions": {
+            "Get_DLP_Policy_V2": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins",
+                  "operationId": "GetPolicyV2"
+                },
+                "parameters": {
+                  "policy": "@triggerOutputs()?['body/coe_policyid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Get_Environment_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Get_Environment_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins",
+                  "operationId": "GetSingleEnvironment"
+                },
+                "parameters": {
+                  "api-version": "2018-10-01",
+                  "environment": "@triggerOutputs()?['body/_coe_environment_value']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Set_variable": {
+              "inputs": {
+                "name": "arrEnvironments",
+                "value": "@outputs('Get_DLP_Policy_V2')?['body/environments']"
+              },
+              "runAfter": {
+                "Get_DLP_Policy_V2": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable"
+            },
+            "Switch_-_Action_Requested_(Environment_operations)": {
+              "cases": {
+                "Case_-_Add_Environment_to_Policy": {
+                  "actions": {
+                    "Append_to_array_variable": {
+                      "inputs": {
+                        "name": "arrEnvironments",
+                        "value": {
+                          "id": "@{outputs('Get_Environment_as_Admin')?['body/id']}",
+                          "name": "@{outputs('Get_Environment_as_Admin')?['body/name']}",
+                          "type": "@{outputs('Get_Environment_as_Admin')?['body/type']}"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "AppendToArrayVariable"
+                    }
+                  },
+                  "case": 181330000
+                },
+                "Case_-_Remove_Environment_from_Policy": {
+                  "actions": {
+                    "Filter_array_-_remove_environment": {
+                      "inputs": {
+                        "from": "@variables('arrEnvironments')",
+                        "where": "@not(contains(item()?['name'], outputs('Get_Environment_as_Admin')?['body/name']))"
+                      },
+                      "runAfter": {},
+                      "type": "Query"
+                    },
+                    "Set_variable_-_removed_environment": {
+                      "inputs": {
+                        "name": "arrEnvironments",
+                        "value": "@body('Filter_array_-_remove_environment')"
+                      },
+                      "runAfter": {
+                        "Filter_array_-_remove_environment": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    }
+                  },
+                  "case": 181330001
+                }
+              },
+              "default": {
+                "actions": {}
+              },
+              "expression": "@triggerOutputs()?['body/coe_actionrequested']",
+              "runAfter": {
+                "Set_variable": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Switch"
+            },
+            "Update_DLP_Policy_V2": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins",
+                  "operationId": "UpdatePolicyV2"
+                },
+                "parameters": {
+                  "api-version": "2018-10-01",
+                  "body/connectorGroups": "@outputs('Get_DLP_Policy_V2')?['body/connectorGroups']",
+                  "body/displayName": "@outputs('Get_DLP_Policy_V2')?['body/displayName']",
+                  "body/environments": "@variables('arrEnvironments')",
+                  "policy": "@outputs('Get_DLP_Policy_V2')?['body/name']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Switch_-_Action_Requested_(Environment_operations)": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Update_a_row_-_Request_Completed": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord"
+                },
+                "parameters": {
+                  "entityName": "coe_dlppolicychangerequests",
+                  "item/coe_requeststatus": 181330003,
+                  "item/statecode": 1,
+                  "recordId": "@triggerOutputs()?['body/coe_dlppolicychangerequestid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Update_DLP_Policy_V2": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_-_arrEnvironments": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Terminate_-_Failed": {
+          "inputs": {
+            "runError": {
+              "code": "1",
+              "message": "An error occured when attempting to update the DLP Policy."
+            },
+            "runStatus": "Failed"
+          },
+          "runAfter": {
+            "Update_a_row_-_Failed": [
+              "Succeeded"
+            ]
+          },
+          "type": "Terminate"
+        },
+        "Update_a_row_-_Failed": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "UpdateRecord"
+            },
+            "parameters": {
+              "entityName": "coe_dlppolicychangerequests",
+              "item/coe_requeststatus": 597910007,
+              "item/statecode": 1,
+              "recordId": "@triggerOutputs()?['body/coe_dlppolicychangerequestid']"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Scope_-_Process_DLP_Policy_change": [
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "When_a_policy_change_request_is_Approved": {
+          "description": "Status is changed to 'Approved'",
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "coe_dlppolicychangerequest",
+              "subscriptionRequest/filterexpression": "coe_requeststatus eq 597910003",
+              "subscriptionRequest/filteringattributes": "coe_requeststatus",
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

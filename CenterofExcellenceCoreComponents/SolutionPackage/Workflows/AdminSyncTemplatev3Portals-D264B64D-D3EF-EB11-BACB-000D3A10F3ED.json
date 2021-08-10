@@ -1,0 +1,1315 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataservice_1": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreOffice365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_Dataverse_Environment,_If_false,_terminate": {
+          "actions": {
+            "Not_a_Dataverse_Environment_=_no_Model_Driven_Apps": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_hascds']",
+              "@false"
+            ]
+          },
+          "runAfter": {
+            "Check_if_Environment_Deleted._If_true,_terminate": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_if_Dev_SKU,_terminate_if_true": {
+          "actions": {
+            "Inquiry_not_supported_for_Dev_SKU": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentsku']",
+              "Developer"
+            ]
+          },
+          "runAfter": {
+            "Check_if_Dataverse_Environment,_If_false,_terminate": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_if_Environment_Deleted._If_true,_terminate": {
+          "actions": {
+            "Terminate": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentdeleted']",
+              "@true"
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "Check_if_Teams_SKU,_terminate_if_true": {
+          "actions": {
+            "Inquiry_not_supported_for_Teams_SKU": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentsku']",
+              "Teams"
+            ]
+          },
+          "runAfter": {
+            "Check_if_Dev_SKU,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_to_see_if_portal_Model_Driven_App_Exists._Store_in_Portal_COE_Entity": {
+          "actions": {
+            "Get_Environment_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins",
+                  "operationId": "GetSingleEnvironment"
+                },
+                "parameters": {
+                  "api-version": "2018-10-01",
+                  "environment": "@triggerOutputs()?['body/admin_environmentname']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Loop_Through_each_website_record": {
+              "actions": {
+                "Get_Portal_Website_Record_by_ID_from_COE_admin_portal_table": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "$select": "admin_portalid,admin_portalmodifiedon",
+                      "entityName": "admin_portals",
+                      "recordId": "@body('Parse_Portals_JSON')?['ItemInternalId']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_the_owner_and_first_orphan_check": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_the_owner_and_first_orphan_check": {
+                  "actions": {
+                    "Get_ADX_Website_Owner": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice",
+                          "operationId": "GetItem_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "id": "@body('Parse_Portals_JSON')?['_ownerid_value']",
+                          "table": "systemusers"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Reset_isOrphaned_to_false": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Get_Azure_AD_object_ID_column_for_system_user_table._See_if_Null": {
+                      "actions": {
+                        "Set_isOrphaned_to_true": {
+                          "inputs": {
+                            "name": "isOrphaned",
+                            "value": "@true"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']",
+                          "@null"
+                        ]
+                      },
+                      "runAfter": {
+                        "Get_ADX_Website_Owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "Reset_isOrphaned_to_false": {
+                      "inputs": {
+                        "name": "isOrphaned",
+                        "value": "@false"
+                      },
+                      "runAfter": {},
+                      "type": "SetVariable"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_Portals_JSON": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Scope"
+                },
+                "Parse_Portals_JSON": {
+                  "inputs": {
+                    "content": "@items('Loop_Through_each_website_record')",
+                    "schema": {
+                      "properties": {
+                        "@@odata.etag": {
+                          "type": "string"
+                        },
+                        "@@odata.id": {
+                          "type": "string"
+                        },
+                        "ItemInternalId": {
+                          "type": "string"
+                        },
+                        "_adx_defaultlanguage_type": {
+                          "type": "string"
+                        },
+                        "_adx_defaultlanguage_value": {
+                          "type": "string"
+                        },
+                        "_adx_footerwebtemplateid_type": {
+                          "type": "string"
+                        },
+                        "_adx_footerwebtemplateid_value": {
+                          "type": "string"
+                        },
+                        "_adx_headerwebtemplateid_type": {
+                          "type": "string"
+                        },
+                        "_adx_headerwebtemplateid_value": {
+                          "type": "string"
+                        },
+                        "_createdby_type": {
+                          "type": "string"
+                        },
+                        "_createdby_value": {
+                          "type": "string"
+                        },
+                        "_modifiedby_type": {
+                          "type": "string"
+                        },
+                        "_modifiedby_value": {
+                          "type": "string"
+                        },
+                        "_ownerid_type": {
+                          "type": "string"
+                        },
+                        "_ownerid_value": {
+                          "type": "string"
+                        },
+                        "_owningbusinessunit_type": {
+                          "type": "string"
+                        },
+                        "_owningbusinessunit_value": {
+                          "type": "string"
+                        },
+                        "_statecode_label": {
+                          "type": "string"
+                        },
+                        "_statuscode_label": {
+                          "type": "string"
+                        },
+                        "adx_name": {
+                          "type": "string"
+                        },
+                        "adx_primarydomainname": {
+                          "type": "string"
+                        },
+                        "adx_website_language": {
+                          "type": "integer"
+                        },
+                        "adx_websiteid": {
+                          "type": "string"
+                        },
+                        "createdon": {
+                          "type": "string"
+                        },
+                        "modifiedon": {
+                          "type": "string"
+                        },
+                        "statecode": {
+                          "type": "integer"
+                        },
+                        "statuscode": {
+                          "type": "integer"
+                        },
+                        "versionnumber": {
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {
+                    "Reset_isNewToCOE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "Reset_isNewToCOE": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "See_if_Portal_is_In_COE_Inventory_Table_(admin_portal)": {
+                  "actions": {
+                    "Only_Proceed_if_Changed_since_last_update_in_CoE_or_FullInventory": {
+                      "actions": {
+                        "Check_if_made_by_system": {
+                          "actions": {
+                            "Update_Portal_(created_by_SYSTEM)": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_portals",
+                                  "item/admin_PortalEnvironment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                  "item/admin_appownerdisplayname": "SYSTEM",
+                                  "item/admin_hasportalmanagementapp": true,
+                                  "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
+                                  "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
+                                  "item/admin_portalisophaned": false,
+                                  "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                  "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                  "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
+                                  "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']",
+                                  "recordId": "@body('Parse_Portals_JSON')?['ItemInternalId']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "Recheck_Orphan_status": {
+                                "actions": {
+                                  "Get_Portal_Owner_Profile_Name_2": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                        "connectionName": "shared_office365users",
+                                        "operationId": "UserProfile_V2"
+                                      },
+                                      "parameters": {
+                                        "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                        "id": "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Switch": {
+                                    "cases": {
+                                      "200_Success": {
+                                        "actions": {
+                                          "Find_Portal_Maker": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps",
+                                                "operationId": "ListRecords"
+                                              },
+                                              "parameters": {
+                                                "$filter": "admin_makerid eq @{body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']}",
+                                                "$select": "admin_makerid",
+                                                "entityName": "admin_makers"
+                                              },
+                                              "retryPolicy": {
+                                                "count": 10,
+                                                "interval": "PT10S",
+                                                "type": "exponential"
+                                              }
+                                            },
+                                            "runAfter": {},
+                                            "type": "OpenApiConnection"
+                                          },
+                                          "Update_or_Insert_App_Maker": {
+                                            "actions": {
+                                              "Update_Portal_Maker": {
+                                                "inputs": {
+                                                  "authentication": "@parameters('$authentication')",
+                                                  "host": {
+                                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                    "connectionName": "shared_commondataserviceforapps",
+                                                    "operationId": "UpdateRecord"
+                                                  },
+                                                  "parameters": {
+                                                    "entityName": "admin_makers",
+                                                    "item/admin_city": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/city']",
+                                                    "item/admin_country": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/country']",
+                                                    "item/admin_department": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/department']",
+                                                    "item/admin_displayname": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/displayName']",
+                                                    "item/admin_jobtitle": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/jobTitle']",
+                                                    "item/admin_makerisorphaned": false,
+                                                    "item/admin_office": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/officeLocation']",
+                                                    "item/admin_userprincipalname": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/userPrincipalName']",
+                                                    "recordId": "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']"
+                                                  },
+                                                  "retryPolicy": {
+                                                    "count": 10,
+                                                    "interval": "PT10S",
+                                                    "type": "exponential"
+                                                  }
+                                                },
+                                                "runAfter": {},
+                                                "type": "OpenApiConnection"
+                                              }
+                                            },
+                                            "else": {
+                                              "actions": {
+                                                "Create_Portal_Maker": {
+                                                  "inputs": {
+                                                    "authentication": "@parameters('$authentication')",
+                                                    "host": {
+                                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                      "connectionName": "shared_commondataserviceforapps",
+                                                      "operationId": "CreateRecord"
+                                                    },
+                                                    "parameters": {
+                                                      "entityName": "admin_makers",
+                                                      "item/admin_city": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/city']",
+                                                      "item/admin_country": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/country']",
+                                                      "item/admin_department": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/department']",
+                                                      "item/admin_displayname": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/displayName']",
+                                                      "item/admin_jobtitle": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/jobTitle']",
+                                                      "item/admin_makerid": "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']",
+                                                      "item/admin_makerisorphaned": false,
+                                                      "item/admin_office": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/officeLocation']",
+                                                      "item/admin_userprincipalname": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/userPrincipalName']"
+                                                    },
+                                                    "retryPolicy": {
+                                                      "count": 10,
+                                                      "interval": "PT10S",
+                                                      "type": "exponential"
+                                                    }
+                                                  },
+                                                  "runAfter": {},
+                                                  "type": "OpenApiConnection"
+                                                }
+                                              }
+                                            },
+                                            "expression": {
+                                              "greater": [
+                                                "@length(outputs('Find_Portal_Maker')?['body/value'])",
+                                                0
+                                              ]
+                                            },
+                                            "runAfter": {
+                                              "Find_Portal_Maker": [
+                                                "Succeeded"
+                                              ]
+                                            },
+                                            "type": "If"
+                                          }
+                                        },
+                                        "case": 200
+                                      },
+                                      "404_File_Not_Found": {
+                                        "actions": {
+                                          "Set_isOrphaned_true_on_recheck": {
+                                            "inputs": {
+                                              "name": "isOrphaned",
+                                              "value": "@true"
+                                            },
+                                            "runAfter": {},
+                                            "type": "SetVariable"
+                                          }
+                                        },
+                                        "case": 404
+                                      }
+                                    },
+                                    "default": {
+                                      "actions": {}
+                                    },
+                                    "expression": "@outputs('Get_Portal_Owner_Profile_Name_2')['statusCode']",
+                                    "runAfter": {
+                                      "Get_Portal_Owner_Profile_Name_2": [
+                                        "Succeeded",
+                                        "Failed"
+                                      ]
+                                    },
+                                    "type": "Switch"
+                                  }
+                                },
+                                "expression": {
+                                  "equals": [
+                                    "@variables('isOrphaned')",
+                                    "@false"
+                                  ]
+                                },
+                                "runAfter": {},
+                                "type": "If"
+                              },
+                              "Update_based_on_Orphan_Status": {
+                                "actions": {
+                                  "Update_Portal_Record": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_portals",
+                                        "item/admin_PortalEnvironment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                        "item/admin_PortalOwner@odata.bind": "admin_makers(@{body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']})",
+                                        "item/admin_appownerdisplayname": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/displayName']",
+                                        "item/admin_hasportalmanagementapp": true,
+                                        "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
+                                        "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
+                                        "item/admin_portalisophaned": false,
+                                        "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                        "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                        "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
+                                        "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']",
+                                        "recordId": "@body('Parse_Portals_JSON')?['ItemInternalId']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "Update_Portal_Record_(Abandoned)": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_portals",
+                                          "item/admin_PortalEnvironment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                          "item/admin_appownerdisplayname": "@outputs('Get_Portal_Owner_Profile_Name_2')?['body/displayName']",
+                                          "item/admin_hasportalmanagementapp": true,
+                                          "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
+                                          "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
+                                          "item/admin_portalisophaned": true,
+                                          "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                          "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                          "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
+                                          "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']",
+                                          "recordId": "@body('Parse_Portals_JSON')?['ItemInternalId']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "equals": [
+                                    "@variables('isOrphaned')",
+                                    "@false"
+                                  ]
+                                },
+                                "runAfter": {
+                                  "Recheck_Orphan_status": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "If"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@body('Get_ADX_Website_Owner')?['fullname']",
+                              "SYSTEM"
+                            ]
+                          },
+                          "runAfter": {},
+                          "type": "If"
+                        }
+                      },
+                      "expression": {
+                        "or": [
+                          {
+                            "less": [
+                              "@outputs('lastMod_from_COE')",
+                              "@outputs('lastMod_from_Portal')"
+                            ]
+                          },
+                          {
+                            "equals": [
+                              "@variables('fullInventory')",
+                              "True"
+                            ]
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "lastMod_from_Portal": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "lastMod_from_COE": {
+                      "inputs": "@coalesce(formatDateTime(outputs('Get_Portal_Website_Record_by_ID_from_COE_admin_portal_table')?['body/admin_portalmodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')",
+                      "runAfter": {},
+                      "type": "Compose"
+                    },
+                    "lastMod_from_Portal": {
+                      "inputs": "@formatDateTime(body('Parse_Portals_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
+                      "runAfter": {
+                        "lastMod_from_COE": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Check_to_see_if_made_by_system_(owner_=_system)": {
+                        "actions": {
+                          "Create_New_Portal_Record_(Created_By_System)": {
+                            "inputs": {
+                              "authentication": "@parameters('$authentication')",
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "CreateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_portals",
+                                "item/admin_PortalEnvironment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                "item/admin_appownerdisplayname": "SYSTEM",
+                                "item/admin_hasportalmanagementapp": true,
+                                "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
+                                "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
+                                "item/admin_portalid": "@body('Parse_Portals_JSON')?['ItemInternalId']",
+                                "item/admin_portalisophaned": false,
+                                "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {
+                              "This_means_it_was_system_created_and_automated": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "OpenApiConnection"
+                          },
+                          "This_means_it_was_system_created_and_automated": {
+                            "description": "System Created Path Block",
+                            "inputs": "systemcreated",
+                            "runAfter": {},
+                            "type": "Compose"
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "Insert_based_on_orphan_status": {
+                              "actions": {
+                                "Insert_Portal_Website_": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "CreateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_portals",
+                                      "item/admin_PortalEnvironment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                      "item/admin_PortalOwner@odata.bind": "admin_makers(@{body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']})",
+                                      "item/admin_hasportalmanagementapp": true,
+                                      "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
+                                      "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
+                                      "item/admin_portalid": "@body('Parse_Portals_JSON')?['ItemInternalId']",
+                                      "item/admin_portalisophaned": false,
+                                      "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                      "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                      "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
+                                      "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "description": "Add the portal to the inventory either with owner info or as an orphaned portal",
+                              "else": {
+                                "actions": {
+                                  "Insert_Portal_Website": {
+                                    "description": "Abandoned",
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "CreateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_portals",
+                                        "item/admin_PortalEnvironment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                        "item/admin_hasportalmanagementapp": true,
+                                        "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
+                                        "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
+                                        "item/admin_portalid": "@body('Parse_Portals_JSON')?['ItemInternalId']",
+                                        "item/admin_portalisophaned": true,
+                                        "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                        "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                        "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
+                                        "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@variables('isOrphaned')",
+                                  "@false"
+                                ]
+                              },
+                              "runAfter": {
+                                "Recheck_Orphan_status_new": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Recheck_Orphan_status_new": {
+                              "actions": {
+                                "Get_Portal_Owner_Profile_Name": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                      "connectionName": "shared_office365users",
+                                      "operationId": "UserProfile_V2"
+                                    },
+                                    "parameters": {
+                                      "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                      "id": "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                },
+                                "Switch-_Either_return_success_or_failure_if_user_exists_in_tenant_as_0365_user": {
+                                  "cases": {
+                                    "200_Success": {
+                                      "actions": {
+                                        "Find_Portal_Maker_New": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps",
+                                              "operationId": "ListRecords"
+                                            },
+                                            "parameters": {
+                                              "$filter": "admin_makerid eq @{body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']\r\n}",
+                                              "$select": "admin_makerid",
+                                              "entityName": "admin_makers"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        },
+                                        "Update_or_Insert_Portal_Maker_New": {
+                                          "actions": {
+                                            "Update_Portal_Maker_New": {
+                                              "inputs": {
+                                                "authentication": "@parameters('$authentication')",
+                                                "host": {
+                                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                  "connectionName": "shared_commondataserviceforapps",
+                                                  "operationId": "UpdateRecord"
+                                                },
+                                                "parameters": {
+                                                  "entityName": "admin_makers",
+                                                  "item/admin_city": "@outputs('Get_Portal_Owner_Profile_Name')?['body/city']",
+                                                  "item/admin_country": "@outputs('Get_Portal_Owner_Profile_Name')?['body/country']",
+                                                  "item/admin_department": "@outputs('Get_Portal_Owner_Profile_Name')?['body/department']",
+                                                  "item/admin_displayname": "@outputs('Get_Portal_Owner_Profile_Name')?['body/displayName']",
+                                                  "item/admin_jobtitle": "@outputs('Get_Portal_Owner_Profile_Name')?['body/jobTitle']",
+                                                  "item/admin_makerisorphaned": false,
+                                                  "item/admin_office": "@outputs('Get_Portal_Owner_Profile_Name')?['body/officeLocation']",
+                                                  "item/admin_userprincipalname": "@outputs('Get_Portal_Owner_Profile_Name')?['body/userPrincipalName']",
+                                                  "recordId": "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']"
+                                                },
+                                                "retryPolicy": {
+                                                  "count": 10,
+                                                  "interval": "PT10S",
+                                                  "type": "exponential"
+                                                }
+                                              },
+                                              "runAfter": {},
+                                              "type": "OpenApiConnection"
+                                            }
+                                          },
+                                          "else": {
+                                            "actions": {
+                                              "Create_Portal_Maker_New": {
+                                                "inputs": {
+                                                  "authentication": "@parameters('$authentication')",
+                                                  "host": {
+                                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                    "connectionName": "shared_commondataserviceforapps",
+                                                    "operationId": "CreateRecord"
+                                                  },
+                                                  "parameters": {
+                                                    "entityName": "admin_makers",
+                                                    "item/admin_city": "@outputs('Get_Portal_Owner_Profile_Name')?['body/city']",
+                                                    "item/admin_country": "@outputs('Get_Portal_Owner_Profile_Name')?['body/country']",
+                                                    "item/admin_department": "@outputs('Get_Portal_Owner_Profile_Name')?['body/department']",
+                                                    "item/admin_displayname": "@outputs('Get_Portal_Owner_Profile_Name')?['body/displayName']",
+                                                    "item/admin_jobtitle": "@outputs('Get_Portal_Owner_Profile_Name')?['body/jobTitle']",
+                                                    "item/admin_makerid": "@body('Get_ADX_Website_Owner')?['azureactivedirectoryobjectid']",
+                                                    "item/admin_makerisorphaned": false,
+                                                    "item/admin_office": "@outputs('Get_Portal_Owner_Profile_Name')?['body/officeLocation']",
+                                                    "item/admin_userprincipalname": "@outputs('Get_Portal_Owner_Profile_Name')?['body/userPrincipalName']"
+                                                  },
+                                                  "retryPolicy": {
+                                                    "count": 10,
+                                                    "interval": "PT10S",
+                                                    "type": "exponential"
+                                                  }
+                                                },
+                                                "runAfter": {},
+                                                "type": "OpenApiConnection"
+                                              }
+                                            }
+                                          },
+                                          "expression": {
+                                            "greater": [
+                                              "@length(outputs('Find_Portal_Maker_New')?['body/value'])",
+                                              0
+                                            ]
+                                          },
+                                          "runAfter": {
+                                            "Find_Portal_Maker_New": [
+                                              "Succeeded"
+                                            ]
+                                          },
+                                          "type": "If"
+                                        }
+                                      },
+                                      "case": 200
+                                    },
+                                    "404_User_not_found_in_0365_Tenant": {
+                                      "actions": {
+                                        "Set_isOrphaned_true": {
+                                          "inputs": {
+                                            "name": "isOrphaned",
+                                            "value": "@true"
+                                          },
+                                          "runAfter": {},
+                                          "type": "SetVariable"
+                                        }
+                                      },
+                                      "case": 404
+                                    }
+                                  },
+                                  "default": {
+                                    "actions": {}
+                                  },
+                                  "expression": "@outputs('Get_Portal_Owner_Profile_Name')['statusCode']",
+                                  "runAfter": {
+                                    "Get_Portal_Owner_Profile_Name": [
+                                      "Succeeded",
+                                      "Failed"
+                                    ]
+                                  },
+                                  "type": "Switch"
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@variables('isOrphaned')",
+                                  "@false"
+                                ]
+                              },
+                              "runAfter": {},
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "expression": {
+                          "equals": [
+                            "@body('Get_ADX_Website_Owner')?['fullname']",
+                            "SYSTEM"
+                          ]
+                        },
+                        "runAfter": {
+                          "isNewToCoE_=true": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "If"
+                      },
+                      "isNewToCoE_=true": {
+                        "description": "We know that the item is actually new to the CCOE and needs an inventory record",
+                        "inputs": "@variables('isNewToCoE')",
+                        "runAfter": {},
+                        "type": "Compose"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('isNewToCoE')",
+                      "@false"
+                    ]
+                  },
+                  "runAfter": {
+                    "Set_isNewToCoEto_true": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Set_isNewToCoEto_true": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@true"
+                  },
+                  "runAfter": {
+                    "Get_Portal_Website_Record_by_ID_from_COE_admin_portal_table": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "foreach": "@outputs('List_ADX_Websites')?['body/value']",
+              "runAfter": {
+                "Remove_the_GUID_without_the_prefixes_from_using_old_connector": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Name_Length": {
+              "description": "Return index where GUID value starts",
+              "inputs": "@sub(length(body('Get_Environment_as_Admin')?['name']), 36)",
+              "runAfter": {
+                "Get_Environment_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Remove_the_GUID_without_the_prefixes_from_using_old_connector": {
+              "inputs": "@substring(body('Get_Environment_as_Admin')?['name'], int(outputs('Name_Length')), 36)",
+              "runAfter": {
+                "Name_Length": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_fullInventory": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_ADX_Websites._Terminate_if_no_portals": {
+          "actions": {
+            "List_ADX_Websites": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                  "connectionName": "shared_commondataservice_1",
+                  "operationId": "GetItems_V2"
+                },
+                "parameters": {
+                  "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                  "table": "adx_websites"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 5000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "Terminate_if_no_portals": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {
+                "List_ADX_Websites": [
+                  "Failed",
+                  "TimedOut"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Check_if_Teams_SKU,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Portals_Fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (Portals)"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate_": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get Model Portals Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Check_to_see_if_portal_Model_Driven_App_Exists._Store_in_Portal_COE_Entity": [
+              "Failed",
+              "TimedOut"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isOrphaned": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_fullInventory": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullInventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_ADX_Websites._Terminate_if_no_portals": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isOrphaned": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isOrphaned",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_today": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "FullInventory": {
+          "defaultValue": true,
+          "metadata": {
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running ",
+            "schemaName": "admin_FullInventory"
+          },
+          "type": "Bool"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_new_record_is_created_or_updated": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
