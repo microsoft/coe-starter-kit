@@ -1,0 +1,300 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovPowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforappmakers": {
+        "api": {
+          "name": "shared_powerappsforappmakers"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovPowerAppsforMakers"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Initialize_ReturnValue_to_200": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ReturnValue",
+                "type": "integer",
+                "value": 200
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "inputs": {
+            "body": {
+              "return": "@{variables('ReturnValue')}"
+            },
+            "schema": {
+              "properties": {
+                "return": {
+                  "title": "Return",
+                  "type": "number",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "runAfter": {
+            "Switch": [
+              "Succeeded"
+            ]
+          },
+          "type": "Response"
+        },
+        "Switch": {
+          "cases": {
+            "Case_assign": {
+              "actions": {
+                "Mark_app_owner_in_CoE": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "item/admin_AppOwner@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                      "item/cr5d5_appisorphaned": "no",
+                      "recordId": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Set_ReturnValue_to_400_if_failed_-_assign": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Set_App_Owner": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                      "connectionName": "shared_powerappsforadmins",
+                      "operationId": "Set-AdminAppOwner"
+                    },
+                    "parameters": {
+                      "Content-Type": " application/json",
+                      "api-version": "2016-11-01",
+                      "app": "@triggerBody()['text_1']",
+                      "body/newAppOwner": "@triggerBody()['text']",
+                      "body/roleForOldAppOwner": "CanEdit",
+                      "environment": "@triggerBody()['text_2']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_ReturnValue_to_400_if_failed_-_assign": {
+                  "inputs": {
+                    "name": "ReturnValue",
+                    "value": 400
+                  },
+                  "runAfter": {
+                    "Set_App_Owner": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "case": "assign"
+            },
+            "Case_delete": {
+              "actions": {
+                "Mark_app_as_deleted_in_CoE": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "item/admin_appdeleted": true,
+                      "item/admin_appdeletedon": "@utcNow()",
+                      "recordId": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Set_ReturnValue_to_400_if_failed_-_delete": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Remove_App": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforappmakers",
+                      "connectionName": "shared_powerappsforappmakers",
+                      "operationId": "Remove-App"
+                    },
+                    "parameters": {
+                      "api-version": "2017-06-01",
+                      "app": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_ReturnValue_to_400_if_failed_-_delete": {
+                  "inputs": {
+                    "name": "ReturnValue",
+                    "value": 400
+                  },
+                  "runAfter": {
+                    "Remove_App": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "case": "delete"
+            }
+          },
+          "default": {
+            "actions": {}
+          },
+          "expression": "@triggerBody()['text_3']",
+          "runAfter": {
+            "Initialize_ReturnValue_to_200": [
+              "Succeeded"
+            ]
+          },
+          "type": "Switch"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "newOwner",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "appName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_2": {
+                  "description": "Please enter your input",
+                  "title": "envName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_3": {
+                  "description": "Please enter your input",
+                  "enum": [
+                    "assign",
+                    "delete"
+                  ],
+                  "title": "Input 3",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2",
+                "text_3"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

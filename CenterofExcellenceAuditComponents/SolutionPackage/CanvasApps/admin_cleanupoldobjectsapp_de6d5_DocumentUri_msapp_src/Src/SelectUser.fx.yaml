@@ -1,0 +1,459 @@
+SelectUser As screen:
+    OnVisible: |-
+        =//FIRST LOAD ONLY
+        If(FirstLoad,
+        
+        //loading gif
+        UpdateContext({ShowLoading: true});
+        Set(FirstLoad, false);
+        
+        //settings for links
+        Set(CurrentArchiveItem, First('Archive Approvals'));
+        
+        //who to show in the table
+        Set(theMaker, LookUp(Makers, 'User Principal Name'=theLoggedInUserEmail));
+        Set(theMakerID, theMaker.Maker);
+        
+        //get app link
+        UpdateContext({EnvVarDefnID: LookUp('Environment Variable Definitions', 'Schema Name'="admin_CleanupOldObjectsAppURL").'Environment Variable Definition'});
+        Set(ThisAppLink, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
+        If(IsBlank(ThisAppLink), Set(ThisAppLink, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
+        
+        //get approvals link
+        UpdateContext({EnvVarDefnID: LookUp('Environment Variable Definitions', 'Schema Name'="admin_FlowApprovalsURL").'Environment Variable Definition'});
+        Set(TheApprovalsLink, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
+        If(IsBlank(TheApprovalsLink), Set(TheApprovalsLink, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
+        
+        //Get archive records into collections
+        ClearCollect(theAppsApprovedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'APPS  - approved'));
+        ClearCollect(theFlowsApprovedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'FLOWS - approved'));
+        ClearCollect(theAppsRejectedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'APPS  - rejected and excused'));
+        Collect(theAppsRejectedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'APPS  - rejected but not yet excused'));
+        ClearCollect(theFlowsRejectedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'FLOWS - rejected and excused'));
+        Collect(theFlowsRejectedForDeletes, Filter('Archive Approvals', 'Archive Approvals (Views)'.'FLOWS - rejected but not yet excused'));
+        
+        //Get the users apps that are in the archival system
+        ClearCollect(theApps,
+            AddColumns(Filter('PowerApps Apps', 'App Owner'.Maker=theMakerID && 'App Type'= 'PowerApps Type'.Canvas && 'App Deleted'<>'App Deleted (PowerApps Apps)'.Yes),
+            "envDisplayName", 'App Environment'.'Display Name',
+            "envName", 'App Environment'.Name,
+            "DisplayName", DisplayName,
+            "theGUID", App,
+            "requestsIgnoredSince", 'App Archive Request Ignored Since',
+            "Excused", If('App Excused From Archival' = 'App Excused From Archival (PowerApps Apps)'.Yes, true, false),
+            "approvedForDelete", If(CountRows(Filter(theAppsApprovedForDeletes, Name=Text(App)))>0, true, false),
+            "rejectedForDelete", If(CountRows(Filter(theAppsRejectedForDeletes, Name=Text(App)))>0, true, false),
+            "lastModified", AppLastModified,
+            "lastLaunched", 'App Last Launched On',
+            "activeUsers", 'Monthly Active Usage',
+            "sharedUsers", 'Shared Total',
+            "inArchivalSystem", If(IsBlank('App Archive Request Ignored Since') 
+                       && CountRows(Filter(theAppsApprovedForDeletes, Name=Text(App))) <= 0
+                       && CountRows(Filter(theAppsRejectedForDeletes, Name=Text(App))) <= 0, false, true)));
+        RemoveIf(theApps, inArchivalSystem=false);
+        
+        //Get the users flows that are in the archival system
+        ClearCollect(theFlows,
+            AddColumns(Filter(Flows, DerivedOwner.Maker=theMakerID && 'Flow Deleted'<>'Flow Deleted (Flows)'.Yes),
+            "envDisplayName", 'Flow Environment'.'Display Name',
+            "envName", 'Flow Environment'.Name,
+            "DisplayName", DisplayName,
+            "theGUID", Flow,
+            "requestsIgnoredSince", 'Flow Archive Request Ignored Since',
+            "Excused", If('Flow Excused From Archival' = 'Flow Excused From Archival (Flows)'.Yes, true, false),
+            "approvedForDelete", If(CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(Flow)))>0, true, false),
+            "rejectedForDelete", If(CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(Flow)))>0, true, false),
+            "inArchivalSystem", If(IsBlank('Flow Archive Request Ignored Since') 
+                       && CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(Flow))) <= 0
+                       && CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(Flow))) <= 0, false, true)));
+        RemoveIf(theFlows, inArchivalSystem=false);
+        
+        );//end first run only
+        
+        //Get their employees
+        ClearCollect(LoggedInUsersEmployees, 
+               AddColumns(Office365Users.DirectReportsV2(theLoggedInUserEmail).value,
+               "empPrincipleName", userPrincipalName,
+               "empDisplayName", displayName,
+               "empID", id,
+               "empPhoto", Office365Users.UserPhotoV2(id)));
+        
+        //Set visiable variables
+        UpdateContext({ShowBurgerMenu: false});
+        UpdateContext({ShowLoading: false});
+        
+        //get the values for display
+        UpdateContext({MakerDisplayName: theMaker.'Display Name'});
+        UpdateContext({MakersOldestIgnoredApp: Text(First(SortByColumns(Filter('PowerApps Apps', 'App Owner'.Maker=theMakerID), "admin_apparchiverequestignoredsince", Descending)).'App Archive Request Ignored Since', ShortDate)});
+        UpdateContext({MakerNumApps: theMaker.'Number of Canvas Apps'});
+        UpdateContext({MakersOldestIgnoredFlow: Text(First(SortByColumns(Filter(Flows, DerivedOwner.Maker=theMakerID), "admin_flowarchiverequestignoredsince", Descending)).'Flow Archive Request Ignored Since', ShortDate)});
+        UpdateContext({MakerNumFlows: theMaker.'Number of Flows'});
+
+    AppTitleBar_1 As label:
+        Align: =Center
+        Color: =RGBA(255, 255, 255, 1)
+        Fill: =RGBA(112, 39, 117, 1)
+        FontWeight: =Bold
+        Height: =50
+        Text: ="Select User"
+        Width: =Parent.Width
+        ZIndex: =1
+
+    AppBurger_1 As icon.Hamburger:
+        Color: =RGBA(255, 255, 255, 1)
+        Height: =AppTitleBar_1.Height
+        Icon: =Icon.Hamburger
+        OnSelect: |-
+            =UpdateContext({ShowBurgerMenu: !ShowBurgerMenu})
+        Width: =Self.Height
+        X: =Parent.Width-Self.Width-5
+        ZIndex: =2
+
+    "EmployeeList As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+        Items: =LoggedInUsersEmployees
+        Layout: =Layout.Vertical
+        OnSelect: |-
+            =//show loader
+            UpdateContext({ShowLoading: true});
+            
+            //who to show in the table
+            Set(theMaker, LookUp(Makers, 'User Principal Name'=ThisItem.empPrincipleName));
+            Set(theMakerID, theMaker.Maker);
+            Set(ShowingMine, false);
+            
+            //Get the users apps that are in the archival system
+            ClearCollect(theApps,
+                AddColumns(Filter('PowerApps Apps', 'App Owner'.Maker=theMakerID && 'App Type'= 'PowerApps Type'.Canvas && 'App Deleted'<>'App Deleted (PowerApps Apps)'.Yes),
+                "envDisplayName", 'App Environment'.'Display Name',
+                "envName", 'App Environment'.Name,
+                "DisplayName", DisplayName,
+                "theGUID", App,
+                "requestsIgnoredSince", 'App Archive Request Ignored Since',
+                "Excused", If('App Excused From Archival' = 'App Excused From Archival (PowerApps Apps)'.Yes, true, false),
+                "approvedForDelete", If(CountRows(Filter(theAppsApprovedForDeletes, Name=Text(App)))>0, true, false),
+                "rejectedForDelete", If(CountRows(Filter(theAppsRejectedForDeletes, Name=Text(App)))>0, true, false),
+                "lastModified", AppLastModified,
+                "lastLaunched", 'App Last Launched On',
+                "activeUsers", 'Monthly Active Usage',
+                "sharedUsers", 'Shared Total',
+                "inArchivalSystem", If(IsBlank('App Archive Request Ignored Since') 
+                           && CountRows(Filter(theAppsApprovedForDeletes, Name=Text(App))) <= 0
+                           && CountRows(Filter(theAppsRejectedForDeletes, Name=Text(App))) <= 0, false, true)));
+            RemoveIf(theApps, inArchivalSystem=false);
+            
+            //Get the users flows that are in the archival system
+            ClearCollect(theFlows,
+                AddColumns(Filter(Flows, DerivedOwner.Maker=theMakerID && 'Flow Deleted'<>'Flow Deleted (Flows)'.Yes),
+                "envDisplayName", 'Flow Environment'.'Display Name',
+                "envName", 'Flow Environment'.Name,
+                "DisplayName", DisplayName,
+                "theGUID", Flow,
+                "requestsIgnoredSince", 'Flow Archive Request Ignored Since',
+                "Excused", If('Flow Excused From Archival' = 'Flow Excused From Archival (Flows)'.Yes, true, false),
+                "approvedForDelete", If(CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(Flow)))>0, true, false),
+                "rejectedForDelete", If(CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(Flow)))>0, true, false),
+                "inArchivalSystem", If(IsBlank('Flow Archive Request Ignored Since') 
+                           && CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(Flow))) <= 0
+                           && CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(Flow))) <= 0, false, true)));
+            RemoveIf(theFlows, inArchivalSystem=false);
+            
+            //get the values for display
+            UpdateContext({MakerDisplayName: theMaker.'Display Name'});
+            UpdateContext({MakersOldestIgnoredApp: Text(First(SortByColumns(Filter('PowerApps Apps', 'App Owner'.Maker=theMakerID), "admin_apparchiverequestignoredsince", Descending)).'App Archive Request Ignored Since', ShortDate)});
+            UpdateContext({MakerNumApps: theMaker.'Number of Canvas Apps'});
+            UpdateContext({MakersOldestIgnoredFlow: Text(First(SortByColumns(Filter(Flows, DerivedOwner.Maker=theMakerID), "admin_flowarchiverequestignoredsince", Descending)).'Flow Archive Request Ignored Since', ShortDate)});
+            UpdateContext({MakerNumFlows: theMaker.'Number of Flows'});
+            
+            //hide loader
+            UpdateContext({ShowLoading: false});
+        TemplatePadding: =0
+        TemplateSize: =Min(160, Self.Height - 60)
+        Visible: =theLoggedInUserIsManager
+        Width: =538
+        X: =28
+        Y: =128
+        ZIndex: =7
+
+        Image1 As image:
+            Image: =If(IsBlankOrError(ThisItem.empPhoto), SampleImage, ThisItem.empPhoto)
+            OnSelect: =Select(Parent)
+            RadiusBottomLeft: =45
+            RadiusBottomRight: =45
+            RadiusTopLeft: =45
+            RadiusTopRight: =45
+            X: =28
+            Y: =30
+            ZIndex: =1
+
+        Title1 As label:
+            Height: =Self.Size * 1.8
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Text: =ThisItem.empDisplayName
+            VerticalAlign: =VerticalAlign.Top
+            Width: =Parent.TemplateWidth - Image1.Width - 104
+            X: =139
+            Y: =30
+            ZIndex: =2
+
+        NextArrow1 As icon.ChevronRight:
+            AccessibleLabel: =Self.Tooltip
+            Height: =60
+            Icon: =Icon.ChevronRight
+            OnSelect: =Select(Parent)
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            TabIndex: =0
+            Tooltip: ="View item details"
+            Width: =60
+            X: =Parent.TemplateWidth - Self.Width - 5
+            Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+            ZIndex: =4
+
+        Separator1 As rectangle:
+            Height: =1
+            OnSelect: =Select(Parent)
+            Width: =Parent.TemplateWidth
+            Y: =Parent.TemplateHeight - 1
+            ZIndex: =5
+
+        Title1_1 As label:
+            Height: =Self.Size * 1.8
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Text: =ThisItem.empDisplayName
+            VerticalAlign: =VerticalAlign.Top
+            Width: =Parent.TemplateWidth - Image1.Width - 104
+            X: =139
+            Y: =74
+            ZIndex: =6
+
+    NoEmployeesError As label:
+        Align: =Center
+        Color: =RGBA(112, 39, 117, 1)
+        FontWeight: =Bold
+        Height: =If(Self.Visible, 115, 0)
+        Text: |-
+            ="This functionality is intended for people managers to select their employees.
+            Our call to Office 365 Users did not surface reports for you."
+        Visible: =!theLoggedInUserIsManager
+        Width: =If(Self.Visible, Parent.Width, 0)
+        Y: =If(Self.Visible, Parent.Height/2-Self.Height, 0)
+        ZIndex: =8
+
+    Label5 As label:
+        FontWeight: =Bold
+        Height: =57
+        Text: =MakerDisplayName
+        Width: =609
+        X: =682
+        Y: =147
+        ZIndex: =9
+
+    Label7 As label:
+        Color: =If(IsBlank(MakersOldestIgnoredApp), Black, RGBA(56, 96, 178, 1))
+        Height: =56
+        OnSelect: =Navigate(AppsView)
+        Text: ="Apps"
+        Underline: =If(IsBlank(MakersOldestIgnoredApp), false, true)
+        Width: =609
+        X: =682
+        Y: =204
+        ZIndex: =10
+
+    Label7_1 As label:
+        Text: ="Stale Apps"
+        X: =744
+        Y: =260
+        ZIndex: =11
+
+    Label7_2 As label:
+        Text: ="Oldest Ignored Request"
+        Width: =222
+        X: =744
+        Y: =300
+        ZIndex: =12
+
+    Label7_4 As label:
+        Text: =MakerNumApps
+        X: =966
+        Y: =260
+        ZIndex: =14
+
+    Label7_5 As label:
+        Text: =If(IsBlank(MakersOldestIgnoredApp), "None", MakersOldestIgnoredApp)
+        X: =966
+        Y: =300
+        ZIndex: =15
+
+    Label7_3 As label:
+        Color: =If(IsBlank(MakersOldestIgnoredFlow), Black, RGBA(56, 96, 178, 1))
+        Height: =51
+        Italic: =true
+        OnSelect: =Navigate(FlowsView)
+        Text: ="Flows"
+        Underline: =If(IsBlank(MakersOldestIgnoredFlow), false, true)
+        Width: =600
+        X: =682
+        Y: =344
+        ZIndex: =16
+
+    Label7_6 As label:
+        Text: ="Stale Flows"
+        X: =744
+        Y: =402
+        ZIndex: =17
+
+    Label7_7 As label:
+        Text: ="Oldest Ignored Request"
+        Width: =222
+        X: =744
+        Y: =442
+        ZIndex: =18
+
+    Label7_8 As label:
+        Text: =MakerNumFlows
+        X: =966
+        Y: =402
+        ZIndex: =19
+
+    Label7_9 As label:
+        Text: =If(IsBlank(MakersOldestIgnoredFlow), "None", MakersOldestIgnoredFlow)
+        X: =966
+        Y: =442
+        ZIndex: =20
+
+    ShowMyData As label:
+        Color: =RGBA(56, 96, 178, 1)
+        Height: =56
+        Italic: =true
+        OnSelect: |-
+            =//show loader
+            UpdateContext({ShowLoading: true});
+            
+            //who to show in the table
+            Set(theMaker, LookUp(Makers, 'User Principal Name'=theLoggedInUserEmail));
+            Set(theMakerID, theMaker.Maker);
+            Set(ShowingMine, true);
+            
+            //Get the users apps that are in the archival system
+            ClearCollect(theApps,
+                AddColumns(Filter('PowerApps Apps', 'App Owner'.Maker=theMakerID && 'App Type'= 'PowerApps Type'.Canvas && 'App Deleted'<>'App Deleted (PowerApps Apps)'.Yes),
+                "envDisplayName", 'App Environment'.'Display Name',
+                "envName", 'App Environment'.Name,
+                "DisplayName", DisplayName,
+                "theGUID", App,
+                "requestsIgnoredSince", 'App Archive Request Ignored Since',
+                "Excused", If('App Excused From Archival' = 'App Excused From Archival (PowerApps Apps)'.Yes, true, false),
+                "approvedForDelete", If(CountRows(Filter(theAppsApprovedForDeletes, Name=Text(App)))>0, true, false),
+                "rejectedForDelete", If(CountRows(Filter(theAppsRejectedForDeletes, Name=Text(App)))>0, true, false),
+                "lastModified", AppLastModified,
+                "lastLaunched", 'App Last Launched On',
+                "activeUsers", 'Monthly Active Usage',
+                "sharedUsers", 'Shared Total',
+                "inArchivalSystem", If(IsBlank('App Archive Request Ignored Since') 
+                           && CountRows(Filter(theAppsApprovedForDeletes, Name=Text(App))) <= 0
+                           && CountRows(Filter(theAppsRejectedForDeletes, Name=Text(App))) <= 0, false, true)));
+            RemoveIf(theApps, inArchivalSystem=false);
+            
+            //Get the users flows that are in the archival system
+            ClearCollect(theFlows,
+                AddColumns(Filter(Flows, DerivedOwner.Maker=theMakerID && 'Flow Deleted'<>'Flow Deleted (Flows)'.Yes),
+                "envDisplayName", 'Flow Environment'.'Display Name',
+                "envName", 'Flow Environment'.Name,
+                "DisplayName", DisplayName,
+                "theGUID", Flow,
+                "requestsIgnoredSince", 'Flow Archive Request Ignored Since',
+                "Excused", If('Flow Excused From Archival' = 'Flow Excused From Archival (Flows)'.Yes, true, false),
+                "approvedForDelete", If(CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(Flow)))>0, true, false),
+                "rejectedForDelete", If(CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(Flow)))>0, true, false),
+                "inArchivalSystem", If(IsBlank('Flow Archive Request Ignored Since') 
+                           && CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(Flow))) <= 0
+                           && CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(Flow))) <= 0, false, true)));
+            RemoveIf(theFlows, inArchivalSystem=false);
+            
+            //get the values for display
+            UpdateContext({MakerDisplayName: theMaker.'Display Name'});
+            UpdateContext({MakersOldestIgnoredApp: Text(First(SortByColumns(Filter('PowerApps Apps', 'App Owner'.Maker=theMakerID), "admin_apparchiverequestignoredsince", Descending)).'App Archive Request Ignored Since', ShortDate)});
+            UpdateContext({MakerNumApps: theMaker.'Number of Canvas Apps'});
+            UpdateContext({MakersOldestIgnoredFlow: Text(First(SortByColumns(Filter(Flows, DerivedOwner.Maker=theMakerID), "admin_flowarchiverequestignoredsince", Descending)).'Flow Archive Request Ignored Since', ShortDate)});
+            UpdateContext({MakerNumFlows: theMaker.'Number of Flows'});
+            
+            //hide loader
+            UpdateContext({ShowLoading: false});
+        Text: ="Show My Data"
+        Underline: =true
+        Width: =609
+        X: =41
+        Y: =74
+        ZIndex: =21
+
+    LoadingGif As image:
+        Height: =Self.Width
+        Image: =Loading
+        Visible: =ShowLoading
+        Width: =If(Self.Visible, 300, 0)
+        X: =If(Self.Visible, Parent.Width/2-Self.Width/2, 0)
+        Y: =If(Self.Visible, Parent.Height/2-Self.Height/2, 0)
+        ZIndex: =22
+
+    BurgerMenu_1 As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =42
+
+        MenuBG_1 As rectangle:
+            Fill: =RGBA(112, 39, 117, 1)
+            Height: =If(Self.Visible, 150, 0)
+            Visible: =ShowBurgerMenu
+            Width: =If(Self.Visible, 150, 0)
+            X: =If(Self.Visible, Parent.Width-Self.Width, 0)
+            Y: =If(Self.Visible, AppBurger_1.Y+AppBurger_1.Height, 0)
+            ZIndex: =3
+
+        MenuSelectUser_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: =Navigate(SelectUser)
+            Text: ="Select User"
+            Visible: =ShowBurgerMenu
+            Width: =MenuBG_1.Width
+            X: =MenuBG_1.X
+            Y: =If(Self.Visible, AppBurger_1.Y+AppBurger_1.Height+(Self.Height*2), 0)
+            ZIndex: =4
+
+        MenuFlows_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: =Navigate(FlowsView)
+            Text: ="Flows View"
+            Visible: =ShowBurgerMenu
+            Width: =MenuBG_1.Width
+            X: =MenuBG_1.X
+            Y: =If(Self.Visible, AppBurger_1.Y+AppBurger_1.Height+(Self.Height*1), 0)
+            ZIndex: =5
+
+        MenuApps_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: =Navigate(AppsView)
+            Text: ="Apps View"
+            Visible: =ShowBurgerMenu
+            Width: =MenuBG_1.Width
+            X: =MenuBG_1.X
+            Y: =If(Self.Visible, AppBurger_1.Y+AppBurger_1.Height+(Self.Height*0), 0)
+            ZIndex: =6
+
