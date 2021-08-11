@@ -1,0 +1,995 @@
+AddWorkflowInline As screen:
+    Height: =Max(App.Height, App.DesignHeight)
+    OnHidden: =
+    OnVisible: |-
+        =Set(SentFromAddWorfklow, false);
+        UpdateContext({IntentionalChangeTool: false});
+        UpdateContext({IntentionalChangePersona: false});
+        
+        Clear(MyWorkflow);
+        
+        //reload the workflow from backend into MyWorkflow
+        ForAll(Filter('Backlog Item Workflows',BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),Collect(MyWorkflow,
+              {rowIndex:WorkflowStepIndex,curSelected: false,
+              rowTool:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').'Display Name',
+              rowToolID:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').ID,
+              rowToolGUID:WorfklowStepTool.'Innovation Backlog Tool',rowPersonaDisplay:WorkflowStepPersona,
+              rowPersonaSearch:WorkflowStepPersonaSearch,rowNote:WorkflowStepNote,
+              rowRecording: WorkflowStepRecording,
+              rowToolIcon:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').Icon}));
+              
+        UpdateIf(MyWorkflow, true ,{rowToolIconNonURL:LookUp(AvailableToolsAll,colAllToolGUID=GUID(rowToolGUID)).'Icon Non URL'});
+    Width: =Max(App.Width, App.DesignWidth)
+
+    "'save workflow_basecode' As button":
+        Height: =0
+        OnSelect: |-
+            =//clean up old WF Items
+            Remove('Backlog Item Workflows', Filter('Backlog Item Workflows', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid));
+            
+            //add new ones
+            ForAll(MyWorkflow, Patch('Backlog Item Workflows', Defaults('Backlog Item Workflows'), 
+            {Name: OurWorkitem.admin_displayname& " " & rowIndex, 
+            BacklogItem: OurWorkitem, 
+            IdeaStatus: OurIdea.IdeaStatus,
+            WorfklowStepTool: LookUp('Innovation Backlog Tools', ID=rowToolID), 
+            WorkflowStepPersona: rowPersonaDisplay,
+            WorkflowStepPersonaSearch: rowPersonaSearch,
+            WorkflowStepIndex: rowIndex, 
+            WorkflowStepNote: rowNote,
+            WorkflowStepRecording: rowRecording}));
+            
+            //update variables 
+            If(CountRows(MyWorkflow)>0, Set(WFExists, true));
+            If(WFExists, Set(WFisInline, true);Set(WFisFile, false);Set(WFisLink, false));
+            
+            //update number of steps
+            If(WFExists,
+            UpdateIf('Innovation Backlog Workitems', 'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid, {WorkflowNumberSteps: CountRows(MyWorkflow), WorkflowIsDocument: 'WorkflowIsDocument (Innovation Backlog Workitems)'.No});
+            //refetch
+            Set(OurWorkitem, LookUp('Innovation Backlog Workitems', 'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid)));
+        Text: ="save"
+        Visible: =false
+        Width: =0
+        ZIndex: =2
+
+    "EditMyWorkflow As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+        Fill: =RGBA(255, 255, 255, 1)
+        Height: =552
+        Items: =SortByColumns(MyWorkflow, "rowIndex")
+        Layout: =Layout.Vertical
+        OnSelect: |-
+            =UpdateIf(MyWorkflow, true, {curSelected: false});
+            UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, {curSelected: true})
+        ShowScrollbar: =false
+        TemplatePadding: =0
+        TemplateSize: =227
+        Width: =1366
+        Y: =214
+        ZIndex: =3
+
+        leftBorder As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =Parent.TemplateHeight
+            OnSelect: =Select(Parent)
+            Width: =1
+            X: =193
+            ZIndex: =1
+
+        rightBorder As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =Parent.TemplateHeight
+            OnSelect: =Select(Parent)
+            Width: =1
+            X: =1165
+            ZIndex: =2
+
+        Separator1 As rectangle:
+            BorderColor: =RGBA(234,234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =1
+            OnSelect: =Select(Parent)
+            Width: =Parent.TemplateWidth
+            Y: =Parent.TemplateHeight - 1
+            ZIndex: =3
+
+        delete As icon.Cancel:
+            Color: =RGBA(0,120,212,1)
+            Height: =up.Height
+            Icon: =Icon.Trash
+            OnSelect: |-
+                =//get current index
+                UpdateContext({curRowForLater: ThisItem.rowIndex});
+                
+                //mark this row as curSelected
+                UpdateIf(MyWorkflow, true, {curSelected: false});
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, {curSelected: true});
+                
+                //decrement all rows after this
+                UpdateIf(MyWorkflow, rowIndex>ThisItem.rowIndex, {rowIndex: rowIndex-1});
+                
+                //delete this row
+                RemoveIf(MyWorkflow, curSelected=true);
+                
+                //select new row
+                UpdateIf(MyWorkflow, true, {curSelected: false});
+                UpdateIf(MyWorkflow, rowIndex=curRowForLater, {curSelected: true});
+            Width: =up.Width
+            X: =1185
+            Y: =23
+            ZIndex: =4
+
+        AddRecording As text:
+            BorderColor: =RGBA(166,166,166, 1)
+            Color: =RGBA(51,51,51, 1)
+            Default: =ThisItem.rowRecording
+            Height: =34
+            HintText: ="Link to Recording"
+            HoverBorderColor: =Self.BorderColor
+            HoverFill: =Self.Fill
+            MaxLength: =500
+            Mode: =TextMode.MultiLine
+            OnChange: |-
+                =UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, {rowRecording: AddRecording.Text})
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Width: =300 
+            X: =861
+            Y: =44
+            ZIndex: =5
+
+        AddNote As text:
+            BorderColor: =RGBA(166,166,166, 1)
+            Color: =RGBA(51,51,51, 1)
+            Default: =ThisItem.rowNote
+            Height: =73
+            HintText: ="Description"
+            HoverBorderColor: =Self.BorderColor
+            HoverFill: =Self.Fill
+            MaxLength: =500
+            Mode: =TextMode.MultiLine
+            OnChange: |-
+                =UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, {rowNote: AddNote.Text})
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Width: =915
+            X: =227
+            Y: =140
+            ZIndex: =6
+
+        SelectPersonas As combobox:
+            BorderColor: =RGBA(166,166,166, 1)
+            ChevronBackground: =RGBA(56, 96, 178, 0)
+            ChevronDisabledFill: =RGBA(244, 244, 244, 0)
+            ChevronFill: =RGBA(51,51,51, 1)
+            ChevronHoverBackground: =RGBA(56, 96, 178, 0)
+            ChevronHoverFill: =Self.ChevronFill
+            Color: =RGBA(51,51,51, 1)
+            DefaultSelectedItems: =Filter(MyPersonas, Concatenate("[", colPersonaName, "]") in ThisItem.rowPersonaSearch)
+            DisplayFields: =["colPersonaName"]
+            Height: =37
+            InputTextPlaceholder: ="Select participant"
+            Items: =SortByColumns(MyPersonas, "colPersonaName")
+            NoSelectionText: ="Select participant"
+            OnChange: |-
+                =If(IntentionalChangePersona=true,
+                     If(CountRows(SelectPersonas.SelectedItems)>0,
+                          UpdateContext({tempPersonaSearch:Concat(SelectPersonas.SelectedItems,"["&colPersonaName&"],")});
+                          UpdateContext({tempPersonaDisplay:Concat(SelectPersonas.SelectedItems,colPersonaName&", ")});
+                          UpdateContext({tempPersonaDisplay2:Left(tempPersonaDisplay,Len(tempPersonaDisplay)-2)});
+                          UpdateIf(MyWorkflow,rowIndex=ThisItem.rowIndex,{rowPersonaDisplay:tempPersonaDisplay2,rowPersonaSearch:tempPersonaSearch});
+                          UpdateContext({IntentionalChangePersona: false})));
+            OnSelect: |-
+                =UpdateContext({IntentionalChangePersona: true});
+            SearchFields: =["colPersonaName"]
+            SearchItems: =Search(SortByColumns(MyPersonas, "colPersonaName"),SelectPersonas.SearchText,"colPersonaName")
+            SelectionTagFill: =Transparent
+            Width: =300 
+            X: =227
+            Y: =43
+            ZIndex: =7
+
+        SelectTool As combobox:
+            BorderColor: =RGBA(166,166,166, 1)
+            ChevronBackground: =RGBA(56, 96, 178, 0)
+            ChevronDisabledFill: =RGBA(244, 244, 244, 0)
+            ChevronFill: =RGBA(51,51,51, 1)
+            ChevronHoverBackground: =RGBA(56, 96, 178, 0)
+            ChevronHoverFill: =Self.ChevronFill
+            Color: =RGBA(51,51,51, 1)
+            DefaultSelectedItems: =LookUp(MyTools, colSelectedToolID=ThisItem.rowToolID)
+            DisplayFields: =["admin_displayname"]
+            Height: =37
+            IsSearchable: =false
+            Items: =SortByColumns(MyTools, "admin_displayname")
+            NoSelectionText: ="Select Tool"
+            OnChange: |-
+                =If(App.ActiveScreen=AddWorkflowInline && IntentionalChangeTool=true,
+                    UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, 
+                    {rowTool: SelectTool.Selected.colSelectedToolID, 
+                    rowToolID: LookUp(AvailableToolsAll, colAllToolGUID=SelectTool.Selected.colSelectedToolGUID, ID), 
+                    rowToolGUID: LookUp(AvailableToolsAll, colAllToolGUID=SelectTool.Selected.colSelectedToolGUID, admin_IconNonURLId),
+                    rowToolIcon: LookUp(AvailableToolsAll, colAllToolGUID=SelectTool.Selected.colSelectedToolGUID).Icon,
+                    rowToolIconNonURL: LookUp(AvailableToolsAll, colAllToolGUID=SelectTool.Selected.colSelectedToolGUID).'Icon Non URL'});
+                    UpdateContext({IntentionalChangeTool: false}));
+            OnSelect: |-
+                =UpdateContext({IntentionalChangeTool: true});
+            Reset: =true
+            SearchFields: =["admin_displayname"]
+            SearchItems: =[]
+            SelectionTagFill: =Transparent
+            SelectMultiple: =false
+            Width: =300 
+            X: =546
+            Y: =43
+            ZIndex: =8
+
+        StepHeader As label:
+            Color: =RGBA(51, 51,51, 1)
+            Height: =45
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =22
+            Text: ="Step"
+            VerticalAlign: =VerticalAlign.Top
+            Width: =79
+            X: =71
+            Y: =24
+            ZIndex: =9
+
+        down As icon.ArrowDown:
+            Color: =If(ThisItem.rowIndex = Count(MyWorkflow.rowIndex), RGBA(166,166,166,1), RGBA(0,120,212,1))
+            Height: =Self.Width
+            OnSelect: |-
+                =//mark this row as curSelected
+                UpdateIf(MyWorkflow, true, {curSelected: false});
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, {curSelected: true});
+                
+                //swap with row below
+                //swap part 1: set n+1 to n
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex+1, {rowIndex: ThisItem.rowIndex});
+                //swap part 2: set n to n+1
+                UpdateIf(MyWorkflow, curSelected=true, {rowIndex: ThisItem.rowIndex+1});
+                
+                //mark new row as curSelected
+                UpdateIf(MyWorkflow, true, {curSelected: false});
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex+1, {curSelected: true})
+            Width: =20
+            X: =1298
+            Y: =26
+            ZIndex: =12
+
+        up As icon.ArrowUp:
+            Color: =If(ThisItem.rowIndex=1, RGBA(166,166,166,1), RGBA(0,120,212,1))
+            Height: =Self.Width
+            Icon: =Icon.ArrowUp
+            OnSelect: |-
+                =//mark this row as curSelected
+                UpdateIf(MyWorkflow, true, {curSelected: false});
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex, {curSelected: true});
+                
+                //swap part 1: set n-1 to n
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex-1, {rowIndex: ThisItem.rowIndex});
+                //swap part 1: set n to n-1 
+                UpdateIf(MyWorkflow, curSelected=true, {rowIndex: ThisItem.rowIndex-1});
+                
+                //mark new row as curSelected
+                UpdateIf(MyWorkflow, true, {curSelected: false});
+                UpdateIf(MyWorkflow, rowIndex=ThisItem.rowIndex-1, {curSelected: true})
+            Width: =20
+            X: =1318
+            Y: =26
+            ZIndex: =13
+
+        StepNum As label:
+            Color: =RGBA(51, 51,51, 1)
+            FontWeight: =Semibold
+            Height: =45
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =28
+            Text: =ThisItem.rowIndex
+            VerticalAlign: =VerticalAlign.Top
+            Width: =54
+            X: =139
+            Y: =17
+            ZIndex: =14
+
+        StepHeader_1 As label:
+            Color: =RGBA(51, 51,51, 1)
+            FontWeight: =Semibold
+            Height: =31
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =17
+            Text: ="Workflow participant"
+            VerticalAlign: =VerticalAlign.Top
+            Width: =300 
+            X: =227
+            Y: =15
+            ZIndex: =15
+
+        StepHeader_2 As label:
+            Color: =RGBA(51, 51,51, 1)
+            FontWeight: =Semibold
+            Height: =31
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =17
+            Text: ="Tool used"
+            VerticalAlign: =VerticalAlign.Top
+            Width: =300 
+            X: =548
+            Y: =15
+            ZIndex: =16
+
+        StepHeader_3 As label:
+            Color: =RGBA(51, 51,51, 1)
+            FontWeight: =Semibold
+            Height: =31
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =17
+            Text: ="Recording"
+            VerticalAlign: =VerticalAlign.Top
+            Width: =300 
+            X: =859
+            Y: =12
+            ZIndex: =17
+
+        StepHeader_4 As label:
+            Color: =RGBA(51, 51,51, 1)
+            FontWeight: =Semibold
+            Height: =31
+            OnSelect: =Select(Parent)
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =17
+            Text: ="Description"
+            VerticalAlign: =VerticalAlign.Top
+            Width: =300 
+            X: =227
+            Y: =109
+            ZIndex: =18
+
+        AddWorkflowTool_1 As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =39
+            OnSelect: |-
+                =Select('save workflow_basecode');
+                Set(SentFromAddWorfklow, true);
+                Navigate(AddTools)
+            Text: ="Delete"
+            Width: =69
+            X: =1215
+            Y: =17
+            ZIndex: =19
+
+    "'Header-AddWorkflowInline' As group":
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =20
+        ZIndex: =17
+
+        "'HeaderBox-BasicInfo_5' As rectangle":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =65
+            Width: =Parent.Width
+            ZIndex: =42
+
+        "'Save-BasicInfo_5' As button":
+            Fill: =RGBA(0,108,191,1)
+            FontWeight: =FontWeight.Bold
+            OnSelect: |-
+                =Select(WorkflowSave);
+                Back();
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Text: ="Update"
+            X: =1180
+            Y: =('HeaderBox-BasicInfo_5'.Height/2)-(Self.Height/2)
+            ZIndex: =43
+
+        "'Cancel-BasicInfo_5' As button":
+            Color: =RGBA(102, 102, 102, 1)
+            Fill: =RGBA(255, 255, 255, 1)
+            FontWeight: =FontWeight.Bold
+            OnSelect: =Back()
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Text: ="Cancel"
+            X: =990
+            Y: =('HeaderBox-BasicInfo_5'.Height/2)-(Self.Height/2)
+            ZIndex: =44
+
+        "'HeaderText-BasicInfo_5' As label":
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =38
+            PaddingBottom: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =22
+            Text: =If(isNewBacklogItem, "Adding", "Editing") & " workflow inline for " & OurIdea.'Display Name'
+            Width: =816
+            X: =97
+            Y: =13
+            ZIndex: =45
+
+        "'Back-BasicInfo_5' As icon.ArrowLeft":
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.ArrowLeft
+            OnSelect: =Back()
+            Width: =40
+            X: =25
+            Y: =('HeaderBox-BasicInfo_5'.Height/2)-(Self.Height/2)
+            ZIndex: =46
+
+    "'Nav-AddWorkflowInline' As group":
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =20
+        ZIndex: =43
+
+        NavBox_4 As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =101
+            Width: =Parent.Width
+            Y: =65
+            ZIndex: =16
+
+        NavLine_4 As rectangle:
+            BorderColor: =RGBA(196, 196, 196, 1)
+            BorderThickness: =1
+            Fill: =RGBA(56, 96, 178, 0)
+            Height: =1
+            Width: =650
+            X: ='NavNumLabel-Step1_4'.X+('NavNumLabel-Step1_4'.Width/2)
+            Y: ='NavNumLabel-Step1_4'.Y+('NavNumLabel-Step1_4'.Height/2)-(NavLine_4.Height/2)
+            ZIndex: =17
+
+        "'NavLabel-Step6_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddComplexity], RGBA(0, 0, 0, 1), RGBA(102,102,102,1))
+            FontWeight: =If(App.ActiveScreen=[@AddComplexity], Semibold, Normal)
+            Height: ='NavLabel-Step1_4'.Height
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddComplexity]))
+            Text: |-
+                ="Complexity
+                score"
+            Width: =110
+            X: ='NavNumLabel-Step6_4'.X-(('NavLabel-Step6_4'.Width-'NavNumLabel-Step6_4'.Width)/2)
+            Y: ='NavLabel-Step1_4'.Y
+            ZIndex: =18
+
+        "'NavIcon-Step6_4' As circle":
+            Fill: =If(App.ActiveScreen=[@AddComplexity], RGBA(222,236,249,1), If(isNewBacklogItem && CurrentStep>=6, RGBA(206,240,205,1), RGBA(234,234,234,1)))
+            Height: =Self.Width
+            Width: ='NavNumLabel-Step6_4'.Width
+            X: ='NavNumLabel-Step6_4'.X
+            Y: ='NavNumLabel-Step6_4'.Y
+            ZIndex: =19
+
+        "'NavIconCheck-Step6_4' As icon.Check":
+            Color: =RGBA(9, 107, 41, 1)
+            Height: ='NavNumLabel-Step6_4'.Height
+            Icon: =Icon.Check
+            PaddingBottom: =5
+            PaddingLeft: =5
+            PaddingRight: =5
+            PaddingTop: =5
+            Visible: =isNewBacklogItem && CurrentStep>6
+            Width: ='NavNumLabel-Step6_4'.Width
+            X: ='NavNumLabel-Step6_4'.X
+            Y: ='NavNumLabel-Step6_4'.Y
+            ZIndex: =20
+
+        "'NavNumLabel-Step6_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddComplexity], RGBA(0,0,0,1), If(isNewBacklogItem && CurrentStep>=6, RGBA(0,0,0,0), RGBA(102,102,102,1)))
+            Height: =Self.Width
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddComplexity]))
+            Size: =17
+            Text: ="6"
+            Visible: =(isNewBacklogItem && CurrentStep<=6) || !isNewBacklogItem
+            Width: =32
+            X: ='NavNumLabel-Step1_4'.X+(130*5)
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =21
+
+        "'NavLabel-Step5_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddWorkflow] || App.ActiveScreen=[@AddWorkflowInline], RGBA(0, 0, 0, 1), RGBA(102,102,102,1))
+            FontWeight: =If(App.ActiveScreen=[@AddWorkflow] || App.ActiveScreen=[@AddWorkflowInline], Semibold, Normal)
+            Height: ='NavLabel-Step1_4'.Height
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddWorkflow]))
+            Text: ="Workflow"
+            Width: =110
+            X: ='NavNumLabel-Step5_4'.X-(('NavLabel-Step5_4'.Width-'NavNumLabel-Step5_4'.Width)/2)
+            Y: ='NavLabel-Step1_4'.Y
+            ZIndex: =22
+
+        "'NavIcon-Step5_4' As circle":
+            Fill: =If(App.ActiveScreen=[@AddWorkflow] || App.ActiveScreen=[@AddWorkflowInline], RGBA(222,236,249,1), If(isNewBacklogItem && CurrentStep>=5, RGBA(206,240,205,1), RGBA(234,234,234,1)))
+            Height: =Self.Width
+            Width: ='NavNumLabel-Step5_4'.Width
+            X: ='NavNumLabel-Step5_4'.X
+            Y: ='NavNumLabel-Step5_4'.Y
+            ZIndex: =23
+
+        "'NavIconCheck-Step5_4' As icon.Check":
+            Color: =RGBA(9, 107, 41, 1)
+            Height: ='NavNumLabel-Step5_4'.Height
+            Icon: =Icon.Check
+            PaddingBottom: =5
+            PaddingLeft: =5
+            PaddingRight: =5
+            PaddingTop: =5
+            Visible: =isNewBacklogItem && CurrentStep>5
+            Width: ='NavNumLabel-Step5_4'.Width
+            X: ='NavNumLabel-Step5_4'.X
+            Y: ='NavNumLabel-Step5_4'.Y
+            ZIndex: =24
+
+        "'NavNumLabel-Step5_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddWorkflow] || App.ActiveScreen=[@AddWorkflowInline], RGBA(0,0,0,1), If(isNewBacklogItem && CurrentStep>=5, RGBA(0,0,0,0), RGBA(102,102,102,1)))
+            Height: =Self.Width
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddWorkflow]))
+            Size: =17
+            Text: ="5"
+            Visible: =(isNewBacklogItem && CurrentStep<=5) || !isNewBacklogItem
+            Width: =32
+            X: ='NavNumLabel-Step1_4'.X+(130*4)
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =25
+
+        "'NavLabel-Step4_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddMeasures], RGBA(0, 0, 0, 1), RGBA(102,102,102,1))
+            FontWeight: =If(App.ActiveScreen=[@AddMeasures], Semibold, Normal)
+            Height: ='NavLabel-Step1_4'.Height
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddMeasures]))
+            Text: ="Measure ROI"
+            Width: =110
+            X: ='NavNumLabel-Step4_4'.X-(('NavLabel-Step4_4'.Width-'NavNumLabel-Step4_4'.Width)/2)
+            Y: ='NavLabel-Step1_4'.Y
+            ZIndex: =26
+
+        "'NavIcon-Step4_4' As circle":
+            Fill: =If(App.ActiveScreen=[@AddMeasures], RGBA(222,236,249,1), If(isNewBacklogItem && CurrentStep>=4, RGBA(206,240,205,1), RGBA(234,234,234,1)))
+            Height: =Self.Width
+            Width: ='NavNumLabel-Step4_4'.Width
+            X: ='NavNumLabel-Step4_4'.X
+            Y: ='NavNumLabel-Step4_4'.Y
+            ZIndex: =27
+
+        "'NavIconCheck-Step4_4' As icon.Check":
+            Color: =RGBA(9, 107, 41, 1)
+            Height: ='NavNumLabel-Step4_4'.Height
+            Icon: =Icon.Check
+            PaddingBottom: =5
+            PaddingLeft: =5
+            PaddingRight: =5
+            PaddingTop: =5
+            Visible: =isNewBacklogItem && CurrentStep>4
+            Width: ='NavNumLabel-Step4_4'.Width
+            X: ='NavNumLabel-Step4_4'.X
+            Y: ='NavNumLabel-Step4_4'.Y
+            ZIndex: =28
+
+        "'NavNumLabel-Step4_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddMeasures], RGBA(0,0,0,1), If(isNewBacklogItem && CurrentStep>=4, RGBA(0,0,0,0), RGBA(102,102,102,1)))
+            Height: =Self.Width
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddMeasures]))
+            Size: =17
+            Text: ="4"
+            Visible: =(isNewBacklogItem && CurrentStep<=4) || !isNewBacklogItem
+            Width: =32
+            X: ='NavNumLabel-Step1_4'.X+(130*3)
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =29
+
+        "'NavLabel-Step3_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddTools], RGBA(0, 0, 0, 1), RGBA(102,102,102,1))
+            FontWeight: =If(App.ActiveScreen=[@AddTools], Semibold, Normal)
+            Height: ='NavLabel-Step1_4'.Height
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddTools]))
+            Text: ="Tools"
+            Width: =110
+            X: ='NavNumLabel-Step3_4'.X-(('NavLabel-Step3_4'.Width-'NavNumLabel-Step3_4'.Width)/2)
+            Y: ='NavLabel-Step1_4'.Y
+            ZIndex: =30
+
+        "'NavIcon-Step3_4' As circle":
+            Fill: =If(App.ActiveScreen=[@AddTools], RGBA(222,236,249,1), If(isNewBacklogItem && CurrentStep>=3, RGBA(206,240,205,1), RGBA(234,234,234,1)))
+            Height: =Self.Width
+            Width: ='NavNumLabel-Step3_4'.Width
+            X: ='NavNumLabel-Step3_4'.X
+            Y: ='NavNumLabel-Step3_4'.Y
+            ZIndex: =31
+
+        "'NavIconCheck-Step3_4' As icon.Check":
+            Color: =RGBA(9, 107, 41, 1)
+            Height: ='NavNumLabel-Step3_4'.Height
+            Icon: =Icon.Check
+            PaddingBottom: =5
+            PaddingLeft: =5
+            PaddingRight: =5
+            PaddingTop: =5
+            Visible: =isNewBacklogItem && CurrentStep>3
+            Width: ='NavNumLabel-Step3_4'.Width
+            X: ='NavNumLabel-Step3_4'.X
+            Y: ='NavNumLabel-Step3_4'.Y
+            ZIndex: =32
+
+        "'NavNumLabel-Step3_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddTools], RGBA(0,0,0,1), If(isNewBacklogItem && CurrentStep>=3, RGBA(0,0,0,0), RGBA(102,102,102,1)))
+            Height: =Self.Width
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddTools]))
+            Size: =17
+            Text: ="3"
+            Visible: =(isNewBacklogItem && CurrentStep<=3) || !isNewBacklogItem
+            Width: =32
+            X: ='NavNumLabel-Step1_4'.X+(130*2)
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =33
+
+        "'NavLabel-Step2_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddPersonas], RGBA(0, 0, 0, 1), RGBA(102,102,102,1))
+            FontWeight: =If(App.ActiveScreen=[@AddPersonas], Semibold, Normal)
+            Height: ='NavLabel-Step1_4'.Height
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddPersonas]))
+            Text: |-
+                ="Affected
+                people"
+            Width: =110
+            X: ='NavNumLabel-Step2_4'.X-(('NavLabel-Step2_4'.Width-'NavNumLabel-Step2_4'.Width)/2)
+            Y: ='NavLabel-Step1_4'.Y
+            ZIndex: =34
+
+        "'NavIcon-Step2_4' As circle":
+            Fill: =If(App.ActiveScreen=[@AddPersonas], RGBA(222,236,249,1), If(isNewBacklogItem && CurrentStep>=2, RGBA(206,240,205,1), RGBA(234,234,234,1)))
+            Height: =Self.Width
+            Width: ='NavNumLabel-Step2_4'.Width
+            X: ='NavNumLabel-Step2_4'.X
+            Y: ='NavNumLabel-Step2_4'.Y
+            ZIndex: =35
+
+        "'NavIconCheck-Step2_4' As icon.Check":
+            Color: =RGBA(9, 107, 41, 1)
+            Height: ='NavNumLabel-Step2_4'.Height
+            Icon: =Icon.Check
+            PaddingBottom: =5
+            PaddingLeft: =5
+            PaddingRight: =5
+            PaddingTop: =5
+            Visible: =isNewBacklogItem && CurrentStep>2
+            Width: ='NavNumLabel-Step2_4'.Width
+            X: ='NavNumLabel-Step2_4'.X
+            Y: ='NavNumLabel-Step2_4'.Y
+            ZIndex: =36
+
+        "'NavNumLabel-Step2_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@AddPersonas], RGBA(0,0,0,1), If(isNewBacklogItem && CurrentStep>=2, RGBA(0,0,0,0), RGBA(102,102,102,1)))
+            Height: =Self.Width
+            OnSelect: =If(!isNewBacklogItem, Navigate([@AddPersonas]))
+            Size: =17
+            Text: ="2"
+            Visible: =(isNewBacklogItem && CurrentStep<=2) || !isNewBacklogItem
+            Width: =32
+            X: ='NavNumLabel-Step1_4'.X+(130*1)
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =37
+
+        "'NavLabel-Step1_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=BasicInfo, RGBA(0, 0, 0, 1), RGBA(102,102,102,1))
+            FontWeight: =If(App.ActiveScreen=BasicInfo, Semibold, Normal)
+            Height: =50
+            OnSelect: =If(!isNewBacklogItem, Navigate([@BasicInfo]))
+            Text: ="Idea"
+            Width: =110
+            X: ='NavNumLabel-Step1_4'.X-(('NavLabel-Step1_4'.Width-'NavNumLabel-Step1_4'.Width)/2)
+            Y: ='NavNumLabel-Step1_4'.Y+'NavNumLabel-Step1_4'.Height+5
+            ZIndex: =38
+
+        "'NavIcon-Step1_4' As circle":
+            Fill: =If(App.ActiveScreen=[@BasicInfo], RGBA(222,236,249,1), If(isNewBacklogItem && CurrentStep>=1, RGBA(206,240,205,1), RGBA(234,234,234,1)))
+            Height: =Self.Width
+            Width: ='NavNumLabel-Step1_4'.Width
+            X: ='NavNumLabel-Step1_4'.X
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =39
+
+        "'NavIconCheck-Step1_4' As icon.Check":
+            Color: =RGBA(9, 107, 41, 1)
+            Height: ='NavNumLabel-Step1_4'.Height
+            Icon: =Icon.Check
+            PaddingBottom: =5
+            PaddingLeft: =5
+            PaddingRight: =5
+            PaddingTop: =5
+            Visible: =isNewBacklogItem && CurrentStep>1
+            Width: ='NavNumLabel-Step1_4'.Width
+            X: ='NavNumLabel-Step1_4'.X
+            Y: ='NavNumLabel-Step1_4'.Y
+            ZIndex: =40
+
+        "'NavNumLabel-Step1_4' As label":
+            Align: =Center
+            Color: =If(App.ActiveScreen=[@BasicInfo], RGBA(0,0,0,1), If(isNewBacklogItem && CurrentStep>=1, RGBA(0,0,0,0), RGBA(102,102,102,1)))
+            Height: =Self.Width
+            OnSelect: =If(!isNewBacklogItem, Navigate([@BasicInfo]))
+            Size: =17
+            Text: ="1"
+            Visible: =(isNewBacklogItem && CurrentStep<=1) || !isNewBacklogItem
+            Width: =32
+            X: =350
+            Y: =75
+            ZIndex: =41
+
+    AddWorfklowTaskbar As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =48
+
+        AddWorkflowTaskbarBox As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =48
+            Width: =1366
+            Y: =166
+            ZIndex: =1
+
+        AddWorkflowRow As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =32
+            OnSelect: |-
+                =Collect(MyWorkflow, {rowIndex: CountRows(MyWorkflow)+1, curSelected:false, rowTool: " ", rowToolID: "", rowToolGUID: "", rowPersona: "", rowNote: "", rowRecording: ""})
+            Text: ="Add Step"
+            Width: =89
+            X: =697
+            Y: =172
+            ZIndex: =4
+
+        AddWorkflowRowIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.Add
+            OnSelect: |-
+                =Collect(MyWorkflow, {rowIndex: CountRows(MyWorkflow)+1, curSelected:false, rowTool: " ", rowToolID: "", rowToolGUID: "", rowPersona: "", rowNote: "", rowRecording: ""})
+            Width: =20
+            X: =673
+            Y: =178
+            ZIndex: =5
+
+        AddWorkflowPersona As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =32
+            OnSelect: |-
+                =Select('save workflow_basecode');
+                Set(SentFromAddWorfklow, true);
+                Navigate(AddPersonas)
+            Text: ="Add workflow participant"
+            Width: =215
+            X: =811
+            Y: =172
+            ZIndex: =6
+
+        AddWorkflowPersonaIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.Add
+            OnSelect: |-
+                =Select('save workflow_basecode');
+                Set(SentFromAddWorfklow, true);
+                Navigate(AddPersonas)
+            Width: =20
+            X: =788
+            Y: =178
+            ZIndex: =7
+
+        AddWorkflowTool As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =32
+            OnSelect: |-
+                =Select('save workflow_basecode');
+                Set(SentFromAddWorfklow, true);
+                Navigate(AddTools)
+            Text: ="Add tool"
+            Width: =81
+            X: =1053
+            Y: =172
+            ZIndex: =8
+
+        AddWorkflowToolIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.Add
+            OnSelect: |-
+                =Select('save workflow_basecode');
+                Set(SentFromAddWorfklow, true);
+                Navigate(AddTools)
+            Width: =20
+            X: =1029
+            Y: =178
+            ZIndex: =9
+
+        WorkflowReset As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =32
+            OnSelect: |-
+                =Clear(MyWorkflow);
+                
+                //reload the workflow from backend into MyWorkflow
+                ForAll(Filter('Backlog Item Workflows',BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),Collect(MyWorkflow,
+                      {rowIndex:WorkflowStepIndex,curSelected: false,
+                      rowTool:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').'Display Name',
+                      rowToolID:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').ID,
+                      rowToolGUID:WorfklowStepTool.'Innovation Backlog Tool',rowPersonaDisplay:WorkflowStepPersona,
+                      rowPersonaSearch:WorkflowStepPersonaSearch,rowNote:WorkflowStepNote,
+                      rowToolIcon:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').Icon}));
+                      
+                UpdateIf(MyWorkflow, true ,{rowToolIconNonURL:LookUp(AvailableToolsAll,colAllToolGUID=GUID(rowToolGUID)).'Icon Non URL'});
+            Text: ="Reset"
+            Width: =71
+            X: =1171
+            Y: =172
+            ZIndex: =10
+
+        WorkflowResetIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.Reload
+            OnSelect: |-
+                =Clear(MyWorkflow);
+                
+                //reload the workflow from backend into MyWorkflow
+                ForAll(Filter('Backlog Item Workflows',BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),Collect(MyWorkflow,
+                      {rowIndex:WorkflowStepIndex,curSelected: false,
+                      rowTool:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').'Display Name',
+                      rowToolID:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').ID,
+                      rowToolGUID:WorfklowStepTool.'Innovation Backlog Tool',rowPersonaDisplay:WorkflowStepPersona,
+                      rowPersonaSearch:WorkflowStepPersonaSearch,rowNote:WorkflowStepNote,
+                      rowToolIcon:LookUp(AvailableToolsAll,colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').Icon}));
+                      
+                UpdateIf(MyWorkflow, true ,{rowToolIconNonURL:LookUp(AvailableToolsAll,colAllToolGUID=GUID(rowToolGUID)).'Icon Non URL'});
+            Width: =20
+            X: =1147
+            Y: =178
+            ZIndex: =11
+
+        WorkflowSave As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =32
+            OnSelect: |-
+                =//clean up old WF Items
+                Remove('Backlog Item Workflows', Filter('Backlog Item Workflows', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid));
+                
+                //add new ones
+                ForAll(MyWorkflow, Patch('Backlog Item Workflows', Defaults('Backlog Item Workflows'), 
+                {Name: OurWorkitem.admin_displayname& " " & rowIndex, 
+                BacklogItem: OurWorkitem, 
+                IdeaStatus: OurIdea.IdeaStatus,
+                WorfklowStepTool: LookUp('Innovation Backlog Tools', ID=rowToolID), 
+                WorkflowStepPersona: rowPersonaDisplay,
+                WorkflowStepPersonaSearch: rowPersonaSearch,
+                WorkflowStepIndex: rowIndex, 
+                WorkflowStepNote: rowNote,
+                WorkflowStepRecording: rowRecording}));
+                
+                //update variables 
+                If(CountRows(MyWorkflow)>0, Set(WFExists, true));
+                If(WFExists, Set(WFisInline, true);Set(WFisFile, false);Set(WFisLink, false));
+                
+                //update number of steps
+                If(WFExists,
+                UpdateIf('Innovation Backlog Workitems', 'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid, {WorkflowNumberSteps: CountRows(MyWorkflow), WorkflowIsDocument: 'WorkflowIsDocument (Innovation Backlog Workitems)'.No});
+                //refetch
+                Set(OurWorkitem, LookUp('Innovation Backlog Workitems', 'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid)));
+            Text: ="Save"
+            Width: =63
+            X: =1278
+            Y: =172
+            ZIndex: =12
+
+        WorkflowSaveIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.Save
+            OnSelect: |-
+                =//clean up old WF Items
+                Remove('Backlog Item Workflows', Filter('Backlog Item Workflows', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid));
+                
+                //add new ones
+                ForAll(MyWorkflow, Patch('Backlog Item Workflows', Defaults('Backlog Item Workflows'), 
+                {Name: OurWorkitem.admin_displayname& " " & rowIndex, 
+                BacklogItem: OurWorkitem, 
+                IdeaStatus: OurIdea.IdeaStatus,
+                WorfklowStepTool: LookUp('Innovation Backlog Tools', ID=rowToolID), 
+                WorkflowStepPersona: rowPersonaDisplay,
+                WorkflowStepPersonaSearch: rowPersonaSearch,
+                WorkflowStepIndex: rowIndex, 
+                WorkflowStepNote: rowNote,
+                WorkflowStepRecording: rowRecording}));
+                
+                //update variables 
+                If(CountRows(MyWorkflow)>0, Set(WFExists, true));
+                If(WFExists, Set(WFisInline, true);Set(WFisFile, false);Set(WFisLink, false));
+                
+                //update number of steps
+                If(WFExists,
+                UpdateIf('Innovation Backlog Workitems', 'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid, {WorkflowNumberSteps: CountRows(MyWorkflow), WorkflowIsDocument: 'WorkflowIsDocument (Innovation Backlog Workitems)'.No});
+                //refetch
+                Set(OurWorkitem, LookUp('Innovation Backlog Workitems', 'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid)));
+            Width: =20
+            X: =1255
+            Y: =178
+            ZIndex: =13
+
+        WorkflowBack As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =32
+            OnSelect: =Navigate([@AddWorkflow]);
+            Text: ="Back to worfklow"
+            Width: =201
+            X: =38
+            Y: =172
+            ZIndex: =14
+
+        WorkflowBackIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.ArrowLeft
+            OnSelect: =Navigate([@AddWorkflow]);
+            Width: =20
+            X: =14
+            Y: =178
+            ZIndex: =15
+

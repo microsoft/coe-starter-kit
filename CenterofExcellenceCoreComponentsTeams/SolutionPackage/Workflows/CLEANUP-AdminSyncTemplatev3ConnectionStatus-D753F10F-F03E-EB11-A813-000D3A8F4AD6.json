@@ -1,0 +1,1202 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_flowmanagement_1": {
+        "api": {
+          "name": "shared_flowmanagement"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Clean_App_Connection_Status": {
+          "actions": {
+            "Apply_to_each": {
+              "actions": {
+                "GetConnectionReferences": {
+                  "description": "Because some data sources like CDS are not in the connection refs list for apps, there will be apps that do not have any value for this object. Need to be able to catch that case.  ",
+                  "inputs": "@outputs('Get_App_as_Admin')?['body/properties/connectionReferences']",
+                  "runAfter": {
+                    "Get_App_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Get_App_as_Admin": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                      "connectionName": "shared_powerappsforadmins",
+                      "operationId": "Get-AdminApp"
+                    },
+                    "parameters": {
+                      "api-version": "2016-11-01",
+                      "app": "@items('Apply_to_each')?['admin_appid']",
+                      "environment": "@outputs('Get_app_environment_for_name')?['body/admin_environmentname']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_app_environment_for_name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_app_environment_for_name": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "$select": "admin_environmentname",
+                      "entityName": "admin_environments",
+                      "recordId": "@items('Apply_to_each')?['_admin_appenvironment_value']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "ReSet_hasBadConnections": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "ReSet_hasBadConnections": {
+                  "inputs": {
+                    "name": "hasBadConnections",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "See_if_any_connection_references_exist_": {
+                  "actions": {
+                    "Apply_to_each_Connection_Reference": {
+                      "actions": {
+                        "Connecor_Name": {
+                          "inputs": "@last(outputs('split_on_slash'))",
+                          "runAfter": {
+                            "split_on_slash": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Compose"
+                        },
+                        "ConnectorID": {
+                          "inputs": "@items('Apply_to_each_Connection_Reference')['id']",
+                          "runAfter": {},
+                          "type": "Compose"
+                        },
+                        "Filter_current_app_Connector": {
+                          "inputs": {
+                            "from": "@outputs('List_Connectors')?['body/value']",
+                            "where": "@equals(item()?['admin_name'], outputs('Connecor_Name'))"
+                          },
+                          "runAfter": {
+                            "Connecor_Name": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Query"
+                        },
+                        "mark_hasBadConnections_to_true_if_not_found": {
+                          "actions": {
+                            "Set_variable_hasBadConnections_to_true": {
+                              "inputs": {
+                                "name": "hasBadConnections",
+                                "value": "@true"
+                              },
+                              "runAfter": {},
+                              "type": "SetVariable"
+                            }
+                          },
+                          "expression": {
+                            "less": [
+                              "@length(body('Filter_current_app_Connector'))",
+                              1
+                            ]
+                          },
+                          "runAfter": {
+                            "Filter_current_app_Connector": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "split_on_slash": {
+                          "inputs": "@split(outputs('ConnectorID'), '/')",
+                          "runAfter": {
+                            "ConnectorID": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Compose"
+                        }
+                      },
+                      "foreach": "@body('Filter_non_custom')",
+                      "runAfter": {
+                        "Filter_non_custom": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Foreach"
+                    },
+                    "Apply_to_each_Custom_Connection_Reference": {
+                      "actions": {
+                        "Connecor_Name_custom": {
+                          "inputs": "@last(outputs('split_on_slash_custom'))",
+                          "runAfter": {
+                            "split_on_slash_custom": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Compose"
+                        },
+                        "ConnectorID_custom": {
+                          "inputs": "@items('Apply_to_each_Custom_Connection_Reference')['id']",
+                          "runAfter": {},
+                          "type": "Compose"
+                        },
+                        "Filter_current_app_Connector_custom": {
+                          "inputs": {
+                            "from": "@outputs('List_Connectors')?['body/value']",
+                            "where": "@equals(item()?['admin_name'], outputs('Connecor_Name_custom'))"
+                          },
+                          "runAfter": {
+                            "Connecor_Name_custom": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Query"
+                        },
+                        "mark_hasBadConnections_to_true_if_not_found_for_Custom": {
+                          "actions": {
+                            "Set_variable_hasBadConnections_to_true_for_Custom": {
+                              "inputs": {
+                                "name": "hasBadConnections",
+                                "value": "@true"
+                              },
+                              "runAfter": {},
+                              "type": "SetVariable"
+                            }
+                          },
+                          "expression": {
+                            "less": [
+                              "@length(body('Filter_current_app_Connector_custom'))",
+                              1
+                            ]
+                          },
+                          "runAfter": {
+                            "Filter_current_app_Connector_custom": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "split_on_slash_custom": {
+                          "inputs": "@split(outputs('ConnectorID_custom'), '/')",
+                          "runAfter": {
+                            "ConnectorID_custom": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Compose"
+                        }
+                      },
+                      "foreach": "@body('Filter_custom')",
+                      "runAfter": {
+                        "Filter_custom": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Foreach"
+                    },
+                    "Filter_custom": {
+                      "inputs": {
+                        "from": "@body('Parse_Connection_Ref_JSON')",
+                        "where": "@equals(item()['isCustomApiConnection'], true)"
+                      },
+                      "runAfter": {
+                        "Apply_to_each_Connection_Reference": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Query"
+                    },
+                    "Filter_non_custom": {
+                      "inputs": {
+                        "from": "@body('Parse_Connection_Ref_JSON')",
+                        "where": "@equals(item()['isCustomApiConnection'], false)"
+                      },
+                      "runAfter": {
+                        "Parse_Connection_Ref_JSON": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Query"
+                    },
+                    "Parse_Connection_Ref_JSON": {
+                      "inputs": {
+                        "content": "@outputs('Get_App_as_Admin')?['body/properties/connectionReferences']",
+                        "schema": {
+                          "items": {
+                            "properties": {
+                              "apiTier": {
+                                "type": "string"
+                              },
+                              "bypassConsent": {
+                                "type": "boolean"
+                              },
+                              "displayName": {
+                                "type": "string"
+                              },
+                              "iconUri": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "isCustomApiConnection": {
+                                "type": "boolean"
+                              },
+                              "isOnPremiseConnection": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "isCustomApiConnection",
+                              "id"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "ParseJson"
+                    },
+                    "if_any_connectors_did_not_resolve,_mark_this_app_as_having_broken_connections": {
+                      "actions": {
+                        "Mark_app_as_having_broken_connections": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "UpdateRecord"
+                            },
+                            "parameters": {
+                              "entityName": "admin_apps",
+                              "item/admin_appcontainsbrokenconnections": true,
+                              "recordId": "@outputs('Get_App_as_Admin')?['body/name']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Mark_app_as_NOT_having_broken_connections": {
+                            "inputs": {
+                              "authentication": "@parameters('$authentication')",
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "UpdateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_apps",
+                                "item/admin_appcontainsbrokenconnections": false,
+                                "recordId": "@outputs('Get_App_as_Admin')?['body/name']"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@variables('hasBadConnections')",
+                          "@true"
+                        ]
+                      },
+                      "runAfter": {
+                        "Apply_to_each_Custom_Connection_Reference": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Mark_app_as_NOT_having_broken_connections_-_no_connections_case": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "admin_apps",
+                            "item/admin_appcontainsbrokenconnections": false,
+                            "recordId": "@outputs('Get_App_as_Admin')?['body/name']"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {
+                          "Note:_need_to_add_search_for_data_sources_like_CDS_": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "Note:_need_to_add_search_for_data_sources_like_CDS_": {
+                        "inputs": "for now we assume connections stored elsewhere are fine. This needs redone later.",
+                        "runAfter": {},
+                        "type": "Compose"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@outputs('GetConnectionReferences')",
+                        "@null"
+                      ]
+                    }
+                  },
+                  "runAfter": {
+                    "GetConnectionReferences": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                }
+              },
+              "foreach": "@outputs('List_Apps_with_Unresolved_Connections')?['body/value']",
+              "runAfter": {
+                "List_Apps_with_Unresolved_Connections": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "List_Apps_with_Unresolved_Connections": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_appcontainsbrokenconnections ne false and admin_powerappstype ne 597910001 and admin_appdeleted eq false",
+                  "$select": "admin_appid, _admin_appenvironment_value",
+                  "entityName": "admin_apps"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Get_Failure_Status_Flows": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Clean_Flow_Connection_Status": {
+          "actions": {
+            "Apply_to_each_2": {
+              "actions": {
+                "Apply_to_each_Connection_Reference_2": {
+                  "actions": {
+                    "Connecor_Name_2": {
+                      "inputs": "@last(outputs('split_on_slash_2'))",
+                      "runAfter": {
+                        "split_on_slash_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "ConnectorID_2": {
+                      "inputs": "@items('Apply_to_each_Connection_Reference_2')['id']",
+                      "runAfter": {},
+                      "type": "Compose"
+                    },
+                    "Filter_current_app_Connector_2": {
+                      "inputs": {
+                        "from": "@outputs('List_Connectors')?['body/value']",
+                        "where": "@equals(item()?['admin_name'], outputs('Connecor_Name_2'))"
+                      },
+                      "runAfter": {
+                        "Connecor_Name_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Query"
+                    },
+                    "mark_hasBadConnections_to_true_if_not_found_2": {
+                      "actions": {
+                        "Set_variable_hasBadConnections_to_true_2": {
+                          "inputs": {
+                            "name": "hasBadConnections",
+                            "value": "@true"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        }
+                      },
+                      "expression": {
+                        "less": [
+                          "@length(body('Filter_current_app_Connector_2'))",
+                          1
+                        ]
+                      },
+                      "runAfter": {
+                        "Filter_current_app_Connector_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "split_on_slash_2": {
+                      "inputs": "@split(outputs('ConnectorID_2'), '/')",
+                      "runAfter": {
+                        "ConnectorID_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    }
+                  },
+                  "foreach": "@body('Filter_non_custom_2')",
+                  "runAfter": {
+                    "Filter_non_custom_2": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "Apply_to_each_Custom_Connection_Reference_2": {
+                  "actions": {
+                    "Connecor_Name_custom_2": {
+                      "inputs": "@last(outputs('split_on_slash_custom_2'))",
+                      "runAfter": {
+                        "split_on_slash_custom_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "ConnectorID_custom_2": {
+                      "inputs": "@items('Apply_to_each_Custom_Connection_Reference_2')['id']",
+                      "runAfter": {},
+                      "type": "Compose"
+                    },
+                    "Filter_current_app_Connector_custom_2": {
+                      "inputs": {
+                        "from": "@outputs('List_Connectors')?['body/value']",
+                        "where": "@equals(item()?['admin_name'], outputs('Connecor_Name_custom_2'))"
+                      },
+                      "runAfter": {
+                        "Connecor_Name_custom_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Query"
+                    },
+                    "mark_hasBadConnections_to_true_if_not_found_for_Custom_2": {
+                      "actions": {
+                        "Set_variable_hasBadConnections_to_true_for_Custom_2": {
+                          "inputs": {
+                            "name": "hasBadConnections",
+                            "value": "@true"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        }
+                      },
+                      "expression": {
+                        "less": [
+                          "@length(body('Filter_current_app_Connector_custom_2'))",
+                          1
+                        ]
+                      },
+                      "runAfter": {
+                        "Filter_current_app_Connector_custom_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "split_on_slash_custom_2": {
+                      "inputs": "@split(outputs('ConnectorID_custom_2'), '/')",
+                      "runAfter": {
+                        "ConnectorID_custom_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    }
+                  },
+                  "foreach": "@body('Filter_custom_2')",
+                  "runAfter": {
+                    "Filter_custom_2": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "Filter_custom_2": {
+                  "inputs": {
+                    "from": "@body('Parse_Connection_Ref_JSON_2')",
+                    "where": "@equals(item()?['apiDefinition']?['properties']?['isCustomApi'], true)"
+                  },
+                  "runAfter": {
+                    "Apply_to_each_Connection_Reference_2": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query"
+                },
+                "Filter_non_custom_2": {
+                  "inputs": {
+                    "from": "@body('Parse_Connection_Ref_JSON_2')",
+                    "where": "@equals(item()?['apiDefinition']?['properties']?['isCustomApi'], false)"
+                  },
+                  "runAfter": {
+                    "Parse_Connection_Ref_JSON_2": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query"
+                },
+                "Get_Flow_as_Admin": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                      "connectionName": "shared_flowmanagement_1",
+                      "operationId": "AdminGetFlow"
+                    },
+                    "parameters": {
+                      "environmentName": "@outputs('Get_flow_environment_for_name')?['body/admin_environmentname']",
+                      "flowName": "@items('Apply_to_each_2')?['admin_flowid']"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_flow_environment_for_name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_flow_environment_for_name": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "$select": "admin_environmentname",
+                      "entityName": "admin_environments",
+                      "recordId": "@items('Apply_to_each_2')?['_admin_flowenvironment_value']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "ReSet_hasBadConnections_flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Parse_Connection_Ref_JSON_2": {
+                  "inputs": {
+                    "content": "@outputs('Get_Flow_as_Admin')?['body/properties/connectionReferences']",
+                    "schema": {
+                      "items": {
+                        "properties": {
+                          "apiDefinition": {
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "properties": {
+                                "properties": {
+                                  "capabilities": {
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "changedTime": {
+                                    "type": "string"
+                                  },
+                                  "connectionParameters": {
+                                    "properties": {
+                                      "token": {
+                                        "properties": {
+                                          "oAuthSettings": {
+                                            "properties": {
+                                              "clientId": {
+                                                "type": "string"
+                                              },
+                                              "customParameters": {
+                                                "properties": {
+                                                  "loginUri": {
+                                                    "properties": {
+                                                      "value": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "type": "object"
+                                                  },
+                                                  "loginUriAAD": {
+                                                    "properties": {
+                                                      "value": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "type": "object"
+                                                  },
+                                                  "resourceUri": {
+                                                    "properties": {
+                                                      "value": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                "type": "object"
+                                              },
+                                              "identityProvider": {
+                                                "type": "string"
+                                              },
+                                              "properties": {
+                                                "properties": {
+                                                  "AzureActiveDirectoryResourceId": {
+                                                    "type": "string"
+                                                  },
+                                                  "IsFirstParty": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "type": "object"
+                                              },
+                                              "redirectMode": {
+                                                "type": "string"
+                                              },
+                                              "redirectUrl": {
+                                                "type": "string"
+                                              },
+                                              "scopes": {
+                                                "type": "array"
+                                              }
+                                            },
+                                            "type": "object"
+                                          },
+                                          "type": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "type": "object"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "createdTime": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "displayName": {
+                                    "type": "string"
+                                  },
+                                  "iconUri": {
+                                    "type": "string"
+                                  },
+                                  "isCustomApi": {
+                                    "type": "boolean"
+                                  },
+                                  "metadata": {
+                                    "properties": {
+                                      "brandColor": {
+                                        "type": "string"
+                                      },
+                                      "source": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "properties": {
+                                          "current": {
+                                            "type": "string"
+                                          },
+                                          "previous": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "type": "object"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "primaryRuntimeUrl": {
+                                    "type": "string"
+                                  },
+                                  "purpose": {
+                                    "type": "string"
+                                  },
+                                  "runtimeUrls": {
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "scopes": {
+                                    "properties": {
+                                      "will": {
+                                        "type": "array"
+                                      },
+                                      "wont": {
+                                        "type": "array"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "tier": {
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object"
+                              },
+                              "type": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Flow_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "ReSet_hasBadConnections_flows": {
+                  "inputs": {
+                    "name": "hasBadConnections",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "if_any_connectors_did_not_resolve,_mark_this_flow_as_having_broken_connections": {
+                  "actions": {
+                    "Mark_flow_as_having_broken_connections": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_flows",
+                          "item/admin_flowcontainsbrokenconnections": true,
+                          "recordId": "@outputs('Get_Flow_as_Admin')?['body/name']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Mark_flow_as_NOT_having_broken_connections": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "admin_flows",
+                            "item/admin_flowcontainsbrokenconnections": false,
+                            "recordId": "@outputs('Get_Flow_as_Admin')?['body/name']"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('hasBadConnections')",
+                      "@true"
+                    ]
+                  },
+                  "runAfter": {
+                    "Apply_to_each_Custom_Connection_Reference_2": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                }
+              },
+              "foreach": "@outputs('List_Flows_with_Unresolved_Connections')?['body/value']",
+              "runAfter": {
+                "List_Flows_with_Unresolved_Connections": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "List_Flows_with_Unresolved_Connections": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_flowcontainsbrokenconnections ne false and admin_flowdeleted eq false",
+                  "$select": "admin_flowid, _admin_flowenvironment_value",
+                  "entityName": "admin_flows"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "List_Connectors": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Connection_Status_-_Error_Handling": {
+          "actions": {
+            "if_either_failed_above,_fail": {
+              "actions": {
+                "Create_a_new_record_-_Sync_Flow_Errors": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "CreateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_syncflowerrorses",
+                      "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                      "item/admin_name": "Admin | Sync Template v3 (Connection Status)"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Terminate": {
+                  "inputs": {
+                    "runError": {
+                      "code": "500",
+                      "message": "Connection Status failed"
+                    },
+                    "runStatus": "Failed"
+                  },
+                  "runAfter": {
+                    "Create_a_new_record_-_Sync_Flow_Errors": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Terminate"
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@variables('FlowFailed')",
+                  "@true"
+                ]
+              },
+              "runAfter": {},
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Get_Failure_Status_Apps": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Failure_Status_Apps": {
+          "actions": {
+            "Set_variable": {
+              "inputs": {
+                "name": "FlowFailed",
+                "value": "@true"
+              },
+              "runAfter": {},
+              "type": "SetVariable"
+            }
+          },
+          "runAfter": {
+            "Clean_App_Connection_Status": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Failure_Status_Flows": {
+          "actions": {
+            "Set_variable_2": {
+              "inputs": {
+                "name": "FlowFailed",
+                "value": "@true"
+              },
+              "runAfter": {},
+              "type": "SetVariable"
+            }
+          },
+          "runAfter": {
+            "Clean_Flow_Connection_Status": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_FlowFailed": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "FlowFailed",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_hasBadConnections": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_hasBadConnections": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "hasBadConnections",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_FlowFailed": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "List_Connectors": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$select": "admin_name",
+              "entityName": "admin_connectors"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
