@@ -1,0 +1,736 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_2": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users_3": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_webcontents_1": {
+        "api": {
+          "name": "shared_webcontents"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreHTTPAZUREAD"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Apply_to_each_maker": {
+          "actions": {
+            "Get_Maker_Profile": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                  "connectionName": "shared_office365users_3",
+                  "operationId": "UserProfile_V2"
+                },
+                "parameters": {
+                  "$select": "statusCode, id",
+                  "id": "@items('Apply_to_each_maker')?['admin_makerid']"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Switch": {
+              "cases": {
+                "200_Success_-_update_manager": {
+                  "actions": {
+                    "Get_manager": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                          "connectionName": "shared_office365users_3",
+                          "operationId": "Manager_V2"
+                        },
+                        "parameters": {
+                          "$select": "userPrincipalName, statusCode, id",
+                          "id": "@outputs('Get_Maker_Profile')?['body/id']"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    },
+                    "Switch_on_Get_Manager": {
+                      "cases": {
+                        "Case_200_Found": {
+                          "actions": {
+                            "Catch_-_no_M2_manager": {
+                              "inputs": "Catch - no M2 manager",
+                              "runAfter": {
+                                "Get_managers_manager": [
+                                  "Failed"
+                                ]
+                              },
+                              "type": "Compose"
+                            },
+                            "Get_managers_manager": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                  "connectionName": "shared_office365users_3",
+                                  "operationId": "Manager_V2"
+                                },
+                                "parameters": {
+                                  "$select": "userPrincipalName",
+                                  "id": "@outputs('Get_manager')?['body/userPrincipalName']"
+                                }
+                              },
+                              "runAfter": {
+                                "Update_Manager": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Update_M2_Manager": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "item/admin_m2managerprinciplename": "@outputs('Get_managers_manager')?['body/userPrincipalName']",
+                                  "recordId": "@items('Apply_to_each_maker')?['admin_makerid']"
+                                }
+                              },
+                              "runAfter": {
+                                "Catch_-_no_M2_manager": [
+                                  "Skipped"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Update_Manager": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "item/admin_managerprinciplename": "@outputs('Get_manager')?['body/userPrincipalName']",
+                                  "recordId": "@items('Apply_to_each_maker')?['admin_makerid']"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "case": 200
+                        }
+                      },
+                      "default": {
+                        "actions": {}
+                      },
+                      "expression": "@outputs('Get_manager')['statusCode']",
+                      "runAfter": {
+                        "Get_manager": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      },
+                      "type": "Switch"
+                    }
+                  },
+                  "case": 200
+                },
+                "404_Not_Found_(Maker_not_found)": {
+                  "actions": {
+                    "Look_up_in_AD_for_Service_Principles": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents",
+                          "connectionName": "shared_webcontents_1",
+                          "operationId": "InvokeHttp"
+                        },
+                        "parameters": {
+                          "request/method": "GET",
+                          "request/url": "https://graph.microsoft.com/v1.0/servicePrincipals/@{items('Apply_to_each_maker')?['admin_makerid']}"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    },
+                    "Switch_on_search_for_Service_Principle": {
+                      "cases": {
+                        "404_Not_Found_(Maker_is_orphan)": {
+                          "actions": {
+                            "Apply_to_each_UI_Flow": {
+                              "actions": {
+                                "Update_UI_Flow_(Mark_as_orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_rpas",
+                                      "item/admin_rpaisorphaned": "Yes",
+                                      "recordId": "@items('Apply_to_each_UI_Flow')?['admin_rpaid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_UI_Flows_of_maker')?['body/value']",
+                              "runAfter": {
+                                "List_UI_Flows_of_maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Apply_to_each_app": {
+                              "actions": {
+                                "Update_App_(Mark_as_orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_apps",
+                                      "item/cr5d5_appisorphaned": "Yes",
+                                      "recordId": "@items('Apply_to_each_app')?['admin_appid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_apps_of_maker')?['body/value']",
+                              "runAfter": {
+                                "List_apps_of_maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Apply_to_each_bot": {
+                              "actions": {
+                                "Update_bot_(Mark_as_orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_pvas",
+                                      "item/admin_pvaisorphaned": "Yes",
+                                      "recordId": "@items('Apply_to_each_bot')?['admin_pvaid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_bots_of_maker')?['body/value']",
+                              "runAfter": {
+                                "List_bots_of_maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Apply_to_each_connector": {
+                              "actions": {
+                                "Update_Custom_Connector_(Mark_as_Orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_connectors",
+                                      "item/admin_appisorphaned": "Yes",
+                                      "recordId": "@items('Apply_to_each_connector')?['admin_connectorid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_custom_connectors_of_maker')?['body/value']",
+                              "runAfter": {
+                                "List_custom_connectors_of_maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Apply_to_each_environment": {
+                              "actions": {
+                                "Update_Environment_(Mark_as_Orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_environments",
+                                      "item/admin_environmentisorphaned": "Yes",
+                                      "recordId": "@items('Apply_to_each_environment')?['admin_environmentid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_environments_of_maker')?['body/value']",
+                              "runAfter": {
+                                "List_environments_of_maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Apply_to_each_flow": {
+                              "actions": {
+                                "Update_Flow_(Mark_as_orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_flows",
+                                      "item/cr5d5_flowisorphaned": "Yes",
+                                      "recordId": "@items('Apply_to_each_flow')?['admin_flowid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_flows_of_maker')?['body/value']",
+                              "runAfter": {
+                                "List_flows_of_maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "List_UI_Flows_of_maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_rpaowner_value eq @{items('Apply_to_each_maker')?['admin_makerid']}",
+                                  "$select": "admin_rpaid",
+                                  "entityName": "admin_rpas"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_bot": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "List_apps_of_maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_appowner_value eq @{items('Apply_to_each_maker')?['admin_makerid']}",
+                                  "$select": "admin_appid",
+                                  "entityName": "admin_apps"
+                                }
+                              },
+                              "runAfter": {},
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "List_bots_of_maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_pvaowner_value eq @{items('Apply_to_each_maker')?['admin_makerid']}",
+                                  "$select": "admin_pvaid",
+                                  "entityName": "admin_pvas"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_flow": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "List_custom_connectors_of_maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_maker_value eq @{items('Apply_to_each_maker')?['admin_makerid']}",
+                                  "$select": "admin_connectorid",
+                                  "entityName": "admin_connectors"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_environment": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "List_environments_of_maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_maker_value eq @{items('Apply_to_each_maker')?['admin_makerid']}",
+                                  "$select": "admin_environmentid",
+                                  "entityName": "admin_environments"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_UI_Flow": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "List_flows_of_maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "(_admin_flowcreator_value eq @{items('Apply_to_each_maker')?['admin_makerid']} and _admin_derivedowner_value eq null) or _admin_derivedowner_value eq @{items('Apply_to_each_maker')?['admin_makerid']}",
+                                  "$select": "admin_flowid",
+                                  "entityName": "admin_flows"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_app": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Update_Maker_record_(mark_as_orphaned)": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "item/admin_makerisorphaned": true,
+                                  "recordId": "@items('Apply_to_each_maker')?['admin_makerid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_connector": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "case": 404
+                        }
+                      },
+                      "default": {
+                        "actions": {}
+                      },
+                      "expression": "@outputs('Look_up_in_AD_for_Service_Principles')['statusCode']",
+                      "runAfter": {
+                        "Look_up_in_AD_for_Service_Principles": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      },
+                      "type": "Switch"
+                    }
+                  },
+                  "case": 404
+                }
+              },
+              "default": {
+                "actions": {}
+              },
+              "description": "Check Status Code of Get Maker Profile - if the status if 404 (Not Found) it means the maker does no longer exist in the Office 365 Users list, and has therefore left the organisation",
+              "expression": "@outputs('Get_Maker_Profile')['statusCode']",
+              "runAfter": {
+                "Get_Maker_Profile": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "type": "Switch"
+            }
+          },
+          "foreach": "@outputs('List_Makers')?['body/value']",
+          "runAfter": {
+            "List_Makers": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Initialize_Flow_Environment_variable": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "String",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "List_Makers": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_2",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "admin_makerisorphaned ne true and admin_displayname ne 'SYSTEM'",
+              "$select": "admin_makerid",
+              "entityName": "admin_makers"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_Flow_Environment_variable": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        },
+        "Orphan_Makers_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (Orphaned Makers)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Orphan Makers Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Apply_to_each_maker": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1,
+            "schedule": {
+              "hours": [
+                "1"
+              ],
+              "weekDays": [
+                "Monday"
+              ]
+            }
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

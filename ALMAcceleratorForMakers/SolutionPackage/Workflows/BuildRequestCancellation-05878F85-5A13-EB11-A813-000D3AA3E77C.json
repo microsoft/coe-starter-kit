@@ -1,0 +1,164 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "cat_CDSConnection"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "cat_AdminConnection"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Apply_to_each": {
+          "actions": {
+            "If_Build_Environment_Exists": {
+              "actions": {
+                "Delete_Environment": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins",
+                      "operationId": "Remove-AdminEnvironment"
+                    },
+                    "parameters": {
+                      "api-version": "2018-10-01",
+                      "environment": "@items('Apply_to_each')?['cat_buildenvironment']"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(items('Apply_to_each')?['cat_buildenvironment'])",
+                  0
+                ]
+              },
+              "runAfter": {
+                "Update_Build_Request_to_Cancelled": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Update_Build_Request_to_Cancelled": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord"
+                },
+                "parameters": {
+                  "entityName": "cat_buildrequests",
+                  "item/cat_buildstatus": 809060006,
+                  "recordId": "@items('Apply_to_each')?['cat_buildrequestid']"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "foreach": "@outputs('List_records')?['body/value']",
+          "runAfter": {
+            "List_records": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Check_Status_of_Build_Request": {
+          "actions": {},
+          "else": {
+            "actions": {
+              "Terminate": {
+                "inputs": {
+                  "runStatus": "Succeeded"
+                },
+                "runAfter": {},
+                "type": "Terminate"
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/cat_deploymentstatus']",
+              809060013
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "List_records": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "_cat_project_value eq '@{triggerOutputs()?['body/cat_projectid']}'",
+              "$orderby": "createdon desc",
+              "$top": 1,
+              "entityName": "cat_buildrequests"
+            }
+          },
+          "runAfter": {
+            "Check_Status_of_Build_Request": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "When_a_BuildRequest_in_Cancelled": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "cat_project",
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/scope": 2
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

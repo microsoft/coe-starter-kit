@@ -1,0 +1,1857 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice_1": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_CDS,_terminate_if_false": {
+          "actions": {
+            "Not_CDS_so_no_PVA_Bots": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_hascds']",
+              "@false"
+            ]
+          },
+          "runAfter": {
+            "Check_if_Environment_Deleted,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_if_Dev_SKU,_terminate_if_true": {
+          "actions": {
+            "Inquiry_not_supported_for_Dev_Sku": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentsku']",
+              "Developer"
+            ]
+          },
+          "runAfter": {
+            "Check_if_CDS,_terminate_if_false": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_if_Environment_Deleted,_terminate_if_true": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentdeleted']",
+              "@true"
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "Exit_if_no_bots_in_envt": {
+          "actions": {
+            "List_Bots": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                  "connectionName": "shared_commondataservice_1",
+                  "operationId": "GetItems_V2"
+                },
+                "parameters": {
+                  "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                  "table": "bots"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "Quit_if_no_bots": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {
+                "List_Bots": [
+                  "Failed"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Get_Environment_from_Tenant": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Environment_from_Tenant": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+              "connectionName": "shared_powerplatformforadmins",
+              "operationId": "GetSingleEnvironment"
+            },
+            "parameters": {
+              "api-version": "2020-06-01",
+              "environment": "@triggerOutputs()?['body/admin_environmentname']"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Check_if_Dev_SKU,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Get_PVA_fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (PVA)"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get PVAs Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Put_Bots_in_CoE": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_ChangedBots": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ChangedBots",
+                "type": "array"
+              }
+            ]
+          },
+          "runAfter": {
+            "Exit_if_no_bots_in_envt": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_isFlowAction": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isFlowAction",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_ChangedBots": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_varLastLaunched": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varLastLaunched",
+                "type": "string",
+                "value": "1990-01-01T15:24:42Z"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varNumberConvos": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_varNumberConvos": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varNumberConvos",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_isFlowAction": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_BotNeedsUpdateToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "BotNeedsUpdateToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_fullInventory": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullInventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varLastLaunched": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_today": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_BotNeedsUpdateToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Put_Bots_in_CoE": {
+          "actions": {
+            "For_Each_Bot": {
+              "actions": {
+                "Get_Bot_Creator": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                      "connectionName": "shared_commondataservice_1",
+                      "operationId": "GetItem_V2"
+                    },
+                    "parameters": {
+                      "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                      "id": "@body('Parse_Bot_JSON')?['_ownerid_value']",
+                      "table": "systemusers"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_Bot_JSON": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_PVA_from_CoE": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvas",
+                      "recordId": "@body('Parse_Bot_JSON')?['ItemInternalId']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Bot_Creator": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_Usage": {
+                  "actions": {
+                    "Apply_to_each": {
+                      "actions": {
+                        "Increment_varNumberConvos": {
+                          "inputs": {
+                            "name": "varNumberConvos",
+                            "value": 1
+                          },
+                          "runAfter": {},
+                          "type": "IncrementVariable"
+                        },
+                        "Parse_conversation_JSON": {
+                          "inputs": {
+                            "content": "@items('Apply_to_each')",
+                            "schema": {
+                              "properties": {
+                                "@@odata.etag": {
+                                  "type": "string"
+                                },
+                                "@@odata.id": {
+                                  "type": "string"
+                                },
+                                "conversationstarttime": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "runAfter": {
+                            "Increment_varNumberConvos": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "ParseJson"
+                        },
+                        "See_if_more_recent_convo": {
+                          "actions": {
+                            "Set_BotNeedsUpdateToCoE_to_true": {
+                              "inputs": {
+                                "name": "BotNeedsUpdateToCoE",
+                                "value": "@true"
+                              },
+                              "runAfter": {
+                                "Set_varLastLaunched": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "SetVariable"
+                            },
+                            "Set_varLastLaunched": {
+                              "inputs": {
+                                "name": "varLastLaunched",
+                                "value": "@body('Parse_conversation_JSON')?['conversationstarttime']"
+                              },
+                              "runAfter": {},
+                              "type": "SetVariable"
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@body('Parse_conversation_JSON')?['conversationstarttime']",
+                              "@variables('varLastLaunched')"
+                            ]
+                          },
+                          "runAfter": {
+                            "Parse_conversation_JSON": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "foreach": "@outputs('Get_Conversation_Transcripts')?['body/value']",
+                      "runAfter": {
+                        "Get_Conversation_Transcripts": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Foreach"
+                    },
+                    "Get_Conversation_Transcripts": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice_1",
+                          "operationId": "GetItems_V2"
+                        },
+                        "parameters": {
+                          "$filter": "contains(metadata, '@{outputs('shrink_guid')}') eq true",
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "table": "conversationtranscripts"
+                        }
+                      },
+                      "runAfter": {
+                        "shrink_guid": [
+                          "Succeeded"
+                        ]
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "shrink_guid": {
+                      "inputs": "@substring(body('Parse_Bot_JSON')?['ItemInternalId'], 0, 22)",
+                      "runAfter": {},
+                      "type": "Compose"
+                    }
+                  },
+                  "runAfter": {
+                    "reset_varLastLaunched": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Scope"
+                },
+                "Parse_Bot_JSON": {
+                  "inputs": {
+                    "content": "@items('For_Each_Bot')",
+                    "schema": {
+                      "properties": {
+                        "@@odata.etag": {
+                          "type": "string"
+                        },
+                        "@@odata.id": {
+                          "type": "string"
+                        },
+                        "ItemInternalId": {
+                          "type": "string"
+                        },
+                        "_componentstate_label": {
+                          "type": "string"
+                        },
+                        "_createdby_type": {
+                          "type": "string"
+                        },
+                        "_createdby_value": {
+                          "type": "string"
+                        },
+                        "_language_label": {
+                          "type": "string"
+                        },
+                        "_modifiedby_type": {
+                          "type": "string"
+                        },
+                        "_modifiedby_value": {
+                          "type": "string"
+                        },
+                        "_ownerid_type": {
+                          "type": "string"
+                        },
+                        "_ownerid_value": {
+                          "type": "string"
+                        },
+                        "_owningbusinessunit_type": {
+                          "type": "string"
+                        },
+                        "_owningbusinessunit_value": {
+                          "type": "string"
+                        },
+                        "_owningteam_value": {},
+                        "_statecode_label": {
+                          "type": "string"
+                        },
+                        "_statuscode_label": {
+                          "type": "string"
+                        },
+                        "botid": {
+                          "type": "string"
+                        },
+                        "componentidunique": {
+                          "type": "string"
+                        },
+                        "componentstate": {
+                          "type": "integer"
+                        },
+                        "createdon": {
+                          "type": "string"
+                        },
+                        "importsequencenumber": {},
+                        "iscustomizable": {
+                          "type": "boolean"
+                        },
+                        "ismanaged": {
+                          "type": "boolean"
+                        },
+                        "language": {
+                          "type": "integer"
+                        },
+                        "modifiedon": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "overriddencreatedon": {},
+                        "overwritetime": {
+                          "type": "string"
+                        },
+                        "schemaname": {
+                          "type": "string"
+                        },
+                        "solutionid": {
+                          "type": "string"
+                        },
+                        "statecode": {
+                          "type": "integer"
+                        },
+                        "statuscode": {
+                          "type": "integer"
+                        },
+                        "timezoneruleversionnumber": {},
+                        "utcconversiontimezonecode": {},
+                        "versionnumber": {
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {
+                    "ReSet_varNumberConvos": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "ReSet_BotNeedsUpdateToCoE": {
+                  "inputs": {
+                    "name": "BotNeedsUpdateToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {
+                    "ReSet_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "ReSet_isNewToCoE": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "ReSet_varNumberConvos": {
+                  "inputs": {
+                    "name": "varNumberConvos",
+                    "value": 0
+                  },
+                  "runAfter": {
+                    "ReSet_BotNeedsUpdateToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "See_if_BotNeedsUpdateToCoE": {
+                  "actions": {
+                    "Condition": {
+                      "actions": {
+                        "Set_BotNeedsUpdateToCoE_to_true_2": {
+                          "inputs": {
+                            "name": "BotNeedsUpdateToCoE",
+                            "value": "@true"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        }
+                      },
+                      "expression": {
+                        "or": [
+                          {
+                            "equals": [
+                              "@variables('isNewToCoE')",
+                              "@true"
+                            ]
+                          },
+                          {
+                            "equals": [
+                              "@variables('fullInventory')",
+                              "True"
+                            ]
+                          },
+                          {
+                            "less": [
+                              "@coalesce(formatDateTime(outputs('Get_PVA_from_CoE')?['body/admin_pvamodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')",
+                              "@formatDateTime(body('Parse_Bot_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')"
+                            ]
+                          }
+                        ]
+                      },
+                      "runAfter": {},
+                      "type": "If"
+                    }
+                  },
+                  "description": "Need to set this outside a condition because also setting via last launched above",
+                  "runAfter": {
+                    "Get_Usage": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Scope"
+                },
+                "Set_isNewToCoE_to_true_if_not_found": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@true"
+                  },
+                  "runAfter": {
+                    "Get_PVA_from_CoE": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Update_or_Insert_Bot_and_Owner": {
+                  "actions": {
+                    "Only_proceed_if_set_to_needing_update": {
+                      "actions": {
+                        "Append_updated_Bot_to_ChangedBots": {
+                          "inputs": {
+                            "name": "ChangedBots",
+                            "value": "@body('Parse_Bot_JSON')?['ItemInternalId']"
+                          },
+                          "runAfter": {
+                            "Switch": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "AppendToArrayVariable"
+                        },
+                        "Get_user_profile_(V2)": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                              "connectionName": "shared_office365users",
+                              "operationId": "UserProfile_V2"
+                            },
+                            "parameters": {
+                              "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                              "id": "@body('Get_Bot_Creator')?['azureactivedirectoryobjectid']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "OpenApiConnection"
+                        },
+                        "Switch": {
+                          "cases": {
+                            "200_Success": {
+                              "actions": {
+                                "Find_Bot_Maker": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "ListRecords"
+                                    },
+                                    "parameters": {
+                                      "$filter": "admin_makerid eq @{outputs('Get_user_profile_(V2)')?['body/id']}",
+                                      "$select": "admin_makerid",
+                                      "entityName": "admin_makers"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "runtimeConfiguration": {
+                                    "paginationPolicy": {
+                                      "minimumItemCount": 100000
+                                    }
+                                  },
+                                  "type": "OpenApiConnection"
+                                },
+                                "Update_Bot": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_pvas",
+                                      "item/admin_PVAEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_PVAOwner@odata.bind": "admin_makers(@{outputs('Get_user_profile_(V2)')?['body/id']})",
+                                      "item/admin_name": "@body('Parse_Bot_JSON')?['name']",
+                                      "item/admin_pvacreatedon": "@body('Parse_Bot_JSON')?['createdon']",
+                                      "item/admin_pvadeleted": "@if(equals(substring(body('Parse_Bot_JSON')?['_componentstate_label'], 0, 7), 'Deleted'), true, false)",
+                                      "item/admin_pvadisplayname": "@body('Parse_Bot_JSON')?['name']",
+                                      "item/admin_pvaenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                      "item/admin_pvaisorphaned": "No",
+                                      "item/admin_pvalastlaunchedon": "@if(lessOrEquals(variables('varNumberConvos'), 0), body('Parse_Bot_JSON')?['createdon'], variables('varLastLaunched'))",
+                                      "item/admin_pvamodifiedon": "@body('Parse_Bot_JSON')?['modifiedon']",
+                                      "item/admin_pvanumberlaunches": "@variables('varNumberConvos')",
+                                      "item/admin_pvastate": "@body('Parse_Bot_JSON')?['_componentstate_label']",
+                                      "recordId": "@body('Parse_Bot_JSON')?['ItemInternalId']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "Update_or_Insert_Bot_Maker": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "OpenApiConnection"
+                                },
+                                "Update_or_Insert_Bot_Maker": {
+                                  "actions": {
+                                    "Update_Bot_Maker": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_1",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_makers",
+                                          "item/admin_city": "@outputs('Get_user_profile_(V2)')?['body/city']",
+                                          "item/admin_country": "@outputs('Get_user_profile_(V2)')?['body/country']",
+                                          "item/admin_department": "@outputs('Get_user_profile_(V2)')?['body/department']",
+                                          "item/admin_displayname": "@outputs('Get_user_profile_(V2)')?['body/displayName']",
+                                          "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)')?['body/jobTitle']",
+                                          "item/admin_makerisorphaned": false,
+                                          "item/admin_office": "@outputs('Get_user_profile_(V2)')?['body/officeLocation']",
+                                          "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)')?['body/userPrincipalName']",
+                                          "recordId": "@outputs('Get_user_profile_(V2)')?['body/id']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    }
+                                  },
+                                  "else": {
+                                    "actions": {
+                                      "Create_Bot_Maker": {
+                                        "inputs": {
+                                          "authentication": "@parameters('$authentication')",
+                                          "host": {
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                            "connectionName": "shared_commondataserviceforapps_1",
+                                            "operationId": "CreateRecord"
+                                          },
+                                          "parameters": {
+                                            "entityName": "admin_makers",
+                                            "item/admin_city": "@outputs('Get_user_profile_(V2)')?['body/city']",
+                                            "item/admin_country": "@outputs('Get_user_profile_(V2)')?['body/country']",
+                                            "item/admin_department": "@outputs('Get_user_profile_(V2)')?['body/department']",
+                                            "item/admin_displayname": "@outputs('Get_user_profile_(V2)')?['body/displayName']",
+                                            "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)')?['body/jobTitle']",
+                                            "item/admin_makerid": "@outputs('Get_user_profile_(V2)')?['body/id']",
+                                            "item/admin_makerisorphaned": false,
+                                            "item/admin_office": "@outputs('Get_user_profile_(V2)')?['body/officeLocation']",
+                                            "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)')?['body/userPrincipalName']"
+                                          },
+                                          "retryPolicy": {
+                                            "count": 10,
+                                            "interval": "PT10S",
+                                            "type": "exponential"
+                                          }
+                                        },
+                                        "runAfter": {},
+                                        "type": "OpenApiConnection"
+                                      }
+                                    }
+                                  },
+                                  "expression": {
+                                    "greater": [
+                                      "@length(outputs('Find_Bot_Maker')?['body/value'])",
+                                      0
+                                    ]
+                                  },
+                                  "runAfter": {
+                                    "Find_Bot_Maker": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "If"
+                                }
+                              },
+                              "case": 200
+                            },
+                            "404_File_Not_Found": {
+                              "actions": {
+                                "Update_Bot_(orphaned)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_pvas",
+                                      "item/admin_PVAEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_name": "@body('Parse_Bot_JSON')?['name']",
+                                      "item/admin_pvacreatedon": "@body('Parse_Bot_JSON')?['createdon']",
+                                      "item/admin_pvadeleted": "@if(equals(substring(body('Parse_Bot_JSON')?['_componentstate_label'], 0, 7), 'Deleted'), true, false)",
+                                      "item/admin_pvadisplayname": "@body('Parse_Bot_JSON')?['name']",
+                                      "item/admin_pvaenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                      "item/admin_pvaisorphaned": "Yes",
+                                      "item/admin_pvalastlaunchedon": "@if(lessOrEquals(variables('varNumberConvos'), 0), body('Parse_Bot_JSON')?['createdon'], variables('varLastLaunched'))",
+                                      "item/admin_pvamodifiedon": "@body('Parse_Bot_JSON')?['modifiedon']",
+                                      "item/admin_pvanumberlaunches": "@variables('varNumberConvos')",
+                                      "item/admin_pvastate": "@body('Parse_Bot_JSON')?['_componentstate_label']",
+                                      "recordId": "@body('Parse_Bot_JSON')?['ItemInternalId']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "case": 404
+                            }
+                          },
+                          "default": {
+                            "actions": {}
+                          },
+                          "expression": "@outputs('Get_user_profile_(V2)')['statusCode']",
+                          "runAfter": {
+                            "Get_user_profile_(V2)": [
+                              "Succeeded",
+                              "Failed"
+                            ]
+                          },
+                          "type": "Switch"
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@variables('BotNeedsUpdateToCoE')",
+                          "@true"
+                        ]
+                      },
+                      "runAfter": {},
+                      "type": "If"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Append_inserted_Bot_to_ChangedBots": {
+                        "inputs": {
+                          "name": "ChangedBots",
+                          "value": "@body('Parse_Bot_JSON')?['ItemInternalId']"
+                        },
+                        "runAfter": {
+                          "Switch_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "AppendToArrayVariable"
+                      },
+                      "Get_user_profile_(V2)_New": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                            "connectionName": "shared_office365users",
+                            "operationId": "UserProfile_V2"
+                          },
+                          "parameters": {
+                            "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                            "id": "@body('Get_Bot_Creator')?['azureactivedirectoryobjectid']"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      },
+                      "Switch_2": {
+                        "cases": {
+                          "200_Success": {
+                            "actions": {
+                              "Create_Bot": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_1",
+                                    "operationId": "CreateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_pvas",
+                                    "item/admin_PVAEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_PVAOwner@odata.bind": "admin_makers(@{outputs('Get_user_profile_(V2)_New')?['body/id']})",
+                                    "item/admin_name": "@body('Parse_Bot_JSON')?['name']",
+                                    "item/admin_pvacreatedon": "@body('Parse_Bot_JSON')?['createdon']",
+                                    "item/admin_pvadeleted": "@if(equals(substring(body('Parse_Bot_JSON')?['_componentstate_label'], 0, 7), 'Deleted'), true, false)",
+                                    "item/admin_pvadisplayname": "@body('Parse_Bot_JSON')?['name']",
+                                    "item/admin_pvaenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_pvaid": "@body('Parse_Bot_JSON')?['ItemInternalId']",
+                                    "item/admin_pvaisorphaned": "No",
+                                    "item/admin_pvalastlaunchedon": "@if(lessOrEquals(variables('varNumberConvos'), 0), body('Parse_Bot_JSON')?['createdon'], variables('varLastLaunched'))",
+                                    "item/admin_pvamodifiedon": "@body('Parse_Bot_JSON')?['modifiedon']",
+                                    "item/admin_pvanumberlaunches": "@variables('varNumberConvos')",
+                                    "item/admin_pvastate": "@body('Parse_Bot_JSON')?['_componentstate_label']"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {
+                                  "Update_or_Insert_Bot_Maker_New": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "OpenApiConnection"
+                              },
+                              "Find_Bot_Maker_New": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_1",
+                                    "operationId": "ListRecords"
+                                  },
+                                  "parameters": {
+                                    "$filter": "admin_makerid eq @{outputs('Get_user_profile_(V2)_New')?['body/id']}",
+                                    "$select": "admin_makerid",
+                                    "entityName": "admin_makers"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              },
+                              "Update_or_Insert_Bot_Maker_New": {
+                                "actions": {
+                                  "Update_Bot_Maker_New": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_makers",
+                                        "item/admin_city": "@outputs('Get_user_profile_(V2)_New')?['body/city']",
+                                        "item/admin_country": "@outputs('Get_user_profile_(V2)_New')?['body/country']",
+                                        "item/admin_department": "@outputs('Get_user_profile_(V2)_New')?['body/department']",
+                                        "item/admin_displayname": "@outputs('Get_user_profile_(V2)_New')?['body/displayName']",
+                                        "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)_New')?['body/jobTitle']",
+                                        "item/admin_makerisorphaned": false,
+                                        "item/admin_office": "@outputs('Get_user_profile_(V2)_New')?['body/officeLocation']",
+                                        "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)_New')?['body/userPrincipalName']",
+                                        "recordId": "@outputs('Get_user_profile_(V2)_New')?['body/id']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "Create_Bot_Maker_New": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_1",
+                                          "operationId": "CreateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_makers",
+                                          "item/admin_city": "@outputs('Get_user_profile_(V2)_New')?['body/city']",
+                                          "item/admin_country": "@outputs('Get_user_profile_(V2)_New')?['body/country']",
+                                          "item/admin_department": "@outputs('Get_user_profile_(V2)_New')?['body/department']",
+                                          "item/admin_displayname": "@outputs('Get_user_profile_(V2)_New')?['body/displayName']",
+                                          "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)_New')?['body/jobTitle']",
+                                          "item/admin_makerid": "@outputs('Get_user_profile_(V2)_New')?['body/id']",
+                                          "item/admin_makerisorphaned": false,
+                                          "item/admin_office": "@outputs('Get_user_profile_(V2)_New')?['body/officeLocation']",
+                                          "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)_New')?['body/id']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "greater": [
+                                    "@length(outputs('Find_Bot_Maker_New')?['body/value'])",
+                                    0
+                                  ]
+                                },
+                                "runAfter": {
+                                  "Find_Bot_Maker_New": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "If"
+                              }
+                            },
+                            "case": 200
+                          },
+                          "404_File_Not_Found": {
+                            "actions": {
+                              "Create_Bot_(Orphaned)": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_1",
+                                    "operationId": "CreateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_pvas",
+                                    "item/admin_PVAEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_name": "@body('Parse_Bot_JSON')?['name']",
+                                    "item/admin_pvacreatedon": "@body('Parse_Bot_JSON')?['createdon']",
+                                    "item/admin_pvadeleted": "@if(equals(substring(body('Parse_Bot_JSON')?['_componentstate_label'], 0, 7), 'Deleted'), true, false)",
+                                    "item/admin_pvadisplayname": "@body('Parse_Bot_JSON')?['name']",
+                                    "item/admin_pvaenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_pvaid": "@body('Parse_Bot_JSON')?['ItemInternalId']",
+                                    "item/admin_pvaisorphaned": "Yes",
+                                    "item/admin_pvalastlaunchedon": "@if(lessOrEquals(variables('varNumberConvos'), 0), body('Parse_Bot_JSON')?['createdon'], variables('varLastLaunched'))",
+                                    "item/admin_pvamodifiedon": "@body('Parse_Bot_JSON')?['modifiedon']",
+                                    "item/admin_pvanumberlaunches": "@variables('varNumberConvos')",
+                                    "item/admin_pvastate": "@body('Parse_Bot_JSON')?['_componentstate_label']"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            },
+                            "case": 404
+                          }
+                        },
+                        "default": {
+                          "actions": {}
+                        },
+                        "expression": "@outputs('Get_user_profile_(V2)_New')['statusCode']",
+                        "runAfter": {
+                          "Get_user_profile_(V2)_New": [
+                            "Succeeded",
+                            "Failed"
+                          ]
+                        },
+                        "type": "Switch"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('isNewToCoE')",
+                      "@false"
+                    ]
+                  },
+                  "runAfter": {
+                    "See_if_BotNeedsUpdateToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "reset_varLastLaunched": {
+                  "inputs": {
+                    "name": "varLastLaunched",
+                    "value": "@outputs('Get_PVA_from_CoE')?['body/admin_pvalastlaunchedon']"
+                  },
+                  "runAfter": {
+                    "Set_isNewToCoE_to_true_if_not_found": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "foreach": "@outputs('List_Bots')?['body/value']",
+              "runAfter": {},
+              "type": "Foreach"
+            },
+            "Update_Components_for_Changed_Bots": {
+              "actions": {
+                "Apply_to_each_Bot_Component": {
+                  "actions": {
+                    "Get_Parent_Bot_ID": {
+                      "actions": {
+                        "GetBotID": {
+                          "inputs": "@first(body('List_bot_for_a_botcomponent')?['value'])['botid']",
+                          "runAfter": {
+                            "List_bot_for_a_botcomponent": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Compose"
+                        },
+                        "List_bot_for_a_botcomponent": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                              "connectionName": "shared_commondataservice_1",
+                              "operationId": "GetItems_V2"
+                            },
+                            "parameters": {
+                              "$filter": "botcomponentid eq @{body('Parse_Bot_Component_JSON')?['ItemInternalId']}",
+                              "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                              "table": "bot_botcomponentset"
+                            }
+                          },
+                          "runAfter": {},
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "runAfter": {
+                        "Parse_Bot_Component_JSON": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Scope"
+                    },
+                    "If_an_updated_bot,_proceed_to_insert_its_components_and_component_flows": {
+                      "actions": {
+                        "Add_flows": {
+                          "actions": {
+                            "For_Each_Flow": {
+                              "actions": {
+                                "Catch:_Sync_of_Flow_in_COE_not_yet_complete_": {
+                                  "inputs": "Catch: Sync of Flow in COE not yet complete ",
+                                  "runAfter": {
+                                    "Get_CoE_version_of_the_flow": [
+                                      "Failed",
+                                      "TimedOut"
+                                    ]
+                                  },
+                                  "type": "Compose"
+                                },
+                                "Get_CoE_version_of_the_flow": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "ListRecords"
+                                    },
+                                    "parameters": {
+                                      "$filter": "admin_workflowentityid eq @{outputs('Get_WorkflowID_value')}",
+                                      "$select": "admin_flowid",
+                                      "entityName": "admin_flows"
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "Get_WorkflowID_value": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "runtimeConfiguration": {
+                                    "paginationPolicy": {
+                                      "minimumItemCount": 100000
+                                    }
+                                  },
+                                  "type": "OpenApiConnection"
+                                },
+                                "Get_WorkflowID_value": {
+                                  "inputs": "@items('For_Each_Flow')?['workflowid']",
+                                  "runAfter": {},
+                                  "type": "Compose"
+                                },
+                                "if_flow_found,_add_PVA_Component_Flow_Lookup": {
+                                  "actions": {
+                                    "Get_CoE_GUID_for_the_flow": {
+                                      "inputs": "@first(body('Get_CoE_version_of_the_flow')?['value'])['admin_flowid']",
+                                      "runAfter": {},
+                                      "type": "Compose"
+                                    },
+                                    "Upsert_PVA_Component_Flow_Lookups": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_1",
+                                          "operationId": "CreateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_pvacomponentflowlookups",
+                                          "item/admin_Flow@odata.bind": "admin_flows(@{outputs('Get_CoE_GUID_for_the_flow')})",
+                                          "item/admin_PVAComponent@odata.bind": "admin_pvacomponents(@{body('Parse_Bot_Component_JSON')?['ItemInternalId']})",
+                                          "item/admin_name": "@items('For_Each_Flow')?['ItemInternalId']",
+                                          "item/admin_pvacomponentflowlookupid": "@items('For_Each_Flow')?['ItemInternalId']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {
+                                        "Get_CoE_GUID_for_the_flow": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "OpenApiConnection"
+                                    }
+                                  },
+                                  "expression": {
+                                    "greater": [
+                                      "@length(body('Get_CoE_version_of_the_flow')?['value'])",
+                                      0
+                                    ]
+                                  },
+                                  "runAfter": {
+                                    "Catch:_Sync_of_Flow_in_COE_not_yet_complete_": [
+                                      "Skipped"
+                                    ]
+                                  },
+                                  "type": "If"
+                                }
+                              },
+                              "foreach": "@outputs('List_flows_for_a_botcomponent')?['body/value']",
+                              "runAfter": {},
+                              "type": "Foreach"
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@variables('isFlowAction')",
+                              "@true"
+                            ]
+                          },
+                          "runAfter": {
+                            "Create_PVA_Component": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "Create_PVA_Component": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "CreateRecord"
+                            },
+                            "parameters": {
+                              "entityName": "admin_pvacomponents",
+                              "item/admin_ComponentEnvt@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                              "item/admin_PVABot@odata.bind": "admin_pvas(@{outputs('GetBotID')})",
+                              "item/admin_componentcreatedon": "@body('Parse_Bot_Component_JSON')?['createdon']",
+                              "item/admin_componentdeleted": false,
+                              "item/admin_componentdescription": "@body('Parse_Bot_Component_JSON')?['description']",
+                              "item/admin_componentdisplayname": "@body('Parse_Bot_Component_JSON')?['name']",
+                              "item/admin_componentmodifiedon": "@body('Parse_Bot_Component_JSON')?['modifiedon']",
+                              "item/admin_componentstate": "@body('Parse_Bot_Component_JSON')?['_componentstate_label']",
+                              "item/admin_componenttype": "@body('Parse_Bot_Component_JSON')?['_componenttype_label']",
+                              "item/admin_componentusesflow": "@variables('isFlowAction')",
+                              "item/admin_name": "@body('Parse_Bot_Component_JSON')?['name']",
+                              "item/admin_pvacomponentid": "@body('Parse_Bot_Component_JSON')?['ItemInternalId']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {
+                            "See_if_flows_exist": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "List_flows_for_a_botcomponent": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                              "connectionName": "shared_commondataservice_1",
+                              "operationId": "GetItems_V2"
+                            },
+                            "parameters": {
+                              "$filter": "botcomponentid eq @{body('Parse_Bot_Component_JSON')?['ItemInternalId']}",
+                              "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                              "table": "botcomponent_workflowset"
+                            }
+                          },
+                          "runAfter": {
+                            "ReSet_isFlowAction": [
+                              "Succeeded"
+                            ]
+                          },
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "ReSet_isFlowAction": {
+                          "inputs": {
+                            "name": "isFlowAction",
+                            "value": "@false"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        },
+                        "See_if_flows_exist": {
+                          "actions": {
+                            "Set_isFlowAction_to_true": {
+                              "inputs": {
+                                "name": "isFlowAction",
+                                "value": "@true"
+                              },
+                              "runAfter": {},
+                              "type": "SetVariable"
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(body('List_flows_for_a_botcomponent')?['value'])",
+                              0
+                            ]
+                          },
+                          "runAfter": {
+                            "List_flows_for_a_botcomponent": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "expression": {
+                        "contains": [
+                          "@variables('ChangedBots')",
+                          "@outputs('GetBotID')"
+                        ]
+                      },
+                      "runAfter": {
+                        "Get_Parent_Bot_ID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "Parse_Bot_Component_JSON": {
+                      "inputs": {
+                        "content": "@items('Apply_to_each_Bot_Component')",
+                        "schema": {
+                          "properties": {
+                            "@@odata.etag": {
+                              "type": "string"
+                            },
+                            "@@odata.id": {
+                              "type": "string"
+                            },
+                            "ItemInternalId": {
+                              "type": "string"
+                            },
+                            "_componentstate_label": {
+                              "type": "string"
+                            },
+                            "_componenttype_label": {
+                              "type": "string"
+                            },
+                            "_createdby_type": {
+                              "type": "string"
+                            },
+                            "_createdby_value": {
+                              "type": "string"
+                            },
+                            "_modifiedby_type": {
+                              "type": "string"
+                            },
+                            "_modifiedby_value": {
+                              "type": "string"
+                            },
+                            "_ownerid_type": {
+                              "type": "string"
+                            },
+                            "_ownerid_value": {
+                              "type": "string"
+                            },
+                            "_owningbusinessunit_type": {
+                              "type": "string"
+                            },
+                            "_owningbusinessunit_value": {
+                              "type": "string"
+                            },
+                            "_owningteam_value": {},
+                            "_statecode_label": {
+                              "type": "string"
+                            },
+                            "_statuscode_label": {
+                              "type": "string"
+                            },
+                            "botcomponentid": {
+                              "type": "string"
+                            },
+                            "componentidunique": {
+                              "type": "string"
+                            },
+                            "componentstate": {
+                              "type": "integer"
+                            },
+                            "componenttype": {
+                              "type": "integer"
+                            },
+                            "createdon": {
+                              "type": "string"
+                            },
+                            "description": {},
+                            "importsequencenumber": {},
+                            "iscustomizable": {
+                              "type": "boolean"
+                            },
+                            "ismanaged": {
+                              "type": "boolean"
+                            },
+                            "modifiedon": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "overriddencreatedon": {},
+                            "overwritetime": {
+                              "type": "string"
+                            },
+                            "schemaname": {
+                              "type": "string"
+                            },
+                            "solutionid": {
+                              "type": "string"
+                            },
+                            "statecode": {
+                              "type": "integer"
+                            },
+                            "statuscode": {
+                              "type": "integer"
+                            },
+                            "timezoneruleversionnumber": {},
+                            "utcconversiontimezonecode": {},
+                            "versionnumber": {
+                              "type": "integer"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "ParseJson"
+                    }
+                  },
+                  "foreach": "@outputs('List_BotComponents')?['body/value']",
+                  "runAfter": {
+                    "List_BotComponents": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "Apply_to_each_of_the_Changed_Bots": {
+                  "actions": {
+                    "Delete_old_records": {
+                      "actions": {
+                        "Apply_to_each_PVA_Component": {
+                          "actions": {
+                            "Apply_to_each_component_flow": {
+                              "actions": {
+                                "Delete_the_component_flow": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "DeleteRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_pvacomponentflowlookups",
+                                      "recordId": "@items('Apply_to_each_component_flow')?['admin_pvacomponentflowlookupid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_component_flows')?['body/value']",
+                              "runAfter": {
+                                "List_component_flows": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Delete_the_component": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "DeleteRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvacomponents",
+                                  "recordId": "@items('Apply_to_each_PVA_Component')?['admin_pvacomponentid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Apply_to_each_component_flow": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "List_component_flows": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_pvacomponent_value eq @{items('Apply_to_each_PVA_Component')?['admin_pvacomponentid']}",
+                                  "$select": "_admin_pvacomponent_value, admin_pvacomponentflowlookupid",
+                                  "entityName": "admin_pvacomponentflowlookups"
+                                }
+                              },
+                              "runAfter": {},
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_PVA_Components')?['body/value']",
+                          "runAfter": {},
+                          "type": "Foreach"
+                        }
+                      },
+                      "runAfter": {
+                        "List_PVA_Components": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Scope"
+                    },
+                    "List_PVA_Components": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "_admin_pvabot_value eq @{items('Apply_to_each_of_the_Changed_Bots')}",
+                          "$select": "admin_pvacomponentid, _admin_pvabot_value",
+                          "entityName": "admin_pvacomponents"
+                        }
+                      },
+                      "runAfter": {},
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@variables('ChangedBots')",
+                  "runAfter": {},
+                  "type": "Foreach"
+                },
+                "List_BotComponents": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                      "connectionName": "shared_commondataservice_1",
+                      "operationId": "GetItems_V2"
+                    },
+                    "parameters": {
+                      "$filter": "botcomponentid ne null",
+                      "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                      "table": "botcomponents"
+                    }
+                  },
+                  "runAfter": {
+                    "Apply_to_each_of_the_Changed_Bots": [
+                      "Succeeded"
+                    ]
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "runAfter": {
+                "For_Each_Bot": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Scope"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_fullInventory": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "FullInventory": {
+          "defaultValue": false,
+          "metadata": {
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running ",
+            "schemaName": "admin_FullInventory"
+          },
+          "type": "Bool"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
