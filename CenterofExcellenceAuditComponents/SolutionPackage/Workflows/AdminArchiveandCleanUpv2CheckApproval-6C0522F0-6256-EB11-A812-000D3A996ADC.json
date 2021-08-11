@@ -1,0 +1,437 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365_1": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Apply_to_each": {
+          "actions": {
+            "Check_if_item_found": {
+              "actions": {
+                "Check_Approval_Status": {
+                  "actions": {
+                    "Update_Archive_Approval_Record_-_Approve": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_archiveapprovals",
+                          "item/admin_approvalcomment": "@items('Apply_to_each')?['msdyn_flow_approvalresponse_comments']",
+                          "item/admin_approvalresponse": "@items('Apply_to_each')?['msdyn_flow_approvalresponse_response']",
+                          "item/admin_approvalresponsedate": "@utcNow()",
+                          "recordId": "@body('Parse_JSON_-_Archive_Approval_Item')?['admin_archiveapprovalid']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Send_an_email_(V2)": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                            "connectionName": "shared_office365_1",
+                            "operationId": "SendEmailV2"
+                          },
+                          "parameters": {
+                            "emailMessage/Body": "<html>\n@{variables('htmlHeader')}\n<body>\n<div id='content'>\n<table id='form'>\n<tr><td><img id='logo' src='@{variables('logoUrl')}'></td></tr>\n<tr><td><p id='header'>PowerApps</p></td></tr>\n<tr id='ribbon'><td>\n<table id='ribbonContent'>\n<tr><td>Auto-Archive .</td>\n</tr>\n<tr id='message'><td>\n\n<p>@{body('Parse_JSON_-_Archive_Approval_Item')?['admin_appownername']} (@{body('Parse_JSON_-_Archive_Approval_Item')?['admin_appowneremail']}) was recently prompted to archive the following app:<br>\n<br>\n<strong>Display Name</strong>: @{body('Parse_JSON_-_Archive_Approval_Item')?['admin_appdisplayname']}<br>\n<strong>Environment</strong>:  @{outputs('Get_environment_for_display_name')?['body/admin_displayname']}<br>\n<strong>App ID</strong>: @{body('Parse_JSON_-_Archive_Approval_Item')?['admin_archiveapprovalid']}<br>\n<br>\nThe request was archiving was rejected by the app owner with the following reason: @{items('Apply_to_each')?['msdyn_flow_approvalresponse_comments']}<br>\n</p>\n</li>\n</ol>\n</p>\n</td></tr>\n</table>\n</div>\n</body>\n</html>",
+                            "emailMessage/Subject": "Archive PowerApps for @{body('Parse_JSON_-_Archive_Approval_Item')?['admin_appdisplayname']} has been rejected",
+                            "emailMessage/To": "@variables('adminMail')"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      },
+                      "Update_Archive_Approval_Record_-_Reject": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "admin_archiveapprovals",
+                            "item/admin_approvalcomment": "@items('Apply_to_each')?['msdyn_flow_approvalresponse_comments']",
+                            "item/admin_approvalresponse": "@items('Apply_to_each')?['msdyn_flow_approvalresponse_response']",
+                            "item/admin_approvalresponsedate": "@utcNow()",
+                            "recordId": "@body('Parse_JSON_-_Archive_Approval_Item')?['admin_archiveapprovalid']"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {
+                          "Send_an_email_(V2)": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@items('Apply_to_each')?['msdyn_flow_approvalresponse_response']",
+                      "Approve"
+                    ]
+                  },
+                  "runAfter": {
+                    "Get_environment_for_display_name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Get_Env_ID": {
+                  "description": "substring(body('Parse_JSON_-_Archive_Approval_Item')?['admin_appenvironmentname'], sub(length(body('Parse_JSON_-_Archive_Approval_Item')?['admin_appenvironmentname']), 36), 36)",
+                  "inputs": "@substring(body('Parse_JSON_-_Archive_Approval_Item')?['admin_appenvironmentname'], sub(length(body('Parse_JSON_-_Archive_Approval_Item')?['admin_appenvironmentname']), 36), 36)",
+                  "runAfter": {
+                    "Parse_JSON_-_Archive_Approval_Item": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Get_environment_for_display_name": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "$select": "admin_displayname",
+                      "entityName": "admin_environments",
+                      "recordId": "@outputs('Get_Env_ID')"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Env_ID": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Parse_JSON_-_Archive_Approval_Item": {
+                  "inputs": {
+                    "content": "@first(body('Filter_Archive_Approval_to_get_current_item'))",
+                    "schema": {
+                      "properties": {
+                        "@@odata.etag": {
+                          "type": "string"
+                        },
+                        "@@odata.id": {
+                          "type": "string"
+                        },
+                        "ItemInternalId": {
+                          "type": "string"
+                        },
+                        "_createdby_type": {
+                          "type": "string"
+                        },
+                        "_createdby_value": {
+                          "type": "string"
+                        },
+                        "_modifiedby_type": {
+                          "type": "string"
+                        },
+                        "_modifiedby_value": {
+                          "type": "string"
+                        },
+                        "_ownerid_type": {
+                          "type": "string"
+                        },
+                        "_ownerid_value": {
+                          "type": "string"
+                        },
+                        "_owningbusinessunit_type": {
+                          "type": "string"
+                        },
+                        "_owningbusinessunit_value": {
+                          "type": "string"
+                        },
+                        "_statecode_label": {
+                          "type": "string"
+                        },
+                        "_statuscode_label": {
+                          "type": "string"
+                        },
+                        "admin_appdisplayname": {
+                          "type": "string"
+                        },
+                        "admin_appenvironmentname": {
+                          "type": "string"
+                        },
+                        "admin_appname": {
+                          "type": "string"
+                        },
+                        "admin_appowneremail": {
+                          "type": "string"
+                        },
+                        "admin_appownername": {
+                          "type": "string"
+                        },
+                        "admin_appreadonlyvalue": {
+                          "type": "string"
+                        },
+                        "admin_approvalid": {
+                          "type": "string"
+                        },
+                        "admin_archiveapprovalid": {
+                          "type": "string"
+                        },
+                        "admin_name": {
+                          "type": "string"
+                        },
+                        "createdon": {
+                          "type": "string"
+                        },
+                        "modifiedon": {
+                          "type": "string"
+                        },
+                        "statecode": {
+                          "type": "integer"
+                        },
+                        "statuscode": {
+                          "type": "integer"
+                        },
+                        "versionnumber": {
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "ParseJson"
+                }
+              },
+              "description": "If nothing found, then this is an approval outside of the context of our CoE",
+              "expression": {
+                "not": {
+                  "equals": [
+                    "@length(body('Filter_Archive_Approval_to_get_current_item'))",
+                    0
+                  ]
+                }
+              },
+              "runAfter": {
+                "Filter_Archive_Approval_to_get_current_item": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Filter_Archive_Approval_to_get_current_item": {
+              "inputs": {
+                "from": "@outputs('List_Archive_Approval_Tasks')?['body/value']",
+                "where": "@equals(item()?['admin_approvalid'], toLower(items('Apply_to_each')?['msdyn_flow_approvalresponseidx_approvalid']))"
+              },
+              "runAfter": {},
+              "type": "Query"
+            }
+          },
+          "foreach": "@outputs('List_Approval_Responses_-_last_10_days')?['body/value']",
+          "runAfter": {
+            "List_Archive_Approval_Tasks": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Initialize_adminMail": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "adminMail",
+                "type": "string",
+                "value": "@parameters('Admin eMail')"
+              }
+            ]
+          },
+          "runAfter": {
+            "List_Approval_Responses_-_last_10_days": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_htmlHeader_(style)": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "htmlHeader",
+                "type": "string",
+                "value": "@parameters('eMail Header Style')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_adminMail": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_logoUrl": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "logoUrl",
+                "type": "string",
+                "value": "http://pngimg.com/uploads/microsoft/microsoft_PNG16.png"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_htmlHeader_(style)": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "List_Approval_Responses_-_last_10_days": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "createdon gt @{addDays(utcNow(), -10)}",
+              "$select": "msdyn_flow_approvalresponseidx_approvalid, msdyn_flow_approvalresponse_response, msdyn_flow_approvalresponse_comments",
+              "entityName": "msdyn_flow_approvalresponses"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {},
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        },
+        "List_Archive_Approval_Tasks": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "admin_approvalresponse eq null",
+              "$select": "admin_approvalid, admin_archiveapprovalid, admin_appdisplayname, admin_appownername, admin_appowneremail, admin_appenvironmentname",
+              "entityName": "admin_archiveapprovals"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_logoUrl": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail": {
+          "defaultValue": "CoETeam@PPlatform.onmicrosoft.com",
+          "metadata": {
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
+            "schemaName": "admin_AdminMail"
+          },
+          "type": "String"
+        },
+        "eMail Header Style": {
+          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: left; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
+          "metadata": {
+            "description": "CSS/Style used for eMails",
+            "schemaName": "admin_eMailHeaderStyle"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

@@ -1,0 +1,647 @@
+Solutions As screen:
+    Height: =Max(App.Height, App.DesignHeight)
+    OnVisible: |-
+        =//load up measures
+        ClearCollect(ActualizedMeasures, AddColumns(
+                 Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910001' && IdeaStatus in StateFilterDefaultColl),
+                 "MeasureGUID", 'Backlog Item MeasureSet',
+                 "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                 "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                 "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                      If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+        
+        //load up solutions
+        ClearCollect(AllSolutions, 
+            AddColumns(
+            Filter('Backlog Item Solutions', IdeaStatus in StateFilterDefaultColl), 
+            "ThisSolutionMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.Money), MoneySavings),
+            "ThisSolutionTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.Time), TimeSavings),
+            "ThisSolutionOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && (MeasureType=MeasureTypeOptions.Numeric || MeasureType=MeasureTypeOptions.Text)))));
+        
+        UpdateContext({ThisSolnMoney: Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'=First(AllSolutions).'Backlog Item Solution' && MeasureType=MeasureTypeOptions.Money), MoneySavings)});
+        UpdateContext({ThisSolnTime: Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'=First(AllSolutions).'Backlog Item Solution' && MeasureType=MeasureTypeOptions.Time), TimeSavings)});
+        
+        //load up testimony
+        ClearCollect(AllTestimony, 
+            AddColumns(
+            Filter('Backlog Item Testimonials', IdeaStatus in StateFilterDefaultColl),
+            "ThisTestimonyMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+            "ThisTestimonyTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+            "ThisTestimonyOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+        
+        //cost range
+        UpdateContext({MinCost: Min(ThisIdeaSolns.AllItems, SolutionCost)});
+        UpdateContext({MaxCost: Max(ThisIdeaSolns.AllItems, SolutionCost)});
+        UpdateContext({RangeCost: MaxCost-MinCost});
+        UpdateContext({ChunkCost: RangeCost/NumChunks});
+        
+        //Money range
+        UpdateContext({MinActualMoney: Min(ThisIdeaSolns.AllItems, ThisSolutionMoneyMeasures)});
+        UpdateContext({MaxActualMoney: Max(ThisIdeaSolns.AllItems, ThisSolutionMoneyMeasures)});
+        UpdateContext({RangeActualMoney: MaxActualMoney-MinActualMoney});
+        UpdateContext({ChunkActualMoney: RangeActualMoney/NumChunks});
+        
+        //Time range
+        UpdateContext({MinActualTime: Min(ThisIdeaSolns.AllItems, ThisSolutionTimeMeasures)});
+        UpdateContext({MaxActualTime: Max(ThisIdeaSolns.AllItems, ThisSolutionTimeMeasures)});
+        UpdateContext({RangeActualTime: MaxActualTime-MinActualTime});
+        UpdateContext({ChunkActualTime: RangeActualTime/NumChunks});
+    Width: =Max(App.Width, App.DesignWidth)
+
+    SolutionFeedback As gallery.variableTemplateHeightGallery:
+        Fill: =RGBA(255, 255, 255, 1)
+        Height: =547
+        Items: =Filter(AllTestimony, BacklogSolution.'Backlog Item Solution'=ThisIdeaSolns.Selected.'Backlog Item Solution')
+        Layout: =Layout.Vertical
+        TemplateSize: =SolnFeedbackComment.Height+100
+        Width: =532
+        X: =785
+        Y: =155
+        ZIndex: =4
+
+        TestimonyEditLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            FontWeight: =Semibold
+            Height: =31
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, ThisIdeaSolns.Selected.'Backlog Item Solution');
+                Set(OurTestimony, ThisItem);
+                Navigate([@AddTestimoney]);
+            Text: ="Edit"
+            Width: =55
+            X: =TestimonyEditIcon.X+TestimonyEditIcon.Width+5
+            Y: =TestimonyAuthorLabel.Y
+            ZIndex: =1
+
+        TestimonyEditIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Edit
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, ThisIdeaSolns.Selected.'Backlog Item Solution');
+                Set(OurTestimony, ThisItem);
+                Navigate([@AddTestimoney]);
+            Width: =17
+            X: =TestimonyAuthorLabel.X+TestimonyAuthorLabel.Width+10
+            Y: =TestimonyEditLabel.Y+(TestimonyEditLabel.Height/2)-(Self.Height/2)
+            ZIndex: =2
+
+        TestimonyAuthorLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =35
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, ThisIdeaSolns.Selected.'Backlog Item Solution');
+                Set(OurTestimony, ThisItem);
+                Navigate([@AddTestimoney]);
+            Text: =If(IsBlank(ThisItem.'TestimonialUser '), "", Office365Users.UserProfile(ThisItem.'TestimonialUser '.'Primary Email').DisplayName) & If(!IsBlank(ThisItem.Team), " - " & ThisItem.Team)
+            Width: =370
+            X: =TestimonyAuthorImg.X+TestimonyAuthorImg.Width+10
+            ZIndex: =3
+
+        TestimonyAuthorImg As image:
+            Height: =35
+            Image: =If(IsBlank(ThisItem.'TestimonialUser '), SampleImage, IfError(Office365Users.UserPhotoV2(ThisItem.'TestimonialUser '.'Primary Email'), SampleImage))
+            OnSelect: =Select(Parent)
+            RadiusBottomLeft: =45
+            RadiusBottomRight: =45
+            RadiusTopLeft: =45
+            RadiusTopRight: =45
+            Width: =35
+            X: =19
+            ZIndex: =4
+
+        SolnFeedbackComment As label:
+            AutoHeight: =true
+            OnSelect: =Select(Parent)
+            Text: =ThisItem.Testimony
+            Width: =500 
+            Y: =40
+            ZIndex: =5
+
+    "'Header-Solutions' As group":
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =16
+
+        "'HeaderBox-UpdateStatus_1' As rectangle":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =65
+            Width: =Parent.Width
+            ZIndex: =33
+
+        "'HeaderText-UpdateStatus_1' As label":
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            PaddingBottom: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =22
+            Text: ="Solution details for " & OurIdea.'Display Name'
+            Width: =850
+            X: =80
+            Y: =('HeaderBox-UpdateStatus_1'.Height/2)-(Self.Height/2)
+            ZIndex: =34
+
+        "'Back-UpdateStatus_1' As icon.ArrowLeft":
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.ArrowLeft
+            OnSelect: =Navigate([@HomeScreen])
+            Width: =40
+            X: =25
+            Y: =('HeaderBox-UpdateStatus_1'.Height/2)-(Self.Height/2)
+            ZIndex: =35
+
+    "'solutions rectangles' As group":
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =25
+
+        seperatorSolnList_1 As rectangle:
+            Fill: =RGBA(234, 234, 234, 1)
+            Height: =699
+            Width: =1
+            X: =ThisIdeaSolns.X+ThisIdeaSolns.Width-5
+            Y: =ThisIdeaSolns.Y+4
+            ZIndex: =1
+
+        seperatorSolnList_2 As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =703
+            Width: =1001
+            X: =ThisIdeaSolns.X+ThisIdeaSolns.Width-5
+            Y: =65
+            ZIndex: =2
+
+        seperatorSolnList_3 As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =32
+            Width: =1001
+            X: =ThisIdeaSolns.X+ThisIdeaSolns.Width-5
+            Y: =65
+            ZIndex: =3
+
+    SolnNameGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =25
+
+        SolnNameValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =23
+            Size: =14
+            Text: =ThisIdeaSolns.Selected.'Display Name'
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnNameLabel.Y+SolnNameLabel.Height+5
+            ZIndex: =22
+
+        SolnNameLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Solution"
+            Width: =400
+            X: =385
+            Y: =125
+            ZIndex: =29
+
+    SolnDescriptionGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =27
+
+        SolnDescriptionValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =SolnDescriptionLabel.Height*3
+            Size: =14
+            Text: =If(IsBlank(ThisIdeaSolns.Selected.Description), "Not provided", ThisIdeaSolns.Selected.Description)
+            Tooltip: =ThisIdeaSolns.Selected.Description
+            VerticalAlign: =VerticalAlign.Top
+            Width: =SolnDescriptionLabel.Width
+            X: =SolnNameLabel.X
+            Y: =SolnDescriptionLabel.Y+SolnDescriptionLabel.Height+5
+            ZIndex: =7
+
+        SolnDescriptionLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Description"
+            Tooltip: =ThisIdeaSolns.Selected.Description
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnDateValue.Y + SolnDateValue.Height + 10
+            ZIndex: =19
+
+    SolnDevGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =28
+
+        SolnDevValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =30
+            Size: =14
+            Text: =ThisIdeaSolns.Selected.Developer.'Full Name'
+            Width: =320
+            X: =SolnDevImg.X+SolnDevImg.Width+5
+            Y: =SolnDevLabel.Y+SolnDevLabel.Height+10
+            ZIndex: =6
+
+        SolnDevImg As image:
+            Height: =Self.Width
+            Image: =If(IsBlank(ThisIdeaSolns.Selected.Developer), SampleImage, IfError(Office365Users.UserPhotoV2(ThisIdeaSolns.Selected.Developer.'Primary Email'), SampleImage))
+            RadiusBottomLeft: =45
+            RadiusBottomRight: =45
+            RadiusTopLeft: =45
+            RadiusTopRight: =45
+            Width: =30
+            X: =SolnNameLabel.X
+            Y: =SolnDevLabel.Y+SolnDevLabel.Height+10
+            ZIndex: =9
+
+        SolnDevLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Developer"
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnDescriptionValue.Y+SolnDescriptionValue.Height+10
+            ZIndex: =18
+
+    SolnCostGroup As group:
+        Height: =5
+        Width: =5
+        X: =405
+        Y: =219
+        ZIndex: =30
+
+        SolnCostValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =23
+            Size: =14
+            Text: |-
+                =If(IsBlank(ThisIdeaSolns.Selected.SolutionCost), "Not provided", Text(ThisIdeaSolns.Selected.SolutionCost,"[$-en-US]$#,###.00"))
+            Width: =SolnCostLabel.Width
+            X: =SolnNameLabel.X
+            Y: =SolnCostLabel.Y+SolnCostLabel.Height+5
+            ZIndex: =10
+
+        SolnCostLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Cost to implement"
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnTechValue.Y+SolnTechValue.Height+10
+            ZIndex: =16
+
+    ThisIdeaSolns As gallery.galleryVertical:
+        Height: =694
+        Items: =Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'=OurIdeaGUID)
+        Layout: =Layout.Vertical
+        OnSelect: |-
+            =UpdateContext({ThisSolnMoney: Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'=ThisIdeaSolns.Selected.'Backlog Item Solution' && MeasureType=MeasureTypeOptions.Money), MoneySavings)});
+            UpdateContext({ThisSolnTime: Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'=ThisIdeaSolns.Selected.'Backlog Item Solution' && MeasureType=MeasureTypeOptions.Time), TimeSavings)});
+        TemplateFill: =If(ThisItem.IsSelected, RGBA(244,244,244,1), RGBA(0, 0, 0, 0))
+        TemplateSize: =169
+        Width: =370
+        Y: =65
+        ZIndex: =32
+
+        seperatorSolnList As rectangle:
+            Fill: =RGBA(234, 234, 234, 1)
+            Height: =1
+            OnSelect: =Select(Parent)
+            Width: =365
+            Y: =Parent.TemplateHeight-1
+            ZIndex: =1
+
+        SolnDevImgList As image:
+            Height: =Self.Width
+            Image: =If(IsBlank(ThisItem.Developer), SampleImage, IfError(Office365Users.UserPhotoV2(ThisItem.Developer.'Primary Email'), SampleImage))
+            OnSelect: =Select(Parent)
+            RadiusBottomLeft: =45
+            RadiusBottomRight: =45
+            RadiusTopLeft: =45
+            RadiusTopRight: =45
+            Width: =30
+            X: =SolnNameList.X+2
+            Y: =SolnPlatformList.Y+SolnPlatformList.Height
+            ZIndex: =2
+
+        SolnPlatformList As label:
+            Color: =RGBA(102,102,102, 1)
+            FontWeight: =Normal
+            Height: =30
+            OnSelect: =Select(Parent)
+            Size: =14
+            Text: ="Using " & If(ThisItem.SolutionTech=SolutionTechOptions.Other, ThisItem.SolutionTechOther, ThisItem.SolutionTech)
+            Width: =365 
+            X: =SolnNameList.X
+            Y: =SolnCostList.Y+SolnCostList.Height
+            ZIndex: =3
+
+        SolnCostList As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =30
+            OnSelect: =Select(Parent)
+            Size: =14
+            Text: |-
+                ="Cost: " & Text(ThisItem.SolutionCost, "[$-en-US]$#,###.00") 
+            Width: =365 
+            X: =SolnNameList.X
+            Y: =SolnCreatedDateList.Y+SolnCreatedDateList.Height
+            ZIndex: =4
+
+        SolnDevNameList As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =30
+            OnSelect: =Select(Parent)
+            Size: =14
+            Text: =ThisItem.Developer.'Full Name'
+            Width: =320
+            X: =SolnDevImgList.X+SolnDevImgList.Width+5
+            Y: =SolnDevImgList.Y
+            ZIndex: =5
+
+        SolnCreatedDateList As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =30
+            OnSelect: =Select(Parent)
+            Size: =14
+            Text: ="Created " & Text(ThisItem.CreatedOnDate, DateTimeFormat.ShortDate)
+            Width: =365 
+            X: =SolnNameList.X
+            Y: =SolnNameList.Y+SolnNameList.Height
+            ZIndex: =6
+
+        SolnNameList As label:
+            Color: =RGBA(51, 51, 51, 1)
+            FontWeight: =Bold
+            Height: =30
+            OnSelect: =Select(Parent)
+            Size: =17
+            Text: =ThisItem.'Display Name'
+            Tooltip: =ThisItem.'Display Name'
+            Width: =365
+            Wrap: =false
+            Y: =7
+            ZIndex: =7
+
+    SolnTechGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =32
+
+        SolnTechValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =SolnDescriptionLabel.Height*3
+            Size: =14
+            Text: |-
+                =If(ThisIdeaSolns.Selected.SolutionTech=SolutionTechOptions.Other, ThisIdeaSolns.Selected.SolutionTechOther, ThisIdeaSolns.Selected.SolutionTech & ": " & 
+                Left(Concat(ThisIdeaSolns.Selected.SolutionTechPP, Value & ", "), Len(Concat(ThisIdeaSolns.Selected.SolutionTechPP, Value & ", "))-2))
+            Tooltip: =If(ThisIdeaSolns.Selected.SolutionTech=SolutionTechOptions.Other, ThisIdeaSolns.Selected.SolutionTechOther, Concat(ThisIdeaSolns.Selected.SolutionTechPP, Value & Char(10)))
+            Width: =SolnTechLabel.Width
+            X: =SolnNameLabel.X
+            Y: =SolnTechLabel.Y+SolnTechLabel.Height+5
+            ZIndex: =11
+
+        SolnTechLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =39
+            Size: =17
+            Text: ="Technology used"
+            Tooltip: =Concat(ThisIdeaSolns.Selected.SolutionTechPP, Value & Char(10))
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnDevValue.Y+SolnDevValue.Height+15
+            ZIndex: =17
+
+    SolnReturnGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =35
+
+        SolnReturnValueMoney As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =23
+            Size: =14
+            Text: |-
+                =If(IsBlank(ThisSolnMoney) || ThisSolnMoney=0, 
+                "Not yet provided", Text(ThisSolnMoney,"[$-en-US]$#,###.00") & "/month")
+            Width: =SolnReturnLabel.Width
+            X: =SolnReturnIconMoney.X+SolnReturnIconMoney.Width+5
+            Y: =SolnReturnLabel.Y+SolnReturnLabel.Height+5
+            ZIndex: =8
+
+        SolnReturnLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Return on investment"
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnCostValue.Y+SolnCostValue.Height+15
+            ZIndex: =12
+
+        SolnReturnValueTime As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =23
+            Size: =14
+            Text: =If(IsBlank(ThisSolnTime) || ThisSolnTime=0, "Not yet provided", ThisSolnTime & " hours/month")
+            Width: =SolnReturnLabel.Width
+            X: =SolnReturnIconTime.X+SolnReturnIconTime.Width+5
+            Y: =SolnReturnValueMoney.Y+SolnReturnValueMoney.Height+5
+            ZIndex: =13
+
+        SolnReturnIconMoney As image:
+            Height: =24
+            Image: |-
+                =If(IsBlank(ThisSolnMoney) || ThisSolnMoney=0, 
+                'Money measure - Not configured', 'Money measure - Configured')
+            Width: =30
+            X: =SolnNameLabel.X+8
+            Y: =SolnReturnLabel.Y+SolnReturnLabel.Height+5
+            ZIndex: =14
+
+        SolnReturnIconTime As image:
+            Height: =24
+            Image: |-
+                =If(IsBlank(ThisSolnTime) || ThisSolnTime=0, 
+                'Time measure - Not configured', 'Time measure - Configured')
+            Width: =30
+            X: =SolnNameLabel.X+8
+            Y: =SolnReturnIconMoney.Y+SolnReturnIconMoney.Height+5
+            ZIndex: =15
+
+    SolnNameLabel_1 As label:
+        Color: =RGBA(51,51,51, 1)
+        FontWeight: =Semibold
+        Height: =23
+        Size: =17
+        Text: ="Feedback"
+        Width: =400
+        X: =785
+        Y: =125
+        ZIndex: =36
+
+    SolnPageActionGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =37
+
+        AskFeedbackLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: =Select(AskFeedbackIcon)
+            Text: ="Request feedback"
+            Width: =236
+            X: =899
+            Y: =65
+            ZIndex: =23
+
+        AskFeedbackIcon As image:
+            Height: =Self.Width
+            Image: ='Feedback-icon'
+            OnSelect: |-
+                =Set(varTo, Concatenate(OurIdea.ThisIdeaVotersEmail,  OurIdea.ThisIdeaWorkItemCreatorsEmail));
+                Set(varSubject, "Please provide feedback on work for: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, A solution for this Innovation Backlog item is now ready for your feedback. <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & "?InputSolnGUID=" & ThisIdeaSolns.Selected.'Backlog Item Solution' & ">" & OurIdea.'Display Name' & "</a></b><br>
+                You are listed as an interested party and as such I wanted to reach out for you to take a look: <br>
+                <li> In order to gain access to the solution, please do the following:
+                <li> You should expect to see improvements to the following measures: 
+                <li> The following measures are not yet improved:
+                ");
+                Navigate(Email)
+            Width: =EditIdeaIcon.Width
+            X: =879
+            Y: =74
+            ZIndex: =24
+
+        AddFeedbackLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: =Select(AddFeedbackIcon);
+            Text: ="Add Feedback"
+            X: =510
+            Y: =67
+            ZIndex: =25
+
+        AddFeedbackIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Add
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, ThisIdeaSolns.Selected.'Backlog Item Solution');
+                Set(OurTestimony, Blank());
+                Navigate([@AddTestimoney]);
+            Width: =17
+            X: =490
+            Y: =76
+            ZIndex: =26
+
+        SolnEditLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: =Select(SolnEditIcon)
+            Text: ="Edit"
+            Width: =55
+            X: =413
+            Y: =67
+            ZIndex: =27
+
+        SolnEditIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Edit
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, ThisIdeaSolns.Selected.'Backlog Item Solution');
+                Set(SolutionFromScreen, [@Solutions]);
+                Navigate(IdeaSolutionDetails);
+            Width: =17
+            X: =393
+            Y: =76
+            ZIndex: =28
+
+        AddNewSolnLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: =Select(AddNewSolnIcon)
+            Text: ="Add Solution"
+            X: =699
+            Y: =68
+            ZIndex: =30
+
+        AddNewSolnIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Add
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, Blank());
+                Set(SolutionFromScreen, [@Solutions]);
+                Navigate(IdeaSolutionDetails);
+            Width: =17
+            X: =679
+            Y: =77
+            ZIndex: =31
+
+    SolnDateGroup As group:
+        Height: =5
+        Width: =5
+        X: =405
+        Y: =527
+        ZIndex: =37
+
+        SolnDateValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =23
+            Size: =14
+            Text: =Text(ThisIdeaSolns.Selected.CreatedOnDate, DateTimeFormat.ShortDate)
+            Width: =SolnDateLabel.Width
+            X: =SolnNameLabel.X
+            Y: =SolnDateLabel.Y+SolnDateLabel.Height+5
+            ZIndex: =20
+
+        SolnDateLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Created on"
+            Width: =400
+            X: =SolnNameLabel.X
+            Y: =SolnNameValue.Y+SolnNameValue.Height+10
+            ZIndex: =21
+

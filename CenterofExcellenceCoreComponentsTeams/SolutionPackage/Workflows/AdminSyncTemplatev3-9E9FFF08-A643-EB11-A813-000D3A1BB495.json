@@ -1,0 +1,1498 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_2": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Get_Environments_and_store_them_in_the_CoE_CDS_Entity": {
+          "actions": {
+            "Apply_to_each_Environment": {
+              "actions": {
+                "Check_if_CDS": {
+                  "actions": {
+                    "Set_'CDS_Metadata_Name'_to_empty_string": {
+                      "inputs": {
+                        "name": "CDS Metadata Name",
+                        "value": "@{concat('', '')}"
+                      },
+                      "runAfter": {
+                        "Set_isCDS_false": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    },
+                    "Set_isCDS_false": {
+                      "inputs": {
+                        "name": "isCDS",
+                        "value": "@false"
+                      },
+                      "runAfter": {},
+                      "type": "SetVariable"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Set_'CD_Metadata_Name'": {
+                        "inputs": {
+                          "name": "CDS Metadata Name",
+                          "value": "@{replace(concat(\r\n   items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['uniqueName'], \r\n   variables('cdsURL')\r\n), '/', '')}"
+                        },
+                        "runAfter": {
+                          "Set_cdsURL": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      },
+                      "Set_cdsURL": {
+                        "inputs": {
+                          "name": "cdsURL",
+                          "value": "@{concat('.', split(items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl'], '.')[1])}"
+                        },
+                        "runAfter": {
+                          "Set_isCDS_true": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      },
+                      "Set_isCDS_true": {
+                        "inputs": {
+                          "name": "isCDS",
+                          "value": "@true"
+                        },
+                        "runAfter": {},
+                        "type": "SetVariable"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@items('Apply_to_each_Environment')?['properties/linkedEnvironmentMetadata']",
+                      "@null"
+                    ]
+                  },
+                  "runAfter": {
+                    "Remove_any_Environment_prefix": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Check_if_Legacy_Environment": {
+                  "actions": {
+                    "If_found,_we've_already_created,_just_update_it,_else_create": {
+                      "actions": {
+                        "Set_GuidFound": {
+                          "inputs": {
+                            "name": "GuidFound",
+                            "value": "@{first(outputs('See_if_we''ve_created_previously')?['body/value'])?['admin_environmentid']}"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        },
+                        "Update_Legacy_Environment": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environments",
+                              "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                              "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                              "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                              "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                              "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                              "item/admin_environmentdeleted": false,
+                              "item/admin_environmentisorphaned": "no",
+                              "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                              "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                              "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                              "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                              "item/admin_hascds": "@variables('isCDS')",
+                              "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                              "recordId": "@variables('GuidFound')"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {
+                            "Set_GuidFound": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Insert_Legacy_Environment": {
+                            "inputs": {
+                              "authentication": "@parameters('$authentication')",
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps_2",
+                                "operationId": "CreateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_environments",
+                                "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                                "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                "item/admin_environmentdeleted": false,
+                                "item/admin_environmentisorphaned": "no",
+                                "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                "item/admin_hascds": "@variables('isCDS')",
+                                "item/admin_region": "@items('Apply_to_each_Environment')?['location']"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(body('See_if_we''ve_created_previously')?['value'])",
+                          0
+                        ]
+                      },
+                      "runAfter": {
+                        "See_if_we've_created_previously": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "See_if_we've_created_previously": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "admin_environmentname eq '@{items('Apply_to_each_Environment')?['name']}'",
+                          "$select": "admin_environmentid",
+                          "entityName": "admin_environments"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "description": "Legacy and Default environments have the same GUID, prefixed by Legacy- or Default- which is causing issues as the Record Identifier is using the GUID as a unique identifier. We are therefore using a generated GUID for the entity.",
+                  "else": {
+                    "actions": {
+                      "Apply_to_each_addon": {
+                        "actions": {
+                          "Check_if_Addon_Type_already_exists_for_this_environment": {
+                            "inputs": {
+                              "from": "@outputs('List_addons_for_Environment')?['body/value']",
+                              "where": "@equals(item()?['admin_addontype'], items('Apply_to_each_addon')?['addonType'])"
+                            },
+                            "runAfter": {},
+                            "type": "Query"
+                          },
+                          "If_Addon_Type_exists,_update,_else_add_new": {
+                            "actions": {
+                              "Add_a_new_row": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "CreateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_environmentaddonses",
+                                    "item/admin_Environment@odata.bind": "admin_environments(@{outputs('Remove_any_Environment_prefix')})",
+                                    "item/admin_addontype": "@items('Apply_to_each_addon')?['addonType']",
+                                    "item/admin_allocated": "@items('Apply_to_each_addon')?['allocated']"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "Update_a_row": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_environmentaddonses",
+                                      "item/admin_Environment@odata.bind": "admin_environments(@{outputs('Remove_any_Environment_prefix')})",
+                                      "item/admin_addontype": "@items('Apply_to_each_addon')?['addonType']",
+                                      "item/admin_allocated": "@items('Apply_to_each_addon')?['allocated']",
+                                      "recordId": "@first(body('Check_if_Addon_Type_already_exists_for_this_environment'))['admin_environmentaddonsid']"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              }
+                            },
+                            "expression": {
+                              "equals": [
+                                "@length(body('Check_if_Addon_Type_already_exists_for_this_environment'))",
+                                0
+                              ]
+                            },
+                            "runAfter": {
+                              "Check_if_Addon_Type_already_exists_for_this_environment": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "If"
+                          }
+                        },
+                        "foreach": "@items('Apply_to_each_Environment')?['properties/addons']",
+                        "runAfter": {
+                          "List_addons_for_Environment": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Foreach"
+                      },
+                      "Apply_to_each_capacity": {
+                        "actions": {
+                          "Check_if_Capacity_Type_already_exists_for_this_environment": {
+                            "inputs": {
+                              "from": "@outputs('List_capacity_for_Environment')?['body/value']",
+                              "where": "@equals(item()?['admin_capacitytype'], items('Apply_to_each_capacity')?['capacityType'])"
+                            },
+                            "runAfter": {},
+                            "type": "Query"
+                          },
+                          "If_Capacity_Type_exists,_update,_else_add_new": {
+                            "actions": {
+                              "Add_new_capacity": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "CreateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_environmentcapacities",
+                                    "item/admin_Environment@odata.bind": "admin_environments(@{outputs('Remove_any_Environment_prefix')})",
+                                    "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                    "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
+                                    "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
+                                    "item/admin_ratedconsumption": "@items('Apply_to_each_capacity')?['ratedConsumption']"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "Update_capacity": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_environmentcapacities",
+                                      "item/admin_Environment@odata.bind": "admin_environments(@{outputs('Remove_any_Environment_prefix')})",
+                                      "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                      "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
+                                      "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
+                                      "item/admin_ratedconsumption": "@items('Apply_to_each_capacity')?['ratedConsumption']",
+                                      "recordId": "@first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_environmentcapacityid']"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              }
+                            },
+                            "expression": {
+                              "equals": [
+                                "@length(body('Check_if_Capacity_Type_already_exists_for_this_environment'))",
+                                0
+                              ]
+                            },
+                            "runAfter": {
+                              "Check_if_Capacity_Type_already_exists_for_this_environment": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "If"
+                          }
+                        },
+                        "foreach": "@items('Apply_to_each_Environment')?['properties/capacity']",
+                        "runAfter": {
+                          "List_capacity_for_Environment": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Foreach"
+                      },
+                      "Get_Environment": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps_2",
+                            "operationId": "GetItem"
+                          },
+                          "parameters": {
+                            "$select": "admin_environmentid",
+                            "entityName": "admin_environments",
+                            "recordId": "@outputs('Remove_any_Environment_prefix')"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      },
+                      "List_addons_for_Environment": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps_2",
+                            "operationId": "ListRecords"
+                          },
+                          "parameters": {
+                            "$filter": "admin_Environment/admin_environmentid eq @{outputs('Remove_any_Environment_prefix')}",
+                            "$select": "admin_environmentaddonsid,admin_addontype",
+                            "entityName": "admin_environmentaddonses"
+                          }
+                        },
+                        "runAfter": {
+                          "Apply_to_each_capacity": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "List_capacity_for_Environment": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps_2",
+                            "operationId": "ListRecords"
+                          },
+                          "parameters": {
+                            "$filter": "admin_Environment/admin_environmentid eq @{outputs('Remove_any_Environment_prefix')}",
+                            "$select": "admin_environmentcapacityid,admin_capacitytype",
+                            "entityName": "admin_environmentcapacities"
+                          }
+                        },
+                        "runAfter": {
+                          "See_if_already_in_CoE": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "See_if_already_in_CoE": {
+                        "actions": {
+                          "Check_if_SYSTEM_created_Environment": {
+                            "actions": {
+                              "Update_Environment_(System)": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "UpdateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_environments",
+                                    "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                                    "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                    "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                    "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                    "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                    "item/admin_environmentdeleted": false,
+                                    "item/admin_environmentisorphaned": "no",
+                                    "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                    "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                    "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                    "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                    "item/admin_hascds": "@variables('isCDS')",
+                                    "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                    "recordId": "@outputs('Remove_any_Environment_prefix')"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "Get_user_profile_(V2)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                      "connectionName": "shared_office365users",
+                                      "operationId": "UserProfile_V2"
+                                    },
+                                    "parameters": {
+                                      "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                      "id": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['id']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                },
+                                "Switch": {
+                                  "cases": {
+                                    "200_Success": {
+                                      "actions": {
+                                        "Find_Env_Maker": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_2",
+                                              "operationId": "ListRecords"
+                                            },
+                                            "parameters": {
+                                              "$filter": "admin_makerid eq @{outputs('Get_user_profile_(V2)')?['body/id']}",
+                                              "$select": "admin_makerid",
+                                              "entityName": "admin_makers"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "runtimeConfiguration": {
+                                            "paginationPolicy": {
+                                              "minimumItemCount": 100000
+                                            }
+                                          },
+                                          "type": "OpenApiConnection"
+                                        },
+                                        "Update_Environment": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_2",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_environments",
+                                              "item/admin_Maker@odata.bind": "admin_makers(@{outputs('Get_user_profile_(V2)')?['body/id']})",
+                                              "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                              "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                              "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                              "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                              "item/admin_environmentdeleted": false,
+                                              "item/admin_environmentisorphaned": "no",
+                                              "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                              "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                              "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                              "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                              "item/admin_hascds": "@variables('isCDS')",
+                                              "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                              "recordId": "@outputs('Remove_any_Environment_prefix')"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {
+                                            "Update_or_Insert_Envt_Maker": [
+                                              "Succeeded"
+                                            ]
+                                          },
+                                          "type": "OpenApiConnection"
+                                        },
+                                        "Update_or_Insert_Envt_Maker": {
+                                          "actions": {
+                                            "Update_Env_Maker": {
+                                              "inputs": {
+                                                "authentication": "@parameters('$authentication')",
+                                                "host": {
+                                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                  "connectionName": "shared_commondataserviceforapps_2",
+                                                  "operationId": "UpdateRecord"
+                                                },
+                                                "parameters": {
+                                                  "entityName": "admin_makers",
+                                                  "item/admin_city": "@outputs('Get_user_profile_(V2)')?['body/city']",
+                                                  "item/admin_country": "@outputs('Get_user_profile_(V2)')?['body/country']",
+                                                  "item/admin_department": "@outputs('Get_user_profile_(V2)')?['body/department']",
+                                                  "item/admin_displayname": "@outputs('Get_user_profile_(V2)')?['body/displayName']",
+                                                  "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)')?['body/jobTitle']",
+                                                  "item/admin_makerisorphaned": false,
+                                                  "item/admin_office": "@outputs('Get_user_profile_(V2)')?['body/officeLocation']",
+                                                  "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)')?['body/userPrincipalName']",
+                                                  "recordId": "@outputs('Get_user_profile_(V2)')?['body/id']"
+                                                },
+                                                "retryPolicy": {
+                                                  "count": 10,
+                                                  "interval": "PT10S",
+                                                  "type": "exponential"
+                                                }
+                                              },
+                                              "runAfter": {},
+                                              "type": "OpenApiConnection"
+                                            }
+                                          },
+                                          "else": {
+                                            "actions": {
+                                              "Create_Env_Maker": {
+                                                "inputs": {
+                                                  "authentication": "@parameters('$authentication')",
+                                                  "host": {
+                                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                    "connectionName": "shared_commondataserviceforapps_2",
+                                                    "operationId": "CreateRecord"
+                                                  },
+                                                  "parameters": {
+                                                    "entityName": "admin_makers",
+                                                    "item/admin_city": "@outputs('Get_user_profile_(V2)')?['body/city']",
+                                                    "item/admin_country": "@outputs('Get_user_profile_(V2)')?['body/country']",
+                                                    "item/admin_department": "@outputs('Get_user_profile_(V2)')?['body/department']",
+                                                    "item/admin_displayname": "@outputs('Get_user_profile_(V2)')?['body/displayName']",
+                                                    "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)')?['body/jobTitle']",
+                                                    "item/admin_makerid": "@outputs('Get_user_profile_(V2)')?['body/id']",
+                                                    "item/admin_makerisorphaned": false,
+                                                    "item/admin_office": "@outputs('Get_user_profile_(V2)')?['body/officeLocation']",
+                                                    "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)')?['body/userPrincipalName']"
+                                                  },
+                                                  "retryPolicy": {
+                                                    "count": 10,
+                                                    "interval": "PT10S",
+                                                    "type": "exponential"
+                                                  }
+                                                },
+                                                "runAfter": {},
+                                                "type": "OpenApiConnection"
+                                              }
+                                            }
+                                          },
+                                          "expression": {
+                                            "greater": [
+                                              "@length(outputs('Find_Env_Maker')?['body/value'])",
+                                              0
+                                            ]
+                                          },
+                                          "runAfter": {
+                                            "Find_Env_Maker": [
+                                              "Succeeded"
+                                            ]
+                                          },
+                                          "type": "If"
+                                        }
+                                      },
+                                      "case": 200
+                                    },
+                                    "404_File_Not_Found": {
+                                      "actions": {
+                                        "Update_Environment_(Orphaned)": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_2",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_environments",
+                                              "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                              "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                              "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                              "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                              "item/admin_environmentdeleted": false,
+                                              "item/admin_environmentisorphaned": "yes",
+                                              "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                              "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                              "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                              "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                              "item/admin_hascds": "@variables('isCDS')",
+                                              "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                              "recordId": "@outputs('Remove_any_Environment_prefix')"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "case": 404
+                                    }
+                                  },
+                                  "default": {
+                                    "actions": {}
+                                  },
+                                  "expression": "@outputs('Get_user_profile_(V2)')['statusCode']",
+                                  "runAfter": {
+                                    "Get_user_profile_(V2)": [
+                                      "Succeeded",
+                                      "Failed"
+                                    ]
+                                  },
+                                  "type": "Switch"
+                                }
+                              }
+                            },
+                            "expression": {
+                              "or": [
+                                {
+                                  "equals": [
+                                    "@items('Apply_to_each_Environment')?['properties/createdBy/id']",
+                                    "SYSTEM"
+                                  ]
+                                },
+                                {
+                                  "equals": [
+                                    "@items('Apply_to_each_Environment')?['properties/createdBy/displayName']",
+                                    "SYSTEM"
+                                  ]
+                                }
+                              ]
+                            },
+                            "runAfter": {},
+                            "type": "If"
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "Check_if_SYSTEM_created_Environment_New": {
+                              "actions": {
+                                "Insert_Environment_(System)": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "CreateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_environments",
+                                      "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                                      "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                      "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                      "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                      "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                      "item/admin_environmentdeleted": false,
+                                      "item/admin_environmentid": "@outputs('Remove_any_Environment_prefix')",
+                                      "item/admin_environmentisorphaned": "no",
+                                      "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                      "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                      "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                      "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                      "item/admin_hascds": "@variables('isCDS')",
+                                      "item/admin_region": "@items('Apply_to_each_Environment')?['location']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "Get_user_profile_(V2)_New": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                        "connectionName": "shared_office365users",
+                                        "operationId": "UserProfile_V2"
+                                      },
+                                      "parameters": {
+                                        "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                        "id": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['id']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Switch_2": {
+                                    "cases": {
+                                      "200_Success": {
+                                        "actions": {
+                                          "Find_Env_Maker_New": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps_2",
+                                                "operationId": "ListRecords"
+                                              },
+                                              "parameters": {
+                                                "$filter": "admin_makerid eq @{outputs('Get_user_profile_(V2)_New')?['body/id']}",
+                                                "$select": "admin_makerid",
+                                                "entityName": "admin_makers"
+                                              }
+                                            },
+                                            "runAfter": {},
+                                            "runtimeConfiguration": {
+                                              "paginationPolicy": {
+                                                "minimumItemCount": 100000
+                                              }
+                                            },
+                                            "type": "OpenApiConnection"
+                                          },
+                                          "Insert_Environment": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps_2",
+                                                "operationId": "CreateRecord"
+                                              },
+                                              "parameters": {
+                                                "entityName": "admin_environments",
+                                                "item/admin_Maker@odata.bind": "admin_makers(@{outputs('Get_user_profile_(V2)_New')?['body/id']})",
+                                                "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                                "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                                "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                                "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                                "item/admin_environmentdeleted": false,
+                                                "item/admin_environmentid": "@outputs('Remove_any_Environment_prefix')",
+                                                "item/admin_environmentisorphaned": "no",
+                                                "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                                "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                                "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                                "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                                "item/admin_hascds": "@variables('isCDS')",
+                                                "item/admin_region": "@items('Apply_to_each_Environment')?['location']"
+                                              },
+                                              "retryPolicy": {
+                                                "count": 10,
+                                                "interval": "PT10S",
+                                                "type": "exponential"
+                                              }
+                                            },
+                                            "runAfter": {
+                                              "Update_or_Insert_Envt_Maker_New": [
+                                                "Succeeded"
+                                              ]
+                                            },
+                                            "type": "OpenApiConnection"
+                                          },
+                                          "Update_or_Insert_Envt_Maker_New": {
+                                            "actions": {
+                                              "Update_Env_Maker_New": {
+                                                "inputs": {
+                                                  "authentication": "@parameters('$authentication')",
+                                                  "host": {
+                                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                    "connectionName": "shared_commondataserviceforapps_2",
+                                                    "operationId": "UpdateRecord"
+                                                  },
+                                                  "parameters": {
+                                                    "entityName": "admin_makers",
+                                                    "item/admin_city": "@outputs('Get_user_profile_(V2)_New')?['body/city']",
+                                                    "item/admin_country": "@outputs('Get_user_profile_(V2)_New')?['body/country']",
+                                                    "item/admin_department": "@outputs('Get_user_profile_(V2)_New')?['body/department']",
+                                                    "item/admin_displayname": "@outputs('Get_user_profile_(V2)_New')?['body/displayName']",
+                                                    "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)_New')?['body/jobTitle']",
+                                                    "item/admin_makerisorphaned": false,
+                                                    "item/admin_office": "@outputs('Get_user_profile_(V2)_New')?['body/officeLocation']",
+                                                    "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)_New')?['body/userPrincipalName']",
+                                                    "recordId": "@outputs('Get_user_profile_(V2)_New')?['body/id']"
+                                                  },
+                                                  "retryPolicy": {
+                                                    "count": 10,
+                                                    "interval": "PT10S",
+                                                    "type": "exponential"
+                                                  }
+                                                },
+                                                "runAfter": {},
+                                                "type": "OpenApiConnection"
+                                              }
+                                            },
+                                            "else": {
+                                              "actions": {
+                                                "Create_Env_Maker_New": {
+                                                  "inputs": {
+                                                    "authentication": "@parameters('$authentication')",
+                                                    "host": {
+                                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                      "connectionName": "shared_commondataserviceforapps_2",
+                                                      "operationId": "CreateRecord"
+                                                    },
+                                                    "parameters": {
+                                                      "entityName": "admin_makers",
+                                                      "item/admin_city": "@outputs('Get_user_profile_(V2)_New')?['body/city']",
+                                                      "item/admin_country": "@outputs('Get_user_profile_(V2)_New')?['body/country']",
+                                                      "item/admin_department": "@outputs('Get_user_profile_(V2)_New')?['body/department']",
+                                                      "item/admin_displayname": "@outputs('Get_user_profile_(V2)_New')?['body/displayName']",
+                                                      "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)_New')?['body/jobTitle']",
+                                                      "item/admin_makerid": "@outputs('Get_user_profile_(V2)_New')?['body/id']",
+                                                      "item/admin_makerisorphaned": false,
+                                                      "item/admin_office": "@outputs('Get_user_profile_(V2)_New')?['body/officeLocation']",
+                                                      "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)_New')?['body/userPrincipalName']"
+                                                    },
+                                                    "retryPolicy": {
+                                                      "count": 10,
+                                                      "interval": "PT10S",
+                                                      "type": "exponential"
+                                                    }
+                                                  },
+                                                  "runAfter": {},
+                                                  "type": "OpenApiConnection"
+                                                }
+                                              }
+                                            },
+                                            "expression": {
+                                              "greater": [
+                                                "@length(outputs('Find_Env_Maker_New')?['body/value'])",
+                                                0
+                                              ]
+                                            },
+                                            "runAfter": {
+                                              "Find_Env_Maker_New": [
+                                                "Succeeded"
+                                              ]
+                                            },
+                                            "type": "If"
+                                          }
+                                        },
+                                        "case": 200
+                                      },
+                                      "404_File_Not_Found": {
+                                        "actions": {
+                                          "Insert_Environment_(Orphaned)": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps_2",
+                                                "operationId": "CreateRecord"
+                                              },
+                                              "parameters": {
+                                                "entityName": "admin_environments",
+                                                "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                                "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                                "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                                "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                                "item/admin_environmentdeleted": false,
+                                                "item/admin_environmentid": "@outputs('Remove_any_Environment_prefix')",
+                                                "item/admin_environmentisorphaned": "yes",
+                                                "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                                "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                                "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                                "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                                "item/admin_hascds": "@variables('isCDS')",
+                                                "item/admin_region": "@items('Apply_to_each_Environment')?['location']"
+                                              },
+                                              "retryPolicy": {
+                                                "count": 10,
+                                                "interval": "PT10S",
+                                                "type": "exponential"
+                                              }
+                                            },
+                                            "runAfter": {},
+                                            "type": "OpenApiConnection"
+                                          }
+                                        },
+                                        "case": 404
+                                      }
+                                    },
+                                    "default": {
+                                      "actions": {}
+                                    },
+                                    "expression": "@outputs('Get_user_profile_(V2)_New')['statusCode']",
+                                    "runAfter": {
+                                      "Get_user_profile_(V2)_New": [
+                                        "Succeeded",
+                                        "Failed"
+                                      ]
+                                    },
+                                    "type": "Switch"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "or": [
+                                  {
+                                    "equals": [
+                                      "@items('Apply_to_each_Environment')?['properties/createdBy/id']",
+                                      "SYSTEM"
+                                    ]
+                                  },
+                                  {
+                                    "equals": [
+                                      "@items('Apply_to_each_Environment')?['properties/createdBy/displayName']",
+                                      "SYSTEM"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "runAfter": {},
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "expression": {
+                          "equals": [
+                            "@variables('isNewToCoE')",
+                            "@false"
+                          ]
+                        },
+                        "runAfter": {
+                          "Set_isNewToCoE_to_true": [
+                            "Succeeded",
+                            "Skipped"
+                          ]
+                        },
+                        "type": "If"
+                      },
+                      "Set_isNewToCoE_to_true": {
+                        "inputs": {
+                          "name": "isNewToCoE",
+                          "value": "@true"
+                        },
+                        "runAfter": {
+                          "Get_Environment": [
+                            "Failed"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "contains": [
+                      "@items('Apply_to_each_Environment')?['properties/creationType']",
+                      "Legacy"
+                    ]
+                  },
+                  "runAfter": {
+                    "Check_if_Teams_envt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Check_if_Teams_envt": {
+                  "actions": {
+                    "Parse_JSON": {
+                      "inputs": {
+                        "content": "@outputs('get_connectedGroups')",
+                        "schema": {
+                          "properties": {
+                            "displayName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "resources": {
+                              "items": {
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "id"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "state": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "runAfter": {
+                        "get_connectedGroups": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "ParseJson"
+                    },
+                    "get_connectedGroups": {
+                      "inputs": "@first(items('Apply_to_each_Environment')?['properties/connectedGroups'])",
+                      "runAfter": {},
+                      "type": "Compose"
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@items('Apply_to_each_Environment')?['properties/environmentSku']",
+                      "Teams"
+                    ]
+                  },
+                  "runAfter": {
+                    "Check_if_CDS": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Name_Length": {
+                  "description": "Returns the index where the GUID starts",
+                  "inputs": "@sub(length(items('Apply_to_each_Environment')?['name']),36)",
+                  "runAfter": {
+                    "ReSet_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "ReSet_isNewToCoE": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "Remove_any_Environment_prefix": {
+                  "description": "Returns the GUID without any prefix (right 36 chars)",
+                  "inputs": "@substring(items('Apply_to_each_Environment')?['name'], int(outputs('Name_Length')), 36)",
+                  "runAfter": {
+                    "Name_Length": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                }
+              },
+              "foreach": "@outputs('Get_Environments')?['body/value']",
+              "runAfter": {
+                "Get_Environments": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Get_Environments": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins",
+                  "operationId": "Get-AdminEnvironment"
+                },
+                "parameters": {
+                  "$expand": "properties.capacity,properties.addons",
+                  "api-version": "2021-03-01"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Get_System_User": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Environments_fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Get_Environments_and_store_them_in_the_CoE_CDS_Entity": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_System_User": {
+          "actions": {
+            "Is_System_Maker": {
+              "actions": {
+                "Create_Maker_record_for_SYSTEM": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_2",
+                      "operationId": "CreateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_makers",
+                      "item/admin_displayname": "SYSTEM"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_systemMaker_with_new_record": {
+                  "inputs": {
+                    "name": "systemMaker",
+                    "value": "@outputs('Create_Maker_record_for_SYSTEM')?['body/admin_makerid']"
+                  },
+                  "runAfter": {
+                    "Create_Maker_record_for_SYSTEM": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Set_systemMaker_with_existing_record": {
+                    "inputs": {
+                      "name": "systemMaker",
+                      "value": "@{first(body('List_Makers')?['value'])?['admin_makerid']}"
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@length(outputs('List_Makers')?['body/value'])",
+                  0
+                ]
+              },
+              "runAfter": {
+                "List_Makers": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "List_Makers": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_displayname eq 'SYSTEM'",
+                  "$select": "admin_makerid",
+                  "entityName": "admin_makers"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Initialize_cdsURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_CDS_Metadata_Name": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "CDS Metadata Name",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isCDS": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_GuidFound": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "GuidFound",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_cdsURL": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "cdsURL",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_CDS_Metadata_Name": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_isNewToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Initialize_systemMaker": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "systemMaker",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_GuidFound": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isCDS": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isCDS",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_today": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_systemMaker": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

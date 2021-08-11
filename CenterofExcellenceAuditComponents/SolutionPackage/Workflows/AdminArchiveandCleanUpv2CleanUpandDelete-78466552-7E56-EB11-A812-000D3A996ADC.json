@@ -1,0 +1,571 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_flowmanagement_1": {
+        "api": {
+          "name": "shared_flowmanagement"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovPowerAutomateManagement"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovPowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Delete_objects_that_have_been_approved_for_deletion": {
+          "actions": {
+            "Canvas": {
+              "actions": {
+                "Apply_to_each_canvas_app": {
+                  "actions": {
+                    "Mark_App_Deletion_Complete": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_archiveapprovals",
+                          "item/admin_deletioncomplete": true,
+                          "recordId": "@items('Apply_to_each_canvas_app')?['admin_archiveapprovalid']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Remove_App_as_Admin": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Remove_App_as_Admin": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                          "connectionName": "shared_powerappsforadmins",
+                          "operationId": "Remove-AdminApp"
+                        },
+                        "parameters": {
+                          "api-version": "2016-11-01",
+                          "app": "@items('Apply_to_each_canvas_app')?['admin_appname']",
+                          "environment": "@items('Apply_to_each_canvas_app')?['admin_appenvironmentname']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@outputs('List_canvas_apps_ready_to_delete')?['body/value']",
+                  "runAfter": {
+                    "List_canvas_apps_ready_to_delete": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "List_canvas_apps_ready_to_delete": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "admin_deletioncomplete ne true and admin_approvalresponsedate lt @{body('Get_past_time_for_archivals_ready_to_delete')} and admin_approvalresponse eq 'Approve' and cr5d5_archivalitemtype eq 129260001",
+                      "$select": "admin_appname, admin_appenvironmentname, admin_archiveapprovalid",
+                      "entityName": "admin_archiveapprovals"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "runAfter": {
+                "Flows": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Scope"
+            },
+            "Check_if_set_to_delete": {
+              "actions": {
+                "Condition": {
+                  "actions": {
+                    "Env_Variable_set_to_not_Delete": {
+                      "inputs": {
+                        "runStatus": "Succeeded"
+                      },
+                      "runAfter": {},
+                      "type": "Terminate"
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('varAutoDelete')",
+                      "No"
+                    ]
+                  },
+                  "runAfter": {},
+                  "type": "If"
+                }
+              },
+              "runAfter": {
+                "Get_past_time_for_archivals_ready_to_delete": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Scope"
+            },
+            "Flows": {
+              "actions": {
+                "Apply_to_each_flow": {
+                  "actions": {
+                    "Check_for_Perms": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                          "connectionName": "shared_flowmanagement_1",
+                          "operationId": "GetFlow"
+                        },
+                        "parameters": {
+                          "environmentName": "@items('Apply_to_each_flow')?['admin_appenvironmentname']",
+                          "flowName": "@items('Apply_to_each_flow')?['admin_appname']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    },
+                    "Compose": {
+                      "inputs": "this flow needs to be deleted manually",
+                      "runAfter": {
+                        "Delete_Flow": [
+                          "Failed"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "Delete_Flow": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                          "connectionName": "shared_flowmanagement_1",
+                          "operationId": "DeleteFlow"
+                        },
+                        "parameters": {
+                          "environmentName": "@items('Apply_to_each_flow')?['admin_appenvironmentname']",
+                          "flowName": "@items('Apply_to_each_flow')?['admin_appname']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Modify_Flow_Owners_as_Admin": [
+                          "Succeeded",
+                          "Skipped",
+                          "Failed"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Mark_Flow_Deletion_Complete": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_archiveapprovals",
+                          "item/admin_deletioncomplete": true,
+                          "recordId": "@items('Apply_to_each_flow')?['admin_archiveapprovalid']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Compose": [
+                          "Skipped"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Modify_Flow_Owners_as_Admin": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                          "connectionName": "shared_flowmanagement_1",
+                          "operationId": "AdminModifyFlowOwners"
+                        },
+                        "parameters": {
+                          "environmentName": "@items('Apply_to_each_flow')?['admin_appenvironmentname']",
+                          "flowName": "@items('Apply_to_each_flow')?['admin_appname']",
+                          "permissions/put": [
+                            {
+                              "properties/principal/id": "@outputs('Get_my_profile_(V2)')?['body/id']",
+                              "properties/principal/type": "User"
+                            }
+                          ]
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Check_for_Perms": [
+                          "Failed"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@outputs('List_flows_ready_to_delete')?['body/value']",
+                  "runAfter": {
+                    "List_flows_ready_to_delete": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "List_flows_ready_to_delete": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "admin_deletioncomplete ne true and admin_approvalresponsedate lt @{body('Get_past_time_for_archivals_ready_to_delete')} and admin_approvalresponse eq 'Approve' and cr5d5_archivalitemtype eq 129260000",
+                      "$select": "admin_appname, admin_appenvironmentname, admin_archiveapprovalid",
+                      "entityName": "admin_archiveapprovals"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "runAfter": {
+                "Check_if_set_to_delete": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Scope"
+            },
+            "Get_past_time_for_archivals_ready_to_delete": {
+              "inputs": {
+                "interval": 3,
+                "timeUnit": "Week"
+              },
+              "kind": "GetPastTime",
+              "runAfter": {},
+              "type": "Expression"
+            }
+          },
+          "runAfter": {
+            "Delete_timed_out_archive_requests": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Delete_timed_out_archive_requests": {
+          "actions": {
+            "Apply_to_each": {
+              "actions": {
+                "Delete_the_old_archive_record_": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "DeleteRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_archiveapprovals",
+                      "recordId": "@items('Apply_to_each')?['admin_archiveapprovalid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@outputs('Get_old_archival_requests_to_delete')?['body/value']",
+              "runAfter": {
+                "Get_old_archival_requests_to_delete": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Get_old_archival_requests_to_delete": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "createdon lt @{body('Get_past_time_for_old_archival_requests')} and admin_approvalresponse ne 'Approve'",
+                  "$select": "admin_archiveapprovalid",
+                  "entityName": "admin_archiveapprovals"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Get_past_time_for_old_archival_requests": [
+                  "Succeeded"
+                ]
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "Get_past_time_for_old_archival_requests": {
+              "inputs": {
+                "interval": 1,
+                "timeUnit": "Month"
+              },
+              "kind": "GetPastTime",
+              "runAfter": {},
+              "type": "Expression"
+            }
+          },
+          "runAfter": {
+            "Ensure_Approved_Objects_have_date": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Ensure_Approved_Objects_have_date": {
+          "actions": {
+            "Get_old_approvals_without_an_approved_date": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_approvalresponse eq 'Approve' and (admin_approvalresponsedate eq null or admin_approvalresponsedate lt @{formatDateTime(addDays(utcNow(), -3000),'yyyy-MM-dd')})",
+                  "$select": "admin_archiveapprovalid, admin_approvalresponsedate, admin_approvalresponse",
+                  "entityName": "admin_archiveapprovals"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "Give_them_all_a_date": {
+              "actions": {
+                "Give_them_a_date": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_archiveapprovals",
+                      "item/admin_approvalresponsedate": "@utcNow()",
+                      "recordId": "@items('Give_them_all_a_date')?['admin_archiveapprovalid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@outputs('Get_old_approvals_without_an_approved_date')?['body/value']",
+              "runAfter": {
+                "Get_old_approvals_without_an_approved_date": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            }
+          },
+          "description": "Temporary until we clear out approvals without a date stamp",
+          "runAfter": {
+            "Initialize_varAutoDelete": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_my_profile_(V2)": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+              "connectionName": "shared_office365users",
+              "operationId": "MyProfile_V2"
+            },
+            "parameters": {},
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {},
+          "type": "OpenApiConnection"
+        },
+        "Initialize_varAutoDelete": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varAutoDelete",
+                "type": "string",
+                "value": "@parameters('Auto Delete On Archive')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_my_profile_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Auto Delete On Archive": {
+          "defaultValue": "Yes",
+          "metadata": {
+            "description": "Delete apps and flows from environment during Archive? values must be: Yes or No",
+            "schemaName": "admin_AutoDeleteOnArchive"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

@@ -1,0 +1,1322 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_approvals": {
+        "api": {
+          "name": "shared_approvals"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovApprovals"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users_1": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovPowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Create_Archival_Request_for_Each_": {
+          "actions": {
+            "Date_Last_Launched": {
+              "inputs": "@if(equals(items('Create_Archival_Request_for_Each_')?['admin_applastlaunchedon'], null), 'unknown', formatDateTime(items('Create_Archival_Request_for_Each_')?['admin_applastlaunchedon'], 'dd MMM yyy'))",
+              "runAfter": {
+                "Date_Last_Modified": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Date_Last_Modified": {
+              "inputs": "@if(equals(items('Create_Archival_Request_for_Each_')?['admin_appmodifiedon'], null), 'unknown', formatDateTime(items('Create_Archival_Request_for_Each_')?['admin_appmodifiedon'],'dd MMM yyy'))",
+              "runAfter": {
+                "Filter_to_this_one_approved": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Filter_to_this_one_approved": {
+              "inputs": {
+                "from": "@outputs('List_approved_approvals')?['body/value']",
+                "where": "@equals(item()?['admin_appname'], items('Create_Archival_Request_for_Each_')?['admin_appid'])"
+              },
+              "runAfter": {
+                "Get_Assignee": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query"
+            },
+            "Get_Assignee": {
+              "actions": {
+                "Set_varAssigneeDisplayName": {
+                  "inputs": {
+                    "name": "varAssigneeDisplayName",
+                    "value": "@variables('ApprovalAdmin')"
+                  },
+                  "runAfter": {
+                    "Set_varAssignee_to_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Set_varAssignee_to_Admin": {
+                  "inputs": {
+                    "name": "varAssignee",
+                    "value": "@variables('ApprovalAdmin')"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "Set_var_isReassigned_to_True": {
+                  "inputs": {
+                    "name": "isReassigned",
+                    "value": "@true"
+                  },
+                  "runAfter": {
+                    "Set_varAssigneeDisplayName": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Recheck_Orphan_Status": {
+                    "inputs": {
+                      "authentication": "@parameters('$authentication')",
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                        "connectionName": "shared_office365users_1",
+                        "operationId": "UserProfile_V2"
+                      },
+                      "parameters": {
+                        "$select": "displayName, mail",
+                        "id": "@items('Create_Archival_Request_for_Each_')?['_admin_appowner_value']"
+                      },
+                      "retryPolicy": {
+                        "count": 10,
+                        "interval": "PT10S",
+                        "type": "exponential"
+                      }
+                    },
+                    "runAfter": {},
+                    "type": "OpenApiConnection"
+                  },
+                  "Switch": {
+                    "cases": {
+                      "Case_200_-_User_Found": {
+                        "actions": {
+                          "Set_varAssigneeDisplayName_to_Owner": {
+                            "inputs": {
+                              "name": "varAssigneeDisplayName",
+                              "value": "@outputs('Recheck_Orphan_Status')?['body/displayName']"
+                            },
+                            "runAfter": {
+                              "Set_varAssignee_to_Owner": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "SetVariable"
+                          },
+                          "Set_varAssignee_to_Owner": {
+                            "inputs": {
+                              "name": "varAssignee",
+                              "value": "@outputs('Recheck_Orphan_Status')?['body/mail']"
+                            },
+                            "runAfter": {},
+                            "type": "SetVariable"
+                          },
+                          "Set_var_isReassigned_to_False": {
+                            "inputs": {
+                              "name": "isReassigned",
+                              "value": "@false"
+                            },
+                            "runAfter": {
+                              "Set_varAssigneeDisplayName_to_Owner": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "SetVariable"
+                          }
+                        },
+                        "case": 200
+                      },
+                      "Case_404_-_New_Orphan": {
+                        "actions": {
+                          "Set_varAssigneeDisplayName_to_Admin_for_new_Orphan": {
+                            "inputs": {
+                              "name": "varAssigneeDisplayName",
+                              "value": "@variables('ApprovalAdmin')"
+                            },
+                            "runAfter": {
+                              "Set_varAssignee_to_Admin_for_new_Orphan": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "SetVariable"
+                          },
+                          "Set_varAssignee_to_Admin_for_new_Orphan": {
+                            "inputs": {
+                              "name": "varAssignee",
+                              "value": "@variables('ApprovalAdmin')"
+                            },
+                            "runAfter": {},
+                            "type": "SetVariable"
+                          },
+                          "Set_var_isReassigned_to_True_for_new_Orphan": {
+                            "inputs": {
+                              "name": "isReassigned",
+                              "value": "@true"
+                            },
+                            "runAfter": {
+                              "Set_varAssigneeDisplayName_to_Admin_for_new_Orphan": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "SetVariable"
+                          }
+                        },
+                        "case": 404
+                      }
+                    },
+                    "default": {
+                      "actions": {}
+                    },
+                    "expression": "@outputs('Recheck_Orphan_Status')['statusCode']",
+                    "runAfter": {
+                      "Recheck_Orphan_Status": [
+                        "Succeeded",
+                        "Failed"
+                      ]
+                    },
+                    "type": "Switch"
+                  }
+                }
+              },
+              "expression": {
+                "or": [
+                  {
+                    "equals": [
+                      "@variables('isProd')",
+                      "False"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@items('Create_Archival_Request_for_Each_')?['cr5d5_appisorphaned']",
+                      "yes"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@items('Create_Archival_Request_for_Each_')?['admin_appowner/admin_userisserviceprinciple']",
+                      "@true"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@items('Create_Archival_Request_for_Each_')?['_admin_appowner_value']",
+                      "@null"
+                    ]
+                  }
+                ]
+              },
+              "runAfter": {},
+              "type": "If"
+            },
+            "See_if_Approved": {
+              "actions": {
+                "Apply_to_each_other_approval": {
+                  "actions": {
+                    "Delete_a_row": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "DeleteRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_archiveapprovals",
+                          "recordId": "@items('Apply_to_each_other_approval')?['admin_archiveapprovalid']"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@outputs('Fetch_other_approvals_for_this_app_and_delete_them')?['body/value']",
+                  "runAfter": {
+                    "Fetch_other_approvals_for_this_app_and_delete_them": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "Catch_-_flow_already_deleted": {
+                  "inputs": "Flow already Deleted",
+                  "runAfter": {
+                    "See_if_app_still_exists": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Date_Approved": {
+                  "inputs": "@formatDateTime(first(body('Parse_JSON_this_one_approved'))['admin_approvalresponsedate'], 'dd MMM yyy')",
+                  "runAfter": {
+                    "Get_Object_Name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Date_to_Delete": {
+                  "inputs": "@formatDateTime(addDays(first(body('Parse_JSON_this_one_approved'))['admin_approvalresponsedate'], 21), 'dd MMM yyy')",
+                  "runAfter": {
+                    "Date_Approved": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Fetch_other_approvals_for_this_app_and_delete_them": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "_admin_applookup_value eq @{items('Create_Archival_Request_for_Each_')?['admin_appid']} and admin_approvalresponse ne 'Approve'",
+                      "$select": "admin_archiveapprovalid, admin_approvalresponse",
+                      "entityName": "admin_archiveapprovals"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Get_Envt_Name": {
+                  "inputs": "@first(body('Parse_JSON_this_one_approved'))['admin_appenvironmentname']",
+                  "runAfter": {
+                    "Parse_JSON_this_one_approved": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Get_Object_Name": {
+                  "inputs": "@first(body('Parse_JSON_this_one_approved'))['admin_appname']",
+                  "runAfter": {
+                    "Get_Envt_Name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Parse_JSON_this_one_approved": {
+                  "inputs": {
+                    "content": "@body('Filter_to_this_one_approved')",
+                    "schema": {
+                      "items": {
+                        "properties": {
+                          "@@odata.etag": {
+                            "type": "string"
+                          },
+                          "@@odata.id": {
+                            "type": "string"
+                          },
+                          "ItemInternalId": {
+                            "type": "string"
+                          },
+                          "admin_appdisplayname": {
+                            "type": "string"
+                          },
+                          "admin_appenvironmentname": {
+                            "type": "string"
+                          },
+                          "admin_appname": {
+                            "type": "string"
+                          },
+                          "admin_approvalid": {
+                            "type": "string"
+                          },
+                          "admin_approvalresponse": {
+                            "type": "string"
+                          },
+                          "admin_approvalresponsedate": {
+                            "type": "string"
+                          },
+                          "admin_archiveapprovalid": {
+                            "type": "string"
+                          },
+                          "admin_name": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "runAfter": {
+                    "Reset_value_App_Archive_Request_Ignored_Since": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "Reset_value_App_Archive_Request_Ignored_Since": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "item/admin_apparchiverequestignoredsince": "@null",
+                      "recordId": "@items('Create_Archival_Request_for_Each_')?['admin_appid']"
+                    }
+                  },
+                  "runAfter": {
+                    "Apply_to_each_other_approval": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "See_if_app_still_exists": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                      "connectionName": "shared_powerappsforadmins",
+                      "operationId": "Get-AdminApp"
+                    },
+                    "parameters": {
+                      "api-version": "2016-11-01",
+                      "app": "@outputs('Get_Object_Name')",
+                      "environment": "@outputs('Get_Envt_Name')"
+                    }
+                  },
+                  "runAfter": {
+                    "Date_to_Delete": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Send_an_email_(V2)": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2"
+                    },
+                    "parameters": {
+                      "emailMessage/Body": "<html>\n@{variables('htmlHeader')}\n<body>\n<div id='content'>\n<table id='form'>\n<tr><td><img id='logo' src='@{variables('logoUrl')}'></td></tr>\n<tr><td><p id='header'>Power Automate</p></td></tr>\n<tr id='ribbon'><td>\n<table id='ribbonContent'>\n<tr><td>Auto-Archive .</td>\n</tr></table></td></tr>\n<tr id='message'><td>\n\n<p>\nAs a reminder, you approved removal of this app from the tenant on @{outputs('Date_Approved')}.\n<br>\nThe app will therefore be removed from the tenant sometime after @{outputs('Date_to_Delete')},\n<br><br>\n<b>App Environment</b>: @{items('Create_Archival_Request_for_Each_')?['admin_appenvironmentdisplayname']} <br>\n<b>App Display Name</b>:  @{body('See_if_app_still_exists')?['properties']?['displayName']}\n<br><br>\nIf you want to retain a copy of this app for later restore in the event that you change your mind, please do so now.\n<br>\nIf you would like to stop recieving these reminders ahead of deletion, please delete on your side, and you will not be prompted again.\n<br><br>\nThank you for using the Power Platform!\n<br>\n</p>\n</li>\n</ol>\n</p>\n</td></tr>\n</table>\n</div>\n</body>\n\n</html>",
+                      "emailMessage/Subject": "Reminder to back up your App:  @{body('See_if_app_still_exists')?['properties']?['displayName']}",
+                      "emailMessage/To": "@variables('varAssignee')"
+                    }
+                  },
+                  "runAfter": {
+                    "Catch_-_flow_already_deleted": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Filter_to_this_one_rejected": {
+                    "inputs": {
+                      "from": "@outputs('List_rejected_approvals')?['body/value']",
+                      "where": "@equals(item()?['admin_appname'], items('Create_Archival_Request_for_Each_')?['admin_appid'])"
+                    },
+                    "runAfter": {},
+                    "type": "Query"
+                  },
+                  "See_if_Rejected": {
+                    "actions": {
+                      "Already_Rejected_-_Clean_up_other_approvals_for_this_app": {
+                        "inputs": "Request Rejected. That rejection will time out in 1 month and then will recreate",
+                        "runAfter": {},
+                        "type": "Compose"
+                      },
+                      "Apply_to_each_other_ignored_approval": {
+                        "actions": {
+                          "Delete_ignored_approval_request": {
+                            "inputs": {
+                              "authentication": "@parameters('$authentication')",
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "DeleteRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_archiveapprovals",
+                                "recordId": "@items('Apply_to_each_other_ignored_approval')?['admin_archiveapprovalid']"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        },
+                        "foreach": "@outputs('Fetch_other_ignored_approvals_for_this_app_and_delete_them')?['body/value']",
+                        "runAfter": {
+                          "Fetch_other_ignored_approvals_for_this_app_and_delete_them": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Foreach"
+                      },
+                      "Fetch_other_ignored_approvals_for_this_app_and_delete_them": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "ListRecords"
+                          },
+                          "parameters": {
+                            "$filter": "_admin_applookup_value eq @{items('Create_Archival_Request_for_Each_')?['admin_appid']} and admin_approvalresponse eq null",
+                            "$select": "admin_archiveapprovalid, admin_approvalresponse",
+                            "entityName": "admin_archiveapprovals"
+                          }
+                        },
+                        "runAfter": {
+                          "Already_Rejected_-_Clean_up_other_approvals_for_this_app": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "Reset_value_App_Archive_Request_Ignored_Since_2": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "admin_apps",
+                            "item/admin_apparchiverequestignoredsince": "@null",
+                            "recordId": "@items('Create_Archival_Request_for_Each_')?['admin_appid']"
+                          }
+                        },
+                        "runAfter": {
+                          "Apply_to_each_other_ignored_approval": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      }
+                    },
+                    "else": {
+                      "actions": {
+                        "Create_an_approval": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals",
+                              "connectionName": "shared_approvals",
+                              "operationId": "CreateAnApproval"
+                            },
+                            "parameters": {
+                              "ApprovalCreationInput/assignedTo": "@{variables('varAssignee')};",
+                              "ApprovalCreationInput/details": "@{if(equals(variables('isReassigned'), true), 'OWNER DOES NOT EXIST. APPROVAL SENT TO ADMIN.', '')}\nYou own an app that has not been modified nor launched recently. \n\nLast Modified:  @{outputs('Date_Last_Modified')}\nLast Launch:  @{outputs('Date_Last_Launched')}\n\nWe want to make sure it is still useful, as if it is not then we would like to remove it to keep our Power Platform tenant tidy. \n\nPlease confirm this app is no longer being used and can be deleted by approving this task; or provide a business justification if you reject. \n\n**App Name:** @{items('Create_Archival_Request_for_Each_')?['admin_displayname']}\n**App ID:** @{items('Create_Archival_Request_for_Each_')?['admin_appid']}\n**Environment:** @{items('Create_Archival_Request_for_Each_')?['admin_appenvironmentdisplayname']}\n\n**Notes:**\n1) If you select approve, the app will be deleted from the tenant in three weeks, so please manually archive a copy ahead of that date if you believe you will want access in the future. \n\n2) If you select reject, consider launching the app, or performing a re-save, in order to avoid receving this email again in another month. \n\n**To clean up all outstanding requests about old apps and flows:**\n@{if(equals(variables('CleanUpTextType'), 0), 'View flow approvals in the CoE environment', '')}\n@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), 'Use this app: [Clean Up App](', '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), variables('CleanUpAppURL'), '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 1), 'If you dont have permission use this instead: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 1), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 1), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 3), 'View all approvals: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 3), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 3), ')', '')}",
+                              "ApprovalCreationInput/enableNotifications": true,
+                              "ApprovalCreationInput/enableReassignment": true,
+                              "ApprovalCreationInput/title": "Are you still using your app? @{items('Create_Archival_Request_for_Each_')?['admin_displayname']} ",
+                              "approvalType": "BasicAwaitAll"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "OpenApiConnection"
+                        },
+                        "Switch:_Was_Approval_Creation_Successful": {
+                          "cases": {
+                            "Failure_Case": {
+                              "actions": {
+                                "Send_an_email_(V2)_2": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                      "connectionName": "shared_office365",
+                                      "operationId": "SendEmailV2"
+                                    },
+                                    "parameters": {
+                                      "emailMessage/Body": "<html>\n@{variables('htmlHeader')}\n<body>\n<div id='content'>\n<table id='form'>\n<tr><td><img id='logo' src='@{variables('logoUrl')}'></td></tr>\n<tr><td><p id='header'>Power Automate</p></td></tr>\n<tr id='ribbon'><td>\n<table id='ribbonContent'>\n<tr><td>Auto-Archive .</td>\n</tr>\n<tr id='message'><td>\n\n<p> @{items('Create_Archival_Request_for_Each_')?['_admin_appowner_value']} was recently prompted to archive the following app:<br>\n<br>\n<strong>Display Name</strong>:  @{items('Create_Archival_Request_for_Each_')?['admin_displayname']}<br>\n<strong>Environment</strong>: @{items('Create_Archival_Request_for_Each_')?['admin_appenvironmentdisplayname']}<br>\n<strong>App ID</strong>: @{items('Create_Archival_Request_for_Each_')?['admin_appid']} <br>\n<br>\nThe request was archiving was unable to process as the user has insufficient permissions to the CoE Environment. Please give them permissions to Approvals in the CoE to proceed.<br>\n</p>\n</li>\n</ol>\n</p>\n</td></tr>\n</table>\n</div>\n</body>\n\n</html>",
+                                      "emailMessage/Subject": "App owner @{variables('varAssigneeDisplayName')} does not have permissions to perform Archive Approval",
+                                      "emailMessage/To": "@variables('adminMail')"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "case": 400
+                            },
+                            "Success_Case": {
+                              "actions": {
+                                "Create_a_new_record": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "CreateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_archiveapprovals",
+                                      "item/admin_AppLookup@odata.bind": "admin_apps(@{items('Create_Archival_Request_for_Each_')?['admin_appid']})",
+                                      "item/admin_appdisplayname": "@items('Create_Archival_Request_for_Each_')?['admin_displayname']",
+                                      "item/admin_appenvironmentname": "@items('Create_Archival_Request_for_Each_')?['admin_appenvironment/admin_environmentname']",
+                                      "item/admin_appname": "@items('Create_Archival_Request_for_Each_')?['admin_appid']",
+                                      "item/admin_appowneremail": "@variables('varAssignee')",
+                                      "item/admin_appownername": "@variables('varAssigneeDisplayName')",
+                                      "item/admin_approvalid": "@body('Create_an_approval')?['name']",
+                                      "item/admin_name": "@items('Create_Archival_Request_for_Each_')?['admin_appid']",
+                                      "item/cr5d5_archivalitemtype": 129260001
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                },
+                                "If_no_value_for_'admin_apparchiverequestignoredsince',_add_this_one": {
+                                  "actions": {
+                                    "Add_Ignored_Since_value": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_apps",
+                                          "item/admin_apparchiverequestignoredsince": "@first(outputs('List_approvals_with_no_response_sorted_by_created_date')?['body/value'])['createdon']",
+                                          "recordId": "@items('Create_Archival_Request_for_Each_')?['admin_appid']"
+                                        }
+                                      },
+                                      "runAfter": {
+                                        "List_approvals_with_no_response_sorted_by_created_date": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "OpenApiConnection"
+                                    },
+                                    "List_approvals_with_no_response_sorted_by_created_date": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "ListRecords"
+                                        },
+                                        "parameters": {
+                                          "$filter": "_admin_applookup_value eq @{items('Create_Archival_Request_for_Each_')?['admin_appid']} and admin_approvalresponse eq null",
+                                          "$orderby": "createdon",
+                                          "$select": "createdon",
+                                          "entityName": "admin_archiveapprovals"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "runtimeConfiguration": {
+                                        "paginationPolicy": {
+                                          "minimumItemCount": 100000
+                                        }
+                                      },
+                                      "type": "OpenApiConnection"
+                                    }
+                                  },
+                                  "expression": {
+                                    "or": [
+                                      {
+                                        "equals": [
+                                          "@items('Create_Archival_Request_for_Each_')?['admin_apparchiverequestignoredsince']",
+                                          "@null"
+                                        ]
+                                      },
+                                      {
+                                        "lessOrEquals": [
+                                          "@items('Create_Archival_Request_for_Each_')?['admin_apparchiverequestignoredsince']",
+                                          "@addDays(utcNow(),-10000)"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "runAfter": {
+                                    "Create_a_new_record": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "If"
+                                }
+                              },
+                              "case": 201
+                            }
+                          },
+                          "default": {
+                            "actions": {}
+                          },
+                          "expression": "@outputs('Create_an_approval')['statusCode']",
+                          "runAfter": {
+                            "Create_an_approval": [
+                              "Succeeded",
+                              "Failed"
+                            ]
+                          },
+                          "type": "Switch"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "greater": [
+                        "@length(body('Filter_to_this_one_rejected'))",
+                        0
+                      ]
+                    },
+                    "runAfter": {
+                      "Filter_to_this_one_rejected": [
+                        "Succeeded"
+                      ]
+                    },
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(body('Filter_to_this_one_approved'))",
+                  0
+                ]
+              },
+              "runAfter": {
+                "Date_Last_Launched": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "foreach": "@body('List_apps_not_launched_or_marked_modified_since_Past_Time_')?['value']",
+          "runAfter": {
+            "List_rejected_approvals": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Get_past_time": {
+          "description": "If the app has not been modified in the past x months, an approval to archive will trigger. Update your desired archive months here.",
+          "inputs": {
+            "interval": 6,
+            "timeUnit": "Month"
+          },
+          "kind": "GetPastTime",
+          "runAfter": {},
+          "type": "Expression"
+        },
+        "Initialize_ApprovalAdmin": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ApprovalAdmin",
+                "type": "string",
+                "value": "@parameters('Approval Admin')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_var_isReassigned": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_OwnerIsNull": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "OwnerIsNull",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_past_time": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_adminMail": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "adminMail",
+                "type": "string",
+                "value": "@parameters('Admin eMail')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_OwnerIsNull": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_htmlHeader_(style)": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "htmlHeader",
+                "type": "string",
+                "value": "@parameters('eMail Header Style')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varAssigneeDisplayName": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_logoUrl": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "logoUrl",
+                "type": "string",
+                "value": "http://pngimg.com/uploads/microsoft/microsoft_PNG16.png"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_var_CleanUpTextType": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_varAssignee": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varAssignee",
+                "type": "string",
+                "value": "@variables('ApprovalAdmin')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_ApprovalAdmin": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_varAssigneeDisplayName": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varAssigneeDisplayName",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varAssignee": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_ApprovalsURL": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ApprovalsURL",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Set_env_var_CleanUpAppURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_CleanUpAppURL": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "CleanUpAppURL",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_var_isProd": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_CleanUpTextType": {
+          "description": "0 = both blank, 1 = neither blank, 2 = approval blank, 3 = app blank",
+          "inputs": {
+            "variables": [
+              {
+                "name": "CleanUpTextType",
+                "type": "integer",
+                "value": "@if(and(equals(variables('CleanUpAppURL'), ''), equals(variables('ApprovalsURL'), '')), 0, if(and(not(equals(variables('CleanUpAppURL'), '')), not(equals(variables('ApprovalsURL'), ''))), 1, if(equals(variables('ApprovalsURL'), ''), 2, if(equals(variables('CleanUpAppURL'), ''), 3, 0))))"
+              }
+            ]
+          },
+          "runAfter": {
+            "Set_env_var_ApprovalsURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_isProd": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isProd",
+                "type": "string",
+                "value": "@{parameters('ProductionEnvironment')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_htmlHeader_(style)": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_var_isReassigned": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isReassigned",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_adminMail": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "List_approved_approvals": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "admin_approvalresponse eq 'Approve'",
+              "$select": "admin_archiveapprovalid, admin_appname, admin_appdisplayname,  admin_appenvironmentname, admin_approvalresponsedate, admin_approvalresponse",
+              "entityName": "admin_archiveapprovals"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "List_apps_not_launched_or_marked_modified_since_Past_Time_": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        },
+        "List_apps_not_launched_or_marked_modified_since_Past_Time_": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$expand": "admin_AppOwner($select=admin_userisserviceprinciple),admin_AppEnvironment($select=admin_displayname,admin_environmentname)",
+              "$filter": "(admin_appmodifiedon lt @{body('Get_past_time')} or admin_appmodifiedon eq null) and admin_appdeleted eq false  and (admin_applastlaunchedon lt @{body('Get_past_time')} or admin_applastlaunchedon eq null) and admin_powerappstype eq 597910000 and admin_appexcusedfromarchival ne true",
+              "$select": "admin_appid, _admin_appenvironment_value, cr5d5_appisorphaned, admin_appmodifiedon, admin_appenvironmentdisplayname, admin_displayname, admin_appownerdisplayname, _admin_appowner_value, admin_applastlaunchedon, admin_apparchiverequestignoredsince",
+              "entityName": "admin_apps"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_logoUrl": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        },
+        "List_rejected_approvals": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "admin_approvalresponse eq 'Reject'",
+              "$select": "admin_archiveapprovalid, admin_appname, admin_appdisplayname,  admin_appenvironmentname, admin_approvalresponsedate",
+              "entityName": "admin_archiveapprovals"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "List_approved_approvals": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        },
+        "Set_env_var_ApprovalsURL": {
+          "actions": {
+            "ApprovalsURL_-_if_no_Current,_use_Default": {
+              "actions": {
+                "Set_ApprovalsURL_-_CurrentValue": {
+                  "inputs": {
+                    "name": "ApprovalsURL",
+                    "value": "@{first(body('ListCurrents-ApprovalsURL')?['value'])?['Value']}"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Set_ApprovalsURL_-_DefaultValue": {
+                    "inputs": {
+                      "name": "ApprovalsURL",
+                      "value": "@{first(body('ListDefns-ApprovalsURL')?['value'])?['defaultvalue']}"
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "greaterOrEquals": [
+                  "@length(body('ListCurrents-ApprovalsURL')?['value'])",
+                  1
+                ]
+              },
+              "runAfter": {
+                "ListCurrents-ApprovalsURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Get_ID_from_ApprovalsURL": {
+              "inputs": "@first(body('ListDefns-ApprovalsURL')?['value'])?['environmentvariabledefinitionid']",
+              "runAfter": {
+                "ListDefns-ApprovalsURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "ListCurrents-ApprovalsURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_environmentvariabledefinitionid_value eq @{outputs('Get_ID_from_ApprovalsURL')}",
+                  "$select": "value",
+                  "entityName": "environmentvariablevalues"
+                }
+              },
+              "runAfter": {
+                "Get_ID_from_ApprovalsURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "ListDefns-ApprovalsURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "schemaname eq 'admin_FlowApprovalsURL'",
+                  "$select": "environmentvariabledefinitionid, defaultvalue",
+                  "entityName": "environmentvariabledefinitions"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "description": "must use old technique for fetching as env var is optional",
+          "runAfter": {
+            "Initialize_var_ApprovalsURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Set_env_var_CleanUpAppURL": {
+          "actions": {
+            "CleanUpAppURL_-_if_no_Current,_use_Default": {
+              "actions": {
+                "Set_CleanUpAppURL_-_CurrentValue": {
+                  "inputs": {
+                    "name": "CleanUpAppURL",
+                    "value": "@{first(body('ListCurrents-CleanUpAppURL')?['value'])?['Value']}"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Set_CleanUpAppURL_-_DefaultValue": {
+                    "inputs": {
+                      "name": "CleanUpAppURL",
+                      "value": "@{first(body('ListDefns-CleanUpAppURL')?['value'])?['defaultvalue']}"
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "greaterOrEquals": [
+                  "@length(body('ListCurrents-CleanUpAppURL')?['value'])",
+                  1
+                ]
+              },
+              "runAfter": {
+                "ListCurrents-CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Get_ID_from_CleanUpAppURL": {
+              "inputs": "@first(body('ListDefns-CleanUpAppURL')?['value'])?['environmentvariabledefinitionid']",
+              "runAfter": {
+                "ListDefns-CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "ListCurrents-CleanUpAppURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_environmentvariabledefinitionid_value eq @{outputs('Get_ID_from_CleanUpAppURL')}",
+                  "$select": "value",
+                  "entityName": "environmentvariablevalues"
+                }
+              },
+              "runAfter": {
+                "Get_ID_from_CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "ListDefns-CleanUpAppURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "schemaname eq 'admin_CleanupOldObjectsAppURL'",
+                  "$select": "environmentvariabledefinitionid, defaultvalue",
+                  "entityName": "environmentvariabledefinitions"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "description": "must use old technique for fetching as env var is optional",
+          "runAfter": {
+            "Initialize_var_CleanUpAppURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail": {
+          "defaultValue": "CoETeam@PPlatform.onmicrosoft.com",
+          "metadata": {
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
+            "schemaName": "admin_AdminMail"
+          },
+          "type": "String"
+        },
+        "Approval Admin": {
+          "defaultValue": "Adelev@pplatform.onmicrosoft.com",
+          "metadata": {
+            "description": "Added for users that have a distribution list for Admin Email env var. You cannot use a distribution list for approvals, so this allows you to indicate an individual. Enter an individual who will be charged with approving removal of orphaned items",
+            "schemaName": "admin_ApprovalAdmin"
+          },
+          "type": "String"
+        },
+        "ProductionEnvironment": {
+          "defaultValue": true,
+          "metadata": {
+            "description": "true by default. set to false if you are creating a dev type envt. this will allow some flows to set target users to the admin instead of object owners",
+            "schemaName": "admin_ProductionEnvironment"
+          },
+          "type": "Bool"
+        },
+        "eMail Header Style": {
+          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: left; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
+          "metadata": {
+            "description": "CSS/Style used for eMails",
+            "schemaName": "admin_eMailHeaderStyle"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1,
+            "schedule": {
+              "weekDays": [
+                "Monday"
+              ]
+            }
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

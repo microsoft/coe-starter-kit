@@ -1,0 +1,429 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovPowerPlatformforAdmins"
+        },
+        "runtimeSource": "invoker"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Apply_to_each": {
+          "actions": {
+            "Set_for_apps:_'admin_apparchiverequestignoredsince'": {
+              "actions": {
+                "For_Each_App": {
+                  "actions": {
+                    "If_no_approvals_with_responses_exist_then_proceed": {
+                      "actions": {
+                        "If_some_exist,_update_field_with_oldest": {
+                          "actions": {
+                            "Mark_App_Archive_Request_Ignored_Since_to_oldest_ignore": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_apps",
+                                  "item/admin_apparchiverequestignoredsince": "@first(outputs('List_approvals_with_no_response')?['body/value'])['createdon']",
+                                  "recordId": "@items('For_Each_App')?['admin_appid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "No_ignored_archival_requests_found": {
+                                "inputs": "No ignored archival requests found",
+                                "runAfter": {},
+                                "type": "Compose"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(outputs('List_approvals_with_no_response')?['body/value'])",
+                              0
+                            ]
+                          },
+                          "runAfter": {
+                            "List_approvals_with_no_response": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "List_approvals_with_no_response": {
+                          "inputs": {
+                            "authentication": {
+                              "type": "Raw",
+                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "ListRecords"
+                            },
+                            "parameters": {
+                              "$filter": "_admin_applookup_value eq @{items('For_Each_App')?['admin_appid']} and admin_approvalresponse eq null",
+                              "$orderby": "createdon",
+                              "$select": "createdon",
+                              "entityName": "admin_archiveapprovals"
+                            }
+                          },
+                          "runAfter": {},
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Has_responded_this_month": {
+                            "inputs": "In the last month they have approved or rejected, so will not mark with an ignored date.\nThis grace period times out via (Clean up and Delete) flow, scope Delete timed out archive requests ",
+                            "runAfter": {},
+                            "type": "Compose"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "lessOrEquals": [
+                          "@length(outputs('List_approvals_for_this_app_with_responses')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "runAfter": {
+                        "List_approvals_for_this_app_with_responses": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "List_approvals_for_this_app_with_responses": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "_admin_applookup_value eq @{items('For_Each_App')?['admin_appid']} and admin_approvalresponse ne null",
+                          "$select": "createdon",
+                          "entityName": "admin_archiveapprovals"
+                        }
+                      },
+                      "runAfter": {},
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@outputs('List_apps_for_this_envt')?['body/value']",
+                  "runAfter": {
+                    "List_apps_for_this_envt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "List_apps_for_this_envt": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "_admin_appenvironment_value eq @{substring(items('Apply_to_each')?['name'], sub(length(items('Apply_to_each')?['name']), 36), 36)} and admin_appexcusedfromarchival ne true and admin_apparchiverequestignoredsince eq null",
+                      "$select": "admin_appid",
+                      "entityName": "admin_apps"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "Set_for_flows:_'admin_flowarchiverequestignoredsince'": {
+              "actions": {
+                "For_Each_Flow": {
+                  "actions": {
+                    "If_no_approvals_with_responses_exist_then_proceed_flows": {
+                      "actions": {
+                        "If_some_exist,_update_flow_ignore_field_with_oldest": {
+                          "actions": {
+                            "Mark_Flow_Archive_Request_Ignored_Since_to_oldest_ignore": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "item/admin_flowarchiverequestignoredsince": "@first(outputs('List_approvals_with_no_response_flow')?['body/value'])['createdon']",
+                                  "recordId": "@items('For_Each_Flow')?['admin_flowid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "No_ignored_archival_requests_found_for_flow": {
+                                "inputs": "No ignored archival requests found",
+                                "runAfter": {},
+                                "type": "Compose"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(outputs('List_approvals_with_no_response_flow')?['body/value'])",
+                              0
+                            ]
+                          },
+                          "runAfter": {
+                            "List_approvals_with_no_response_flow": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "List_approvals_with_no_response_flow": {
+                          "inputs": {
+                            "authentication": {
+                              "type": "Raw",
+                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "ListRecords"
+                            },
+                            "parameters": {
+                              "$filter": "_admin_flowlookup_value eq @{items('For_Each_Flow')?['admin_flowid']} and admin_approvalresponse eq null",
+                              "$orderby": "createdon",
+                              "$select": "createdon",
+                              "entityName": "admin_archiveapprovals"
+                            }
+                          },
+                          "runAfter": {},
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Flow_owner_has_responded_this_month": {
+                            "inputs": "In the last month they have approved or rejected, so will not mark with an ignored date.\nThis grace period times out via (Clean up and Delete) flow, scope Delete timed out archive requests ",
+                            "runAfter": {},
+                            "type": "Compose"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "lessOrEquals": [
+                          "@length(outputs('List_approvals_for_this_flow_with_responses')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "runAfter": {
+                        "List_approvals_for_this_flow_with_responses": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "List_approvals_for_this_flow_with_responses": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "_admin_flowlookup_value eq @{items('For_Each_Flow')?['admin_flowid']} and admin_approvalresponse ne null",
+                          "$select": "createdon",
+                          "entityName": "admin_archiveapprovals"
+                        }
+                      },
+                      "runAfter": {},
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@outputs('List_flows_for_this_envt')?['body/value']",
+                  "runAfter": {
+                    "List_flows_for_this_envt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "List_flows_for_this_envt": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "_admin_flowenvironment_value eq @{substring(items('Apply_to_each')?['name'], sub(length(items('Apply_to_each')?['name']), 36), 36)} and admin_flowexcusedfromarchival ne true and admin_flowarchiverequestignoredsince eq null",
+                      "$select": "admin_flowid",
+                      "entityName": "admin_flows"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "runAfter": {
+                "Set_for_apps:_'admin_apparchiverequestignoredsince'": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Scope"
+            }
+          },
+          "foreach": "@outputs('List_Environments_as_Admin')?['body/value']",
+          "runAfter": {
+            "List_Environments_as_Admin": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "List_Environments_as_Admin": {
+          "inputs": {
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+              "connectionName": "shared_powerplatformforadmins",
+              "operationId": "Get-AdminEnvironment"
+            },
+            "parameters": {
+              "api-version": "2018-10-01"
+            }
+          },
+          "runAfter": {},
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {},
+              "required": [],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
