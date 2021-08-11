@@ -15,7 +15,7 @@
           "name": "shared_office365"
         },
         "connection": {
-          "connectionReferenceLogicalName": "admin_CoECoreO365Outlook"
+          "connectionReferenceLogicalName": "new_CoEGovO365Outlook"
         },
         "runtimeSource": "embedded"
       }
@@ -209,7 +209,7 @@
                       "operationId": "SendEmailV2"
                     },
                     "parameters": {
-                      "emailMessage/Body": "<p>@{variables('htmlHeader')}<br>\n<br>\nIn an attempt to keep our tenant clean, we ask people to confirm that objects that appear no longer useful can be removed from the tenant. <br>\n<br>\nYou have employees who have not responded to inquies. <br>\nPlease browse to <a href='@{parameters('Cleanup Old Objects App URL')}&amp;SelectUsers=1'> Cleanup Old Objects App </a> and remind them to respond </p>\n<b>APPS</b><br>\n@{body('Create_HTML_table_of_Apps')}<br><br>\n<b>FLOWS</b><br>\n@{body('Create_HTML_table_of_Flows')}",
+                      "emailMessage/Body": "<p>@{variables('htmlHeader')}<br>\n<br>\nIn an attempt to keep our tenant clean, we ask people to confirm that objects that appear no longer useful can be removed from the tenant. <br> \nYou have employees who have not responded to inquies. <br> \n@{if(equals(variables('CleanUpAppURL'), ''), 'Please ask them to go and approve or reject these requests:', concat('Please browse to <a href=', variables('CleanUpAppURL'), '&amp;SelectUsers=1', '> Cleanup Old Objects App </a> and remind them to respond'))}\n<br>\n</p>\n\n<b>APPS</b><br>\n@{body('Create_HTML_table_of_Apps')}<br><br>\n<b>FLOWS</b><br>\n@{body('Create_HTML_table_of_Flows')}",
                       "emailMessage/Subject": "Your employees have stale Power Platform objects",
                       "emailMessage/To": "@if(equals(parameters('ProductionEnvironment'), true),  items('Apply_to_each_M1_Manager')['Manager'], parameters('Admin eMail'))"
                     }
@@ -286,7 +286,7 @@
             }
           },
           "runAfter": {
-            "Initialize_htmlHeader": [
+            "Set_env_var_CleanUpAppURL": [
               "Succeeded"
             ]
           },
@@ -371,6 +371,22 @@
           },
           "type": "InitializeVariable"
         },
+        "Initialize_var_CleanUpAppURL": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "CleanUpAppURL",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_htmlHeader": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
         "Select_Alias": {
           "inputs": {
             "from": "@outputs('Get_Manager_Principle_Names')?['body/value']",
@@ -384,6 +400,110 @@
             ]
           },
           "type": "Select"
+        },
+        "Set_env_var_CleanUpAppURL": {
+          "actions": {
+            "Get_ID_from_CleanUpAppURL": {
+              "inputs": "@first(body('ListDefns-CleanUpAppURL')?['value'])?['environmentvariabledefinitionid']",
+              "runAfter": {
+                "ListDefns-CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "ListCurrents-CleanUpAppURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_environmentvariabledefinitionid_value eq @{outputs('Get_ID_from_CleanUpAppURL')}",
+                  "$select": "value",
+                  "entityName": "environmentvariablevalues"
+                }
+              },
+              "runAfter": {
+                "Get_ID_from_CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "ListDefns-CleanUpAppURL": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "schemaname eq 'admin_CleanupOldObjectsAppURL'",
+                  "$select": "environmentvariabledefinitionid, defaultvalue",
+                  "entityName": "environmentvariabledefinitions"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "Set_to_current_or_default_-_CleanUpAppURL": {
+              "actions": {
+                "Set_CleanUpAppURL_-_CurrentValue": {
+                  "inputs": {
+                    "name": "CleanUpAppURL",
+                    "value": "@{first(body('ListCurrents-CleanUpAppURL')?['value'])?['Value']}"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Set_CleanUpAppURL_-_DefaultValue": {
+                    "inputs": {
+                      "name": "CleanUpAppURL",
+                      "value": "@{first(body('ListDefns-CleanUpAppURL')?['value'])?['defaultvalue']}"
+                    },
+                    "runAfter": {},
+                    "type": "SetVariable"
+                  }
+                }
+              },
+              "expression": {
+                "greaterOrEquals": [
+                  "@length(body('ListCurrents-CleanUpAppURL')?['value'])\r\n",
+                  1
+                ]
+              },
+              "runAfter": {
+                "ListCurrents-CleanUpAppURL": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "description": "must use old technique for fetching as env var is optional",
+          "runAfter": {
+            "Initialize_var_CleanUpAppURL": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
         }
       },
       "contentVersion": "1.0.0.0",
@@ -398,23 +518,15 @@
           "type": "Object"
         },
         "Admin eMail": {
-          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "defaultValue": "CoETeam@PPlatform.onmicrosoft.com",
           "metadata": {
             "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
             "schemaName": "admin_AdminMail"
           },
           "type": "String"
         },
-        "Cleanup Old Objects App URL": {
-          "defaultValue": "https://apps.powerapps.com/play/2c782964-2d72-45d1-a3a6-015a31d2db61?tenantId=8a235459-3d2c-415d-8c1e-e2fe133509ad",
-          "metadata": {
-            "description": "(optional) URL to the Cleanup Old Objects App canvas app, if you are using this app",
-            "schemaName": "admin_CleanupOldObjectsAppURL"
-          },
-          "type": "String"
-        },
         "ProductionEnvironment": {
-          "defaultValue": false,
+          "defaultValue": true,
           "metadata": {
             "description": "true by default. set to false if you are creating a dev type envt. this will allow some flows to set target users to the admin instead of object owners",
             "schemaName": "admin_ProductionEnvironment"
@@ -422,7 +534,7 @@
           "type": "Bool"
         },
         "eMail Header Style": {
-          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: center; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
+          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: left; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
           "metadata": {
             "description": "CSS/Style used for eMails",
             "schemaName": "admin_eMailHeaderStyle"
@@ -433,7 +545,7 @@
       "triggers": {
         "Recurrence": {
           "recurrence": {
-            "frequency": "Month",
+            "frequency": "Week",
             "interval": 1
           },
           "type": "Recurrence"
