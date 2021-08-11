@@ -1,0 +1,621 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_2": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_flowmanagement_1": {
+        "api": {
+          "name": "shared_flowmanagement"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Apply_to_each": {
+          "actions": {
+            "Apply_to_each_Flow": {
+              "actions": {
+                "Get_Flow_from_CoE": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_2",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "entityName": "admin_flows",
+                      "recordId": "@items('Apply_to_each_Flow')?['name']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "ReSet_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "ReSet_isNewToCoE": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "See_if_flow_already_in_CoE": {
+                  "actions": {
+                    "ActionLastModified": {
+                      "inputs": "@coalesce(first(body('List_Existing_Flow_Action_References')?['value'])?['admin_flowdetailmodifiedon'], '')",
+                      "runAfter": {
+                        "List_Existing_Flow_Action_References": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "FlowLastModified": {
+                      "inputs": "@formatDateTime(items('Apply_to_each_Flow')?['properties/lastModifiedTime'], 'yyyy-MM-dd HH:mm:ss')",
+                      "runAfter": {
+                        "ActionLastModified": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "List_Existing_Flow_Action_References": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "_admin_flow_value eq '@{items('Apply_to_each_Flow')?['name']}'",
+                          "$select": "admin_flowdetailmodifiedon, admin_flowactiondetailid",
+                          "entityName": "admin_flowactiondetails"
+                        }
+                      },
+                      "runAfter": {},
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Only_proceed_if_changed_since_last_updated_in_CoE_or_FullInventory": {
+                      "actions": {
+                        "Combine_triggers,_actions,_and_remove_duplicates": {
+                          "inputs": "@union(body('Create_array_of_triggers_for_this_flow'), body('Create_array_of_actions_for_this_flow'), json('[]'))",
+                          "runAfter": {
+                            "Create_array_of_triggers_for_this_flow": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Compose"
+                        },
+                        "Create_array_of_actions_for_this_flow": {
+                          "inputs": {
+                            "from": "@items('Apply_to_each_Flow')?['properties']?['definitionSummary']?['actions']",
+                            "select": {
+                              "ActionType": "@if(contains(item()['Type'], 'ApiConnection'), coalesce(item()?['api']?['properties']?['displayname'], item()['Type']), item()['Type'])",
+                              "Operation": "@if(contains(item()['Type'], 'ApiConnection'), coalesce(item()?['swaggerOperationId'], ''), coalesce(item()?['Kind'], ''))",
+                              "isTypeTrigger": "No"
+                            }
+                          },
+                          "runAfter": {
+                            "Delete_existing_action_references": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Select"
+                        },
+                        "Create_array_of_triggers_for_this_flow": {
+                          "inputs": {
+                            "from": "@items('Apply_to_each_Flow')?['properties']?['definitionSummary']?['triggers']",
+                            "select": {
+                              "ActionType": "@if(contains(item()['Type'], 'ApiConnection'), coalesce(item()?['api']?['properties']?['displayname'], item()['Type']), item()['Type'])",
+                              "Operation": "@if(contains(item()['Type'], 'ApiConnection'), coalesce(item()?['swaggerOperationId'], ''), coalesce(item()?['Kind'], ''))",
+                              "isTypeTrigger": "Yes"
+                            }
+                          },
+                          "runAfter": {
+                            "Create_array_of_actions_for_this_flow": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Select"
+                        },
+                        "Delete_existing_action_references": {
+                          "actions": {
+                            "Delete_action_reference": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "DeleteRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flowactiondetails",
+                                  "recordId": "@items('Delete_existing_action_references')?['admin_flowactiondetailid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_Existing_Flow_Action_References')?['body/value']",
+                          "runAfter": {},
+                          "type": "Foreach"
+                        },
+                        "If_list_not_empty": {
+                          "actions": {
+                            "Apply_to_each_Flow_Action": {
+                              "actions": {
+                                "Insert_Flow_Actions_Details": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "CreateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_flowactiondetails",
+                                      "item/admin_Flow@odata.bind": "admin_flows(@{items('Apply_to_each_Flow')?['name']})",
+                                      "item/admin_FlowActionDetailEnvrinment@odata.bind": "admin_environments(@{substring(items('Apply_to_each')?['name'], sub(length(items('Apply_to_each')?['name']), 36), 36)})",
+                                      "item/admin_actioninformation": "@items('Apply_to_each_Flow_Action')?['Connector']",
+                                      "item/admin_actiontype": "@items('Apply_to_each_Flow_Action')['ActionType']",
+                                      "item/admin_flowactiondetaildeleted": false,
+                                      "item/admin_flowdetailmodifiedon": "@variables('today')",
+                                      "item/admin_operation": "@items('Apply_to_each_Flow_Action')?['Operation']",
+                                      "item/cr5d5_istypetrigger": "@items('Apply_to_each_Flow_Action')?['IsTypeTrigger']",
+                                      "item/overriddencreatedon": "@variables('today')"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@body('Parse_Flow_Actions')",
+                              "runAfter": {},
+                              "type": "Foreach"
+                            },
+                            "See_if_trigger_action_had_operation": {
+                              "actions": {
+                                "Set_FlowTrigger": {
+                                  "inputs": {
+                                    "name": "flowTrigger",
+                                    "value": "@{first(body('Create_array_of_triggers_for_this_flow'))?['ActionType']}"
+                                  },
+                                  "runAfter": {},
+                                  "type": "SetVariable"
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "Set_FlowTriger_with_Operation": {
+                                    "inputs": {
+                                      "name": "flowTrigger",
+                                      "value": "@{concat(first(body('Create_array_of_triggers_for_this_flow'))?['ActionType'], ' : ', first(body('Create_array_of_triggers_for_this_flow'))?['Operation'])}"
+                                    },
+                                    "runAfter": {},
+                                    "type": "SetVariable"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@first(body('Create_array_of_triggers_for_this_flow'))['Operation']",
+                                  ""
+                                ]
+                              },
+                              "runAfter": {
+                                "Apply_to_each_Flow_Action": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Update_a_record": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "item/cr5d5_flowtrigger": "@variables('flowTrigger')",
+                                  "recordId": "@items('Apply_to_each_Flow')?['name']"
+                                }
+                              },
+                              "runAfter": {
+                                "See_if_trigger_action_had_operation": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(body('Parse_Flow_Actions'))",
+                              0
+                            ]
+                          },
+                          "runAfter": {
+                            "Parse_Flow_Actions": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "Parse_Flow_Actions": {
+                          "inputs": {
+                            "content": "@outputs('Combine_triggers,_actions,_and_remove_duplicates')",
+                            "schema": {
+                              "items": {
+                                "properties": {
+                                  "ActionType": {
+                                    "type": "string"
+                                  },
+                                  "Connector": {
+                                    "type": "string"
+                                  },
+                                  "IsTypeTrigger": {
+                                    "type": "string"
+                                  },
+                                  "Operation": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ActionType"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "runAfter": {
+                            "Combine_triggers,_actions,_and_remove_duplicates": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "ParseJson"
+                        }
+                      },
+                      "expression": {
+                        "or": [
+                          {
+                            "less": [
+                              "@outputs('ActionLastModified')",
+                              "@outputs('FlowLastModified')"
+                            ]
+                          },
+                          {
+                            "equals": [
+                              "@variables('fullInventory')",
+                              "True"
+                            ]
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "FlowLastModified": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('isNewToCoE')",
+                      "@false"
+                    ]
+                  },
+                  "runAfter": {
+                    "Set_isNewToCoE_to_true": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Set_isNewToCoE_to_true": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@true"
+                  },
+                  "runAfter": {
+                    "Get_Flow_from_CoE": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "foreach": "@outputs('List_Flows_as_Admin')?['body/value']",
+              "runAfter": {
+                "List_Flows_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "List_Flows_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                  "connectionName": "shared_flowmanagement_1",
+                  "operationId": "ListFlowsInEnvironment"
+                },
+                "parameters": {
+                  "environmentName": "@items('Apply_to_each')?['name']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "foreach": "@outputs('List_Environments_as_Admin')?['body/value']",
+          "runAfter": {
+            "List_Environments_as_Admin": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Flow_Action_Details_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (Flow Action Details)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Flow Action Details Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Apply_to_each": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_FlowTrigger": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowTrigger",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_fullInventory": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullInventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_FlowTrigger": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_today": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "List_Environments_as_Admin": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+              "connectionName": "shared_powerplatformforadmins",
+              "operationId": "Get-AdminEnvironment"
+            },
+            "parameters": {
+              "api-version": "2018-10-01"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_fullInventory": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "FullInventory": {
+          "defaultValue": false,
+          "metadata": {
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running ",
+            "schemaName": "admin_FullInventory"
+          },
+          "type": "Bool"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

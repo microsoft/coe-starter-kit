@@ -1,0 +1,874 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365groups": {
+        "api": {
+          "name": "shared_office365groups"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Groups"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins_1": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins_1": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Initialize_Group_Size": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "sharedGroupSize",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_EnvironmentName": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_User_Role_ID": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "userRoleObject",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_Group_Size": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "oData",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_User_Role_ID": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_EnvironmentName": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "EnvironmentName",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "List_Environments_as_Admin": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+              "connectionName": "shared_powerplatformforadmins_1",
+              "operationId": "Get-AdminEnvironment"
+            },
+            "parameters": {
+              "api-version": "2020-06-01"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            },
+            "staticResult": {
+              "name": "List_Environments_as_Admin0",
+              "staticResultOptions": "Disabled"
+            }
+          },
+          "type": "OpenApiConnection"
+        },
+        "Walk_Each_Environment": {
+          "actions": {
+            "Get_Environment_": {
+              "actions": {
+                "Envt_Name": {
+                  "inputs": "@substring(items('Walk_Each_Environment')?['name'], sub(length(items('Walk_Each_Environment')?['name']), 36), 36)",
+                  "runAfter": {},
+                  "type": "Compose"
+                },
+                "Get_Envt_from_CoE": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "admin_environmentid eq @{outputs('Envt_Name')}",
+                      "$select": "admin_environmentid",
+                      "entityName": "admin_environments"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Envt_Name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "runAfter": {},
+              "type": "Scope"
+            },
+            "Proceed_if_Envt_already_in_CoE": {
+              "actions": {
+                "Filter_To_Non_Embedded_Apps": {
+                  "inputs": {
+                    "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
+                    "where": "@not(equals(item()?['properties']?['embeddedApp']?['type'], 'SharepointFormApp'))"
+                  },
+                  "runAfter": {
+                    "Get_Apps_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Query"
+                },
+                "Get_Apps_as_Admin": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                      "connectionName": "shared_powerappsforadmins_1",
+                      "operationId": "Get-AdminApps"
+                    },
+                    "parameters": {
+                      "$top": 250,
+                      "api-version": "2016-11-01",
+                      "environment": "@items('Walk_Each_Environment')?['name']"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Walk_the_Apps_in_this_Envt": {
+                  "actions": {
+                    "Apply_to_each": {
+                      "actions": {
+                        "Compose_2": {
+                          "inputs": "catch",
+                          "runAfter": {
+                            "Get_a_record": [
+                              "Failed"
+                            ]
+                          },
+                          "type": "Compose"
+                        },
+                        "Get_a_record": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "GetItem"
+                            },
+                            "parameters": {
+                              "entityName": "admin_apps",
+                              "recordId": "@items('Walk_the_Apps_in_this_Envt')?['name']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "OpenApiConnection"
+                        },
+                        "Relate_App_with_Role": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "AssociateEntities"
+                            },
+                            "parameters": {
+                              "associationEntityRelationship": "admin_PowerPlatformUserRole_App_admin_App",
+                              "entityName": "admin_apps",
+                              "item/@odata.id": "@coalesce(outputs('Update_Power_Platform_User_Role')?['body/@odata.id'], outputs('Create_Power_Platform_User_Role')?['body/@odata.id'])",
+                              "recordId": "@outputs('Get_a_record')?['body/admin_appid']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT20S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {
+                            "Relate_User_with_Role": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "Relate_User_with_Role": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "AssociateEntities"
+                            },
+                            "parameters": {
+                              "associationEntityRelationship": "admin_PowerPlatformUser_User",
+                              "entityName": "admin_powerplatformusers",
+                              "item/@odata.id": "@variables('oData')",
+                              "recordId": "@outputs('Compose_User_Unique_ID')"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT20S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {
+                            "Upsert_Power_Platform_User_Role": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "Switch": {
+                          "cases": {
+                            "Case": {
+                              "actions": {
+                                "List_group_members": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups",
+                                      "connectionName": "shared_office365groups",
+                                      "operationId": "ListGroupMembers"
+                                    },
+                                    "parameters": {
+                                      "groupId": "@items('Apply_to_each')?['properties']?['principal']?['id']"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "runtimeConfiguration": {
+                                    "paginationPolicy": {
+                                      "minimumItemCount": 100000
+                                    }
+                                  },
+                                  "type": "OpenApiConnection"
+                                },
+                                "Set_Group_Size_for_Groups": {
+                                  "inputs": {
+                                    "name": "sharedGroupSize",
+                                    "value": "@length(outputs('List_group_members')?['body/value'])"
+                                  },
+                                  "runAfter": {
+                                    "List_group_members": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "SetVariable"
+                                }
+                              },
+                              "case": "Group"
+                            },
+                            "Case_2": {
+                              "actions": {
+                                "Set_Group_Size_for_User": {
+                                  "inputs": {
+                                    "name": "sharedGroupSize",
+                                    "value": 1
+                                  },
+                                  "runAfter": {},
+                                  "type": "SetVariable"
+                                }
+                              },
+                              "case": "User"
+                            }
+                          },
+                          "default": {
+                            "actions": {
+                              "Set_Default_Group_Size": {
+                                "inputs": {
+                                  "name": "sharedGroupSize",
+                                  "value": 0
+                                },
+                                "runAfter": {},
+                                "type": "SetVariable"
+                              }
+                            }
+                          },
+                          "expression": "@items('Apply_to_each')?['properties/principal/type']",
+                          "runAfter": {
+                            "Compose_2": [
+                              "Skipped"
+                            ]
+                          },
+                          "type": "Switch"
+                        },
+                        "Upsert_Power_Platform_User": {
+                          "actions": {
+                            "Compose_User_Unique_ID": {
+                              "inputs": "@coalesce(items('Apply_to_each')?['properties/principal/id'], items('Apply_to_each')?['properties/principal/tenantId'])",
+                              "runAfter": {},
+                              "type": "Compose"
+                            },
+                            "Insert_Power_Platform_User": {
+                              "description": "If Update fails, try Insert",
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "CreateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_powerplatformusers",
+                                  "item/admin_displayname": "@coalesce(items('Apply_to_each')?['properties/principal/displayName'], 'Tenant')",
+                                  "item/admin_groupsize": "@variables('sharedGroupSize')",
+                                  "item/admin_powerplatformuserid": "@coalesce(items('Apply_to_each')?['properties/principal/id'], items('Apply_to_each')?['properties/principal/tenantId'])",
+                                  "item/admin_userprincipalname": "@coalesce(items('Apply_to_each')?['properties/principal/email'], '')"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT20S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Update_Power_Platform_User_": [
+                                  "Failed"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Update_Power_Platform_User_": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_powerplatformusers",
+                                  "item/admin_displayname": "@coalesce(items('Apply_to_each')?['properties/principal/displayName'], 'Tenant')",
+                                  "item/admin_groupsize": "@variables('sharedGroupSize')",
+                                  "item/admin_type": "@items('Apply_to_each')?['properties/principal/type']",
+                                  "item/admin_userprincipalname": "@coalesce(items('Apply_to_each')?['properties/principal/email'], '')",
+                                  "recordId": "@coalesce(items('Apply_to_each')?['properties/principal/id'], items('Apply_to_each')?['properties/principal/tenantId'])"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT20S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Compose_User_Unique_ID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "runAfter": {
+                            "Switch": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Scope"
+                        },
+                        "Upsert_Power_Platform_User_Role": {
+                          "actions": {
+                            "Apply_to_each_record": {
+                              "actions": {
+                                "Set_variable": {
+                                  "inputs": {
+                                    "name": "userRoleObject",
+                                    "value": "@items('Apply_to_each_record')?['admin_powerplatformuserroleid']"
+                                  },
+                                  "runAfter": {},
+                                  "type": "SetVariable"
+                                }
+                              },
+                              "foreach": "@outputs('List_records')?['body/value']",
+                              "runAfter": {
+                                "List_records": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            },
+                            "Condition": {
+                              "actions": {
+                                "Create_Power_Platform_User_Role": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "CreateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_powerplatformuserroles",
+                                      "item/admin_name": "@concat(items('Apply_to_each')?['name'], outputs('Get_a_record')?['body/admin_appid'])",
+                                      "item/admin_resourcetype": "App",
+                                      "item/admin_resourceuserlink": "@concat(items('Apply_to_each')?['name'], outputs('Get_a_record')?['body/admin_appid'])",
+                                      "item/admin_rolename": "@items('Apply_to_each')?['properties/roleName']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT20S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                },
+                                "Set_OData_ID_from_Create": {
+                                  "inputs": {
+                                    "name": "oData",
+                                    "value": "@outputs('Create_Power_Platform_User_Role')?['body/@odata.id']"
+                                  },
+                                  "runAfter": {
+                                    "Create_Power_Platform_User_Role": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "type": "SetVariable"
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "Set_OData_ID_from_Update": {
+                                    "inputs": {
+                                      "name": "oData",
+                                      "value": "@outputs('Update_Power_Platform_User_Role')?['body/@odata.id']"
+                                    },
+                                    "runAfter": {
+                                      "Update_Power_Platform_User_Role": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "SetVariable"
+                                  },
+                                  "Update_Power_Platform_User_Role": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_powerplatformuserroles",
+                                        "item/admin_resourcetype": "App",
+                                        "item/admin_rolename": "@items('Apply_to_each')?['properties/roleName']",
+                                        "recordId": "@variables('userRoleObject')"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT20S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@length(outputs('List_records')?['body/value'])",
+                                  0
+                                ]
+                              },
+                              "runAfter": {
+                                "Apply_to_each_record": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "List_records": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "admin_resourceuserlink eq '@{concat(items('Apply_to_each')?['name'], outputs('Get_a_record')?['body/admin_appid'])}'",
+                                  "entityName": "admin_powerplatformuserroles"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT20S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "runAfter": {
+                            "Upsert_Power_Platform_User": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Scope"
+                        }
+                      },
+                      "foreach": "@outputs('Get_App_Role_Assignments_as_Admin')?['body/value']",
+                      "runAfter": {
+                        "Compose": [
+                          "Skipped"
+                        ]
+                      },
+                      "type": "Foreach"
+                    },
+                    "Apply_to_each_unshare": {
+                      "actions": {
+                        "Apply_to_each_2": {
+                          "actions": {
+                            "Compose_3": {
+                              "inputs": "@items('Apply_to_each_2')?['@odata.id']",
+                              "runAfter": {},
+                              "type": "Compose"
+                            },
+                            "Unrelate_records": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "DisassociateEntities"
+                                },
+                                "parameters": {
+                                  "$id": "@items('Apply_to_each_2')?['@odata.id']",
+                                  "associationEntityRelationship": "admin_PowerPlatformUserRole_App_admin_App",
+                                  "entityName": "admin_apps",
+                                  "recordId": "@items('Walk_the_Apps_in_this_Envt')?['name']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Compose_3": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_records_2')?['body/value']",
+                          "runAfter": {
+                            "List_records_2": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Foreach"
+                        },
+                        "List_records_2": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "ListRecords"
+                            },
+                            "parameters": {
+                              "$filter": "_admin_powerplatformuser_value eq @{items('Apply_to_each_unshare')?['ID']} and _admin_app_value eq @{items('Walk_the_Apps_in_this_Envt')?['name']}",
+                              "$top": 1,
+                              "entityName": "admin_powerplatformuserroles"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {
+                            "Unrelate_User_from_Role": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "Unrelate_User_from_Role": {
+                          "inputs": {
+                            "authentication": "@parameters('$authentication')",
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "DisassociateEntities"
+                            },
+                            "parameters": {
+                              "$id": "@variables('oData')",
+                              "associationEntityRelationship": "admin_PowerPlatformUser_User",
+                              "entityName": "admin_powerplatformusers",
+                              "recordId": "@items('Apply_to_each_unshare')?['ID']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "foreach": "@body('Filter_delta')",
+                      "runAfter": {
+                        "Filter_delta": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Foreach"
+                    },
+                    "Compose": {
+                      "inputs": "catch",
+                      "runAfter": {
+                        "Get_App_Role_Assignments_as_Admin": [
+                          "Failed"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "Filter_delta": {
+                      "inputs": {
+                        "from": "@body('Select_Power_Platform_User_IDs')",
+                        "where": "@equals(contains(body('Select_Role_Assignment_User_IDs'), item()), false)"
+                      },
+                      "runAfter": {
+                        "Select_Role_Assignment_User_IDs": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Query"
+                    },
+                    "Get_App_Role_Assignments_as_Admin": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                          "connectionName": "shared_powerappsforadmins_1",
+                          "operationId": "Get-AdminAppRoleAssignment"
+                        },
+                        "parameters": {
+                          "$top": 250,
+                          "api-version": "2016-11-01",
+                          "app": "@items('Walk_the_Apps_in_this_Envt')?['name']",
+                          "environment": "@items('Walk_Each_Environment')?['name']"
+                        }
+                      },
+                      "runAfter": {},
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "List_Power_Platform_Users": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$select": "admin_powerplatformuserid",
+                          "entityName": "admin_powerplatformusers",
+                          "fetchXml": "<fetch>\n  <entity name=\"admin_powerplatformuser\" >\n    <link-entity name=\"admin_powerplatformuserrole\" from=\"admin_powerplatformuser\" to=\"admin_powerplatformuserid\" link-type=\"inner\" >\n      <filter type=\"and\" >\n        <condition attribute=\"admin_app\" operator=\"eq\" value=\"@{items('Walk_the_Apps_in_this_Envt')?['name']}\" uitype=\"admin_app\" />\n      </filter>\n    </link-entity>\n  </entity>\n</fetch>"
+                        }
+                      },
+                      "runAfter": {
+                        "Apply_to_each": [
+                          "Succeeded"
+                        ]
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Select_Power_Platform_User_IDs": {
+                      "inputs": {
+                        "from": "@outputs('List_Power_Platform_Users')?['body/value']",
+                        "select": {
+                          "ID": "@item()?['admin_powerplatformuserid']"
+                        }
+                      },
+                      "runAfter": {
+                        "List_Power_Platform_Users": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Select"
+                    },
+                    "Select_Role_Assignment_User_IDs": {
+                      "inputs": {
+                        "from": "@outputs('Get_App_Role_Assignments_as_Admin')?['body/value']",
+                        "select": {
+                          "ID": "@item()?['name']"
+                        }
+                      },
+                      "runAfter": {
+                        "Select_Power_Platform_User_IDs": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Select"
+                    }
+                  },
+                  "foreach": "@body('Filter_To_Non_Embedded_Apps')",
+                  "runAfter": {
+                    "Filter_To_Non_Embedded_Apps": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(outputs('Get_Envt_from_CoE')?['body/value'])",
+                  0
+                ]
+              },
+              "runAfter": {
+                "Get_Environment_": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "foreach": "@outputs('List_Environments_as_Admin')?['body/value']",
+          "runAfter": {
+            "List_Environments_as_Admin": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "staticResults": {
+        "List_Environments_as_Admin0": {
+          "outputs": {
+            "headers": {},
+            "statusCode": "OK"
+          },
+          "status": "Succeeded"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 2,
+            "schedule": {
+              "weekDays": [
+                "Sunday"
+              ]
+            }
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

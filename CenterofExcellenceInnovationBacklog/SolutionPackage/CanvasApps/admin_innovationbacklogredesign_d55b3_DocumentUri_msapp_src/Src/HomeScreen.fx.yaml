@@ -1,0 +1,2510 @@
+HomeScreen As screen:
+    Fill: =RGBA(0, 0, 0, 0)
+    Height: =Max(App.Height, App.DesignHeight)
+    OnVisible: |-
+        =/***********RESET COLLECTIONS TO NOT CONTAIN WORKITEM OR IDEA INFORMATION**********/
+        //main object variables
+        Set(isNewIdea, false);
+        Set(OurIdea, IdeaList.Selected);
+        Set(OurIdeaGUID, IdeaList.Selected.ThisIdeaGUID);
+        
+        Set(isNewBacklogItem, true);
+        Set(OurWorkitem, Blank());
+        //Set(OurWorkitemGUID, Blank());
+        
+        //wf trackign variables
+        Set(AddFileForWorkflow, Blank());
+        Set(WFExists, Blank());
+        Set(WFisInline, Blank());
+        Set(WFisLink, Blank());
+        Set(WFisFile, Blank());
+        Set(SentFromAddWorfklow, Blank());
+        
+        //other tracking
+        Set(MyVote, Blank());
+        Set(MyComplexity, Blank());
+        Set(varTo, Blank());
+        Set(varSubject, Blank());
+        Set(varBody, Blank());
+        Set(AssignNewDev, false);
+        Set(NewStatusDefault, BacklogStatusOptions.New);
+        Set(SolutionFromScreen, [@HomeScreen]);
+        Set(CurrentStep, 6);
+        Reset('NoWorfklow-PickTool');
+        
+        //local variables
+        UpdateContext({ShowWorkitemList: false});
+        UpdateContext({ShowSolutionList: false});
+        UpdateContext({ShowFilterDialog: false});
+        UpdateContext({ShowSortDialog: false});
+        UpdateContext({SortAscending: false});
+        UpdateContext({ShowDescription: false});
+        
+        //collections
+        UpdateIf(AvailableToolsAll, true, {isSelected: false});
+        Clear(MyWorkflow);
+        Clear(MyPersonas);
+        Clear(MyTools);
+        Clear(SubmitTheseTools);
+        Clear(MyPainPoints);
+        Clear(MyPainPoints2);
+        Clear(MyMeasures);
+        
+        /***********RELOAD WORKITEMS AND TOOLSET FOR BROWSING PAGE**********/
+        //Collect Votes
+        ClearCollect(AllVotes, Filter('Backlog Idea Votes', IdeaStatus in StateFilterDefaultColl));
+        
+        //load toolset
+        ClearCollect(
+            ToolsetMap, 
+            AddColumns(
+                Filter('Backlog Item Toolsets', admin_ideastatus in StateFilterDefaultColl),
+                "ToolSetGUID", GUID(),
+                "ToolSetWorkitemGUID", GUID(),
+                "ToolSetWorkitemIdeaGUID", GUID()));
+        
+        UpdateIf(ToolsetMap, true, 
+        {
+                ToolSetGUID: admin_BacklogTool.admin_innovationbacklogtoolid,
+                ToolSetWorkitemGUID: admin_BacklogItem.'Innovation Backlog Workitem'
+        }
+        );
+        UpdateIf(ToolsetMap, true, 
+        {
+                ToolSetWorkitemIdeaGUID: LookUp('Innovation Backlog Workitems', 'Innovation Backlog Workitem'= ToolSetWorkitemGUID).BacklogIdea.'Innovation Backlog Idea'
+        }
+        );
+        
+        ForAll('Innovation Backlog Workitems',     
+            UpdateIf(ToolsetMap, ToolSetWorkitemGUID='Innovation Backlog Workitem', 
+            {ToolSetWorkitemIdeaGUID: BacklogIdea.'Innovation Backlog Idea'}));
+        
+        
+        //get complexities
+        ClearCollect(AllComplexity, Filter('Backlog Item Complexities', IdeaStatus in StateFilterDefaultColl));
+        
+        ClearCollect(PainPointMap, Filter('Backlog Item PainPointSets', IdeaStatus in StateFilterDefaultColl));
+        //BUGBUG why need? 
+        
+        //load up measures
+        ClearCollect(ActualizedMeasures, AddColumns(
+                 Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910001' && IdeaStatus in StateFilterDefaultColl),
+                 "MeasureGUID", 'Backlog Item MeasureSet',
+                 "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                 "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                 "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                      If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+        
+        //load up measures
+        ClearCollect(AllMeasures, AddColumns(
+                 Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910000' && IdeaStatus in StateFilterDefaultColl),
+                 "MeasureGUID", 'Backlog Item MeasureSet',
+                 "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                 "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                 "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                      If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+        
+        ClearCollect(AllSolutions, 
+            AddColumns(
+            Filter('Backlog Item Solutions', IdeaStatus in StateFilterDefaultColl), 
+            "ThisSolutionMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+            "ThisSolutionTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+            "ThisSolutionOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+            
+        ClearCollect(AllTestimony, 
+            AddColumns(
+            Filter('Backlog Item Testimonials', IdeaStatus in StateFilterDefaultColl),
+            "ThisTestimonyMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+            "ThisTestimonyTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+            "ThisTestimonyOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+        
+        //load up workitems
+        ClearCollect(AllWorkItems, 
+             AddColumns(
+             Filter('Innovation Backlog Workitems', IdeaStatus in StateFilterDefaultColl),
+             "ThisWorkitemGUID", 'Innovation Backlog Workitem',
+             "ThisWorkitemIdeaGUID", BacklogIdea.'Innovation Backlog Idea',
+             "ThisWorkitemMoneyMeasures", 
+                  Sum(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem' 
+                  && MeasureType=MeasureTypeOptions.'597910001' && BenefitType=BenefitTypeOptions.'597910000'), MoneySavings),
+             "ThisWorkitemTimeMeasures", 
+                  Sum(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem' && MeasureType=MeasureTypeOptions.'597910000' 
+                  && BenefitType=BenefitTypeOptions.'597910000'),TimeSavings),  
+             "ThisWorkitemNumOtherMeasures", 
+                  CountRows(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem'  && BenefitType=BenefitTypeOptions.'597910000'
+                  && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003'))),
+             "ThisWorkitemComplexity", LookUp(AllComplexity, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem').ComplexityScore,     
+             "ThisWorkitemPPs", Concat(Distinct(Filter(PainPointMap, BackLogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem').Name, Name), Result & Char(10))
+             ));
+        
+        //load up ideas
+        ClearCollect(AllIdeas, 
+             AddColumns(
+             Filter('Innovation Backlog Ideas', IdeaStatus in StateFilterDefaultColl),
+             "ThisIdeaGUID", 'Innovation Backlog Idea',
+             "ThisIdeaWorkItems", Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'),
+             "ThisIdeaToolGUIDs", Distinct(Filter(ToolsetMap, ToolSetWorkitemIdeaGUID='Innovation Backlog Idea').ToolSetGUID, ToolSetGUID),
+             "ThisIdeaToolNames", Concat(Filter(ToolsetMap, ToolSetWorkitemIdeaGUID='Innovation Backlog Idea'), Lower(LookUp(AvailableToolsAll, colAllToolGUID=ToolSetGUID).admin_displayname) & " " & Char(10)),
+             "ThisIdeaSearchTerms", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), 'Search Keywords' & " " & Char(10)),
+             "ThisIdeaTeams", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), 'Impacted Team' & " " & Char(10)),
+             "ThisIdeaWorkItemCreators", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), CreatedBy.'Full Name' & " "),
+             "ThisIdeaWorkItemCreatorsEmail", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), CreatedBy.'Primary Email' & "; "),
+             "ThisIdeaVotersEmail", Concat(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'), UserVoting.'Primary Email' & "; "),
+             "ThisIdeaMoneyMeasures", 
+                  Sum(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && MeasureType=MeasureTypeOptions.'597910001' 
+                  && BenefitType=BenefitTypeOptions.'597910000'),MoneySavings),
+             "ThisIdeaTimeMeasures", 
+                  Sum(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && MeasureType=MeasureTypeOptions.'597910000'  
+                  && BenefitType=BenefitTypeOptions.'597910000'),TimeSavings),  
+             "ThisIdeaNumOtherMeasures", 
+                  CountRows(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'  
+                  && BenefitType=BenefitTypeOptions.'597910000' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003'))),
+             "ThisIdeaComplexity", Average(Filter(AllComplexity, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'),ComplexityScore),
+             "ThisIdeaPPs", Concat(Distinct(Filter(PainPointMap, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea').Name, Name), Result & ", "),
+             "ThisIdeaNumberVotes", CountRows(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea')),
+             "ThisIdeaUserVotedYes", If(CountRows(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && UserVoting.User=UserGUID))=0, false, true),
+             "ThisIdeaNumSolns", CountRows(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'))
+             ));
+        
+        //BUGBUG Cannot set user to blank except through CDS UX
+        UpdateIf(AllIdeas, IdeaStatus<>BacklogStatusOptions.'In Progress', {CurrentDevOwner:Blank()});
+        
+        //Set
+        
+        //complexity range
+        UpdateContext({MinComplexity: Min(IdeaList.AllItems, ThisIdeaComplexity)});
+        UpdateContext({MaxComplexity: Max(IdeaList.AllItems, ThisIdeaComplexity)});
+        UpdateContext({RangeComplexity: MaxComplexity-MinComplexity});
+        UpdateContext({ChunkComplexity: RangeComplexity/NumChunks});
+        
+        //Money range
+        UpdateContext({MinMoney: Min(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+        UpdateContext({MaxMoney: Max(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+        UpdateContext({RangeMoney: MaxMoney-MinMoney});
+        UpdateContext({ChunkMoney: RangeMoney/NumChunks});
+        
+        //Time range
+        UpdateContext({MinTime: Min(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+        UpdateContext({MaxTime: Max(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+        UpdateContext({RangeTime: MaxTime-MinTime});
+        UpdateContext({ChunkTime: RangeTime/NumChunks});
+        
+        //main object variables, select again now after all has loaded
+        Set(isNewIdea, false);
+        Set(OurIdea, IdeaList.Selected);
+        Set(OurIdeaGUID, IdeaList.Selected.ThisIdeaGUID);
+    Width: =Max(App.Width, App.DesignWidth)
+
+    Rectangles As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        "'Rect-IdeasList' As rectangle":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =623
+            Width: =376
+            Y: =145
+            ZIndex: =1
+
+        "'Rect-IdeaActions' As rectangle":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =31
+            Width: =990
+            X: =376
+            Y: =77
+            ZIndex: =2
+
+        "'Rect-AddIdea' As rectangle":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =36
+            Width: =376
+            Y: =109
+            ZIndex: =3
+
+        "'Rect-Search' As rectangle":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =31
+            Width: =376
+            Y: =77
+            ZIndex: =4
+
+    IdeaNameGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        IdeaValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Size: =14
+            Text: =OurIdea.'Display Name'
+            Width: =IdeaLabel.Width
+            X: =IdeaLabel.X
+            Y: =IdeaLabel.Y+IdeaLabel.Height+10
+            ZIndex: =33
+
+        IdeaLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Idea"
+            Width: =400
+            X: =380
+            Y: =135
+            ZIndex: =47
+
+    PainPointGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        PainPointsValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =70
+            Overflow: =Overflow.Scroll
+            Size: =14
+            Text: =Left(OurIdea.ThisIdeaPPs, Len(OurIdea.ThisIdeaPPs)-2)
+            Width: =378
+            X: =PainPointsLabel.X
+            Y: =PainPointsLabel.Y+PainPointsLabel.Height+10
+            ZIndex: =34
+
+        PainPointsLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =20
+            Size: =17
+            Text: ="Pain Points"
+            Width: =400
+            X: =IdeaLabel.X
+            Y: =IdeaValue.Y+IdeaValue.Height+20
+            ZIndex: =44
+
+    ReturnGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        ReturnLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Estimated return on investment"
+            Width: =400
+            X: =IdeaLabel.X
+            Y: =PainPointsValue.Y+PainPointsValue.Height+20
+            ZIndex: =35
+
+        MoneyIcon_1 As image:
+            Height: =24
+            Image: |-
+                =If(IsBlank(OurIdea.ThisIdeaMoneyMeasures), 'ROI money-gray',
+                Switch(RoundDown((MaxMoney-OurIdea.ThisIdeaMoneyMeasures)/ChunkMoney, 0),
+                   4, 'ROI money-red',
+                   3, 'ROI money-red',
+                   2, 'ROI money-orange',
+                   1, 'ROI money-yellow',
+                   0, 'ROI money-green',
+                   'ROI money-green'))
+            Width: =Self.Height
+            X: =ReturnLabel.X+7
+            Y: =ReturnLabel.Y+ReturnLabel.Height+10
+            ZIndex: =36
+
+        MoneyLabel_1 As label:
+            Color: =If(IdeaList.Selected.ThisIdeaMoneyMeasures>0, RGBA(102, 102, 102, 1), RGBA(166,166,166,1))
+            Height: =20
+            PaddingTop: =0
+            Size: =14
+            Text: |-
+                =If(OurIdea.ThisIdeaMoneyMeasures>0, Text(OurIdea.ThisIdeaMoneyMeasures,"[$-en-US]$#,###.00") & " /month ", "Not Configured")
+            Width: =300
+            X: =MoneyIcon_1.X+MoneyIcon_1.Width+10
+            Y: =ReturnLabel.Y+ReturnLabel.Height+11
+            ZIndex: =37
+
+        TimeIcon_1 As image:
+            Height: =MoneyIcon.Height
+            Image: |-
+                =If(IsBlank(OurIdea.ThisIdeaTimeMeasures), 'ROI time-gray',
+                Switch(RoundDown((MaxTime-OurIdea.ThisIdeaTimeMeasures)/ChunkTime, 0),
+                   4, 'ROI time-red',
+                   3, 'ROI time-red',
+                   2, 'ROI time-orange',
+                   1, 'ROI time-yellow',
+                   0, 'ROI time-green',
+                   'ROI time-green'))
+            Width: =MoneyIcon.Width
+            X: =ReturnLabel.X+7
+            Y: =MoneyIcon_1.Y+MoneyIcon_1.Height+10
+            ZIndex: =38
+
+        TimeLabel_1 As label:
+            Color: =If(IdeaList.Selected.ThisIdeaTimeMeasures>0, RGBA(102, 102, 102, 1), RGBA(166,166,166,1))
+            Height: =20
+            PaddingTop: =0
+            Size: =14
+            Text: =If(OurIdea.ThisIdeaTimeMeasures>0, OurIdea.ThisIdeaTimeMeasures & " hours/month ", "Not Configured")
+            Width: =300
+            X: =TimeIcon_1.X+TimeIcon_1.Width+10
+            Y: =MoneyLabel_1.Y+MoneyIcon_1.Height+10
+            ZIndex: =43
+
+    ComplexityGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        ComplexityLabel_1 As label:
+            Color: =If(IdeaList.Selected.ThisIdeaComplexity>0, RGBA(102, 102, 102, 1), RGBA(166,166,166,1))
+            Height: =20
+            PaddingTop: =0
+            Size: =14
+            Text: =If(OurIdea.ThisIdeaComplexity>0, "Complexity", "Not Configured")
+            Width: =300
+            X: =ComplexityIcon_1.X+ComplexityIcon_1.Width+10
+            Y: =ComplexityScoreLabel_1.Y+ComplexityScoreLabel_1.Height+12
+            ZIndex: =39
+
+        ComplexityIcon_1 As circle:
+            Fill: |-
+                =If(IsBlank(IdeaList.Selected.ThisIdeaComplexity), RGBA(244,244,244,1),
+                Switch(RoundDown((IdeaList.Selected.ThisIdeaComplexity-MinComplexity)/ChunkComplexity, 0),
+                   4, RGBA(235,87,87,1),
+                   3, RGBA(235,87,87,1),
+                   2, RGBA(242,153,74,1),
+                   1, RGBA(242,201,76,1),
+                   0, RGBA(39,174,96,1),
+                   RGBA(39,174,96,1)))
+            Height: =MoneyIcon.Height
+            Width: =MoneyIcon.Width
+            X: =ToolsLabel.X+7
+            Y: =ComplexityScoreLabel_1.Y+ComplexityScoreLabel_1.Height+10
+            ZIndex: =40
+
+        ComplexityScore_1 As label:
+            Align: =Center
+            Color: =RGBA(255, 255, 255, 1)
+            Height: =ComplexityIcon.Height
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =0
+            PaddingTop: =0
+            Size: =10
+            Text: =RoundUp(OurIdea.ThisIdeaComplexity, 0)
+            Width: =ComplexityIcon.Width
+            X: =ToolsLabel.X+7
+            Y: =ComplexityScoreLabel_1.Y+ComplexityScoreLabel_1.Height+10
+            ZIndex: =41
+
+        ComplexityScoreLabel_1 As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Complexity"
+            Width: =400
+            X: =IdeaLabel.X
+            Y: =TimeIcon_1.Y+TimeIcon_1.Height+20
+            ZIndex: =42
+
+    ToolsGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        "IdeaTools As gallery.'BrowseLayout_Horizontal_TwoTextOneImageVariant_ver4.0'":
+            Height: =100
+            Items: =OurIdea.ThisIdeaToolGUIDs
+            TemplatePadding: =0
+            TemplateSize: =60
+            Width: =394
+            WrapCount: =2
+            X: =ToolsLabel.X+7
+            Y: =ToolsLabel.Y+ToolsLabel.Height+10
+            ZIndex: =30
+
+            "'WI-I-img2_1' As image":
+                Height: ='WI-INU-img_1'.Height
+                Image: =LookUp(AvailableToolsAll, colAllToolGUID=ThisItem.Result).Icon
+                OnSelect: =Select(Parent)
+                Tooltip: =LookUp(AvailableToolsAll, colAllToolGUID=ThisItem.Result).'Display Name'
+                Width: ='WI-INU-img_1'.Width
+                X: ='WI-INU-img_1'.X
+                Y: ='WI-INU-img_1'.Y
+                ZIndex: =1
+
+            "'WI-INU-img_1' As image":
+                Height: =50
+                Image: =LookUp(AvailableToolsAll, colAllToolGUID=ThisItem.Result).'Icon Non URL'
+                OnSelect: =Select(Parent)
+                Tooltip: =LookUp(AvailableToolsAll, colAllToolGUID=ThisItem.Result).'Display Name'
+                Width: =Self.Height
+                ZIndex: =2
+
+        ToolsLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =28
+            Size: =17
+            Text: ="Tools"
+            Width: =400
+            X: =IdeaLabel.X
+            Y: =IdeaKeywordsValue.Y+IdeaKeywordsValue.Height+20
+            ZIndex: =31
+
+    LikesGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        LikesLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =30
+            Size: =17
+            Text: |-
+                ="Number of Likes: " & OurIdea.ThisIdeaNumberVotes
+            Width: =250
+            X: =775
+            Y: =IdeaWorkitemList.Y+IdeaWorkitemList.Height+20
+            ZIndex: =17
+
+        MyLikeIcon As image:
+            Height: =Self.Width
+            Image: =If(OurIdea.ThisIdeaUserVotedYes, 'VoteYes-img', 'VoteNo-img')
+            OnSelect: |
+                =//if currently set to yes, they are setting their vote to no, so set MyVote to no
+                If(OurIdea.ThisIdeaUserVotedYes, Set(MyVote, false), Set(MyVote, true));
+                
+                //get current count for update
+                UpdateContext({curVoteCount: OurIdea.ThisIdeaNumberVotes});
+                
+                If(MyVote,
+                
+                //add yes vote
+                Patch('Backlog Idea Votes', Defaults('Backlog Idea Votes'), {
+                    Name: OurIdea.'Display Name' & "-" & User().FullName & ": Yes", 
+                    BacklogIdea: OurIdea, 
+                    IdeaStatus: OurIdea.IdeaStatus,
+                    UserVoting: UserObject});
+                ClearCollect(AllVotes, Filter('Backlog Idea Votes', IdeaStatus in StateFilterDefaultColl));
+                UpdateIf(AllIdeas, ThisIdeaGUID=OurIdea.ThisIdeaGUID, {ThisIdeaUserVotedYes: true, ThisIdeaNumberVotes: curVoteCount+1}),
+                
+                //else remove
+                IfError(RemoveIf('Backlog Idea Votes', BacklogIdea.'Innovation Backlog Idea'=OurIdea.ThisIdeaGUID && UserVoting.User=UserGUID), true);
+                ClearCollect(AllVotes, Filter('Backlog Idea Votes', IdeaStatus in StateFilterDefaultColl));
+                UpdateIf(AllIdeas, ThisIdeaGUID=OurIdea.ThisIdeaGUID, {ThisIdeaUserVotedYes: false, ThisIdeaNumberVotes: curVoteCount-1}));
+                
+                //recollect
+                Set(OurIdea, LookUp(AllIdeas, ThisIdeaGUID=OurIdea.ThisIdeaGUID));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            Width: =20
+            X: =LikesLabel.X+7
+            Y: =LikesLabel.Y+LikesLabel.Height+10
+            ZIndex: =19
+
+        "IdeaLikes As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =275
+            Items: =SortByColumns(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'=OurIdea.ThisIdeaGUID), "admin_name")
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =34
+            Width: =287
+            X: =LikesLabel.X+10
+            Y: =LikeUnlikeLabel.Y+LikeUnlikeLabel.Height+5
+            ZIndex: =20
+
+            Image3_1 As image:
+                Height: =25
+                Image: |-
+                    =If(IsBlankOrError(ThisItem.UserVoting.'Primary Email'), person,
+                    If(Office365Users.UserPhotoMetadata(ThisItem.UserVoting.'Primary Email').HasPhoto=false, person, Office365Users.UserPhotoV2(ThisItem.UserVoting.'Primary Email')))
+                OnSelect: =Select(Parent)
+                RadiusBottomLeft: =45
+                RadiusBottomRight: =45
+                RadiusTopLeft: =45
+                RadiusTopRight: =45
+                Width: =27
+                X: =11
+                Y: =9
+                ZIndex: =1
+
+            Title1_1 As label:
+                FontWeight: =Lighter
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =If(IsBlankOrError(ThisItem.UserVoting), "No Votes Yet", ThisItem.UserVoting.'Full Name')
+                VerticalAlign: =VerticalAlign.Top
+                Width: =Parent.TemplateWidth - Image3_1.Width - 104
+                X: =49
+                Y: =9
+                ZIndex: =2
+
+        LikeUnlikeLabel As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =28
+            OnSelect: =Select(MyLikeIcon)
+            Size: =14
+            Text: =If(OurIdea.ThisIdeaUserVotedYes, "Remove like", "Add like")
+            Width: =161
+            X: =MyLikeIcon.X+MyLikeIcon.Width+10
+            Y: =LikesLabel.Y+LikesLabel.Height+7
+            ZIndex: =21
+
+    DevGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        ChangeDevLabel As label:
+            Color: =RGBA(102,102,102, 1)
+            FontWeight: =Semibold
+            Height: =29
+            OnSelect: =Select(ChangeDevIcon)
+            Size: =14
+            Text: ="Edit dev owner"
+            Width: =216
+            X: =ChangeDevIcon.X+ChangeDevIcon.Width+10
+            Y: =DeveloperValue_1.Y+DeveloperValue_1.Height+5
+            ZIndex: =9
+
+        ChangeDevIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Edit
+            OnSelect: |-
+                =If(OurIdea.IdeaStatus = BacklogStatusOptions.New || OurIdea.IdeaStatus = BacklogStatusOptions.Removed, 
+                      Set(NewStatusDefault, BacklogStatusOptions.'In Progress'), 
+                      Set(NewStatusDefault, OurIdea.IdeaStatus));
+                
+                Set(AssignNewDev, true);
+                      
+                Navigate([@UpdateStatus]);
+            Width: =17
+            X: =StatusLabel1.X+7
+            Y: =ChangeDevLabel.Y+(ChangeDevLabel.Height/2)-(Self.Height/2)
+            ZIndex: =10
+
+        DeveloperValue_1 As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =IdeaLabel.Height
+            Size: =14
+            Text: =If(IsBlank(IdeaList.Selected.CurrentDevOwner), "Available", IdeaList.Selected.CurrentDevOwner.'Full Name')
+            Width: =250
+            X: =StatusLabel1.X
+            Y: =DeveloperLabel_1.Y+DeveloperLabel_1.Height+10
+            ZIndex: =11
+
+        DeveloperLabel_1 As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =30
+            Size: =17
+            Text: ="Developer Owner"
+            Width: =250
+            X: =StatusLabel1.X
+            Y: =ChangeStatusLabel.Y+ChangeStatusLabel.Height+10
+            ZIndex: =12
+
+    WorkitemsGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        "IdeaWorkitemList As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =160
+            Items: =OurIdea.ThisIdeaWorkItems
+            Layout: =Layout.Vertical
+            OnSelect: |-
+                =If(!IsBlank(ThisItem.admin_description), UpdateContext({ShowDescription: true}))
+            TemplatePadding: =0
+            TemplateSize: =67
+            Width: =553
+            X: =LikesLabel.X+10
+            Y: =AddWorkitemLabel.Y+AddWorkitemLabel.Height+5
+            ZIndex: =22
+
+            Image4 As image:
+                Height: =25
+                Image: =If(IsBlank(ThisItem.admin_CreatedBy), SampleImage, IfError(Office365Users.UserPhotoV2(ThisItem.admin_CreatedBy.'Primary Email'), SampleImage))
+                OnSelect: =Select(Parent)
+                RadiusBottomLeft: =45
+                RadiusBottomRight: =45
+                RadiusTopLeft: =45
+                RadiusTopRight: =45
+                Tooltip: =ThisItem.admin_description
+                Width: =Self.Height
+                X: =20
+                Y: =9
+                ZIndex: =1
+
+            Title3 As label:
+                FontWeight: =Normal
+                Height: =45
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.admin_impactedteam & If(!IsBlank(ThisItem.admin_impactedteam), " - ", "")  & ThisItem.admin_CreatedBy.'Full Name'
+                Tooltip: =ThisItem.admin_description
+                VerticalAlign: =VerticalAlign.Top
+                Width: =212
+                X: =60
+                Y: =9
+                ZIndex: =2
+
+            Subtitle2 As label:
+                Height: =45
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.admin_description
+                Tooltip: =ThisItem.admin_description
+                VerticalAlign: =VerticalAlign.Top
+                Width: =256
+                X: =290
+                Y: =9
+                ZIndex: =3
+
+        AddWorkitemLabel As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =29
+            OnSelect: |
+                =/***********RESET COLLECTIONS TO NOT CONTAIN WORKITEM INFORMATION**********/
+                //global variables
+                Set(isNewIdea, false);
+                
+                Set(isNewBacklogItem, true);
+                Set(OurWorkitem, Blank());
+                //Set(OurWorkitemGUID, Blank());
+                
+                //wf trackign variables
+                Set(AddFileForWorkflow, Blank());
+                Set(WFExists, Blank());
+                Set(WFisInline, Blank());
+                Set(WFisLink, Blank());
+                Set(WFisFile, Blank());
+                Set(SentFromAddWorfklow, Blank());
+                
+                //other tracking
+                Set(MyVote, Blank());
+                Set(MyComplexity, Blank());
+                Set(varTo, Blank());
+                Set(varSubject, Blank());
+                Set(varBody, Blank());
+                
+                //collections
+                UpdateIf(AvailableToolsAll, true, {isSelected: false});
+                Clear(MyWorkflow);
+                Clear(MyPersonas);
+                Clear(MyTools);
+                Clear(SubmitTheseTools);
+                Clear(MyPainPoints);
+                Clear(MyPainPoints2);
+                Clear(MyMeasures);
+                
+                //reset controls
+                Reset(DisplayNameInput);
+                Reset(KeywordsInput);
+                Reset(DescriptionInput);
+                Reset(PainPointInput);
+                
+                //navigate
+                Set(CurrentStep, 1);
+                Navigate(BasicInfo)
+            Size: =14
+            Text: ="Add team repro"
+            Width: =247
+            X: =AddWorkitemIcon.X+AddWorkitemIcon.Width+10
+            Y: =WorkItemLabel.Y+WorkItemLabel.Height+5
+            ZIndex: =23
+
+        AddWorkitemIcon As icon.Add:
+            Height: =Self.Width
+            Icon: =Icon.Add
+            OnSelect: |
+                =/***********RESET COLLECTIONS TO NOT CONTAIN WORKITEM INFORMATION**********/
+                //global variables
+                Set(isNewIdea, false);
+                
+                Set(isNewBacklogItem, true);
+                Set(OurWorkitem, Blank());
+                //Set(OurWorkitemGUID, Blank());
+                
+                //wf trackign variables
+                Set(AddFileForWorkflow, Blank());
+                Set(WFExists, Blank());
+                Set(WFisInline, Blank());
+                Set(WFisLink, Blank());
+                Set(WFisFile, Blank());
+                Set(SentFromAddWorfklow, Blank());
+                
+                //other tracking
+                Set(MyVote, Blank());
+                Set(MyComplexity, Blank());
+                Set(varTo, Blank());
+                Set(varSubject, Blank());
+                Set(varBody, Blank());
+                
+                //collections
+                UpdateIf(AvailableToolsAll, true, {isSelected: false});
+                Clear(MyWorkflow);
+                Clear(MyPersonas);
+                Clear(MyTools);
+                Clear(SubmitTheseTools);
+                Clear(MyPainPoints);
+                Clear(MyPainPoints2);
+                Clear(MyMeasures);
+                
+                //reset controls
+                Reset(DisplayNameInput);
+                Reset(KeywordsInput);
+                Reset(DescriptionInput);
+                Reset(PainPointInput);
+                
+                //navigate
+                Set(CurrentStep, 1);
+                Navigate(BasicInfo)
+            Width: =17
+            X: =LikesLabel.X+7
+            Y: =WorkItemLabel.Y+WorkItemLabel.Height+10
+            ZIndex: =24
+
+        WorkItemLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =30
+            Size: =17
+            Text: ="Being developed for"
+            Width: =250
+            X: =LikesLabel.X
+            Y: =IdeaLabel.Y
+            ZIndex: =25
+
+    ActionStatusGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =64
+
+        ActionStatusLabel As label:
+            Align: =Left
+            Color: =RGBA(96, 94, 92, 1)
+            Fill: =If(ActionSuccess, RGBA(223,246,221,1), RGBA(255, 230, 233, 1))
+            Height: =25
+            Size: =12
+            Text: ="      " & ActionStatus
+            Visible: =If(ActionStatus="", false, true)
+            Width: =984
+            X: =380
+            Y: =111
+            ZIndex: =45
+
+        ActionStatusCancel As icon.Cancel:
+            Color: =If(ActionSuccess, RGBA(16, 124, 16, 1), RGBA(210, 60, 67, 1))
+            Height: =Self.Width
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =Set(ActionStatus, "");
+                Set(ActionSuccess, true);
+            Visible: =If(ActionStatus="", false, true)
+            Width: =17
+            X: =ActionStatusLabel.X+ActionStatusLabel.Width-Self.Width-10
+            Y: =ActionStatusLabel.Y+(ActionStatusLabel.Height/2)-(ActionStatusCancel.Height/2)
+            ZIndex: =46
+
+        ActionStatusIcon As icon.Cancel:
+            Color: =If(ActionSuccess, RGBA(16, 124, 16, 1), RGBA(210, 60, 67, 1))
+            Height: =Self.Width
+            Icon: =If(ActionSuccess, Icon.Check, Icon.Warning)
+            Visible: =If(ActionStatus="", false, true)
+            Width: =17
+            X: =ActionStatusLabel.X+5
+            Y: =ActionStatusLabel.Y+(ActionStatusLabel.Height/2)-(ActionStatusIcon.Height/2)
+            ZIndex: =48
+
+    HomeScreenTitle As label:
+        Color: =RGBA(51,51,51, 1)
+        FontWeight: =Semibold
+        Height: =23
+        Size: =22
+        Text: ="Submitted Ideas"
+        Width: =400
+        X: =10
+        Y: =25
+        ZIndex: =75
+
+    FilterDialog As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =78
+
+        FilterBorder As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =If(ShowFilterDialog, 460, 0)
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =413
+            X: =351
+            Y: =145
+            ZIndex: =76
+
+        FilterToMyVotes As checkbox:
+            CheckboxBackgroundFill: =If(Self.Value, RGBA(43,121,215,1), RGBA(43,121,215,0))
+            CheckboxBorderColor: =RGBA(43,121,215,1)
+            CheckmarkFill: =RGBA(225,238,251,1)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowFilterDialog, 50, 0)
+            Text: ="Only ideas I've liked"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =218
+            X: =374
+            Y: =493
+            ZIndex: =77
+
+        FilterVotes As label:
+            FontWeight: =Semibold
+            Height: =If(ShowFilterDialog, 40, 0)
+            Text: ="Likes"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =143
+            X: =363
+            Y: =460
+            ZIndex: =78
+
+        FilterToRemoved As checkbox:
+            CheckboxBackgroundFill: =If(Self.Value, RGBA(43,121,215,1), RGBA(43,121,215,0))
+            CheckboxBorderColor: =RGBA(43,121,215,1)
+            CheckmarkFill: =RGBA(225,238,251,1)
+            Default: =If(BacklogStatusOptions.Removed in StateFilterDefaultColl, true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowFilterDialog, 50, 0)
+            OnCheck: =Collect(StateFilterDefaultColl, BacklogStatusOptions.Removed);
+            OnUncheck: =RemoveIf(StateFilterDefaultColl, Value=BacklogStatusOptions.Removed);
+            Text: ="Removed"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =206
+            X: =374
+            Y: =393
+            ZIndex: =79
+
+        FilterToComplete As checkbox:
+            CheckboxBackgroundFill: =If(Self.Value, RGBA(43,121,215,1), RGBA(43,121,215,0))
+            CheckboxBorderColor: =RGBA(43,121,215,1)
+            CheckmarkFill: =RGBA(225,238,251,1)
+            Default: =If(BacklogStatusOptions.Complete in StateFilterDefaultColl, true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowFilterDialog, 50, 0)
+            OnCheck: =Collect(StateFilterDefaultColl, BacklogStatusOptions.Complete);
+            OnUncheck: =RemoveIf(StateFilterDefaultColl, Value=BacklogStatusOptions.Complete);
+            Text: ="Complete"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =206
+            X: =374
+            Y: =343
+            ZIndex: =80
+
+        FilterToPartiallyComplete As checkbox:
+            CheckboxBackgroundFill: =If(Self.Value, RGBA(43,121,215,1), RGBA(43,121,215,0))
+            CheckboxBorderColor: =RGBA(43,121,215,1)
+            CheckmarkFill: =RGBA(225,238,251,1)
+            Default: =If(BacklogStatusOptions.'Partially Complete' in StateFilterDefaultColl, true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowFilterDialog, 50, 0)
+            OnCheck: =Collect(StateFilterDefaultColl, BacklogStatusOptions.'Partially Complete');
+            OnUncheck: =RemoveIf(StateFilterDefaultColl, Value=BacklogStatusOptions.'Partially Complete');
+            Text: ="Partically Complete"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =206
+            X: =374
+            Y: =293
+            ZIndex: =81
+
+        FilterToInProgress As checkbox:
+            CheckboxBackgroundFill: =If(Self.Value, RGBA(43,121,215,1), RGBA(43,121,215,0))
+            CheckboxBorderColor: =RGBA(43,121,215,1)
+            CheckmarkFill: =RGBA(225,238,251,1)
+            Default: =If(BacklogStatusOptions.'In Progress' in StateFilterDefaultColl, true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowFilterDialog, 50, 0)
+            OnCheck: =Collect(StateFilterDefaultColl, BacklogStatusOptions.'In Progress');
+            OnUncheck: =RemoveIf(StateFilterDefaultColl, Value=BacklogStatusOptions.'In Progress');
+            Text: ="In Progress"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =206
+            X: =374
+            Y: =243
+            ZIndex: =82
+
+        FilterToNew As checkbox:
+            CheckboxBackgroundFill: =If(Self.Value, RGBA(43,121,215,1), RGBA(43,121,215,0))
+            CheckboxBorderColor: =RGBA(43,121,215,1)
+            CheckmarkFill: =RGBA(225,238,251,1)
+            Default: =If(BacklogStatusOptions.New in StateFilterDefaultColl, true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowFilterDialog, 50, 0)
+            OnCheck: =Collect(StateFilterDefaultColl, BacklogStatusOptions.New);
+            OnUncheck: =RemoveIf(StateFilterDefaultColl, Value=BacklogStatusOptions.New);
+            Text: ="New"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =206
+            X: =374
+            Y: =193
+            ZIndex: =83
+
+        FilterStatus As label:
+            FontWeight: =Semibold
+            Height: =If(ShowFilterDialog, 40, 0)
+            Text: ="Status"
+            Visible: =If(ShowFilterDialog, true, false)
+            Width: =143
+            X: =363
+            Y: =156
+            ZIndex: =84
+
+        FilterDone As button:
+            Fill: =RGBA(43,121,215,1)
+            FontWeight: =FontWeight.Bold
+            Height: =If(ShowFilterDialog, 40, 0)
+            OnSelect: |-
+                =/***********RELOAD WORKITEMS AND TOOLSET FOR BROWSING PAGE**********/
+                UpdateContext({ShowFilterDialog: !ShowFilterDialog});
+                
+                ClearCollect(AllIdeas, Filter('Innovation Backlog Ideas', IdeaStatus in StateFilterDefaultColl));
+                
+                //Collect Votes
+                ClearCollect(AllVotes, Filter('Backlog Idea Votes', IdeaStatus in StateFilterDefaultColl));
+                
+                //load toolset
+                ClearCollect(
+                    ToolsetMap, 
+                    AddColumns(
+                        Filter('Backlog Item Toolsets', admin_ideastatus in StateFilterDefaultColl),
+                        "ToolSetGUID", GUID(),
+                        "ToolSetWorkitemGUID", GUID(),
+                        "ToolSetWorkitemIdeaGUID", GUID()));
+                
+                UpdateIf(ToolsetMap, true, 
+                {
+                        ToolSetGUID: admin_BacklogTool.admin_innovationbacklogtoolid,
+                        ToolSetWorkitemGUID: admin_BacklogItem.'Innovation Backlog Workitem'
+                }
+                );
+                UpdateIf(ToolsetMap, true, 
+                {
+                        ToolSetWorkitemIdeaGUID: LookUp('Innovation Backlog Workitems', 'Innovation Backlog Workitem'= ToolSetWorkitemGUID).BacklogIdea.'Innovation Backlog Idea'
+                }
+                );
+                
+                ForAll('Innovation Backlog Workitems',     
+                    UpdateIf(ToolsetMap, ToolSetWorkitemGUID='Innovation Backlog Workitem', 
+                    {ToolSetWorkitemIdeaGUID: BacklogIdea.'Innovation Backlog Idea'}));
+                
+                
+                //get complexities
+                ClearCollect(AllComplexity, Filter('Backlog Item Complexities', IdeaStatus in StateFilterDefaultColl));
+                
+                ClearCollect(PainPointMap, Filter('Backlog Item PainPointSets', IdeaStatus in StateFilterDefaultColl));
+                //BUGBUG why need? 
+                
+                //load up measures
+                ClearCollect(ActualizedMeasures, AddColumns(
+                         Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910001' && IdeaStatus in StateFilterDefaultColl),
+                         "MeasureGUID", 'Backlog Item MeasureSet',
+                         "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                         "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                         "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                              If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+                              
+                //load up measures
+                ClearCollect(AllMeasures, AddColumns(
+                         Filter('Backlog Item MeasureSets', BenefitType=BenefitTypeOptions.'597910000' && IdeaStatus in StateFilterDefaultColl),
+                         "MeasureGUID", 'Backlog Item MeasureSet',
+                         "BacklogItemGUID", BacklogItem.'Innovation Backlog Workitem',
+                         "TimeMoneyToTimeGUID", TimeMoneyToTime.'Backlog Item MeasureSet',
+                         "MeasureTypeText", If(MeasureType=MeasureTypeOptions.'597910000', "Time", If(MeasureType=MeasureTypeOptions.'597910001', "Money", 
+                              If(MeasureType=MeasureTypeOptions.'597910002', "Num", If(MeasureType=MeasureTypeOptions.'597910003', "Text", "Error"))))));
+                
+                ClearCollect(AllSolutions, 
+                    AddColumns(
+                    Filter('Backlog Item Solutions', IdeaStatus in StateFilterDefaultColl), 
+                    "ThisSolutionMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+                    "ThisSolutionTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+                    "ThisSolutionOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogSoln.'Backlog Item Solution'='Backlog Item Solution' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+                    
+                ClearCollect(AllTestimony, 
+                    AddColumns(
+                    Filter('Backlog Item Testimonials', IdeaStatus in StateFilterDefaultColl),
+                    "ThisTestimonyMoneyMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910001'), MoneySavings),
+                    "ThisTestimonyTimeMeasures", Sum(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && MeasureType=MeasureTypeOptions.'597910000'), TimeSavings),
+                    "ThisTestimonyOtherMeasures", CountRows(Filter(ActualizedMeasures, BacklogTestimony.'Backlog Item Testimonial'='Backlog Item Testimonial' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003')))));
+                
+                //load up workitems
+                ClearCollect(AllWorkItems, 
+                     AddColumns(
+                     Filter('Innovation Backlog Workitems', IdeaStatus in StateFilterDefaultColl),
+                     "ThisWorkitemGUID", 'Innovation Backlog Workitem',
+                     "ThisWorkitemIdeaGUID", BacklogIdea.'Innovation Backlog Idea',
+                     "ThisWorkitemMoneyMeasures", 
+                          Sum(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem' 
+                          && MeasureType=MeasureTypeOptions.'597910001' && BenefitType=BenefitTypeOptions.'597910000'), MoneySavings),
+                     "ThisWorkitemTimeMeasures", 
+                          Sum(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem' && MeasureType=MeasureTypeOptions.'597910000' 
+                          && BenefitType=BenefitTypeOptions.'597910000'),TimeSavings),  
+                     "ThisWorkitemNumOtherMeasures", 
+                          CountRows(Filter(AllMeasures, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem'  && BenefitType=BenefitTypeOptions.'597910000'
+                          && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003'))),
+                     "ThisWorkitemComplexity", LookUp(AllComplexity, BacklogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem').ComplexityScore,     
+                     "ThisWorkitemPPs", Concat(Distinct(Filter(PainPointMap, BackLogItem.'Innovation Backlog Workitem'='Innovation Backlog Workitem').Name, Name), Result & Char(10))
+                     ));
+                
+                //load up ideas
+                ClearCollect(AllIdeas, 
+                     AddColumns(
+                     Filter('Innovation Backlog Ideas', IdeaStatus in StateFilterDefaultColl),
+                     "ThisIdeaGUID", 'Innovation Backlog Idea', 
+                     "ThisIdeaWorkItems", Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'),
+                     "ThisIdeaToolGUIDs", Distinct(Filter(ToolsetMap, ToolSetWorkitemIdeaGUID='Innovation Backlog Idea').ToolSetGUID, ToolSetGUID),
+                     "ThisIdeaToolNames", Concat(Filter(ToolsetMap, ToolSetWorkitemIdeaGUID='Innovation Backlog Idea'), Lower(LookUp(AvailableToolsAll, colAllToolGUID=ToolSetGUID).admin_displayname) & " " & Char(10)),
+                     "ThisIdeaSearchTerms", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), 'Search Keywords' & " " & Char(10)),
+                     "ThisIdeaTeams", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), 'Impacted Team' & " " & Char(10)),
+                     "ThisIdeaWorkItemCreators", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), CreatedBy.'Full Name' & " " & Char(10)),
+                     "ThisIdeaWorkItemCreatorsEmail", Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID='Innovation Backlog Idea'), CreatedBy.'Primary Email' & "; "),
+                     "ThisIdeaVotersEmail", Concat(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'), UserVoting.'Primary Email' & "; "),
+                     "ThisIdeaMoneyMeasures", 
+                          Sum(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && MeasureType=MeasureTypeOptions.'597910001' 
+                          && BenefitType=BenefitTypeOptions.'597910000'),MoneySavings),
+                     "ThisIdeaTimeMeasures", 
+                          Sum(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && MeasureType=MeasureTypeOptions.'597910000'  
+                          && BenefitType=BenefitTypeOptions.'597910000'),TimeSavings),  
+                     "ThisIdeaNumOtherMeasures", 
+                          CountRows(Filter(AllMeasures, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'  
+                          && BenefitType=BenefitTypeOptions.'597910000' && (MeasureType=MeasureTypeOptions.'597910002' || MeasureType=MeasureTypeOptions.'597910003'))),
+                     "ThisIdeaComplexity", Average(Filter(AllComplexity, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'),ComplexityScore),
+                     "ThisIdeaPPs", Concat(Distinct(Filter(PainPointMap, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea').Name, Name), Result & Char(10)),
+                     "ThisIdeaNumberVotes", CountRows(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea')),
+                     "ThisIdeaUserVotedYes", If(CountRows(Filter(AllVotes, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea' && UserVoting.User=UserGUID))=0, false, true),
+                     "ThisIdeaNumSolns", CountRows(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'='Innovation Backlog Idea'))
+                     ));
+                
+                //BUGBUG Cannot set user to blank except through CDS UX
+                UpdateIf(AllIdeas, IdeaStatus<>BacklogStatusOptions.'In Progress', {CurrentDevOwner:Blank()});
+                
+                //complexity range
+                UpdateContext({MinComplexity: Min(IdeaList.AllItems, ThisIdeaComplexity)});
+                UpdateContext({MaxComplexity: Max(IdeaList.AllItems, ThisIdeaComplexity)});
+                UpdateContext({RangeComplexity: MaxComplexity-MinComplexity});
+                UpdateContext({ChunkComplexity: RangeComplexity/NumChunks});
+                
+                //Money range
+                UpdateContext({MinMoney: Min(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+                UpdateContext({MaxMoney: Max(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+                UpdateContext({RangeMoney: MaxMoney-MinMoney});
+                UpdateContext({ChunkMoney: RangeMoney/NumChunks});
+                
+                //Time range
+                UpdateContext({MinTime: Min(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+                UpdateContext({MaxTime: Max(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+                UpdateContext({RangeTime: MaxTime-MinTime});
+                UpdateContext({ChunkTime: RangeTime/NumChunks});
+                
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Text: ="Done"
+            Visible: =If(ShowFilterDialog, true, false)
+            X: =590
+            Y: =551
+            ZIndex: =85
+
+    StatusGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =79
+
+        ChangeStatusLabel As label:
+            Color: =RGBA(102,102,102, 1)
+            FontWeight: =Semibold
+            Height: =29
+            OnSelect: =Select(ChangeStatusIcon)
+            Size: =14
+            Text: ="Edit status"
+            Width: =223
+            X: =StatusValue.X
+            Y: =StatusValue.Y+StatusValue.Height+5
+            ZIndex: =13
+
+        ChangeStatusIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Edit
+            OnSelect: |-
+                =Set(NewStatusDefault, OurIdea.IdeaStatus);
+                Navigate([@UpdateStatus]);
+            Width: =17
+            X: =StatusLabel1.X+7
+            Y: =ChangeStatusLabel.Y+(ChangeStatusLabel.Height/2)-(ChangeStatusIcon.Height/2)
+            ZIndex: =14
+
+        StatusValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Height: =33
+            Size: =14
+            Text: =IdeaList.Selected.IdeaStatus
+            Width: =240
+            X: =StatusIcon.X+StatusIcon.Width+10
+            Y: =StatusLabel1.Y+StatusLabel1.Height+5
+            ZIndex: =15
+
+        StatusIcon As circle:
+            Fill: |-
+                =Switch(OurIdea.IdeaStatus,
+                   BacklogStatusOptions.New, RGBA(0,218,139,1),
+                   BacklogStatusOptions.'In Progress', RGBA(239,149,46,1),
+                   BacklogStatusOptions.'Partially Complete', RGBA(225,181,0,1), 
+                   BacklogStatusOptions.Complete, RGBA(0,140,255,1), 
+                   BacklogStatusOptions.Removed, RGBA(34,28,0,1), 
+                   Gray)
+            Height: =Self.Width
+            Width: =7
+            X: =StatusLabel1.X+10
+            Y: =StatusValue.Y+(StatusValue.Height/2)-(StatusIcon.Height/2)
+            ZIndex: =16
+
+        StatusLabel1 As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =30
+            Size: =17
+            Text: ="Status"
+            Width: =250
+            X: =1100
+            Y: =LikesLabel.Y
+            ZIndex: =18
+
+    IdeaListGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =82
+
+        "IdeaList As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =615
+            Items: |-
+                =SortByColumns(Filter(AllIdeas, 
+                     (SearchBar.Text in ThisIdeaGUID  || SearchBar.Text in ThisIdeaToolNames  || SearchBar.Text in ThisIdeaSearchTerms || SearchBar.Text in ThisIdeaTeams || SearchBar.Text in ThisIdeaWorkItemCreators || 
+                     SearchBar.Text in ThisIdeaPPs || SearchBar.Text in 'Display Name' || SearchBar.Text in CurrentDevOwner.'Full Name')
+                     && If(FilterToMyVotes.Value=true, ThisIdeaUserVotedYes=true, ThisIdeaUserVotedYes=true || ThisIdeaUserVotedYes=false)), 
+                     
+                     If(SortIdeasBy="Name", "admin_displayname", 
+                     If(SortIdeasBy="Votes", "ThisIdeaNumberVotes", 
+                     If(SortIdeasBy="Complexity", "ThisIdeaComplexity",  
+                     If(SortIdeasBy="Money", "ThisIdeaMoneyMeasures", 
+                     If(SortIdeasBy="Time", "ThisIdeaTimeMeasures", 
+                     "ThisIdeaMoneyMeasures"))))), If(SortAscending, Ascending,Descending))
+            Layout: =Layout.Vertical
+            OnSelect: |-
+                =//update idea and workitem variables
+                Set(isNewIdea, false);
+                Set(OurIdeaGUID, ThisItem.ThisIdeaGUID);
+                Set(OurIdea, ThisItem);
+                
+                Set(isNewBacklogItem, true);
+                Set(OurWorkitem, Blank());
+                //Set(OurWorkitemGUID, Blank());
+                
+                //clear other local vars
+                UpdateContext({ShowWorkitemList: false});
+                UpdateContext({ShowSortDialog: false});
+                Set(ActionStatus, "");
+            ShowScrollbar: =false
+            TemplateFill: =If(ThisItem.IsSelected, RGBA(244,244,244,1), RGBA(0, 0, 0, 0))
+            TemplatePadding: =0
+            TemplateSize: =Min(160, Self.Height - 60)
+            Width: =375
+            Y: =145
+            ZIndex: =49
+
+            Separator5 As rectangle:
+                BorderColor: =RGBA(234, 234, 234, 1)
+                BorderThickness: =1
+                Fill: =RGBA(0, 0, 0, 0)
+                Height: =1
+                OnSelect: =Select(Parent)
+                Tooltip: =""
+                Width: =Parent.TemplateWidth-4
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =1
+
+            ComplexityLabel As label:
+                Color: =If(ThisItem.ThisIdeaComplexity>0, RGBA(102, 102, 102, 1), RGBA(166,166,166,1))
+                Height: =20
+                OnSelect: =Select(Parent)
+                PaddingTop: =0
+                Size: =14
+                Text: =If(ThisItem.ThisIdeaComplexity>0, "Complexity", "Not Configured")
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                Width: =300
+                X: =SearchBar.X+10
+                Y: =126
+                ZIndex: =2
+
+            ComplexityIcon As circle:
+                Fill: |-
+                    =If(IsBlank(ThisItem.ThisIdeaComplexity), RGBA(244,244,244,1),
+                    Switch(RoundDown((ThisItem.ThisIdeaComplexity-MinComplexity)/ChunkComplexity, 0),
+                       4, RGBA(235,87,87,1),
+                       3, RGBA(235,87,87,1),
+                       2, RGBA(242,153,74,1),
+                       1, RGBA(242,201,76,1),
+                       0, RGBA(39,174,96,1),
+                       RGBA(39,174,96,1)))
+                Height: =MoneyIcon.Height
+                OnSelect: =Select(Parent)
+                Tooltip: =""
+                Width: =MoneyIcon.Width
+                X: =MoneyIcon.X
+                Y: =MoneyIcon.Y+MoneyIcon.Height+5+MoneyIcon.Height+5
+                ZIndex: =4
+
+            ComplexityScore As label:
+                Align: =Center
+                Color: =RGBA(255, 255, 255, 1)
+                Height: =ComplexityIcon.Height
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =10
+                Text: =RoundUp(ThisItem.ThisIdeaComplexity, 0)
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                Width: =ComplexityIcon.Width
+                X: =SearchBarIcon.X+10
+                Y: =124
+                ZIndex: =5
+
+            TimeLabel As label:
+                Color: =If(ThisItem.ThisIdeaTimeMeasures>0, RGBA(102, 102, 102, 1), RGBA(166,166,166,1))
+                Height: =20
+                OnSelect: =Select(Parent)
+                PaddingTop: =0
+                Size: =14
+                Text: =If(ThisItem.ThisIdeaTimeMeasures>0, ThisItem.ThisIdeaTimeMeasures & " hours/month ",  "Not configured")
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                Width: =300
+                X: =SearchBar.X+10
+                Y: =97
+                ZIndex: =6
+
+            TimeIcon As image:
+                Height: =MoneyIcon.Height
+                Image: |-
+                    =If(IsBlank(ThisItem.ThisIdeaTimeMeasures), 'ROI time-gray',
+                    Switch(RoundDown((MaxTime-ThisItem.ThisIdeaTimeMeasures)/ChunkTime, 0),
+                       4, 'ROI time-red',
+                       3, 'ROI time-red',
+                       2, 'ROI time-orange',
+                       1, 'ROI time-yellow',
+                       0, 'ROI time-green',
+                       'ROI time-green'))
+                OnSelect: =Select(Parent)
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                Width: =MoneyIcon.Width
+                X: =SearchBarIcon.X+10
+                Y: =95
+                ZIndex: =7
+
+            MoneyLabel As label:
+                Color: =If(ThisItem.ThisIdeaMoneyMeasures>0, RGBA(102, 102, 102, 1), RGBA(166,166,166,1))
+                Height: =20
+                OnSelect: =Select(Parent)
+                PaddingTop: =0
+                Size: =14
+                Text: |-
+                    =If(ThisItem.ThisIdeaMoneyMeasures>0, Text(ThisItem.ThisIdeaMoneyMeasures,"[$-en-US]$#,###.00") & " /month ", "Not configured")
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                Width: =300
+                X: =SearchBar.X+10
+                Y: =68
+                ZIndex: =8
+
+            MoneyIcon As image:
+                Height: =24
+                Image: |-
+                    =If(IsBlank(ThisItem.ThisIdeaMoneyMeasures), 'ROI money-gray',
+                    Switch(RoundDown((MaxMoney-ThisItem.ThisIdeaMoneyMeasures)/ChunkMoney, 0),
+                       4, 'ROI money-red',
+                       3, 'ROI money-red',
+                       2, 'ROI money-orange',
+                       1, 'ROI money-yellow',
+                       0, 'ROI money-green',
+                       'ROI money-green'))
+                OnSelect: =Select(Parent)
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                Width: =Self.Height
+                X: =SearchBarIcon.X+10
+                Y: =66
+                ZIndex: =9
+
+            DeveloperLabel As label:
+                Color: =RGBA(102, 102, 102, 1)
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: |-
+                    ="Developer Owner: " & If(IsBlank(ThisItem.CurrentDevOwner), "Available", ThisItem.CurrentDevOwner.'Full Name')
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                VerticalAlign: =VerticalAlign.Top
+                Width: =IdeaNameLabel.Width
+                X: =SearchBarIcon.X+10
+                Y: =41
+                ZIndex: =10
+
+            IdeaNameLabel As label:
+                Color: =RGBA(51, 51, 51, 1)
+                Height: =31
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =17
+                Text: =ThisItem.'Display Name'
+                Tooltip: =First(ThisItem.ThisIdeaWorkItems).admin_description
+                VerticalAlign: =VerticalAlign.Top
+                Width: =340
+                X: =SearchBarIcon.X+10
+                Y: =10
+                ZIndex: =11
+
+            Rectangle1 As rectangle:
+                Fill: |-
+                    =Switch(ThisItem.IdeaStatus,
+                       BacklogStatusOptions.New, RGBA(0,218,139,1),
+                       BacklogStatusOptions.'In Progress', RGBA(239,149,46,1),
+                       BacklogStatusOptions.'Partially Complete', RGBA(225,181,0,1), 
+                       BacklogStatusOptions.Complete, RGBA(0,140,255,1), 
+                       BacklogStatusOptions.Removed, RGBA(34,28,0,1), 
+                       Gray)
+                Height: =Parent.TemplateHeight-2
+                OnSelect: =Select(Parent)
+                Tooltip: =""
+                Width: =10
+                Y: =1
+                ZIndex: =12
+
+        FilterIdeas As image:
+            Height: =Self.Width
+            Image: =If(CountRows(StateFilterDefaultColl)<5 || FilterToMyVotes.Value=true, 'Filter-applied', 'Filter-not applied')
+            OnSelect: |-
+                =UpdateContext({ShowSortDialog: false});
+                UpdateContext({ShowFilterDialog: !ShowFilterDialog});
+            Width: =AddIdeaIcon.Width
+            X: =345
+            Y: =AddIdeaIcon.Y
+            ZIndex: =50
+
+        SortIdeas As icon.ArrowsUpDown:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Sort
+            OnSelect: |-
+                =UpdateContext({ShowFilterDialog: false});
+                UpdateContext({ShowSortDialog: !ShowSortDialog});
+            Width: =AddIdeaIcon.Width
+            X: =314
+            Y: =AddIdeaIcon.Y
+            ZIndex: =51
+
+        AddIdeaText As label:
+            Height: =24
+            OnSelect: =Select(AddIdeaIcon)
+            Size: =14
+            Text: ="Add idea"
+            X: =SearchBar.X
+            Y: =117
+            ZIndex: =52
+
+        AddIdeaIcon As icon.Add:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =17
+            Icon: =Icon.Add
+            OnSelect: |
+                =/***********RESET COLLECTIONS TO NOT CONTAIN WORKITEM NOR IDEA INFORMATION**********/
+                //global variables
+                Set(isNewIdea, true);
+                Set(OurIdea, Blank());
+                Set(OurIdeaGUID, Blank());
+                
+                Set(isNewBacklogItem, true);
+                Set(OurWorkitem, Blank());
+                //Set(OurWorkitemGUID, Blank());
+                
+                //collections
+                UpdateIf(AvailableToolsAll, true, {isSelected: false});
+                Collect(StateFilterDefaultColl, BacklogStatusOptions.New);
+                
+                //reset controls
+                Reset(DisplayNameInput);
+                Reset(KeywordsInput);
+                Reset(DescriptionInput);
+                Reset(PainPointInput);
+                
+                //navigate
+                Set(CurrentStep, 1);
+                Navigate(BasicInfo)
+            Tooltip: ="Add New Idea"
+            Width: =17
+            X: =SearchBarIcon.X
+            Y: =118
+            ZIndex: =53
+
+        SearchBar As text:
+            BorderColor: =RGBA(0, 18, 107, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =0
+            Default: =If(IsBlank(NavigatonGUIDidea), "", NavigatonGUIDidea)
+            DisabledBorderColor: =RGBA(166, 166, 166, 0)
+            DisabledFill: =RGBA(244, 244, 244, 0)
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =31
+            HintText: ="Search"
+            HoverBorderColor: =RGBA(0, 18, 107, 0)
+            HoverColor: =Self.Color
+            HoverFill: =Self.Fill
+            OnChange: |-
+                =//complexity range
+                UpdateContext({MinComplexity: Min(IdeaList.AllItems, ThisIdeaComplexity)});
+                UpdateContext({MaxComplexity: Max(IdeaList.AllItems, ThisIdeaComplexity)});
+                UpdateContext({RangeComplexity: MaxComplexity-MinComplexity});
+                UpdateContext({ChunkComplexity: RangeComplexity/NumChunks});
+                
+                //Money range
+                UpdateContext({MinMoney: Min(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+                UpdateContext({MaxMoney: Max(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+                UpdateContext({RangeMoney: MaxMoney-MinMoney});
+                UpdateContext({ChunkMoney: RangeMoney/NumChunks});
+                
+                //Time range
+                UpdateContext({MinTime: Min(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+                UpdateContext({MaxTime: Max(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+                UpdateContext({RangeTime: MaxTime-MinTime});
+                UpdateContext({ChunkTime: RangeTime/NumChunks});
+                
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            PaddingLeft: =0
+            Width: =329
+            X: =SearchBarIcon.X+SearchBarIcon.Width+10
+            Y: =77
+            ZIndex: =54
+
+        SearchBarIcon As icon.Search:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =Set(NavigatonGUIDidea, "");
+                Reset([@SearchBar]);
+                
+                //complexity range
+                UpdateContext({MinComplexity: Min(IdeaList.AllItems, ThisIdeaComplexity)});
+                UpdateContext({MaxComplexity: Max(IdeaList.AllItems, ThisIdeaComplexity)});
+                UpdateContext({RangeComplexity: MaxComplexity-MinComplexity});
+                UpdateContext({ChunkComplexity: RangeComplexity/NumChunks});
+                
+                //Money range
+                UpdateContext({MinMoney: Min(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+                UpdateContext({MaxMoney: Max(IdeaList.AllItems, ThisIdeaMoneyMeasures)});
+                UpdateContext({RangeMoney: MaxMoney-MinMoney});
+                UpdateContext({ChunkMoney: RangeMoney/NumChunks});
+                
+                //Time range
+                UpdateContext({MinTime: Min(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+                UpdateContext({MaxTime: Max(IdeaList.AllItems, ThisIdeaTimeMeasures)});
+                UpdateContext({RangeTime: MaxTime-MinTime});
+                UpdateContext({ChunkTime: RangeTime/NumChunks});
+                
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            Width: =17
+            X: =20
+            Y: ='Rect-Search'.Y+(('Rect-Search'.Height/2)-(Self.Height/2))
+            ZIndex: =55
+
+    ActionGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =82
+
+        ShareLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: |-
+                =Set(varTo, Blank());
+                Set(varSubject, "Check out this idea: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, I found a cool idea called <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b><br>
+                If enough people like the idea it could be developed for us, what do you think?");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Idea shared");
+            Text: ="Share"
+            Width: =65
+            X: =ShareIcon.X+ShareIcon.Width+3
+            Y: =SearchBarIcon.Y-9
+            ZIndex: =56
+
+        ShareIcon As image:
+            Height: =Self.Width
+            Image: =Share
+            OnSelect: |-
+                =Set(varTo, Blank());
+                Set(varSubject, "Check out this idea: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, I found a cool idea called <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b><br>
+                If enough people like the idea it could be developed for us, what do you think?");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Idea shared");
+            Width: =EditIdeaIcon.Width
+            X: =EmailCreatorsLabel.X + EmailCreatorsLabel.Width+15
+            Y: =SearchBarIcon.Y
+            ZIndex: =57
+
+        SendForTestingLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: |-
+                =Set(varTo, Concatenate(OurIdea.CurrentDevOwner.'Primary Email',  "; ", OurIdea.ThisIdeaVotersEmail,  OurIdea.ThisIdeaWorkItemCreatorsEmail));
+                Set(varSubject, "Ready for testing: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, A solution for this idea is ready for testing. <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b><br>
+                You are listed as an interested party and as such I wanted to reach out for you to take a look: <br>
+                <li> In order to test, please do the following:
+                <li> You should expect to see improvements to the following measures: 
+                <li> The following measures are not yet improved:
+                ");
+                
+                
+                Navigate(Email);
+                
+                Set(ActionStatus, "Sent for testing");
+            Text: ="Send for testing"
+            Visible: =IdeaList.Selected.IdeaStatus<>BacklogStatusOptions.New
+            X: =SendForTestingIcon.X+SendForTestingIcon.Width+3
+            Y: =SearchBarIcon.Y-9
+            ZIndex: =58
+
+        SendForTestingIcon As image:
+            Height: =Self.Width
+            Image: ='Send for testing'
+            OnSelect: |-
+                =Set(varTo, Concatenate(OurIdea.CurrentDevOwner.'Primary Email',  "; ", OurIdea.ThisIdeaVotersEmail,  OurIdea.ThisIdeaWorkItemCreatorsEmail));
+                Set(varSubject, "Ready for testing: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, A solution for this idea is ready for testing. <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b><br>
+                You are listed as an interested party and as such I wanted to reach out for you to take a look: <br>
+                <li> In order to test, please do the following:
+                <li> You should expect to see improvements to the following measures: 
+                <li> The following measures are not yet improved:
+                ");
+                
+                
+                Navigate(Email);
+                
+                Set(ActionStatus, "Sent for testing");
+            Visible: =IdeaList.Selected.IdeaStatus<>BacklogStatusOptions.New
+            Width: =EditIdeaIcon.Width
+            X: =ShareLabel.X + ShareLabel.Width+15
+            Y: =SearchBarIcon.Y
+            ZIndex: =59
+
+        EmailCreatorsLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: |-
+                =Set(varTo, OurIdea.ThisIdeaWorkItemCreatorsEmail);
+                Set(varSubject, "Interested in your idea: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, I am interested in the <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b> idea. <br>
+                You are listed as a creator for it:<ul>" & 
+                
+                    Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID=OurIdeaGUID), "<li><b>" & 'Created By'.'Full Name' & "-" & 'Impacted Team' & "</b>: " & 'Display Name'));
+                Navigate(Email);
+                
+                Set(ActionStatus, "Email sent to creators");
+            Text: ="Email creators"
+            Width: =130
+            X: =EmailCreatorsIcon.X+EmailCreatorsIcon.Width+3
+            Y: =SearchBarIcon.Y-9
+            ZIndex: =60
+
+        EmailCreatorsIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Mail
+            OnSelect: |-
+                =Set(varTo, OurIdea.ThisIdeaWorkItemCreatorsEmail);
+                Set(varSubject, "Interested in your idea: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, I am interested in the <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b> idea. <br>
+                You are listed as a creator for it:<ul>" & 
+                
+                    Concat(Filter(AllWorkItems, ThisWorkitemIdeaGUID=OurIdeaGUID), "<li><b>" & 'Created By'.'Full Name' & "-" & 'Impacted Team' & "</b>: " & 'Display Name'));
+                Navigate(Email);
+                
+                Set(ActionStatus, "Email sent to creators");
+            Width: =17
+            X: =EmailVotersLabel.X + EmailVotersLabel.Width+15
+            Y: =SearchBarIcon.Y
+            ZIndex: =61
+
+        EmailVotersLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: |-
+                =Set(varTo, OurIdea.ThisIdeaVotersEmail);
+                Set(varSubject, "Interested in this idea: " & OurIdea.'Display Name');
+                Set(varBody, "Hello voters, I am interested in the <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b> idea. <br>");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Email sent to voters");
+            Text: ="Email voters"
+            Width: =120
+            X: =EmailVotersIcon.X+EmailVotersIcon.Width+3
+            Y: =SearchBarIcon.Y-9
+            ZIndex: =62
+
+        EmailVotersIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Mail
+            OnSelect: |-
+                =Set(varTo, OurIdea.ThisIdeaVotersEmail);
+                Set(varSubject, "Interested in this idea: " & OurIdea.'Display Name');
+                Set(varBody, "Hello voters, I am interested in the <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & ">" & OurIdea.'Display Name' & "</a></b> idea. <br>");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Email sent to voters");
+            Width: =17
+            X: =EditIdeaLabel.X + EditIdeaLabel.Width+15
+            Y: =SearchBarIcon.Y
+            ZIndex: =63
+
+        EditIdeaLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: =Select(EditIdeaIcon)
+            Text: ="Edit"
+            Width: =55
+            X: =EditIdeaIcon.X+EditIdeaIcon.Width+3
+            Y: =SearchBarIcon.Y-9
+            ZIndex: =64
+
+        EditIdeaIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Edit
+            OnSelect: |-
+                =//if more than 1 workitem, let them pick which one
+                If(CountRows(IdeaList.Selected.ThisIdeaWorkItems)>1, UpdateContext({ShowWorkitemList:!ShowWorkitemList}),
+                
+                //if no workitems, error state, no-op
+                If(CountRows(IdeaList.Selected.ThisIdeaWorkItems)<1, "",
+                
+                //else edit the only workitem
+                
+                //solution itself
+                Set(isNewBacklogItem, false);
+                Set(OurWorkitem, First(OurIdea.ThisIdeaWorkItems));
+                Set(isNewIdea, false);
+                
+                //commenting out and using OurWorkitem instead Set(OurWorkitemGUID, OurWorkitem.'Innovation Backlog Workitem');
+                
+                //MyPainPoints
+                Clear(MyPainPoints);
+                ForAll(Filter('Backlog Item PainPointSets', BackLogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                Collect(MyPainPoints, LookUp(AllPainPoints, PPID=BacklogPainPoint.'Innovation Backlog Pain Points')));
+                ForAll(MyPainPoints, Collect(MyPainPoints2, {PP_ID: PPID})); // for starter list
+                
+                //MyPersonas
+                Clear(MyPersonas);
+                ForAll(Filter('Backlog Item Personasets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                    Collect(MyPersonas, {colPersonaName: BacklogPersona}));
+                
+                //TOOLS
+                //MyTools
+                Clear(MyTools);
+                ForAll(Filter('Backlog Item Toolsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                    Collect(MyTools, LookUp(AvailableToolsAll, colAllToolGUID=BacklogTool.'Innovation Backlog Tool')));
+                UpdateIf(MyTools, true, {colSelectedToolID: admin_id, colSelectedToolGUID: admin_innovationbacklogtoolid});
+                //mark MyTools as selected in AvailableToolsAll
+                ForAll(MyTools, UpdateIf(AvailableToolsAll, colAllToolID=colSelectedToolID, {isSelected:true}));
+                
+                //MEASURES
+                //MyMeasures
+                Clear(MyMeasures);
+                ForAll(Filter(AllMeasures, admin_BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                Collect(MyMeasures, ThisRecord));
+                
+                //MyComplexity
+                Set(MyComplexity, First(Filter(AllComplexity, BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid)));
+                
+                //WORKFLOW
+                //MyWorkflow for inline
+                Clear(MyWorkflow);
+                ForAll(Filter('Backlog Item Workflows', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                    Collect(MyWorkflow, 
+                    {rowIndex: WorkflowStepIndex, 
+                    curSelected:false, 
+                    rowTool: LookUp(AvailableToolsAll, colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').'Display Name',
+                    rowToolID: LookUp(AvailableToolsAll, colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').ID, 
+                    rowToolGUID: WorfklowStepTool.'Innovation Backlog Tool', 
+                    rowPersonaDisplay: WorkflowStepPersona, 
+                    rowPersonaSearch: WorkflowStepPersonaSearch,
+                    rowNote: WorkflowStepNote,
+                    rowRecording: WorkflowStepRecording,
+                    rowToolIcon: LookUp(AvailableToolsAll, colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').Icon}));
+                UpdateIf(MyWorkflow, true, {rowToolIconNonURL: LookUp(AvailableToolsAll, colAllToolGUID=GUID(rowToolGUID)).'Icon Non URL'});
+                
+                //Determine if a workflow exists yet
+                Set(WFExists, If(Or(CountRows(MyWorkflow)>0, OurWorkitem.admin_workflowisdocument = 'WorkflowIsDocument (Innovation Backlog Workitems)'.Yes), true, false));
+                
+                //getWFisInline
+                Set(WFisInline, If(WFExists && CountRows(MyWorkflow)>0, true, false));
+                
+                //getWFisLink
+                Set(WFisLink, If(WFExists && OurWorkitem.admin_workflowisdocument='WorkflowIsDocument (Innovation Backlog Workitems)'.Yes, If(First(Filter('Backlog Item Documentsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid && 'Document Is WF'='Document Is WF (Backlog Item Documentsets)'.Yes)).'Is Link'='Is Link (Backlog Item Documentsets)'.Yes, true, false), false));
+                
+                //getWFisFile
+                Set(WFisFile, If(WFExists && OurWorkitem.admin_workflowisdocument='WorkflowIsDocument (Innovation Backlog Workitems)'.Yes, If(First(Filter('Backlog Item Documentsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid && 'Document Is WF'='Document Is WF (Backlog Item Documentsets)'.Yes)).'Is Link'='Is Link (Backlog Item Documentsets)'.No, true, false), false));
+                
+                //reset controls
+                Reset(DisplayNameInput);
+                Reset(KeywordsInput);
+                Reset(DescriptionInput);
+                Reset(PainPointInput);
+                
+                //navigate
+                Set(CurrentStep, 6);
+                Navigate(BasicInfo);))
+            Width: =17
+            X: =387
+            Y: =SearchBarIcon.Y
+            ZIndex: =65
+
+        "SelectWorkitem As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =If(Self.Visible, CountRows(IdeaList.Selected.ThisIdeaWorkItems)*50, 0)
+            Items: =OurIdea.ThisIdeaWorkItems
+            Layout: =Layout.Vertical
+            OnSelect: |-
+                =//idea
+                Set(isNewIdea, false);
+                Set(OurIdeaGUID, IdeaList.Selected.ThisIdeaGUID);
+                Set(OurIdea, IdeaList.Selected);
+                
+                //solution itself
+                Set(isNewBacklogItem, false);
+                Set(OurWorkitem, ThisItem);
+                //Set(OurWorkitemGUID, OurWorkitem.'Innovation Backlog Workitem');
+                
+                //MyPainPoints
+                Clear(MyPainPoints);
+                ForAll(Filter('Backlog Item PainPointSets', BackLogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                Collect(MyPainPoints, LookUp(AllPainPoints, PPID=BacklogPainPoint.'Innovation Backlog Pain Points')));
+                ForAll(MyPainPoints, Collect(MyPainPoints2, {PP_ID: PPID})); // for starter list
+                
+                //MyPersonas
+                Clear(MyPersonas);
+                ForAll(Filter('Backlog Item Personasets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                    Collect(MyPersonas, {colPersonaName: BacklogPersona}));
+                
+                //TOOLS
+                //MyTools
+                Clear(MyTools);
+                ForAll(Filter('Backlog Item Toolsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                    Collect(MyTools, LookUp(AvailableToolsAll, colAllToolGUID=BacklogTool.'Innovation Backlog Tool')));
+                UpdateIf(MyTools, true, {colSelectedToolID: admin_id, colSelectedToolGUID: admin_innovationbacklogtoolid});
+                //mark MyTools as selected in AvailableToolsAll
+                ForAll(MyTools, UpdateIf(AvailableToolsAll, colAllToolID=colSelectedToolID, {isSelected:true}));
+                
+                //MEASURES
+                //MyMeasures
+                Clear(MyMeasures);
+                ForAll(Filter(AllMeasures, admin_BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                Collect(MyMeasures, ThisRecord));
+                
+                //MyComplexity
+                Set(MyComplexity, First(Filter(AllComplexity, BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid)));
+                
+                //WORKFLOW
+                //MyWorkflow for inline
+                Clear(MyWorkflow);
+                ForAll(Filter('Backlog Item Workflows', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid),
+                    Collect(MyWorkflow, 
+                    {rowIndex: WorkflowStepIndex, 
+                    curSelected:false, 
+                    rowTool: LookUp(AvailableToolsAll, colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').'Display Name',
+                    rowToolID: LookUp(AvailableToolsAll, colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').ID, 
+                    rowToolGUID: WorfklowStepTool.'Innovation Backlog Tool', 
+                    rowPersonaDisplay: WorkflowStepPersona, 
+                    rowPersonaSearch: WorkflowStepPersonaSearch,
+                    rowNote: WorkflowStepNote,
+                    rowRecording: WorkflowStepRecording,
+                    rowToolIcon: LookUp(AvailableToolsAll, colAllToolGUID=WorfklowStepTool.'Innovation Backlog Tool').Icon}));
+                UpdateIf(MyWorkflow, true, {rowToolIconNonURL: LookUp(AvailableToolsAll, colAllToolGUID=GUID(rowToolGUID)).'Icon Non URL'});
+                
+                //Determine if a workflow exists yet
+                Set(WFExists, If(Or(CountRows(MyWorkflow)>0, OurWorkitem.admin_workflowisdocument = 'WorkflowIsDocument (Innovation Backlog Workitems)'.Yes), true, false));
+                
+                //getWFisInline
+                Set(WFisInline, If(WFExists && CountRows(MyWorkflow)>0, true, false));
+                
+                //getWFisLink
+                Set(WFisLink, If(WFExists && OurWorkitem.admin_workflowisdocument='WorkflowIsDocument (Innovation Backlog Workitems)'.Yes, If(First(Filter('Backlog Item Documentsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid && 'Document Is WF'='Document Is WF (Backlog Item Documentsets)'.Yes)).'Is Link'='Is Link (Backlog Item Documentsets)'.Yes, true, false), false));
+                
+                //getWFisFile
+                Set(WFisFile, If(WFExists && OurWorkitem.admin_workflowisdocument='WorkflowIsDocument (Innovation Backlog Workitems)'.Yes, If(First(Filter('Backlog Item Documentsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid && 'Document Is WF'='Document Is WF (Backlog Item Documentsets)'.Yes)).'Is Link'='Is Link (Backlog Item Documentsets)'.No, true, false), false));
+                /*
+                //load FileWorkflow
+                If(WFisFile,
+                First(First(Filter('Backlog Item Documentsets', BacklogItem.'Innovation Backlog Workitem'=OurWorkitem.admin_innovationbacklogworkitemid && 
+                'Document Is WF'='Document Is WF (Backlog Item Documentsets)'.Yes)).FileAttachments));
+                */
+                //reset controls
+                Reset(DisplayNameInput);
+                Reset(KeywordsInput);
+                Reset(DescriptionInput);
+                Reset(PainPointInput);
+                
+                //navigate
+                Set(CurrentStep, 6);
+                Navigate(BasicInfo);
+            TemplatePadding: =0
+            TemplateSize: =50
+            Visible: =ShowWorkitemList
+            Width: =If(Self.Visible, 357, 0)
+            X: =If(Self.Visible, EditIdeaIcon.X, 0)
+            Y: =EditIdeaIcon.Y+EditIdeaIcon.Height
+            ZIndex: =66
+
+            Image4_1 As image:
+                Height: =If(Self.Visible, 25, 0)
+                Image: =If(IsBlank(ThisItem.admin_CreatedBy), SampleImage, IfError(Office365Users.UserPhotoV2(ThisItem.admin_CreatedBy.'Primary Email'), SampleImage))
+                OnSelect: =Select(Parent)
+                RadiusBottomLeft: =45
+                RadiusBottomRight: =45
+                RadiusTopLeft: =45
+                RadiusTopRight: =45
+                Visible: =ShowWorkitemList
+                Width: =Self.Height
+                X: =If(Self.Visible, 12, 0)
+                Y: =12
+                ZIndex: =1
+
+            Title3_2 As label:
+                Height: =25
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.admin_impactedteam & If(!IsBlank(ThisItem.admin_impactedteam), " - ", "")  & ThisItem.admin_CreatedBy.'Full Name'
+                VerticalAlign: =VerticalAlign.Top
+                Visible: =ShowWorkitemList
+                Width: =If(Self.Visible, 296, 0)
+                X: =If(Self.Visible, 54, 0)
+                Y: =12
+                ZIndex: =2
+
+        FeedbackLabel As label:
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =31
+            OnSelect: |-
+                =//if more than 1 solution, let them pick which one
+                If(OurIdea.ThisIdeaNumSolns>1, UpdateContext({ShowSolutionList: !ShowWorkitemList}),
+                
+                //if no solutions, error state, no-op
+                If(OurIdea.ThisIdeaNumSolns<1, "",
+                
+                //else send for the only soln
+                Set(varTo, Concatenate(OurIdea.ThisIdeaVotersEmail,  OurIdea.ThisIdeaWorkItemCreatorsEmail));
+                Set(varSubject, "Please provide feedback on work for: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, A solution for this idea is ready for your feedback. <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & "?InputSolnGUID=" & First(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'=OurIdeaGUID)).'Backlog Item Solution' & ">" & OurIdea.'Display Name' & "</a></b><br>
+                You are listed as an interested party and as such I wanted to reach out for you give feedback on the solution. <br>
+                Please provide as much information as you can about how this solution has helped you and your team.
+                ");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Sent for feedback");));
+            Text: ="Get feedback on solution"
+            Visible: =IdeaList.Selected.IdeaStatus<>BacklogStatusOptions.New
+            Width: =236
+            X: =FeedbackIcon.X+FeedbackIcon.Width+3
+            Y: =SearchBarIcon.Y-9
+            ZIndex: =67
+
+        FeedbackIcon As image:
+            Height: =Self.Width
+            Image: ='Feedback-icon'
+            OnSelect: |-
+                =//if more than 1 solution, let them pick which one
+                If(OurIdea.ThisIdeaNumSolns>1, UpdateContext({ShowSolutionList: !ShowWorkitemList}),
+                
+                //if no solutions, error state, no-op
+                If(OurIdea.ThisIdeaNumSolns<1, "",
+                
+                //else send for the only soln
+                Set(varTo, Concatenate(OurIdea.ThisIdeaVotersEmail,  OurIdea.ThisIdeaWorkItemCreatorsEmail));
+                Set(varSubject, "Please provide feedback on work for: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, A solution for this idea is ready for your feedback. <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & "?InputSolnGUID=" & First(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'=OurIdeaGUID)).'Backlog Item Solution' & ">" & OurIdea.'Display Name' & "</a></b><br>
+                You are listed as an interested party and as such I wanted to reach out for you give feedback on the solution. <br>
+                Please provide as much information as you can about how this solution has helped you and your team.
+                ");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Sent for feedback");));
+            Visible: =IdeaList.Selected.IdeaStatus<>BacklogStatusOptions.New
+            Width: =EditIdeaIcon.Width
+            X: =SendForTestingLabel.X + SendForTestingLabel.Width+15
+            Y: =SearchBarIcon.Y
+            ZIndex: =68
+
+        "SelectSolution As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =If(ShowSolutionList, 130, 0)
+            Items: =Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'=OurIdeaGUID)
+            Layout: =Layout.Vertical
+            OnSelect: |-
+                =// send for this soln
+                Set(varTo, Concatenate(OurIdea.ThisIdeaVotersEmail,  OurIdea.ThisIdeaWorkItemCreatorsEmail));
+                Set(varSubject, "Please provide feedback on work for: " & OurIdea.'Display Name');
+                Set(varBody, "Hello, A solution for this idea is ready for your feedback. <b> <a href=" & ThisAppLink & "?InputIdeaGUID=" & OurIdeaGUID & "?InputSolnGUID=" & First(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'=OurIdeaGUID)).'Backlog Item Solution' & ">" & OurIdea.'Display Name' & "</a></b><br>
+                You are listed as an interested party and as such I wanted to reach out for you give feedback on the solution. <br>
+                Please provide as much information as you can about how this solution has helped you and your team.
+                ");
+                Navigate(Email);
+                
+                Set(ActionStatus, "Sent for feedback");
+            TemplatePadding: =0
+            TemplateSize: =42
+            Visible: =ShowSolutionList
+            Width: =400 
+            X: =966
+            Y: =EditIdeaLabel.Y+EditIdeaLabel.Height
+            ZIndex: =69
+
+            Image4_2 As image:
+                Height: =25
+                Image: =If(IsBlank(ThisItem.Developer), SampleImage, IfError(Office365Users.UserPhotoV2(ThisItem.Developer.'Primary Email'), SampleImage))
+                OnSelect: =Select(Parent)
+                RadiusBottomLeft: =45
+                RadiusBottomRight: =45
+                RadiusTopLeft: =45
+                RadiusTopRight: =45
+                Width: =Self.Height
+                X: =12
+                Y: =9
+                ZIndex: =1
+
+            Title3_3 As label:
+                Height: =25
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.'Display Name'
+                VerticalAlign: =VerticalAlign.Top
+                Width: =153
+                X: =54
+                Y: =9
+                ZIndex: =2
+
+            Subtitle2_2 As label:
+                Height: =30
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.Developer.'Full Name'
+                VerticalAlign: =VerticalAlign.Top
+                Width: =175 
+                X: =220
+                Y: =9
+                ZIndex: =3
+
+    SortDialog As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =86
+
+        SortBorder As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =If(ShowSortDialog, 500, 0)
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =413
+            X: =314
+            Y: =146
+            ZIndex: =86
+
+        SortOrderDescending As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortAscending=true, false, true)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =UpdateContext({SortAscending: false});
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =UpdateContext({SortAscending: false});
+                Reset(SortOrderDescending);
+            Text: ="Decending"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =SortMoneySaved.X
+            Y: =SortOrderAscending.Y+SortOrderAscending.Height
+            ZIndex: =87
+
+        SortOrderAscending As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortAscending=true, true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =UpdateContext({SortAscending: true});
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =UpdateContext({SortAscending: true});
+                Reset(SortOrderAscending);
+            Text: ="Ascending"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =SortMoneySaved.X
+            Y: =499
+            ZIndex: =88
+
+        SortOrderLabel As label:
+            FontWeight: =Semibold
+            Height: =If(ShowSortDialog, 40, 0)
+            Text: ="Order"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =143
+            X: =SortBy.X
+            Y: =SeparatorSortDialog.Y+SeparatorSortDialog.Height+9
+            ZIndex: =89
+
+        SeparatorSortDialog As rectangle:
+            BorderColor: =RGBA(234, 234, 234, 1)
+            BorderThickness: =1
+            Fill: =RGBA(0, 0, 0, 0)
+            Height: =If(ShowSortDialog, 1, 0)
+            Width: =SortBorder.Width
+            X: =SortBorder.X
+            Y: =SortTimeSaved.Y+SortTimeSaved.Height+10
+            ZIndex: =90
+
+        SortTimeSaved As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortIdeasBy="Time", true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =Set(SortIdeasBy, "Time");
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =Set(SortIdeasBy, "Time");
+                Reset(SortTimeSaved);
+            Text: ="Time saved"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =SortMoneySaved.X
+            Y: =SortComplexity.Y+SortComplexity.Height
+            ZIndex: =91
+
+        SortComplexity As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortIdeasBy="Complexity", true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =Set(SortIdeasBy, "Complexity");
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =Set(SortIdeasBy, "Complexity");
+                Reset(SortComplexity);
+            Text: ="Complexity"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =SortMoneySaved.X
+            Y: =SortVotes.Y+SortVotes.Height
+            ZIndex: =92
+
+        SortVotes As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortIdeasBy="Votes", true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =Set(SortIdeasBy, "Votes");
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =Set(SortIdeasBy, "Votes");
+                Reset(SortVotes);
+            Text: ="Likes"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =SortMoneySaved.X
+            Y: =SortName.Y+SortName.Height
+            ZIndex: =93
+
+        SortName As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortIdeasBy="Name", true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =Set(SortIdeasBy, "Name");
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =Set(SortIdeasBy, "Name");
+                Reset(SortName);
+            Text: ="Name"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =SortMoneySaved.X
+            Y: =SortMoneySaved.Y+SortMoneySaved.Height
+            ZIndex: =94
+
+        SortMoneySaved As checkbox:
+            BorderStyle: =BorderStyle.None
+            CheckboxBackgroundFill: =RGBA(43,121,215,0)
+            CheckboxBorderColor: =RGBA(56, 96, 178, 0)
+            CheckmarkFill: =RGBA(43,121,215,1)
+            Default: =If(SortIdeasBy="Money", true, false)
+            DisabledBorderColor: =RGBA(56, 56, 56, 0)
+            Height: =If(ShowSortDialog, 50, 0)
+            OnCheck: |-
+                =Set(SortIdeasBy, "Money");
+                
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            OnUncheck: |-
+                =Set(SortIdeasBy, "Money");
+                Reset(SortMoneySaved);
+            Text: ="Money Saved"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =206
+            X: =337
+            Y: =194
+            ZIndex: =95
+
+        SortBy As label:
+            FontWeight: =Semibold
+            Height: =If(ShowSortDialog, 40, 0)
+            Text: ="Sort by"
+            Visible: =If(ShowSortDialog, true, false)
+            Width: =143
+            X: =326
+            Y: =157
+            ZIndex: =96
+
+        SortDone As button:
+            Fill: =RGBA(43,121,215,1)
+            FontWeight: =FontWeight.Bold
+            Height: =If(ShowSortDialog, 40, 0)
+            OnSelect: |-
+                =UpdateContext({ShowSortDialog: false});
+                //update idea variables
+                Set(OurIdea, First(IdeaList.AllItems));
+                Set(OurIdeaGUID, OurIdea.'Innovation Backlog Idea');
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Text: ="Done"
+            Visible: =If(ShowSortDialog, true, false)
+            X: =553
+            Y: =SortBorder.Y+SortBorder.Height-Self.Height-15
+            ZIndex: =97
+
+    KeywordsGroup As group:
+        Height: =5
+        Width: =5
+        X: =20
+        Y: =20
+        ZIndex: =88
+
+        IdeaKeywordsValue As label:
+            Color: =RGBA(102,102,102, 1)
+            Size: =14
+            Text: =OurIdea.ThisIdeaSearchTerms
+            Width: =IdeaKeywordsLabel.Width
+            X: =IdeaKeywordsLabel.X
+            Y: =IdeaKeywordsLabel.Y+IdeaKeywordsLabel.Height+10
+            ZIndex: =29
+
+        IdeaKeywordsLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =23
+            Size: =17
+            Text: ="Keywords"
+            Width: =400
+            X: =IdeaLabel.X
+            Y: =ComplexityIcon_1.Y+ComplexityIcon_1.Height+20
+            ZIndex: =32
+
+    SolutionsGroup As group:
+        Height: =5
+        Width: =5
+        X: =1116
+        Y: =20
+        ZIndex: =92
+
+        LinkToSolutions As label:
+            Color: =RGBA(0, 120, 212, 1)
+            FontWeight: =Semibold
+            Height: =IdeaLabel.Height
+            OnSelect: =Navigate(Solutions);
+            Size: =14
+            Text: ="Show more"
+            Visible: =OurIdea.ThisIdeaNumSolns>0 || OurIdea.IdeaStatus = BacklogStatusOptions.'Partially Complete' || OurIdea.IdeaStatus = BacklogStatusOptions.Complete
+            Width: =250
+            X: =StatusLabel1.X+7
+            Y: =AddSolutionLabel.Y+AddSolutionLabel.Height+5
+            ZIndex: =5
+
+        AddSolutionLabel As label:
+            Color: =RGBA(102,102,102, 1)
+            FontWeight: =Semibold
+            Height: =29
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, Blank());
+                Navigate(IdeaSolutionDetails);
+            Size: =14
+            Text: ="Solution"
+            Visible: =OurIdea.ThisIdeaNumSolns>0 || OurIdea.IdeaStatus = BacklogStatusOptions.'Partially Complete' || OurIdea.IdeaStatus = BacklogStatusOptions.Complete
+            Width: =216
+            X: =AddSolutionIcon.X+AddSolutionIcon.Width+10
+            Y: =SolutionLabel.Y+SolutionLabel.Height+5
+            ZIndex: =6
+
+        AddSolutionIcon As icon.Edit:
+            Color: =RGBA(0, 120, 212, 1)
+            Height: =Self.Width
+            Icon: =Icon.Add
+            OnSelect: |-
+                =Set(SolnForFeedbackGUID, Blank());
+                Navigate(IdeaSolutionDetails);
+            Visible: =OurIdea.ThisIdeaNumSolns>0 || OurIdea.IdeaStatus = BacklogStatusOptions.'Partially Complete' || OurIdea.IdeaStatus = BacklogStatusOptions.Complete
+            Width: =17
+            X: =StatusLabel1.X+7
+            Y: =AddSolutionLabel.Y+(AddSolutionLabel.Height/2)-(Self.Height/2)
+            ZIndex: =7
+
+        SolutionLabel As label:
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Height: =30
+            Size: =17
+            Text: ="Solutions" & If(CountRows(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea' = OurIdeaGUID))>0, " (" & CountRows(Filter(AllSolutions, BacklogIdea.'Innovation Backlog Idea'=OurIdeaGUID)) & ")")
+            Visible: =OurIdea.ThisIdeaNumSolns>0 || OurIdea.IdeaStatus = BacklogStatusOptions.'Partially Complete' || OurIdea.IdeaStatus = BacklogStatusOptions.Complete
+            Width: =250
+            X: =StatusLabel1.X
+            Y: =ChangeDevLabel.Y+ChangeDevLabel.Height+20
+            ZIndex: =8
+
+    NoIdea As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =97
+
+        NoIdea_BG As rectangle:
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =691
+            Visible: =CountRows(IdeaList.AllItems)=0
+            Width: =If(Self.Visible, 990, 0)
+            X: =If(Self.Visible, 376, 0)
+            Y: =If(Self.Visible, 77, 0)
+            ZIndex: =70
+
+        NoIdea_Img As image:
+            Image: =Idea
+            Visible: =CountRows(IdeaList.AllItems)=0
+            Width: =If(Self.Visible, 100, 0)
+            X: =If(Self.Visible, 815, 0)
+            Y: =If(Self.Visible, 213, 0)
+            ZIndex: =71
+
+        NoIdea_Label As label:
+            Align: =Center
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Semibold
+            Size: =17
+            Text: ="Collaborate with collegues to build solutions"
+            Visible: =CountRows(IdeaList.AllItems)=0
+            Width: =If(Self.Visible, 512, 0)
+            X: =If(Self.Visible, 620, 0)
+            Y: =If(Self.Visible, 339, 0)
+            ZIndex: =72
+
+        NoIdea_Detail As label:
+            Align: =Center
+            Color: =RGBA(51,51,51, 1)
+            FontWeight: =Normal
+            Size: =14
+            Text: ="Add a new idea, or sarch for an existing innovative solution to improve work efficiency."
+            Visible: =CountRows(IdeaList.AllItems)=0
+            Width: =If(Self.Visible, 512, 0)
+            X: =If(Self.Visible, 632, 0)
+            Y: =If(Self.Visible, 389, 0)
+            ZIndex: =73
+
+        NoIdea_NewIDea As button:
+            OnSelect: =Select(AddIdeaIcon)
+            Text: ="Add idea"
+            Visible: =CountRows(IdeaList.AllItems)=0
+            Width: =If(Self.Visible, 160, 0)
+            X: =If(Self.Visible, 806, 0)
+            Y: =If(Self.Visible, 459, 0)
+            ZIndex: =74
+
+    DescriptionGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =98
+
+        descBG As rectangle:
+            BorderColor: =RGBA(51,51,51, 1)
+            BorderThickness: =2
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =Max(Len(IdeaWorkitemList.Selected.admin_description)*.8, 50)
+            Visible: =ShowDescription
+            Width: =If(Self.Visible, 371, 0)
+            X: =If(Self.Visible, 930, 0)
+            Y: =If(Self.Visible, 220, 0)
+            ZIndex: =26
+
+        descText As label:
+            Height: =Max(Len(IdeaWorkitemList.Selected.admin_description)*.75, 30)
+            Text: =IdeaWorkitemList.Selected.admin_description
+            Visible: =ShowDescription
+            Width: =If(Self.Visible, 334, 0)
+            X: =descBG.X+15
+            Y: =descBG.Y+10
+            ZIndex: =27
+
+        descCancel As icon.Add:
+            Height: =Self.Width
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({ShowDescription: false});
+            Visible: =ShowDescription
+            Width: =If(Self.Visible, 17, 0)
+            X: =descBG.X+350
+            Y: =descBG.Y+5
+            ZIndex: =28
+

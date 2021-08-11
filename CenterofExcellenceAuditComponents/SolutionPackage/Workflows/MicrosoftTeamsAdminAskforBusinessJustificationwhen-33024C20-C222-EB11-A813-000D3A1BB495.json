@@ -1,0 +1,361 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365_1": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_teams": {
+        "api": {
+          "name": "shared_teams"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovTeams"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_Business_Justification_has_been_provided": {
+          "actions": {
+            "Send_an_email_(V2)": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "connectionName": "shared_office365_1",
+                  "operationId": "SendEmailV2"
+                },
+                "parameters": {
+                  "emailMessage/Body": "@{variables('htmlHeader')}\n<body>\n<div id='content'>\n<table id='form'>\n<tr><td><p id='header'>Microsoft Power Platform</p></td></tr>\n<tr id='message'><td>\n<p>New Microsoft Teams Environment Justification Added!</p>\n<p>Please view and approve or reject it as shown here: <a href=\"https://docs.microsoft.com/power-platform/guidance/coe/teams-governance#business-justification-process\">Business justification process</a></p>\n</table>\n</div>\n</body>",
+                  "emailMessage/Subject": "Justification Provided for a Microsoft Teams Environment: @{triggerOutputs()?['body/admin_displayname']}",
+                  "emailMessage/To": "@parameters('Admin eMail')"
+                }
+              },
+              "runAfter": {
+                "Update_Environment_with_Business_Justification": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Update_Environment_with_Business_Justification": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "UpdateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_environments",
+                  "item/admin_makerrequirementbusinessjustification": "@outputs('Post_an_Adaptive_Card_to_a_Teams_user_and_wait_for_a_response')?['body/data/myBusinessJustification']",
+                  "recordId": "@triggerOutputs()?['body/admin_environmentid']"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "expression": {
+            "not": {
+              "equals": [
+                "@empty(outputs('Post_an_Adaptive_Card_to_a_Teams_user_and_wait_for_a_response')?['body/data/myBusinessJustification'])",
+                "@true"
+              ]
+            }
+          },
+          "runAfter": {
+            "Post_an_Adaptive_Card_to_a_Teams_user_and_wait_for_a_response": [
+              "Succeeded",
+              "TimedOut"
+            ]
+          },
+          "type": "If"
+        },
+        "Compose_email": {
+          "inputs": "Microsoft Dataverse for Teams is an exciting new capability that integrates Teams with the Power Platform. Using Dataverse for Teams, anyone can make and deploy apps, flows, and chatbots directly within Teams with Power Apps, Power Automate, and Power Virtual Agents. These apps, flows, and bots are then available to use by anyone in the team.<br><br>\n\nWhen a team owner adds the capability to their team, Dataverse for Teams creates a new Power Platform environment with a lightweight Dataverse database and links it to the team. <br>\n<strong>Note: ​As this is a limited capability, please be mindful of others. Create just the environments that you need to support your business process​ and if you no longer need the environment, delete it!</strong> \n<br><br>\nIf the environment you just created is permanent, here are the rules:<br>\nA business justification for a production scenario must be provided<br>\nAn admin must approve the request<br>\nThe default Data Loss Preveniton policy will be applied<br>\n<br><br>\nEnvironments will be deleted if any of the following conditions is true:<br>\nNo business justification has been provided within a week of creating the enviornment.<br>\nThe environment is unused after 90 days.<br>\nAn excessive number of environments are created by the same person<br>\n<br><br>\n",
+          "runAfter": {
+            "Initialize_urlWiki": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose"
+        },
+        "If_this_environment_has_already_been_through_approval,_exit": {
+          "actions": {
+            "Terminate": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "or": [
+              {
+                "not": {
+                  "equals": [
+                    "@triggerOutputs()?['body/admin_businessjustificationdate']",
+                    "@null"
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "equals": [
+                    "@triggerOutputs()?['body/admin_makerrequirementbusinessjustification']",
+                    "@null"
+                  ]
+                }
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_adminmicrosoftteamsenvironmentstatus']",
+                  597910000
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_adminmicrosoftteamsenvironmentstatus']",
+                  597910001
+                ]
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "Initialize_adminMail": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "adminMail",
+                "type": "string",
+                "value": "@parameters('Admin eMail')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_htmlHeader": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_htmlHeader": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "htmlHeader",
+                "type": "string",
+                "value": "@parameters('eMail Header Style')"
+              }
+            ]
+          },
+          "runAfter": {
+            "If_this_environment_has_already_been_through_approval,_exit": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_urlWiki": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "urlWiki",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_adminMail": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "List_records": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$top": 1,
+              "entityName": "admin_coesettingses"
+            }
+          },
+          "runAfter": {
+            "Scope_-_Get_Owner": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Post_an_Adaptive_Card_to_a_Teams_user_and_wait_for_a_response": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+              "connectionName": "shared_teams",
+              "operationId": "SubscribeUserFlowContinuation"
+            },
+            "parameters": {
+              "UserFlowContinuationSubscriptionRequest/body/messageBody": "{\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"type\": \"AdaptiveCard\",\n    \"version\": \"1.2\",\n    \"body\": [\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"width\": 2,\n                    \"items\": [\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"Your Teams environment: @{triggerOutputs()?['body/admin_displayname']}\",\n                            \"weight\": \"Bolder\",\n                            \"size\": \"Large\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"Your @{triggerOutputs()?['body/admin_displayname']} environment might get deleted if the business justification is rejected or if you do not provide a business justification.\",\n                            \"wrap\": true,\n                            \"weight\": \"Bolder\",\n                            \"color\": \"Attention\"\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"Microsoft Dataverse for Teams is an exciting new capability that integrates Teams with the Power Platform. Using Dataverse for Teams, anyone can make and deploy apps, flows, and chatbots directly within Teams.\\nNote: ​As this is a limited capability, please be mindful of others. Create just the environments that you need to support your business process\\n\\nIf the environment you just created is for a production use case, please provide a business justification. \",\n                            \"isSubtle\": true,\n                            \"wrap\": true\n                        },\n                        {\n                            \"type\": \"TextBlock\",\n                            \"text\": \"Business Justification\",\n                            \"wrap\": true,\n                            \"weight\": \"Bolder\"\n                        },\n                        {\n                            \"type\": \"Input.Text\",\n                            \"id\": \"myBusinessJustification\",\n                            \"isMultiline\": true\n                        }\n                    ]\n                }\n            ]\n        }\n    ],\n    \"actions\": [\n        {\n            \"type\": \"Action.Submit\",\n            \"title\": \"Submit\"\n        }\n    ],\n    \"-ms-tokens\": {}\n}",
+              "UserFlowContinuationSubscriptionRequest/body/recipient/isAlert": true,
+              "UserFlowContinuationSubscriptionRequest/body/recipient/to": "@outputs('Get_Owner')?['body/admin_userprincipalname']",
+              "UserFlowContinuationSubscriptionRequest/body/shouldUpdateCard": true,
+              "UserFlowContinuationSubscriptionRequest/body/updateMessage": "Your business justification has been submitted."
+            }
+          },
+          "limit": {
+            "timeout": "P6D"
+          },
+          "runAfter": {
+            "Update_Date_asked_for_Business_Justification": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnectionWebhook"
+        },
+        "Scope_-_Get_Owner": {
+          "actions": {
+            "Get_Owner": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "GetItem"
+                },
+                "parameters": {
+                  "entityName": "admin_makers",
+                  "recordId": "@triggerOutputs()?['body/_admin_maker_value']"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Compose_email": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Send_an_email_to_the_Teams_Owner": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "connectionName": "shared_office365_1",
+              "operationId": "SendEmailV2"
+            },
+            "parameters": {
+              "emailMessage/Body": "@{variables('htmlHeader')}\n<body>\n<div id='content'>\n<table id='form'>\n<tr><td><p id='header'>Microsoft Power Platform</p></td></tr>\n<tr id='message'><td>\n<p>Welcome to your Microsoft Teams Environment!</p>\n<p><br>\n@{outputs('Compose_email')}</p>\n\nLearn more about our Power Platform Policies here:  @{first(outputs('List_records')?['body/value'])?['admin_linktopolicydocumentation']}\n</table>\n</div>\n</body>",
+              "emailMessage/Subject": "Welcome to your Microsoft Teams Environment: @{triggerOutputs()?['body/admin_displayname']}",
+              "emailMessage/To": "@outputs('Get_Owner')?['body/admin_userprincipalname']"
+            }
+          },
+          "runAfter": {
+            "List_records": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Update_Date_asked_for_Business_Justification": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "UpdateRecord"
+            },
+            "parameters": {
+              "entityName": "admin_environments",
+              "item/admin_businessjustificationdate": "@utcnow()",
+              "recordId": "@triggerOutputs()?['body/admin_environmentid']"
+            }
+          },
+          "runAfter": {
+            "Send_an_email_to_the_Teams_Owner": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail": {
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "metadata": {
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
+            "schemaName": "admin_AdminMail"
+          },
+          "type": "String"
+        },
+        "eMail Header Style": {
+          "defaultValue": "<head> <style>  body {     background-color: #efefef;     font-family: Segoe UI;     text-align: center; }  #content {     border: 1px solid #742774;     background-color: #ffffff;     width: 650px;     margin-bottom: 50px;     display: inline-block; }  #logo {     margin-left: 52px;     margin-top: 40px;     width: 60px;     height: 12px; }  #header {     font-size: 24px;     margin-left: 50px;     margin-top: 20px;     margin-bottom: 20px; }  #ribbon {     background-color: #742774; }  #ribbonContent {     font-size: 20px;     padding-left: 30px;     padding-top: 10px;     padding-bottom: 20px;     color: white;     width: 100%;     padding-right: 10px; }  #message > td {     font-size: 14px;     padding-left: 60px;     padding-right: 60px;     padding-top: 20px;     padding-bottom: 40px; }  #footer > td {     font-size: 12px;     background-color: #cfcfcf;     height: 40px;     padding-top: 15px;     padding-left: 40px;     padding-bottom: 20px; }  #form {     width: 100%;     border-collapse: collapse; }  #app {     width: 60%;     font-size: 12px; }  .label {     color: #5f5f5f }  table {     border-collapse: collapse;     width: 100%; }  th, td {     padding: 8px;     text-align: left;     border-bottom: 1px solid #ddd; }  </style> </head>",
+          "metadata": {
+            "description": "CSS/Style used for eMails",
+            "schemaName": "admin_eMailHeaderStyle"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created,_updated_or_deleted": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/filterexpression": "admin_environmentsku eq 'Teams'",
+              "subscriptionRequest/message": 1,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

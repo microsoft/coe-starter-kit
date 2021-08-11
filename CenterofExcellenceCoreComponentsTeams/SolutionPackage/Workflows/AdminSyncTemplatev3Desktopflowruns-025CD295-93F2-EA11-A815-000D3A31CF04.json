@@ -1,0 +1,309 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins_1": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Get_RPA_Sessions": {
+          "actions": {
+            "Apply_to_each_environment": {
+              "actions": {
+                "Apply_to_each_session": {
+                  "actions": {
+                    "Update_RPA_Session_Record": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_rpasessionses",
+                          "item/admin_RPA@odata.bind": "admin_rpas(@{items('Apply_to_each_session')?['_regardingobjectid_value']})",
+                          "item/admin_completedon": "@items('Apply_to_each_session')?['completedon']",
+                          "item/admin_errorcode": "@items('Apply_to_each_session')?['errorcode']",
+                          "item/admin_errormessage": "@items('Apply_to_each_session')?['errormessage']",
+                          "item/admin_name": "@items('Apply_to_each_session')?['flowsessionid']",
+                          "item/admin_startedon": "@items('Apply_to_each_session')?['startedon']",
+                          "recordId": "@items('Apply_to_each_session')?['flowsessionid']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "foreach": "@body('List_RPA_Flow_Sessions')?['value']",
+                  "runAfter": {
+                    "Compose": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "Compose": {
+                  "inputs": "Org not found, continue loop",
+                  "runAfter": {
+                    "List_RPA_Flow_Sessions": [
+                      "Failed",
+                      "TimedOut"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "List_RPA_Flow_Sessions": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['shared_commondataservice']['connectionId']"
+                      }
+                    },
+                    "method": "get",
+                    "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(items('Apply_to_each_environment')?['admin_environmentcdsmetadataname']))}/tables/@{encodeURIComponent(encodeURIComponent('flowsessions'))}/items",
+                    "queries": {
+                      "$filter": "createdon gt @{addDays(utcNow(), -2)}"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "metadata": {
+                    "flowSystemMetadata": {
+                      "swaggerOperationId": "GetItems_V2"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "ApiConnection"
+                }
+              },
+              "foreach": "@outputs('List_Environments_from_CoE')?['body/value']",
+              "runAfter": {
+                "List_Environments_from_CoE": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "List_Environments_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins_1",
+                  "operationId": "Get-AdminEnvironment"
+                },
+                "parameters": {
+                  "api-version": "2018-10-01"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "List_Environments_from_CoE": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_environmentdeleted eq false",
+                  "$select": "admin_environmentcdsmetadataname",
+                  "entityName": "admin_environments"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "List_Environments_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Initialize_Flow_Environment_variable": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_RPA_Sessions_fails_-_Error_Handling": {
+          "actions": {
+            "Create_new_Sync_Flow_Error": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (UI Flow Runs)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get UI Flow Runs failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_new_Sync_Flow_Error": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Get_RPA_Sessions": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_Flow_Environment_variable": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "String",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_today_variable": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_today_variable": {
+          "description": "Used to identify the 'Record Modified' field on all resource entities",
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "String",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "schedule": {
+              "hours": [
+                "1"
+              ]
+            }
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
