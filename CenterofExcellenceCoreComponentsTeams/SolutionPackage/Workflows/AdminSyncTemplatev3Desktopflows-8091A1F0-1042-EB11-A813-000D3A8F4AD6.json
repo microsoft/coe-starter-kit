@@ -1,0 +1,1080 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps_2": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_Desktop_Flows_can_be_retrieved_for_this_environment": {
+          "actions": {
+            "Terminate,_inquiry__not_supported": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_hascds']",
+                  "@false"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentsku']",
+                  "Teams"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentsku']",
+                  "Developer"
+                ]
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "Get_RPAs_and_Exit_if_no_RPAs_in_envt_or_if_no_permissions": {
+          "actions": {
+            "Count_bots": {
+              "actions": {
+                "Quit_if_no_bots": {
+                  "inputs": {
+                    "runStatus": "Succeeded"
+                  },
+                  "runAfter": {},
+                  "type": "Terminate"
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@length(body('List_Desktop_Flows')?['value'])",
+                  0
+                ]
+              },
+              "runAfter": {
+                "Terminate_if_no_access": [
+                  "Skipped"
+                ]
+              },
+              "type": "If"
+            },
+            "List_Desktop_Flows": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                  "connectionName": "shared_commondataservice",
+                  "operationId": "GetItems_V2"
+                },
+                "parameters": {
+                  "$filter": "category eq 6 and uiflowtype ne 101",
+                  "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                  "table": "workflows"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "Terminate_if_no_access": {
+              "inputs": {
+                "runError": {
+                  "code": "404",
+                  "message": "Unauthorized"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "List_Desktop_Flows": [
+                  "Failed"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Check_if_Desktop_Flows_can_be_retrieved_for_this_environment": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_DesktopFlowNeedsUpdateToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "DesktopFlowNeedsUpdateToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_DesktopFlowNeedsUpdateToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_fullInventory": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullInventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_RPAs_and_Exit_if_no_RPAs_in_envt_or_if_no_permissions": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Put_Desktop_Flows_in_CoE": {
+          "actions": {
+            "For_each_Desktop_Flow": {
+              "actions": {
+                "Check_that_client_data_not_equal_to_null": {
+                  "actions": {
+                    "Get_Desktop_Flow_Owner": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice",
+                          "operationId": "GetItem_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "id": "@items('For_each_Desktop_Flow')?['_ownerid_value']",
+                          "table": "systemusers"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Parse_RPA_JSON": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Get_Desktop_Flow_from_CoE": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "GetItem"
+                        },
+                        "parameters": {
+                          "$select": "admin_name, admin_rpamodifiedon",
+                          "entityName": "admin_rpas",
+                          "recordId": "@items('For_each_Desktop_Flow')?['ItemInternalId']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Get_Desktop_Flow_Owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Parse_RPA_JSON": {
+                      "inputs": {
+                        "content": "@items('For_each_Desktop_Flow')?['clientdata']",
+                        "schema": {
+                          "properties": {
+                            "schemaVersion": {
+                              "type": "string"
+                            },
+                            "targets": {
+                              "properties": {
+                                "schema": {
+                                  "properties": {
+                                    "properties": {
+                                      "properties": {
+                                        "XD22JMjhEkyAAS8lVpFe+w==": {
+                                          "properties": {
+                                            "automationType": {
+                                              "type": "string"
+                                            },
+                                            "icon": {
+                                              "type": "string"
+                                            },
+                                            "mainWindowTitle": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "path": {
+                                              "type": "string"
+                                            },
+                                            "processId": {
+                                              "type": "integer"
+                                            },
+                                            "systemConfiguration": {
+                                              "properties": {
+                                                "keyboard": {
+                                                  "properties": {
+                                                    "layoutId": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "type": "object"
+                                                },
+                                                "screen": {
+                                                  "properties": {
+                                                    "height": {
+                                                      "type": "integer"
+                                                    },
+                                                    "scale": {
+                                                      "type": "integer"
+                                                    },
+                                                    "width": {
+                                                      "type": "integer"
+                                                    }
+                                                  },
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "type": "object"
+                                            },
+                                            "version": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object"
+                                        }
+                                      },
+                                      "type": "object"
+                                    }
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "ParseJson"
+                    },
+                    "Set_isNewToCoE_to_true": {
+                      "inputs": {
+                        "name": "isNewToCoE",
+                        "value": "@true"
+                      },
+                      "runAfter": {
+                        "Get_Desktop_Flow_from_CoE": [
+                          "Failed"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    },
+                    "Update_or_Insert_Desktop_flow_and_Owner": {
+                      "actions": {
+                        "Only_proceed_if_changed_since_last_updated_in_CoE_or_FullInventory": {
+                          "actions": {
+                            "Get_Desktop_Flow_owner_profile": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                  "connectionName": "shared_office365users",
+                                  "operationId": "UserProfile_V2"
+                                },
+                                "parameters": {
+                                  "$select": "statuscode,city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                  "id": "@body('Get_Desktop_Flow_Owner')?['azureactivedirectoryobjectid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            },
+                            "Switch_Get_Desktop_Flow_owner_-_Status": {
+                              "cases": {
+                                "Case": {
+                                  "actions": {
+                                    "Find_Desktop_Flow_Maker": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_2",
+                                          "operationId": "ListRecords"
+                                        },
+                                        "parameters": {
+                                          "$filter": "admin_makerid eq @{outputs('Get_Desktop_Flow_owner_profile')?['body/id']}",
+                                          "$select": "admin_makerid",
+                                          "entityName": "admin_makers"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "runtimeConfiguration": {
+                                        "paginationPolicy": {
+                                          "minimumItemCount": 100000
+                                        }
+                                      },
+                                      "type": "OpenApiConnection"
+                                    },
+                                    "Update_Desktop_Flow": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_2",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_rpas",
+                                          "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                          "item/admin_RPAOwner@odata.bind": "admin_makers(@{outputs('Get_Desktop_Flow_owner_profile')?['body/id']})",
+                                          "item/admin_displayname": "@items('For_each_Desktop_Flow')?['name']",
+                                          "item/admin_name": "@items('For_each_Desktop_Flow')?['workflowid']",
+                                          "item/admin_rpacreatedon": "@items('For_each_Desktop_Flow')?['createdon']",
+                                          "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
+                                          "item/admin_rpaisorphaned": "No",
+                                          "item/admin_rpamodifiedon": "@items('For_each_Desktop_Flow')?['modifiedon']",
+                                          "item/admin_rpastate": "@items('For_each_Desktop_Flow')?['_componentstate_label']",
+                                          "item/admin_uiflowtype": "@items('For_each_Desktop_Flow')?['_uiflowtype_label']",
+                                          "item/admin_url": "@body('Parse_RPA_JSON')?['properties']?['definition']?['url']",
+                                          "recordId": "@items('For_each_Desktop_Flow')?['ItemInternalId']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {
+                                        "Update_or_Insert_Desktop_flows_Maker": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "OpenApiConnection"
+                                    },
+                                    "Update_or_Insert_Desktop_flows_Maker": {
+                                      "actions": {
+                                        "Update_Bot_Maker": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_2",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_makers",
+                                              "item/admin_city": "@outputs('Get_Desktop_Flow_owner_profile')?['body/city']",
+                                              "item/admin_country": "@outputs('Get_Desktop_Flow_owner_profile')?['body/country']",
+                                              "item/admin_department": "@outputs('Get_Desktop_Flow_owner_profile')?['body/department']",
+                                              "item/admin_displayname": "@outputs('Get_Desktop_Flow_owner_profile')?['body/displayName']",
+                                              "item/admin_jobtitle": "@outputs('Get_Desktop_Flow_owner_profile')?['body/jobTitle']",
+                                              "item/admin_makerisorphaned": false,
+                                              "item/admin_office": "@outputs('Get_Desktop_Flow_owner_profile')?['body/officeLocation']",
+                                              "item/admin_userprincipalname": "@outputs('Get_Desktop_Flow_owner_profile')?['body/userPrincipalName']",
+                                              "recordId": "@outputs('Get_Desktop_Flow_owner_profile')?['body/id']"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "else": {
+                                        "actions": {
+                                          "Create_Bot_Maker": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps_2",
+                                                "operationId": "CreateRecord"
+                                              },
+                                              "parameters": {
+                                                "entityName": "admin_makers",
+                                                "item/admin_city": "@outputs('Get_Desktop_Flow_owner_profile')?['body/city']",
+                                                "item/admin_country": "@outputs('Get_Desktop_Flow_owner_profile')?['body/country']",
+                                                "item/admin_department": "@outputs('Get_Desktop_Flow_owner_profile')?['body/department']",
+                                                "item/admin_displayname": "@outputs('Get_Desktop_Flow_owner_profile')?['body/displayName']",
+                                                "item/admin_jobtitle": "@outputs('Get_Desktop_Flow_owner_profile')?['body/jobTitle']",
+                                                "item/admin_makerid": "@outputs('Get_Desktop_Flow_owner_profile')?['body/id']",
+                                                "item/admin_makerisorphaned": false,
+                                                "item/admin_office": "@outputs('Get_Desktop_Flow_owner_profile')?['body/officeLocation']",
+                                                "item/admin_userprincipalname": "@outputs('Get_Desktop_Flow_owner_profile')?['body/userPrincipalName']"
+                                              },
+                                              "retryPolicy": {
+                                                "count": 10,
+                                                "interval": "PT10S",
+                                                "type": "exponential"
+                                              }
+                                            },
+                                            "runAfter": {},
+                                            "type": "OpenApiConnection"
+                                          }
+                                        }
+                                      },
+                                      "expression": {
+                                        "greater": [
+                                          "@length(outputs('Find_Desktop_Flow_Maker')?['body/value'])",
+                                          0
+                                        ]
+                                      },
+                                      "runAfter": {
+                                        "Find_Desktop_Flow_Maker": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "If"
+                                    }
+                                  },
+                                  "case": 200
+                                },
+                                "Case_2": {
+                                  "actions": {
+                                    "Update_Desktop_Flow_(Orphaned)": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_2",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_rpas",
+                                          "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                          "item/admin_displayname": "@items('For_each_Desktop_Flow')?['name']",
+                                          "item/admin_name": "@items('For_each_Desktop_Flow')?['workflowid']",
+                                          "item/admin_rpacreatedon": "@items('For_each_Desktop_Flow')?['createdon']",
+                                          "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
+                                          "item/admin_rpaisorphaned": "Yes",
+                                          "item/admin_rpamodifiedon": "@items('For_each_Desktop_Flow')?['modifiedon']",
+                                          "item/admin_rpastate": "@items('For_each_Desktop_Flow')?['_componentstate_label']",
+                                          "item/admin_uiflowtype": "@items('For_each_Desktop_Flow')?['_uiflowtype_label']",
+                                          "item/admin_url": "@body('Parse_RPA_JSON')?['properties']?['definition']?['url']",
+                                          "recordId": "@items('For_each_Desktop_Flow')?['ItemInternalId']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    }
+                                  },
+                                  "case": 400
+                                }
+                              },
+                              "default": {
+                                "actions": {}
+                              },
+                              "expression": "@outputs('Get_Desktop_Flow_owner_profile')['statusCode']",
+                              "runAfter": {
+                                "Get_Desktop_Flow_owner_profile": [
+                                  "Succeeded",
+                                  "Failed"
+                                ]
+                              },
+                              "type": "Switch"
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@variables('DesktopFlowNeedsUpdateToCoE')",
+                              "@true"
+                            ]
+                          },
+                          "runAfter": {
+                            "See_if_DesktopFlowNeedsUpdateToCoE": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "See_if_DesktopFlowNeedsUpdateToCoE": {
+                          "actions": {
+                            "Catch_case_where_coe_last_modified_date_is_null_": {
+                              "inputs": {
+                                "name": "DesktopFlowNeedsUpdateToCoE",
+                                "value": "@true"
+                              },
+                              "runAfter": {
+                                "CoE_ModifiedOn": [
+                                  "Failed"
+                                ]
+                              },
+                              "type": "SetVariable"
+                            },
+                            "Catch_case_where_product_last_modified_date_is_null": {
+                              "inputs": {
+                                "name": "DesktopFlowNeedsUpdateToCoE",
+                                "value": "@true"
+                              },
+                              "runAfter": {
+                                "Desktop_Flow_Modified_On": [
+                                  "Failed"
+                                ]
+                              },
+                              "type": "SetVariable"
+                            },
+                            "CoE_ModifiedOn": {
+                              "inputs": "@coalesce(formatDateTime(outputs('Get_Desktop_Flow_from_CoE')?['body/admin_rpamodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')",
+                              "runAfter": {},
+                              "type": "Compose"
+                            },
+                            "Condition": {
+                              "actions": {
+                                "Set_DesktopFlowNeedsUPdateToCoE_to_true": {
+                                  "inputs": {
+                                    "name": "DesktopFlowNeedsUpdateToCoE",
+                                    "value": "@true"
+                                  },
+                                  "runAfter": {},
+                                  "type": "SetVariable"
+                                }
+                              },
+                              "expression": {
+                                "or": [
+                                  {
+                                    "equals": [
+                                      "@variables('fullInventory')",
+                                      "True"
+                                    ]
+                                  },
+                                  {
+                                    "equals": [
+                                      "@variables('DesktopFlowNeedsUpdateToCoE')",
+                                      "@true"
+                                    ]
+                                  },
+                                  {
+                                    "less": [
+                                      "@outputs('CoE_ModifiedOn')",
+                                      "@outputs('Desktop_Flow_Modified_On')"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "runAfter": {
+                                "Catch_case_where_product_last_modified_date_is_null": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "type": "If"
+                            },
+                            "Desktop_Flow_Modified_On": {
+                              "inputs": "@formatDateTime(items('For_each_Desktop_Flow')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
+                              "runAfter": {
+                                "Catch_case_where_coe_last_modified_date_is_null_": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "type": "Compose"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "Scope"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Get_user_profile_(V2)_New": {
+                            "inputs": {
+                              "authentication": "@parameters('$authentication')",
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                "connectionName": "shared_office365users",
+                                "operationId": "UserProfile_V2"
+                              },
+                              "parameters": {
+                                "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                "id": "@body('Get_Desktop_Flow_Owner')?['azureactivedirectoryobjectid']"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          },
+                          "Switch_Get_Desktop_Flow_owner_(new)_-_Status": {
+                            "cases": {
+                              "200_Success": {
+                                "actions": {
+                                  "Create_Desktop_Flow": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_2",
+                                        "operationId": "CreateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_rpas",
+                                        "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_RPAOwner@odata.bind": "admin_makers(@{outputs('Get_user_profile_(V2)_New')?['body/id']})",
+                                        "item/admin_displayname": "@items('For_each_Desktop_Flow')?['name']",
+                                        "item/admin_name": "@items('For_each_Desktop_Flow')?['workflowid']",
+                                        "item/admin_rpacreatedon": "@items('For_each_Desktop_Flow')?['createdon']",
+                                        "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_rpaid": "@items('For_each_Desktop_Flow')?['ItemInternalId']",
+                                        "item/admin_rpaisorphaned": "no",
+                                        "item/admin_rpamodifiedon": "@items('For_each_Desktop_Flow')?['modifiedon']",
+                                        "item/admin_rpastate": "@items('For_each_Desktop_Flow')?['_componentstate_label']",
+                                        "item/admin_uiflowtype": "@items('For_each_Desktop_Flow')?['_uiflowtype_label']",
+                                        "item/admin_url": "@body('Parse_RPA_JSON')?['properties']?['definition']?['url']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "Update_or_Insert__Desktop_Flow_Maker_New": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Find__Desktop_Flow_Maker_New": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_2",
+                                        "operationId": "ListRecords"
+                                      },
+                                      "parameters": {
+                                        "$filter": "admin_makerid eq @{outputs('Get_user_profile_(V2)_New')?['body/id']}",
+                                        "$select": "admin_makerid",
+                                        "entityName": "admin_makers"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "runtimeConfiguration": {
+                                      "paginationPolicy": {
+                                        "minimumItemCount": 100000
+                                      }
+                                    },
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Update_or_Insert__Desktop_Flow_Maker_New": {
+                                    "actions": {
+                                      "Update_Bot_Maker_New": {
+                                        "inputs": {
+                                          "authentication": "@parameters('$authentication')",
+                                          "host": {
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                            "connectionName": "shared_commondataserviceforapps_2",
+                                            "operationId": "UpdateRecord"
+                                          },
+                                          "parameters": {
+                                            "entityName": "admin_makers",
+                                            "item/admin_city": "@outputs('Get_user_profile_(V2)_New')?['body/city']",
+                                            "item/admin_country": "@outputs('Get_user_profile_(V2)_New')?['body/country']",
+                                            "item/admin_department": "@outputs('Get_user_profile_(V2)_New')?['body/department']",
+                                            "item/admin_displayname": "@outputs('Get_user_profile_(V2)_New')?['body/displayName']",
+                                            "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)_New')?['body/jobTitle']",
+                                            "item/admin_makerisorphaned": false,
+                                            "item/admin_office": "@outputs('Get_user_profile_(V2)_New')?['body/officeLocation']",
+                                            "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)_New')?['body/userPrincipalName']",
+                                            "recordId": "@outputs('Get_user_profile_(V2)_New')?['body/id']"
+                                          },
+                                          "retryPolicy": {
+                                            "count": 10,
+                                            "interval": "PT10S",
+                                            "type": "exponential"
+                                          }
+                                        },
+                                        "runAfter": {},
+                                        "type": "OpenApiConnection"
+                                      }
+                                    },
+                                    "else": {
+                                      "actions": {
+                                        "Create_Bot_Maker_New": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_2",
+                                              "operationId": "CreateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_makers",
+                                              "item/admin_city": "@outputs('Get_user_profile_(V2)_New')?['body/city']",
+                                              "item/admin_country": "@outputs('Get_user_profile_(V2)_New')?['body/country']",
+                                              "item/admin_department": "@outputs('Get_user_profile_(V2)_New')?['body/department']",
+                                              "item/admin_displayname": "@outputs('Get_user_profile_(V2)_New')?['body/displayName']",
+                                              "item/admin_jobtitle": "@outputs('Get_user_profile_(V2)_New')?['body/jobTitle']",
+                                              "item/admin_makerid": "@outputs('Get_user_profile_(V2)_New')?['body/id']",
+                                              "item/admin_makerisorphaned": false,
+                                              "item/admin_office": "@outputs('Get_user_profile_(V2)_New')?['body/officeLocation']",
+                                              "item/admin_userprincipalname": "@outputs('Get_user_profile_(V2)_New')?['body/userPrincipalName']"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      }
+                                    },
+                                    "expression": {
+                                      "greater": [
+                                        "@length(outputs('Find__Desktop_Flow_Maker_New')?['body/value'])",
+                                        0
+                                      ]
+                                    },
+                                    "runAfter": {
+                                      "Find__Desktop_Flow_Maker_New": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "If"
+                                  }
+                                },
+                                "case": 200
+                              },
+                              "404_User_Not_Found": {
+                                "actions": {
+                                  "Create__Desktop_Flow_(Orphaned)": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_2",
+                                        "operationId": "CreateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_rpas",
+                                        "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_displayname": "@items('For_each_Desktop_Flow')?['name']",
+                                        "item/admin_name": "@items('For_each_Desktop_Flow')?['workflowid']",
+                                        "item/admin_rpacreatedon": "@items('For_each_Desktop_Flow')?['createdon']",
+                                        "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_rpaid": "@items('For_each_Desktop_Flow')?['ItemInternalId']",
+                                        "item/admin_rpaisorphaned": "yes",
+                                        "item/admin_rpamodifiedon": "@items('For_each_Desktop_Flow')?['modifiedon']",
+                                        "item/admin_rpastate": "@items('For_each_Desktop_Flow')?['_componentstate_label']",
+                                        "item/admin_uiflowtype": "@items('For_each_Desktop_Flow')?['_uiflowtype_label']",
+                                        "item/admin_url": "@body('Parse_RPA_JSON')?['properties']?['definition']?['url']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "case": 404
+                              }
+                            },
+                            "default": {
+                              "actions": {}
+                            },
+                            "expression": "@outputs('Get_user_profile_(V2)_New')['statusCode']",
+                            "runAfter": {
+                              "Get_user_profile_(V2)_New": [
+                                "Succeeded",
+                                "Failed"
+                              ]
+                            },
+                            "type": "Switch"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@variables('isNewToCoE')",
+                          "@false"
+                        ]
+                      },
+                      "runAfter": {
+                        "Set_isNewToCoE_to_true": [
+                          "Succeeded",
+                          "Skipped"
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@items('For_each_Desktop_Flow')?['clientdata']",
+                        "@null"
+                      ]
+                    }
+                  },
+                  "runAfter": {
+                    "Reset_DesktopFlowNeedsUpdateToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Reset_DesktopFlowNeedsUpdateToCoE": {
+                  "inputs": {
+                    "name": "DesktopFlowNeedsUpdateToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {
+                    "Reset_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Reset_isNewToCoE": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                }
+              },
+              "foreach": "@outputs('List_Desktop_Flows')?['body/value']",
+              "runAfter": {},
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_fullInventory": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Put_Desktop_Flows_in_CoE_failed_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (RPA)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get RPAs Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Put_Desktop_Flows_in_CoE": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "FullInventory": {
+          "defaultValue": true,
+          "metadata": {
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running ",
+            "schemaName": "admin_FullInventory"
+          },
+          "type": "Bool"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_2",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

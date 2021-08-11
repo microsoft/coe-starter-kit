@@ -1,0 +1,806 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_2": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_Environment_Deleted,_terminate_if_true": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentdeleted']",
+              "@true"
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "Get_Custom_Connectors_and_store_them_in_CoE_CDS_Entity": {
+          "actions": {
+            "Apply_to_each_Connector": {
+              "actions": {
+                "Compose_connector_upsert_guid": {
+                  "inputs": "@if(empty(outputs('Get_Connector_Record')?['body']), guid(), first(outputs('Get_Connector_Record')?['body/value'])?['admin_connectorid'])",
+                  "runAfter": {
+                    "Get_Connector_Record": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "Get_Connector_Record": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_2",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "admin_name eq '@{items('Apply_to_each_Connector')?['name']}'",
+                      "$select": "admin_connectorid",
+                      "$top": 1,
+                      "entityName": "admin_connectors"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_JSON": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "HTTP": {
+                  "inputs": {
+                    "method": "GET",
+                    "uri": "@items('Apply_to_each_Connector')?['properties/apiDefinitions/modifiedSwaggerUrl']"
+                  },
+                  "runAfter": {},
+                  "type": "Http"
+                },
+                "Parse_JSON": {
+                  "inputs": {
+                    "content": "@body('HTTP')",
+                    "schema": {
+                      "properties": {
+                        "basePath": {
+                          "type": "string"
+                        },
+                        "consumes": {
+                          "type": "array"
+                        },
+                        "definitions": {
+                          "properties": {},
+                          "type": "object"
+                        },
+                        "host": {
+                          "type": "string"
+                        },
+                        "info": {
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "version": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "parameters": {
+                          "properties": {},
+                          "type": "object"
+                        },
+                        "produces": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "responses": {
+                          "properties": {},
+                          "type": "object"
+                        },
+                        "schemes": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "security": {
+                          "type": "array"
+                        },
+                        "securityDefinitions": {
+                          "properties": {
+                            "basic_auth": {
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "swagger": {
+                          "type": "string"
+                        },
+                        "tags": {
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {
+                    "HTTP": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "See_if_already_in_CoE": {
+                  "actions": {
+                    "Get_Connector_creators_user_profile": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                          "connectionName": "shared_office365users",
+                          "operationId": "UserProfile_V2"
+                        },
+                        "parameters": {
+                          "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                          "id": "@items('Apply_to_each_Connector')?['properties/createdBy/id']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    },
+                    "Switch": {
+                      "cases": {
+                        "200_Success": {
+                          "actions": {
+                            "Find_Maker": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "admin_makerid eq @{items('Apply_to_each_Connector')?['properties/createdBy/id']}",
+                                  "$select": "admin_makerid",
+                                  "entityName": "admin_makers"
+                                }
+                              },
+                              "runAfter": {},
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Update_Custom_Connector": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_connectors",
+                                  "item/admin_EnvironmentCustomConnector@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_Maker@odata.bind": "admin_makers(@{items('Apply_to_each_Connector')?['properties/createdBy/id']})",
+                                  "item/admin_appisorphaned": "no",
+                                  "item/admin_backgroundcolor": "@items('Apply_to_each_Connector')?['properties/iconBrandColor']",
+                                  "item/admin_connectorcreateddatetime": "@items('Apply_to_each_Connector')?['properties/createdTime']",
+                                  "item/admin_connectorcreatordisplayname": "@outputs('Get_Connector_creators_user_profile')?['body/displayName']",
+                                  "item/admin_connectordeleted": false,
+                                  "item/admin_connectormodified": "@items('Apply_to_each_Connector')?['properties/changedTime']",
+                                  "item/admin_customconnectorhost": "@body('Parse_JSON')?['host']",
+                                  "item/admin_displayname": "@items('Apply_to_each_Connector')?['properties/displayName']",
+                                  "item/admin_environmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_iconuri": "@items('Apply_to_each_Connector')?['properties/iconUri']",
+                                  "item/admin_iscustomapi": true,
+                                  "item/admin_name": "@items('Apply_to_each_Connector')?['name']",
+                                  "item/admin_tier": "Custom",
+                                  "recordId": "@outputs('Compose_connector_upsert_guid')"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Update_or_Insert_Maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Update_or_Insert_Maker": {
+                              "actions": {
+                                "Update_Maker": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_makers",
+                                      "item/admin_city": "@outputs('Get_Connector_creators_user_profile')?['body/city']",
+                                      "item/admin_country": "@outputs('Get_Connector_creators_user_profile')?['body/country']",
+                                      "item/admin_department": "@outputs('Get_Connector_creators_user_profile')?['body/department']",
+                                      "item/admin_displayname": "@outputs('Get_Connector_creators_user_profile')?['body/displayName']",
+                                      "item/admin_jobtitle": "@outputs('Get_Connector_creators_user_profile')?['body/jobTitle']",
+                                      "item/admin_makerisorphaned": false,
+                                      "item/admin_office": "@outputs('Get_Connector_creators_user_profile')?['body/officeLocation']",
+                                      "item/admin_userprincipalname": "@outputs('Get_Connector_creators_user_profile')?['body/userPrincipalName']",
+                                      "recordId": "@items('Apply_to_each_Connector')?['properties/createdBy/id']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "Create_Maker": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_2",
+                                        "operationId": "CreateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_makers",
+                                        "item/admin_city": "@outputs('Get_Connector_creators_user_profile')?['body/city']",
+                                        "item/admin_country": "@outputs('Get_Connector_creators_user_profile')?['body/country']",
+                                        "item/admin_department": "@outputs('Get_Connector_creators_user_profile')?['body/department']",
+                                        "item/admin_displayname": "@outputs('Get_Connector_creators_user_profile')?['body/displayName']",
+                                        "item/admin_jobtitle": "@outputs('Get_Connector_creators_user_profile')?['body/jobTitle']",
+                                        "item/admin_makerid": "@items('Apply_to_each_Connector')?['properties/createdBy/id']",
+                                        "item/admin_makerisorphaned": false,
+                                        "item/admin_office": "@outputs('Get_Connector_creators_user_profile')?['body/officeLocation']",
+                                        "item/admin_userprincipalname": "@outputs('Get_Connector_creators_user_profile')?['body/userPrincipalName']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "greater": [
+                                  "@length(outputs('Find_Maker')?['body/value'])",
+                                  0
+                                ]
+                              },
+                              "runAfter": {
+                                "Find_Maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          },
+                          "case": 200
+                        },
+                        "404_File_Not_Found": {
+                          "actions": {
+                            "Update_Custom_Connector_(orphaned)": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_connectors",
+                                  "item/admin_EnvironmentCustomConnector@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_appisorphaned": "yes",
+                                  "item/admin_backgroundcolor": "@items('Apply_to_each_Connector')?['properties/iconBrandColor']",
+                                  "item/admin_connectorcreateddatetime": "@items('Apply_to_each_Connector')?['properties/createdTime']",
+                                  "item/admin_connectordeleted": false,
+                                  "item/admin_connectormodified": "@items('Apply_to_each_Connector')?['properties/changedTime']",
+                                  "item/admin_customconnectorhost": "@body('Parse_JSON')?['host']",
+                                  "item/admin_displayname": "@items('Apply_to_each_Connector')?['properties/displayName']",
+                                  "item/admin_environmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_iconuri": "@items('Apply_to_each_Connector')?['properties/iconUri']",
+                                  "item/admin_iscustomapi": true,
+                                  "item/admin_name": "@items('Apply_to_each_Connector')?['name']",
+                                  "item/admin_tier": "Custom",
+                                  "recordId": "@outputs('Compose_connector_upsert_guid')"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "case": 404
+                        }
+                      },
+                      "default": {
+                        "actions": {}
+                      },
+                      "expression": "@outputs('Get_Connector_creators_user_profile')['statusCode']",
+                      "runAfter": {
+                        "Get_Connector_creators_user_profile": [
+                          "Succeeded",
+                          "Failed"
+                        ]
+                      },
+                      "type": "Switch"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Get_Connector_creators_user_profile_New": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                            "connectionName": "shared_office365users",
+                            "operationId": "UserProfile_V2"
+                          },
+                          "parameters": {
+                            "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                            "id": "@items('Apply_to_each_Connector')?['properties/createdBy/id']"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      },
+                      "Switch_2": {
+                        "cases": {
+                          "200_Success": {
+                            "actions": {
+                              "Create_Custom_Connector": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "CreateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_connectors",
+                                    "item/admin_EnvironmentCustomConnector@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_Maker@odata.bind": "admin_makers(@{items('Apply_to_each_Connector')?['properties/createdBy/id']})",
+                                    "item/admin_appisorphaned": "no",
+                                    "item/admin_backgroundcolor": "@items('Apply_to_each_Connector')?['properties/iconBrandColor']",
+                                    "item/admin_connectorcreateddatetime": "@items('Apply_to_each_Connector')?['properties/createdTime']",
+                                    "item/admin_connectorcreatordisplayname": "@outputs('Get_Connector_creators_user_profile_New')?['body/displayName']",
+                                    "item/admin_connectordeleted": false,
+                                    "item/admin_connectormodified": "@items('Apply_to_each_Connector')?['properties/changedTime']",
+                                    "item/admin_customconnectorhost": "@body('Parse_JSON')?['host']",
+                                    "item/admin_displayname": "@items('Apply_to_each_Connector')?['properties/displayName']",
+                                    "item/admin_environmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_iconuri": "@items('Apply_to_each_Connector')?['properties/iconUri']",
+                                    "item/admin_iscustomapi": true,
+                                    "item/admin_name": "@items('Apply_to_each_Connector')?['name']",
+                                    "item/admin_tier": "Custom"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {
+                                  "Insert_or_Update_Maker_New": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "OpenApiConnection"
+                              },
+                              "Find_Maker_New": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "ListRecords"
+                                  },
+                                  "parameters": {
+                                    "$filter": "admin_makerid eq @{items('Apply_to_each_Connector')?['properties/createdBy/id']}",
+                                    "$select": "admin_makerid",
+                                    "entityName": "admin_makers"
+                                  }
+                                },
+                                "runAfter": {},
+                                "runtimeConfiguration": {
+                                  "paginationPolicy": {
+                                    "minimumItemCount": 100000
+                                  }
+                                },
+                                "type": "OpenApiConnection"
+                              },
+                              "Insert_or_Update_Maker_New": {
+                                "actions": {
+                                  "Update_Maker_New": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_2",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_makers",
+                                        "item/admin_city": "@outputs('Get_Connector_creators_user_profile_New')?['body/city']",
+                                        "item/admin_country": "@outputs('Get_Connector_creators_user_profile_New')?['body/country']",
+                                        "item/admin_department": "@outputs('Get_Connector_creators_user_profile_New')?['body/department']",
+                                        "item/admin_displayname": "@outputs('Get_Connector_creators_user_profile_New')?['body/displayName']",
+                                        "item/admin_jobtitle": "@outputs('Get_Connector_creators_user_profile_New')?['body/jobTitle']",
+                                        "item/admin_makerisorphaned": false,
+                                        "item/admin_office": "@outputs('Get_Connector_creators_user_profile_New')?['body/officeLocation']",
+                                        "item/admin_userprincipalname": "@outputs('Get_Connector_creators_user_profile_New')?['body/userPrincipalName']",
+                                        "recordId": "@items('Apply_to_each_Connector')?['properties/createdBy/id']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "Create_Maker_New": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_2",
+                                          "operationId": "CreateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_makers",
+                                          "item/admin_city": "@outputs('Get_Connector_creators_user_profile_New')?['body/city']",
+                                          "item/admin_country": "@outputs('Get_Connector_creators_user_profile_New')?['body/country']",
+                                          "item/admin_department": "@outputs('Get_Connector_creators_user_profile_New')?['body/department']",
+                                          "item/admin_displayname": "@outputs('Get_Connector_creators_user_profile_New')?['body/displayName']",
+                                          "item/admin_jobtitle": "@outputs('Get_Connector_creators_user_profile_New')?['body/jobTitle']",
+                                          "item/admin_makerid": "@items('Apply_to_each_Connector')?['properties/createdBy/id']",
+                                          "item/admin_makerisorphaned": false,
+                                          "item/admin_office": "@outputs('Get_Connector_creators_user_profile_New')?['body/officeLocation']",
+                                          "item/admin_userprincipalname": "@outputs('Get_Connector_creators_user_profile_New')?['body/userPrincipalName']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "greater": [
+                                    "@length(outputs('Find_Maker_New')?['body/value'])",
+                                    0
+                                  ]
+                                },
+                                "runAfter": {
+                                  "Find_Maker_New": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "If"
+                              }
+                            },
+                            "case": 200
+                          },
+                          "404_File_Not_Found": {
+                            "actions": {
+                              "Create_Custom_Connector_(orphaned)": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "CreateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_connectors",
+                                    "item/admin_EnvironmentCustomConnector@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_appisorphaned": "yes",
+                                    "item/admin_backgroundcolor": "@items('Apply_to_each_Connector')?['properties/iconBrandColor']",
+                                    "item/admin_connectorcreateddatetime": "@items('Apply_to_each_Connector')?['properties/createdTime']",
+                                    "item/admin_connectordeleted": false,
+                                    "item/admin_connectormodified": "@items('Apply_to_each_Connector')?['properties/changedTime']",
+                                    "item/admin_customconnectorhost": "@body('Parse_JSON')?['host']",
+                                    "item/admin_displayname": "@items('Apply_to_each_Connector')?['properties/displayName']",
+                                    "item/admin_environmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_iconuri": "@items('Apply_to_each_Connector')?['properties/iconUri']",
+                                    "item/admin_iscustomapi": true,
+                                    "item/admin_name": "@items('Apply_to_each_Connector')?['name']",
+                                    "item/admin_tier": "Custom"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            },
+                            "case": 404
+                          }
+                        },
+                        "default": {
+                          "actions": {}
+                        },
+                        "expression": "@outputs('Get_Connector_creators_user_profile_New')['statusCode']",
+                        "runAfter": {
+                          "Get_Connector_creators_user_profile_New": [
+                            "Succeeded",
+                            "Failed"
+                          ]
+                        },
+                        "type": "Switch"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@length(outputs('Get_Connector_Record')?['body/value'])",
+                        0
+                      ]
+                    }
+                  },
+                  "runAfter": {
+                    "Compose_connector_upsert_guid": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                }
+              },
+              "foreach": "@outputs('Get_Custom_Connectors_as_Admin')?['body/value']",
+              "runAfter": {
+                "Get_Custom_Connectors_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Get_Custom_Connectors_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                  "connectionName": "shared_powerappsforadmins",
+                  "operationId": "Get-AdminConnectors"
+                },
+                "parameters": {
+                  "$top": 250,
+                  "api-version": "2017-05-01",
+                  "environment": "@triggerOutputs()?['body/admin_environmentname']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Custom_Connectors_fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (Custom Connectors)"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get Custom Connectors Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Get_Custom_Connectors_and_store_them_in_CoE_CDS_Entity": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_today": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Check_if_Environment_Deleted,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_2",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

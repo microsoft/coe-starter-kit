@@ -1,0 +1,1288 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_CDS,_terminate_if_false": {
+          "actions": {
+            "Not_CDS_so_no_Model_Driven_Apps": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_hascds']",
+              "@false"
+            ]
+          },
+          "runAfter": {
+            "Check_if_Environment_Deleted,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_if_Dev_SKU,_terminate_if_true": {
+          "actions": {
+            "Inquiry_not_supported_for_Dev_Sku": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentsku']",
+              "Developer"
+            ]
+          },
+          "runAfter": {
+            "Check_if_CDS,_terminate_if_false": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Check_if_Environment_Deleted,_terminate_if_true": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentdeleted']",
+              "@true"
+            ]
+          },
+          "runAfter": {},
+          "type": "If"
+        },
+        "Check_if_Teams_SKU,_terminate_if_true": {
+          "actions": {
+            "Inquiry_not_supported_for_Teams_Sku": {
+              "inputs": {
+                "runStatus": "Succeeded"
+              },
+              "runAfter": {},
+              "type": "Terminate"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_environmentsku']",
+              "Teams"
+            ]
+          },
+          "runAfter": {
+            "Check_if_Dev_SKU,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Get_App_Modules_Table._Fail_out_if_no_permissions_to_environment": {
+          "actions": {
+            "Fail_if_no_permissions": {
+              "inputs": {
+                "runError": {
+                  "code": "404",
+                  "message": "No Perissions to CDS Table"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "List_Model_Driven_Apps": [
+                  "Failed",
+                  "TimedOut"
+                ]
+              },
+              "type": "Terminate"
+            },
+            "List_Model_Driven_Apps": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                  "connectionName": "shared_commondataservice",
+                  "operationId": "GetItems_V2"
+                },
+                "parameters": {
+                  "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                  "table": "appmodules"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Check_if_Teams_SKU,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Model_Driven_Apps_and_store_in_CoE_CDS_Entity": {
+          "actions": {
+            "Apply_to_each_Model_Driven_App": {
+              "actions": {
+                "Get_Model_Driven_App_from_CoE": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "$select": "admin_appid,admin_appmodifiedon",
+                      "entityName": "admin_apps",
+                      "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Owner_and_first_orphan_check": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_Owner_and_first_orphan_check": {
+                  "actions": {
+                    "Get_MDD_App_Creator": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice",
+                          "operationId": "GetItem_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "id": "@body('Parse_Model_Driven_App_JSON')?['_createdby_value']",
+                          "table": "systemusers"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Reset_isOrphaned_to_false": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Reset_isOrphaned_to_false": {
+                      "inputs": {
+                        "name": "isOrphaned",
+                        "value": "@false"
+                      },
+                      "runAfter": {},
+                      "type": "SetVariable"
+                    },
+                    "See_if_azureactivedirectoryobjectid_is_null": {
+                      "actions": {
+                        "Set_isOrphaned_to_true": {
+                          "inputs": {
+                            "name": "isOrphaned",
+                            "value": "@true"
+                          },
+                          "runAfter": {},
+                          "type": "SetVariable"
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']",
+                          "@null"
+                        ]
+                      },
+                      "runAfter": {
+                        "Get_MDD_App_Creator": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_Model_Driven_App_JSON": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Scope"
+                },
+                "Parse_Model_Driven_App_JSON": {
+                  "inputs": {
+                    "content": "@items('Apply_to_each_Model_Driven_App')",
+                    "schema": {
+                      "properties": {
+                        "@@odata.etag": {
+                          "type": "string"
+                        },
+                        "@@odata.id": {
+                          "type": "string"
+                        },
+                        "ItemInternalId": {
+                          "type": "string"
+                        },
+                        "_componentstate_label": {
+                          "type": "string"
+                        },
+                        "_createdby_type": {
+                          "type": "string"
+                        },
+                        "_createdby_value": {
+                          "type": "string"
+                        },
+                        "_modifiedby_type": {
+                          "type": "string"
+                        },
+                        "_modifiedby_value": {
+                          "type": "string"
+                        },
+                        "_navigationtype_label": {
+                          "type": "string"
+                        },
+                        "_organizationid_type": {
+                          "type": "string"
+                        },
+                        "_organizationid_value": {
+                          "type": "string"
+                        },
+                        "appmoduleid": {
+                          "type": "string"
+                        },
+                        "appmoduleidunique": {
+                          "type": "string"
+                        },
+                        "componentstate": {
+                          "type": "integer"
+                        },
+                        "createdon": {
+                          "type": "string"
+                        },
+                        "descriptor": {
+                          "type": "string"
+                        },
+                        "formfactor": {
+                          "type": "integer"
+                        },
+                        "isdefault": {
+                          "type": "boolean"
+                        },
+                        "isfeatured": {
+                          "type": "boolean"
+                        },
+                        "ismanaged": {
+                          "type": "boolean"
+                        },
+                        "modifiedon": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "navigationtype": {
+                          "type": "integer"
+                        },
+                        "overwritetime": {
+                          "type": "string"
+                        },
+                        "solutionid": {
+                          "type": "string"
+                        },
+                        "uniquename": {
+                          "type": "string"
+                        },
+                        "versionnumber": {
+                          "type": "integer"
+                        },
+                        "webresourceid": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {
+                    "Reset_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "Reset_isNewToCoE": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  },
+                  "runAfter": {},
+                  "type": "SetVariable"
+                },
+                "See_if_app_already_in_CoE": {
+                  "actions": {
+                    "Only_proceed_if_changed_since_last_updated_in_CoE_or_FullInventory": {
+                      "actions": {
+                        "Check_if_made_by_System": {
+                          "actions": {
+                            "Update_Model_Driven_App_(created_by_SYSTEM)": {
+                              "inputs": {
+                                "authentication": "@parameters('$authentication')",
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_apps",
+                                  "item/admin_AppEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
+                                  "item/admin_appdeleted": false,
+                                  "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                  "item/admin_appownerdisplayname": "SYSTEM",
+                                  "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
+                                  "item/admin_powerappstype": 597910001,
+                                  "item/admin_recordmodified": "@variables('today')",
+                                  "item/cr5d5_appisorphaned": "no",
+                                  "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "Recheck_Orphan_status": {
+                                "actions": {
+                                  "Get_PowerApp_Owner_profile": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                        "connectionName": "shared_office365users",
+                                        "operationId": "UserProfile_V2"
+                                      },
+                                      "parameters": {
+                                        "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                        "id": "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Switch": {
+                                    "cases": {
+                                      "200_Success": {
+                                        "actions": {
+                                          "Find_App_Maker": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps_1",
+                                                "operationId": "ListRecords"
+                                              },
+                                              "parameters": {
+                                                "$filter": "admin_makerid eq @{body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']}",
+                                                "$select": "admin_makerid",
+                                                "entityName": "admin_makers"
+                                              }
+                                            },
+                                            "runAfter": {},
+                                            "type": "OpenApiConnection"
+                                          },
+                                          "Update_or_Insert_App_Maker": {
+                                            "actions": {
+                                              "Update_App_Maker": {
+                                                "inputs": {
+                                                  "authentication": "@parameters('$authentication')",
+                                                  "host": {
+                                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                    "connectionName": "shared_commondataserviceforapps_1",
+                                                    "operationId": "UpdateRecord"
+                                                  },
+                                                  "parameters": {
+                                                    "entityName": "admin_makers",
+                                                    "item/admin_city": "@outputs('Get_PowerApp_Owner_profile')?['body/city']",
+                                                    "item/admin_country": "@outputs('Get_PowerApp_Owner_profile')?['body/country']",
+                                                    "item/admin_department": "@outputs('Get_PowerApp_Owner_profile')?['body/department']",
+                                                    "item/admin_displayname": "@outputs('Get_PowerApp_Owner_profile')?['body/displayName']",
+                                                    "item/admin_jobtitle": "@outputs('Get_PowerApp_Owner_profile')?['body/jobTitle']",
+                                                    "item/admin_makerisorphaned": false,
+                                                    "item/admin_office": "@outputs('Get_PowerApp_Owner_profile')?['body/officeLocation']",
+                                                    "item/admin_userprincipalname": "@outputs('Get_PowerApp_Owner_profile')?['body/userPrincipalName']",
+                                                    "recordId": "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']"
+                                                  },
+                                                  "retryPolicy": {
+                                                    "count": 10,
+                                                    "interval": "PT10S",
+                                                    "type": "exponential"
+                                                  }
+                                                },
+                                                "runAfter": {},
+                                                "type": "OpenApiConnection"
+                                              }
+                                            },
+                                            "else": {
+                                              "actions": {
+                                                "Create_App_Maker": {
+                                                  "inputs": {
+                                                    "authentication": "@parameters('$authentication')",
+                                                    "host": {
+                                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                      "connectionName": "shared_commondataserviceforapps_1",
+                                                      "operationId": "CreateRecord"
+                                                    },
+                                                    "parameters": {
+                                                      "entityName": "admin_makers",
+                                                      "item/admin_city": "@outputs('Get_PowerApp_Owner_profile')?['body/city']",
+                                                      "item/admin_country": "@outputs('Get_PowerApp_Owner_profile')?['body/country']",
+                                                      "item/admin_department": "@outputs('Get_PowerApp_Owner_profile')?['body/department']",
+                                                      "item/admin_displayname": "@outputs('Get_PowerApp_Owner_profile')?['body/displayName']",
+                                                      "item/admin_jobtitle": "@outputs('Get_PowerApp_Owner_profile')?['body/jobTitle']",
+                                                      "item/admin_makerid": "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']",
+                                                      "item/admin_makerisorphaned": false,
+                                                      "item/admin_office": "@outputs('Get_PowerApp_Owner_profile')?['body/officeLocation']",
+                                                      "item/admin_userprincipalname": "@outputs('Get_PowerApp_Owner_profile')?['body/userPrincipalName']"
+                                                    },
+                                                    "retryPolicy": {
+                                                      "count": 10,
+                                                      "interval": "PT10S",
+                                                      "type": "exponential"
+                                                    }
+                                                  },
+                                                  "runAfter": {},
+                                                  "type": "OpenApiConnection"
+                                                }
+                                              }
+                                            },
+                                            "expression": {
+                                              "greater": [
+                                                "@length(outputs('Find_App_Maker')?['body/value'])",
+                                                0
+                                              ]
+                                            },
+                                            "runAfter": {
+                                              "Find_App_Maker": [
+                                                "Succeeded"
+                                              ]
+                                            },
+                                            "type": "If"
+                                          }
+                                        },
+                                        "case": 200
+                                      },
+                                      "404_File_Not_Found": {
+                                        "actions": {
+                                          "Set_isOrphaned_true_on_recheck": {
+                                            "inputs": {
+                                              "name": "isOrphaned",
+                                              "value": "@true"
+                                            },
+                                            "runAfter": {},
+                                            "type": "SetVariable"
+                                          }
+                                        },
+                                        "case": 404
+                                      }
+                                    },
+                                    "default": {
+                                      "actions": {}
+                                    },
+                                    "expression": "@outputs('Get_PowerApp_Owner_profile')['statusCode']",
+                                    "runAfter": {
+                                      "Get_PowerApp_Owner_profile": [
+                                        "Succeeded",
+                                        "Failed"
+                                      ]
+                                    },
+                                    "type": "Switch"
+                                  }
+                                },
+                                "expression": {
+                                  "equals": [
+                                    "@variables('isOrphaned')",
+                                    "@false"
+                                  ]
+                                },
+                                "runAfter": {},
+                                "type": "If"
+                              },
+                              "Update_based_on_Orphan_Status": {
+                                "actions": {
+                                  "Update_App_record": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_apps",
+                                        "item/admin_AppEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_AppOwner@odata.bind": "admin_makers(@{body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']})",
+                                        "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
+                                        "item/admin_appdeleted": false,
+                                        "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                        "item/admin_appownerdisplayname": "@outputs('Get_PowerApp_Owner_profile')?['body/displayName']",
+                                        "item/admin_city": "@outputs('Get_PowerApp_Owner_profile')?['body/city']",
+                                        "item/admin_country": "@outputs('Get_PowerApp_Owner_profile')?['body/country']",
+                                        "item/admin_department": "@outputs('Get_PowerApp_Owner_profile')?['body/department']",
+                                        "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
+                                        "item/admin_powerappstype": 597910001,
+                                        "item/admin_recordmodified": "@variables('today')",
+                                        "item/cr5d5_appisorphaned": "no",
+                                        "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "Update_App_record_(Abandoned)": {
+                                      "inputs": {
+                                        "authentication": "@parameters('$authentication')",
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps_1",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_apps",
+                                          "item/admin_AppEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                          "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
+                                          "item/admin_appdeleted": false,
+                                          "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                          "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                          "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
+                                          "item/admin_powerappstype": 597910001,
+                                          "item/admin_recordmodified": "@variables('today')",
+                                          "item/cr5d5_appisorphaned": "yes",
+                                          "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "equals": [
+                                    "@variables('isOrphaned')",
+                                    "@false"
+                                  ]
+                                },
+                                "runAfter": {
+                                  "Recheck_Orphan_status": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "If"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@body('Get_MDD_App_Creator')?['fullname']",
+                              "SYSTEM"
+                            ]
+                          },
+                          "runAfter": {},
+                          "type": "If"
+                        }
+                      },
+                      "expression": {
+                        "or": [
+                          {
+                            "less": [
+                              "@outputs('lastMod_from_CoE')",
+                              "@outputs('lastMod_from_MDA')"
+                            ]
+                          },
+                          {
+                            "equals": [
+                              "@variables('fullInventory')",
+                              "True"
+                            ]
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "lastMod_from_MDA": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "lastMod_from_CoE": {
+                      "inputs": "@coalesce(formatDateTime(outputs('Get_Model_Driven_App_from_CoE')?['body/admin_appmodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')",
+                      "runAfter": {},
+                      "type": "Compose"
+                    },
+                    "lastMod_from_MDA": {
+                      "inputs": "@formatDateTime(body('Parse_Model_Driven_App_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
+                      "runAfter": {
+                        "lastMod_from_CoE": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Check_if_made_by_System_2": {
+                        "actions": {
+                          "Insert_Model_Driven_App_(created_by_SYSTEM)": {
+                            "inputs": {
+                              "authentication": "@parameters('$authentication')",
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps_1",
+                                "operationId": "CreateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_apps",
+                                "item/admin_AppEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
+                                "item/admin_appdeleted": false,
+                                "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                "item/admin_appid": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
+                                "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                "item/admin_appownerdisplayname": "SYSTEM",
+                                "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
+                                "item/admin_powerappstype": 597910001,
+                                "item/admin_recordmodified": "@variables('today')",
+                                "item/cr5d5_appisorphaned": "no"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "Recheck_Orphan_status_new": {
+                              "actions": {
+                                "Get_PowerApp_Owner_profile_new": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                      "connectionName": "shared_office365users",
+                                      "operationId": "UserProfile_V2"
+                                    },
+                                    "parameters": {
+                                      "$select": "city,country,department,jobTitle,officeLocation,statusCode,userPrincipalName, displayName, id",
+                                      "id": "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                },
+                                "Switch_new": {
+                                  "cases": {
+                                    "200_Success": {
+                                      "actions": {
+                                        "Find_App_Maker_new": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_1",
+                                              "operationId": "ListRecords"
+                                            },
+                                            "parameters": {
+                                              "$filter": "admin_makerid eq @{body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']}",
+                                              "$select": "admin_makerid",
+                                              "entityName": "admin_makers"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        },
+                                        "Update_or_Insert_App_Maker_new": {
+                                          "actions": {
+                                            "Update_App_Maker_new": {
+                                              "inputs": {
+                                                "authentication": "@parameters('$authentication')",
+                                                "host": {
+                                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                  "connectionName": "shared_commondataserviceforapps_1",
+                                                  "operationId": "UpdateRecord"
+                                                },
+                                                "parameters": {
+                                                  "entityName": "admin_makers",
+                                                  "item/admin_city": "@outputs('Get_PowerApp_Owner_profile_new')?['body/city']",
+                                                  "item/admin_country": "@outputs('Get_PowerApp_Owner_profile_new')?['body/country']",
+                                                  "item/admin_department": "@outputs('Get_PowerApp_Owner_profile_new')?['body/department']",
+                                                  "item/admin_displayname": "@outputs('Get_PowerApp_Owner_profile_new')?['body/displayName']",
+                                                  "item/admin_jobtitle": "@outputs('Get_PowerApp_Owner_profile_new')?['body/jobTitle']",
+                                                  "item/admin_makerisorphaned": false,
+                                                  "item/admin_office": "@outputs('Get_PowerApp_Owner_profile_new')?['body/officeLocation']",
+                                                  "item/admin_userprincipalname": "@outputs('Get_PowerApp_Owner_profile_new')?['body/userPrincipalName']",
+                                                  "recordId": "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']"
+                                                },
+                                                "retryPolicy": {
+                                                  "count": 10,
+                                                  "interval": "PT10S",
+                                                  "type": "exponential"
+                                                }
+                                              },
+                                              "runAfter": {},
+                                              "type": "OpenApiConnection"
+                                            }
+                                          },
+                                          "else": {
+                                            "actions": {
+                                              "Create_App_Maker_new": {
+                                                "inputs": {
+                                                  "authentication": "@parameters('$authentication')",
+                                                  "host": {
+                                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                    "connectionName": "shared_commondataserviceforapps_1",
+                                                    "operationId": "CreateRecord"
+                                                  },
+                                                  "parameters": {
+                                                    "entityName": "admin_makers",
+                                                    "item/admin_city": "@outputs('Get_PowerApp_Owner_profile_new')?['body/city']",
+                                                    "item/admin_country": "@outputs('Get_PowerApp_Owner_profile_new')?['body/country']",
+                                                    "item/admin_department": "@outputs('Get_PowerApp_Owner_profile_new')?['body/department']",
+                                                    "item/admin_displayname": "@outputs('Get_PowerApp_Owner_profile_new')?['body/displayName']",
+                                                    "item/admin_jobtitle": "@outputs('Get_PowerApp_Owner_profile_new')?['body/jobTitle']",
+                                                    "item/admin_makerid": "@body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']",
+                                                    "item/admin_makerisorphaned": false,
+                                                    "item/admin_office": "@outputs('Get_PowerApp_Owner_profile_new')?['body/officeLocation']",
+                                                    "item/admin_userprincipalname": "@outputs('Get_PowerApp_Owner_profile_new')?['body/userPrincipalName']"
+                                                  },
+                                                  "retryPolicy": {
+                                                    "count": 10,
+                                                    "interval": "PT10S",
+                                                    "type": "exponential"
+                                                  }
+                                                },
+                                                "runAfter": {},
+                                                "type": "OpenApiConnection"
+                                              }
+                                            }
+                                          },
+                                          "expression": {
+                                            "greater": [
+                                              "@length(outputs('Find_App_Maker_new')?['body/value'])",
+                                              0
+                                            ]
+                                          },
+                                          "runAfter": {
+                                            "Find_App_Maker_new": [
+                                              "Succeeded"
+                                            ]
+                                          },
+                                          "type": "If"
+                                        }
+                                      },
+                                      "case": 200
+                                    },
+                                    "404_File_Not_Found": {
+                                      "actions": {
+                                        "Set_isOrphaned_true_on_recheck_new": {
+                                          "inputs": {
+                                            "name": "isOrphaned",
+                                            "value": "@true"
+                                          },
+                                          "runAfter": {},
+                                          "type": "SetVariable"
+                                        }
+                                      },
+                                      "case": 404
+                                    }
+                                  },
+                                  "default": {
+                                    "actions": {}
+                                  },
+                                  "expression": "@outputs('Get_PowerApp_Owner_profile_new')['statusCode']",
+                                  "runAfter": {
+                                    "Get_PowerApp_Owner_profile_new": [
+                                      "Succeeded",
+                                      "Failed"
+                                    ]
+                                  },
+                                  "type": "Switch"
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@variables('isOrphaned')",
+                                  "@false"
+                                ]
+                              },
+                              "runAfter": {},
+                              "type": "If"
+                            },
+                            "Update_based_on_Orphan_Status_new": {
+                              "actions": {
+                                "Insert_Model_Driven_App": {
+                                  "inputs": {
+                                    "authentication": "@parameters('$authentication')",
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps_1",
+                                      "operationId": "CreateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_apps",
+                                      "item/admin_AppEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_AppOwner@odata.bind": "admin_makers(@{body('Get_MDD_App_Creator')?['azureactivedirectoryobjectid']})",
+                                      "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
+                                      "item/admin_appdeleted": false,
+                                      "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                      "item/admin_appid": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
+                                      "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                      "item/admin_appownerdisplayname": "@outputs('Get_PowerApp_Owner_profile_new')?['body/displayName']",
+                                      "item/admin_city": "@outputs('Get_PowerApp_Owner_profile_new')?['body/city']",
+                                      "item/admin_country": "@outputs('Get_PowerApp_Owner_profile_new')?['body/country']",
+                                      "item/admin_department": "@outputs('Get_PowerApp_Owner_profile_new')?['body/department']",
+                                      "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
+                                      "item/admin_powerappstype": 597910001,
+                                      "item/admin_recordmodified": "@variables('today')",
+                                      "item/cr5d5_appisorphaned": "no"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "Insert_Model_Driven_App_(Abandoned)": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "CreateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_apps",
+                                        "item/admin_AppEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
+                                        "item/admin_appdeleted": false,
+                                        "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_appid": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
+                                        "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                        "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
+                                        "item/admin_powerappstype": 597910001,
+                                        "item/admin_recordmodified": "@variables('today')",
+                                        "item/cr5d5_appisorphaned": "yes"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@variables('isOrphaned')",
+                                  "@false"
+                                ]
+                              },
+                              "runAfter": {
+                                "Recheck_Orphan_status_new": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "expression": {
+                          "equals": [
+                            "@body('Get_MDD_App_Creator')?['fullname']",
+                            "SYSTEM"
+                          ]
+                        },
+                        "runAfter": {},
+                        "type": "If"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('isNewToCoE')",
+                      "@false"
+                    ]
+                  },
+                  "runAfter": {
+                    "Set_isNewToCoE_to_true": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "Set_isNewToCoE_to_true": {
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@true"
+                  },
+                  "runAfter": {
+                    "Get_Model_Driven_App_from_CoE": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "foreach": "@outputs('List_Model_Driven_Apps')?['body/value']",
+              "runAfter": {
+                "Remove_any_Environment_prefix": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Get_Environment_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins",
+                  "operationId": "GetSingleEnvironment"
+                },
+                "parameters": {
+                  "api-version": "2018-10-01",
+                  "environment": "@triggerOutputs()?['body/admin_environmentname']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Name_Length": {
+              "description": "Returns the index where the GUID starts",
+              "inputs": "@sub(length(body('Get_Environment_as_Admin')?['name']), 36)",
+              "runAfter": {
+                "Get_Environment_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Remove_any_Environment_prefix": {
+              "description": "Returns the GUID without any prefix (right 36 chars)",
+              "inputs": "@substring(body('Get_Environment_as_Admin')?['name'], int(outputs('Name_Length')), 36)",
+              "runAfter": {
+                "Name_Length": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_fullInventory": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Model_Driven_Apps_fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(variables('flowEnvironment'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "Admin | Sync Template v3 (Model Driven Apps)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Terminate": {
+              "inputs": {
+                "runError": {
+                  "code": "500",
+                  "message": "Get Model Driven Apps Failed"
+                },
+                "runStatus": "Failed"
+              },
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Terminate"
+            }
+          },
+          "runAfter": {
+            "Get_Model_Driven_Apps_and_store_in_CoE_CDS_Entity": [
+              "Failed",
+              "TimedOut"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_flowEnvironment": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isOrphaned": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_fullInventory": {
+          "description": "Environment location specific Flow URL - remember / at the end",
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullInventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory')}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": false
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_App_Modules_Table._Fail_out_if_no_permissions_to_environment": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_isOrphaned": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "isOrphaned",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_today": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "FullInventory": {
+          "defaultValue": false,
+          "metadata": {
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running ",
+            "schemaName": "admin_FullInventory"
+          },
+          "type": "Bool"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - for example https://us.flow.microsoft.com/manage/environments/ for US environments",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
