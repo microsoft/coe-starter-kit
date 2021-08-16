@@ -29,11 +29,6 @@ steps:
   displayName: 'Install Power Platform Build Tools'
   condition: and(succeeded(), eq('${{parameters.skipBuildToolsInstaller}}', 'false'))
 
-# TEMPORARY: using Power DevOps Tools to supplement official Power Platform Build Tools until they have tasks which enable the same scenarios.
-# https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks
-- task: WaelHamze.xrm-ci-framework-build-tasks.MSCRMToolInstaller.MSCRMToolInstaller@12
-  displayName: 'Power DevOps Tool Installer'  
-
 - template: install-powershell-modules.yml
 
 # Other tasks, which use the PowerApps PowerShell cmdlets, need the environment guid.  Setting it for future use.
@@ -50,15 +45,6 @@ steps:
 - task: DownloadPipelineArtifact@2
   displayName: 'Download Build Pipeline Artifact'
 
-# If called from import-unmanaged-to-dev-environment.yml, this task will run to deploy an unmanaged solution
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.import-solution.PowerPlatformImportSolution@0
-  displayName: 'Import Unmanaged Solution'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '${{parameters.serviceConnection}}'
-    SolutionInputFile: '$(UnmanagedSolutionPath)'
-    PublishWorkflows: true
-  condition: and(succeeded(), eq('${{parameters.importUnmanaged}}', 'true'))
 - powershell: |
    $artifactDropPath = '$(Pipeline.Workspace)/drop/'
    If (Test-Path -Path "$(Pipeline.Workspace)/buildPipeline/drop")
@@ -67,6 +53,45 @@ steps:
    }
    Write-Host "##vso[task.setVariable variable=ArtifactDropPath]$artifactDropPath"
   displayName: 'Get artifact drop path'
+
+# Set paths to deployment settings
+- template: set-deployment-configuration-paths.yml
+  parameters:
+    configPath: $(ArtifactDropPath)
+    environmentName: $(EnvironmentName)
+
+# Update any deploymentSettings.json via FileTransform task. This task will replace values in a JSON file based on their path. See https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/transforms-variable-substitution?view=azure-devops&tabs=Classic#jsonvarsubs
+- task: FileTransform@1
+  displayName: 'File Transformation: deploymentSettings.json'
+  inputs:
+    folderPath: '$(ArtifactDropPath)'
+    targetFiles: '*deploymentSettings*.json'
+    fileType: json
+  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], '')))
+
+# Third party task to replace tokens in files. The FileTransform above replaces JSON tokens based on their path as opposed to replacing text tokens in a file which can be more error prone in some cases.
+# If you aren't using this task it can be safely removed or disabled by setting enabled: false. Sample token: #{VariableNameToReplace}#
+- task: qetza.replacetokens.replacetokens-task.replacetokens@3
+  displayName: 'Replace Tokens: deploymentSettings.json'
+  inputs:
+    rootDirectory: '$(ArtifactDropPath)'
+    targetFiles: '*deploymentSettings*.json'
+    actionOnMissing: 'silently continue'
+  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], '')))
+  enabled: true
+
+
+# If called from import-unmanaged-to-dev-environment.yml, this task will run to deploy an unmanaged solution
+- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.import-solution.PowerPlatformImportSolution@0
+  displayName: 'Import Unmanaged Solution'
+  inputs:
+    authenticationType: PowerPlatformSPN
+    PowerPlatformSPN: '${{parameters.serviceConnection}}'
+    SolutionInputFile: '$(UnmanagedSolutionPath)'
+    PublishWorkflows: true
+    UseDeploymentSettingsFile: $(UseDeploymentSettings)
+    DeploymentSettingsFile: $(DeploymentSettingsPath)
+  condition: and(succeeded(), eq('${{parameters.importUnmanaged}}', 'true'))
 
 - powershell: |
     $managedSolutionPath = ''
@@ -123,7 +148,6 @@ steps:
           $pullrequestqueryResponseResults = $pullrequestqueryResponse.results
           $pullRequestId = $pullrequestqueryResponseResults.$buildSourceVersion.pullRequestId
           if (-not [string]::IsNullOrEmpty($pullRequestId)) {
-            Write-Host "Pull Request: " $pullRequestId
             $pullRequestLabelQuery = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/git/repositories/$(Build.Repository.Name)/pullRequests/$pullRequestId/labels?api-version=6.0"
             
             $pullRequestLabelQueryResponse = Invoke-RestMethod -Uri $pullRequestLabelQuery -Method Get -Headers @{
@@ -177,6 +201,8 @@ steps:
     SolutionInputFile: $(ManagedSolutionPath)
     PublishWorkflows: true
     OverwriteUnmanagedCustomizations: ${{parameters.overwriteUnmanagedCustomizations}}
+    UseDeploymentSettingsFile: $(UseDeploymentSettings)
+    DeploymentSettingsFile: $(DeploymentSettingsPath)
   condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), or(eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'false'), eq(variables['SolutionExists'], 'false')))
 
 # If the TriggerSolutionUpgrade variable is true, then import the solution as an Upgrade, staging it as a holding solution, so we can apply a solution Upgrade.
@@ -189,6 +215,8 @@ steps:
     SolutionInputFile: $(ManagedSolutionPath)
     HoldingSolution: true
     OverwriteUnmanagedCustomizations: ${{parameters.overwriteUnmanagedCustomizations}}
+    UseDeploymentSettingsFile: $(UseDeploymentSettings)
+    DeploymentSettingsFile: $(DeploymentSettingsPath)
   condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'), eq(variables['setTriggerSolutionUpgrade.TriggerSolutionUpgrade'], 'true'), eq(variables['SolutionExists'], 'true'))
 
 # NOTE: Sometimes you need to perform intermediary steps between staging the upgrade and applying it.  
@@ -211,70 +239,6 @@ steps:
     PowerPlatformSPN: '${{parameters.serviceConnection}}'
   condition: and(succeeded(), eq('${{parameters.importUnmanaged}}', 'true'))
   # Only publish customizations for when importing unmanaged solutions into a dev environment.
-
-# Set paths to deployment settings
-- template: set-deployment-configuration-paths.yml
-  parameters:
-    configPath: $(ArtifactDropPath)
-    environmentName: $(EnvironmentName)
-
-# Update any deploymentSettings.json via FileTransform task. This task will replace values in a JSON file based on their path. See https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/transforms-variable-substitution?view=azure-devops&tabs=Classic#jsonvarsubs
-- task: FileTransform@1
-  displayName: 'File Transformation: deploymentSettings.json'
-  inputs:
-    folderPath: '$(ArtifactDropPath)'
-    targetFiles: '*deploymentSettings*.json'
-    fileType: json
-  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], '')))
-
-# Third party task to replace tokens in files. The FileTransform above replaces JSON tokens based on their path as opposed to replacing text tokens in a file which can be more error prone in some cases.
-# If you aren't using this task it can be safely removed or disabled by setting enabled: false. Sample token: #{VariableNameToReplace}#
-- task: qetza.replacetokens.replacetokens-task.replacetokens@3
-  displayName: 'Replace Tokens: deploymentSettings.json'
-  inputs:
-    rootDirectory: '$(ArtifactDropPath)'
-    targetFiles: '*deploymentSettings*.json'
-    actionOnMissing: 'silently continue'
-  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], '')))
-  enabled: true
-
-# Set deployment variable for environment variables
-- template: set-deployment-variable.yml
-  parameters:
-    variableName: 'outEnvironmentVariables'
-    pipelineVariableValue: '${{parameters.environmentVariables}}'
-    deploymentSettingsPath: $(CustomDeploymentSettingsPath)
-    deploymentSettingsNode: 'EnvironmentVariables'
-    displayName: 'Retrieve Environment Variable Config'
-
-# WORKAROUND: We were using parameters in the condition, but it was not evaluating.  Reviewed: https://docs.microsoft.com/en-us/azure/devops/pipelines/process/conditions?view=azure-devops&tabs=yaml#use-a-template-parameter-as-part-of-a-condition
-# Current workaround is to set an output variable in the step above and use that in the condition below.
-# Not sure this is the best way, but it works.
-# Replace with official task when available
-- task: WaelHamze.xrm-ci-framework-build-tasks.MSCRMUpdateEnvironmentVariables.MSCRMUpdateEnvironmentVariables@12
-  displayName: 'Update Environment Variables'
-  inputs:
-    crmConnectionString: '$(CdsBaseConnectionString)${{parameters.serviceConnection}}'
-    environmentVariablesJson: '$(outEnvironmentVariables.outEnvironmentVariables)'
-  condition: and(succeeded(), ne(variables['outEnvironmentVariables.outEnvironmentVariables'], ''))
-
-# Set deployment variable for connection references
-- template: set-deployment-variable.yml
-  parameters:
-    variableName: 'outConnectionReferences'
-    pipelineVariableValue: '${{parameters.connectionReferences}}'
-    deploymentSettingsPath: $(CustomDeploymentSettingsPath)
-    deploymentSettingsNode: 'ConnectionReferences'
-    displayName: 'Retrieve Connection Reference Config'
-
-# Update connection references with existing connection IDs and activate Flows using Connection references.
-- template: update-connection-references.yml
-  parameters:
-    displayName: 'Update Connection References'
-    serviceConnection: '${{parameters.serviceConnection}}'
-    connectionReferences: '$(outConnectionReferences.outConnectionReferences)'
-    enableFlows: 'false'
-    updateConnectionReferences: 'true'
 
 # Set deployment variable for AAD Group Team Configuration
 - template: set-deployment-variable.yml
@@ -319,21 +283,20 @@ steps:
     enableFlows: 'false'
     updateComponentOnwership: 'true'
 
-- template: update-connection-references.yml
+- template: set-deployment-variable.yml
   parameters:
-    displayName: 'Activate Flows for Connection References'
+    variableName: 'outConnectionReferences'
+    pipelineVariableValue: '${{parameters.connectionReferences}}'
+    deploymentSettingsPath: $(DeploymentSettingsPath)
+    deploymentSettingsNode: 'ConnectionReferences'
+    displayName: 'Retrieve Connection Reference Config'
+
+- template: activate-flows.yml
+  parameters:
+    displayName: 'Activate Flows'
     serviceConnection: '${{parameters.serviceConnection}}'
     connectionReferences: '$(outConnectionReferences.outConnectionReferences)'
-    enableFlows: '$(EnableFlows)'
-    updateConnectionReferences: 'false'
-
-- template: update-solution-component-ownership.yml
-  parameters:
-    displayName: 'Activate Flows for Component Owners'
-    serviceConnection: '${{parameters.serviceConnection}}'
     solutionComponentOwnershipConfiguration: '$(outSolutionComponentOwnershipConfiguration.outSolutionComponentOwnershipConfiguration)'
-    enableFlows: '$(EnableFlows)'
-    updateComponentOnwership: 'false'
 
 - template: import-configuration-migration-data.yml
   parameters:

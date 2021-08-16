@@ -4,96 +4,98 @@
 # BranchToCreate: The name of the new Azure DevOps Branch to create in the Repo above to which we are exporting our solution (Optional).
 # CommitMessage: The commit message for this commit.
 # Email: The email of the user performing the commit.
-# ServiceConnection: The name of the service connection to Power Platform from which we'll be pulling the solution.
+# .serviceConnection: The name of the service connection to Power Platform from which we'll be pulling the solution.
 # SolutionName: The name of the solution being exported (i.e. Not the Display Name).
 # UserName: The Display name of the user performing the commit.
 parameters:
-- name: GitAccessUrl
+- name: gitAccessUrl
   type: string
   default: ''
-- name: Project
+- name: project
   type: string
   default: ''
-- name: Repo
+- name: repo
   type: string
   default: ''
-- name: Branch
+- name: branch
   type: string
   default: ''
-- name: BranchToCreate
+- name: branchToCreate
   type: string
   default: ''
-- name: CommitMessage
+- name: commitMessage
   type: string
   default: ''
 - name: Email
   type: string
   default: ''
-- name: ServiceConnection
+- name: serviceConnection
   type: string
   default: ''
-- name: SolutionName
+- name: solutionName
   type: string
   default: ''
-- name: UserName
+- name: userName
   type: string
   default: ''
 steps:
 
 # Configure email/name and checkout git branch
 - script: |
-   git config user.email "${{parameters.Email}}"
-   git config user.name "${{parameters.UserName}}"
-   git checkout origin/${{parameters.Branch}} --track
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
+   git config user.email "${{parameters.email}}"
+   git config user.name "${{parameters.userName}}"
+   git checkout origin/${{parameters.branch}} --track
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   displayName: 'Initialize Git'
 
 # If the BranchToCreate variable *does not* contain an empty string, then
 # create a branch based on BranchToCreate variable value and checkout that branch.
 - script: |
-   git checkout -b ${{parameters.BranchToCreate}} ${{parameters.Branch}}
-  displayName: 'Create New Git Branch: ${{parameters.BranchToCreate}}'
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
+   git checkout -b ${{parameters.branchToCreate}} ${{parameters.branch}}
+  displayName: 'Create New Git Branch: ${{parameters.branchToCreate}}'
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   condition: and(succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then skip this task
 
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@0
   displayName: 'Install Power Platform Build Tools'
+
+- template: install-powershell-modules.yml
 
 # Before exporting the solution, publish solution customizations to ensure all the changes are exported
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.publish-customizations.PowerPlatformPublishCustomizations@0
   displayName: 'Publish Customizations'
   inputs:
     authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '${{parameters.ServiceConnection}}'
+    PowerPlatformSPN: '${{parameters.serviceConnection}}'
 
 # Export both unmanaged and managed to put into source control
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@0
   displayName: 'Export Unmanaged Solution'
   inputs:
     authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '${{parameters.ServiceConnection}}'
-    SolutionName: '${{parameters.SolutionName}}'
-    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}.zip'
+    PowerPlatformSPN: '${{parameters.serviceConnection}}'
+    SolutionName: '${{parameters.solutionName}}'
+    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
 
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@0
   displayName: 'Export Managed Solution'
   inputs:
     authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '${{parameters.ServiceConnection}}'
-    SolutionName: '${{parameters.SolutionName}}'
-    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}_managed.zip'
+    PowerPlatformSPN: '${{parameters.serviceConnection}}'
+    SolutionName: '${{parameters.solutionName}}'
+    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip'
     Managed: true
 
 # Unpack contents of solution to make the contents source control friendly 
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.unpack-solution.PowerPlatformUnpackSolution@0
   displayName: 'Power Platform Unpack Solution'
   inputs:
-    SolutionInputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}.zip'
-    SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage'
+    SolutionInputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
+    SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage'
     SolutionType: Both
 
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\**\Solution.xml" | 
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\**\Solution.xml" | 
    ForEach-Object {
         (Get-Content $_.FullName) `
             -replace '<Version>[\s\S]*?<\/Version>', '<Version>0.0.0.0</Version>' |
@@ -104,10 +106,12 @@ steps:
 # TEMPORARY WORKAROUND: Power Apps CLI functionality will eventually be surfaced in Azure DevOps tasks.
 # However, to use functionality ahead of the tasks, we install the CLI.  Once the task is available, we move to using the task.
 - template: install-pac.yml
+  parameters:
+    canvasUnpackVersion: ''
 
 # Use temp exe from PowerShell to unpack source files into a folder
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}" -Recurse -Filter *.msapp | 
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
    ForEach-Object {
       $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
       $env:PATH = $env:PATH + ";" + "$(pacPath)"
@@ -121,7 +125,7 @@ steps:
 # We need to clear out the contents of any *_connectionparameters.json file.  This is to ensure those valuse
 # are not overwritten when the Solution is imported to a downstream environment.
 - powershell: |   
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}" -Recurse -Filter *_connectionparameters.json | 
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *_connectionparameters.json | 
    ForEach-Object {
       Clear-Content $_.FullName
    }
@@ -133,7 +137,7 @@ steps:
 # This also makes it easier to read changes from one commit to another
 - powershell: |
    Invoke-WebRequest -Uri https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe -OutFile  jq.exe
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage" -Recurse -Filter *.json | 
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage" -Recurse -Filter *.json | 
    ForEach-Object {
     #skip canvas app folder because canvas team already handles this for canvas unpack
      if(-not $_.FullName.Contains('CanvasApps')) {
@@ -143,13 +147,13 @@ steps:
      }
    }
    del jq.exe
-   del $(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}.zip
-   del $(Build.ArtifactStagingDirectory)\${{parameters.SolutionName}}_managed.zip
+   del $(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip
+   del $(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip
   displayName: 'Format JSON files'
   enabled: true
 
 - powershell: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
    ForEach-Object {
      $xml=[xml](Get-Content $_.FullName)
      $workflowNode = $xml.SelectSingleNode("//Workflow")
@@ -161,14 +165,26 @@ steps:
   condition: and(succeeded(), eq(variables.DisableFlows, 'true'))
 
 - powershell: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\environmentvariabledefinitions" -Recurse -Filter environmentvariablevalues.json | Remove-Item
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions" -Recurse -Filter environmentvariablevalues.json | Remove-Item
   displayName: 'Verify Environment Variable Current Value Not Exported'
   condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'))
+
+- template: update-deployment-settings.yml
+  parameters:
+    repo: '${{parameters.repo}}'
+    serviceConnection: '${{parameters.serviceConnection}}'
+    solutionName: '${{parameters.solutionName}}'
+    generateEnvironmentVariables: $(DeploymentSettings.GenerateEnvironmentVariables)
+    generateConnectionReferences: $(DeploymentSettings.GenerateConnectionReferences)
+    generateOwnershipConfig: $(DeploymentSettings.GenerateFlowOwnership)
+    generateCanvasSharingConfig: $(DeploymentSettings.GenerateCanvasAppSharing)
+    generateAADGroupTeamConfig: $(DeploymentSettings.GenerateAADGroupTeam)
+    overwriteExisting: $(DeploymentSettings.OverwriteExistingFiles)
 
 # Set paths to deployment settings
 - template: set-deployment-configuration-paths.yml
   parameters:
-    configPath: '$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\config\'
+    configPath: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\config\'
     environmentName: ''
 
 # Set deployment variable for default environment variables
@@ -185,7 +201,7 @@ steps:
        $config = ConvertFrom-Json '$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)'
        foreach ($c in $config) {
            $envVariableName = $c[0]
-           Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.Repo}}\${{parameters.SolutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 
+           Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 
            ForEach-Object {
              $xml=[xml](Get-Content $_.FullName)
              $definitionNode = $xml.SelectSingleNode("//environmentvariabledefinition")
@@ -205,51 +221,52 @@ steps:
   displayName: 'Verify Default Environment Variables Are Set'
   condition: and(succeeded(), eq(variables.VerifyDefaultEnvironmentVariableValues, 'true'))
 
+
 - powershell: |
     git add --all
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   displayName: 'Add Changes to Git Branch'
 
 # Commit all changes to Git branch. If there are no changes we want to warn the user that there was nothing to commit. As this could mean there was a user error involved.
 - powershell: |
     $gitStatus = iex "git status --porcelain"
     if ($gitStatus) {
-        git commit -m "$(CommitMessage)"
+        git commit -m "${{parameters.commitMessage}}"
     }
     else {
         Write-Host "##vso[task.logissue type=warning]There is nothing to commit. No changes have been made since the previous commit. If this is unexpected make sure your changes have been published before committing again."
         exit 1;
     }
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   displayName: 'Commit Changes to Git Branch'
   continueOnError: true
   
 # If BranchToCreate variable value is '', then push to the branch specified in the Branch variable
 - script: |
-   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin ${{parameters.Branch}}
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
+   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin ${{parameters.branch}}
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   displayName: 'Push to $(Branch) Local Branch'
-  condition: and(eq('${{parameters.GitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then run this task
+  condition: and(eq('${{parameters.gitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then run this task
 
 # If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
 - script: |
-   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin ${{parameters.BranchToCreate}}
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
-  displayName: 'Push to ${{parameters.BranchToCreate}} Local Branch'
-  condition: and(eq('${{parameters.GitAccessUrl}}', ''), succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
+   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin ${{parameters.branchToCreate}}
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
+  displayName: 'Push to ${{parameters.branchToCreate}} Local Branch'
+  condition: and(eq('${{parameters.gitAccessUrl}}', ''), succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
 
 # If BranchToCreate variable value is '', then push to the branch specified in the BranchToCreate variable
 - script: |
-   git remote set-url origin ${{parameters.GitAccessUrl}}
-   git push origin ${{parameters.Branch}}
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
-  displayName: 'Push to ${{parameters.BranchToCreate}} Remote Branch'
-  condition: and(ne('${{parameters.GitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then run this task
+   git remote set-url origin ${{parameters.gitAccessUrl}}
+   git push origin ${{parameters.branch}}
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
+  displayName: 'Push to ${{parameters.branchToCreate}} Remote Branch'
+  condition: and(ne('${{parameters.gitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then run this task
 
 # If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
 - script: |
-   git remote set-url origin ${{parameters.GitAccessUrl}}
-   git push origin ${{parameters.BranchToCreate}}
-  workingDirectory: $(Build.SourcesDirectory)\${{parameters.Repo}}
-  displayName: 'Push to ${{parameters.BranchToCreate}} Remote Branch'
-  condition: and(ne('${{parameters.GitAccessUrl}}', ''), succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
+   git remote set-url origin ${{parameters.gitAccessUrl}}
+   git push origin ${{parameters.branchToCreate}}
+  workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
+  displayName: 'Push to ${{parameters.branchToCreate}} Remote Branch'
+  condition: and(ne('${{parameters.gitAccessUrl}}', ''), succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
