@@ -14,6 +14,8 @@ parameters:
   type: string
 - name: releaseNotesPath
   type: string
+- name: closeIssues
+  type: string
 - name: issueClosingComment
   type: string
   default: ''
@@ -34,14 +36,21 @@ steps:
     Write-Host "##vso[task.setvariable variable=ReleaseMonthName]$releaseMonthName"
     $releaseMonthPadded = ([string]${{parameters.releaseMonth}}).PadLeft(2,'0')
     $fullReleaseNotesPath = '${{ parameters.releaseNotesPath }}/${{parameters.solutionName}}/RELEASENOTES-${{parameters.releaseYear}}' + $releaseMonthPadded + '.md'
-    Write-Host "##vso[task.setvariable variable=ReleaseNotesPath]$fullReleaseNotesPath"
     $releaseNotes = ''
     if(Test-Path $fullReleaseNotesPath) {
         $releaseNotes = Get-Content $fullReleaseNotesPath -Raw
     }
     else {
-        New-Item $fullReleaseNotesPath
+        $fullReleaseNotesPath = '${{ parameters.releaseNotesPath }}/${{parameters.solutionName}}/RELEASENOTES.md'
+        if(Test-Path $fullReleaseNotesPath) {
+            $releaseNotes = Get-Content $fullReleaseNotesPath -Raw
+        }
+        else
+        {
+            New-Item $fullReleaseNotesPath
+        }
     }
+    Write-Host "##vso[task.setvariable variable=ReleaseNotesPath]$fullReleaseNotesPath"
     $releaseNotes = $releaseNotes + [Environment]::NewLine + '## Change Log'
 
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -61,16 +70,18 @@ steps:
     }
 
     if($currentMilestone -ne $null){
-        $issuesRequestUrl = "${{ parameters.gitHubApiUrl }}/issues?state=all&filter=all&sort=created&direction=asc&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
+        $issuesRequestUrl = "${{ parameters.gitHubApiUrl }}/issues?state=all&filter=all&per_page=100&sort=created&direction=asc&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
         $issueResponse = Invoke-RestMethod $issuesRequestUrl -Method 'GET' -Headers $headers
         foreach($issue in $issueResponse){
-            if('${{ parameters.issueClosingComment }}' -ne ''){
-                # Add the comment to the issue
-                # /repos/{owner}/{repo}/issues/{issue_number}/comments
-                $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
-                $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
-                $commentBody = "{`"body`": `"$commentFormatted`"}"
-                Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+            if("${{ parameters.closeIssues }}" -eq "True") {
+                if('${{ parameters.issueClosingComment }}' -ne '') {
+                    # Add the comment to the issue
+                    # /repos/{owner}/{repo}/issues/{issue_number}/comments
+                    $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
+                    $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
+                    $commentBody = "{`"body`": `"$commentFormatted`"}"
+                    Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+                }
 
                 # Close the issue if not closed
                 if($issue.state -ne 'closed') {
@@ -82,14 +93,8 @@ steps:
             }
             $releaseNotes = $releaseNotes + [Environment]::NewLine + "  - #" + $issue.number + "-" + $issue.title #Add a line for each issue with number and title. Add more here as necessary
         }
-
         Set-Content -Path $fullReleaseNotesPath -Value $releaseNotes
-    }
-    else{
-      # The milestone was not found could be a naming error
-      Write-Error "No milestone was found for $milestoneName"
-      Write-Host "##vso[task.logissue type=error]No milestone was found for $milestoneName"
-      exit(1)
+        exit 0
     }
   displayName: Build Release Notes from Milestone
 
