@@ -438,7 +438,7 @@ class DevOpsCommand {
 
         let groups = await taskApi?.getVariableGroups(args.projectName);
 
-        let variableGroupName = "global-variable-group"
+        let variableGroupName = "alm-accelerator-variable-group"
         let global = groups?.filter(g => g.name == variableGroupName)
         let variableGroup = global?.length == 1 ? global[0] : null
         if (global?.length == 0) {
@@ -454,7 +454,7 @@ class DevOpsCommand {
             let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-AA4AM")
 
             if (!aadArgs.createSecret) {
-                this.logger?.warn('Client secret not added for variable group global-variable-group it wil need to be added manually')
+                this.logger?.warn('Client secret not added for variable group alm-accelerator-variable-group it wil need to be added manually')
             }
 
             let buildApi = await connection.getBuildApi();
@@ -997,7 +997,7 @@ class DevOpsCommand {
 
         if (typeof args.settings["validation"] === "undefined") {
             let taskApi = await connection.getTaskAgentApi()
-            let groups = await taskApi?.getVariableGroups(args.projectName, "global-variable-group")
+            let groups = await taskApi?.getVariableGroups(args.projectName, "alm-accelerator-variable-group")
             if (groups?.length == 1) {
                 args.settings["validation"] = groups[0].variables["ValidationServiceConnection"]?.value
             }
