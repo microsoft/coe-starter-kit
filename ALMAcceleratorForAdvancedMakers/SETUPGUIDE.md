@@ -243,7 +243,7 @@ The **VerifyDefaultEnvironmentVariableValues** can be used to ensure that specif
 ### Create Pipeline global variables
 
 1. In Azure DevOps Select **Pipelines** > **Library** > **Create a new Variable Group**
-1. Name the Variable Group **global-variable-group**.
+1. Name the Variable Group **alm-accelerator-variable-group**.
 
     >[!NOTE] The pipelines reference this specific variable group so it has to be named exactly as what's shown. If you decide to use a different naming convention for your Variable Group you will need to modify parts of the pipeline(s) to reference the name you use instead.
 1. Add the following Variables to the variable group

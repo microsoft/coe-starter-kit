@@ -85,7 +85,7 @@ describe('Install', () => {
         httpClient.patch.mockResolvedValue(null)
         let args = new DevOpsInstallArguments();
 
-        mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "global-variable-group"}])
+        mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "alm-accelerator-variable-group"}])
         
         // Act
         await command.install(args)
@@ -152,7 +152,7 @@ describe('Install', () => {
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
         
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
-        mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "global-variable-group"}])
+        mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "alm-accelerator-variable-group"}])
 
         mockCoreApi.getProjects.mockResolvedValue([{
             name: args.projectName
