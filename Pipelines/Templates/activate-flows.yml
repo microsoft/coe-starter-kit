@@ -1,0 +1,125 @@
+parameters:
+- name: displayName
+  type: string
+- name: serviceConnection
+  type: string
+- name: solutionComponentOwnershipConfiguration
+  type: string
+- name: connectionReferences
+  type: string
+
+steps:
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outActivateFlows'
+    pipelineVariableValue: ''
+    deploymentSettingsPath: $(CustomDeploymentSettingsPath)
+    deploymentSettingsNode: 'ActivateFlowConfiguration'
+    displayName: 'Retrieve Flow Activation Config'
+
+- powershell: |
+    Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
+    $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
+
+    # json config value must follow this format
+    #[
+    #    {
+    #        "solutionComponentUniqueName":"if-29-must-be-workflowid",
+    #        "activateAsUser": "username@yourdomain.com"
+    #    },
+    #    {
+    #        "solutionComponentUniqueName":"if-29-must-be-workflowid",
+    #        "activateAsUser": "username@yourdomain.com"
+    #    }
+    #]
+    $config = ConvertFrom-Json '$(outActivateFlows.outActivateFlows)'
+    #$config = ConvertFrom-Json '[{"solutionComponentUniqueName": "bd40f612-41ff-ea11-a815-000d3a1abe26","activateAsUser": "jonis@pplatform.onmicrosoft.com"}]'
+    
+    # Workflows of type Modern Flow might need an interactive user owner.
+    # One example is where you want the Flow that runs to use that users license entitlements.
+    # Currently only implementing workflow ownership change until we indentify real usage scenarios for other solution components needing ownership change post import.
+    # See https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solutioncomponent?view=dynamics-ce-odata-9
+    # ...for solutionComponentType values 29=Workflow (including Flow), 300=Canvas App, etc 
+    foreach ($ownershipConfig in $config){
+        if($ownershipConfig.activateAsUser -ne '' -and $ownershipConfig.solutionComponentUniqueName -ne ''){
+            $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -Fields clientdata,category,statecode
+            $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $ownershipConfig.activateAsUser
+            $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
+
+            #Activate the workflow using the owner.
+            if($workflow.statecode -ne "Activated"){
+                $impersonationConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
+                $impersonationCallerId = $systemUserId
+                $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
+                Write-Host "Enabling Flows"
+                Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode Activated -StatusCode Activated
+            }
+        }
+    }
+  displayName: 'Activate Flows for Configuration'
+  condition: and(succeeded(), ne(variables['EnableFlows'], 'false'), ne('$(outActivateFlows.outActivateFlows)', ''))
+
+# As a last resort (i.e. EnableFlows is not specified in the condfiguration) enable flows based on connection references
+# Flows can only be turned on if the user turning them on has permissions to connections being referenced by the connection reference
+# As of authoring this script, the Service Principal (SPN) we use to connect to the Dataverse API cannot turn on the Flow
+# The temporary workaround is use a brute force approach for now.  We use the identity of the connection for the first connection
+# reference we find to turn on the Flow.  This may have side effects or unintended consequences we haven't fully tested.
+# Need a better long term solution.  Will replace when we find one.
+- powershell: |
+    Import-Module Microsoft.PowerApps.Administration.PowerShell -Force -RequiredVersion $(PowerAppsAdminModuleVersion) -ArgumentList @{ NonInteractive = $true }
+    Add-PowerAppsAccount -TenantID $(TenantId) -ApplicationId $(ClientId) -ClientSecret $(ClientSecret)
+    Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
+    $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
+    $impersonationConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
+
+    # Get the EnvironmentName (which is a GUID) of the environment based on the orgid in Dataverse
+    $orgId = (Get-CrmRecords -conn $conn -EntityLogicalName organization).CrmRecords[0].organizationid
+    
+    $environmentName = "$(EnvironmentId)"
+
+    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "$(SolutionName)"
+    $solutionId = $solutions.CrmRecords[0].solutionid
+
+    $result = Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields objectid,componenttype
+    $solutionComponents = $result.CrmRecords
+
+    $config = ConvertFrom-Json '${{parameters.connectionReferences}}'
+    foreach ($connectionRefConfig in $config) {
+        # Get the connection reference to update
+        $connRefs = Get-CrmRecords -conn $conn -EntityLogicalName connectionreference -FilterAttribute "connectionreferencelogicalname" -FilterOperator "eq" -FilterValue $connectionRefConfig.LogicalName
+        $connRef = $connRefs.CrmRecords[0]
+
+        # Connection References can only be updated by an identity that has permissions to the connection it references
+        # As of authoring this script, Service Principals (SPN) cannot update connection references
+        # The temporary workaround is to impersonate the user that created the connection
+      
+        # Get connection
+        $connections = Get-AdminPowerAppConnection -EnvironmentName $environmentName -Filter $c.ConnectionId
+        # Get Dataverse systemuserid for the system user that maps to the aad user guid that created the connection 
+        $systemusers = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "azureactivedirectoryobjectid" -FilterOperator "eq" -FilterValue $connections[0].CreatedBy.id
+        # Impersonate the Dataverse systemuser that created the connection when updating the connection reference
+        $impersonationCallerId = $systemusers.CrmRecords[0].systemuserid
+
+        foreach ($solutionComponent in $solutionComponents){
+            if ($solutionComponent.componenttype -eq "Workflow"){
+                $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $solutionComponent.objectid -Fields clientdata,category,statecode
+                if($workflow.clientdata.Contains($connectionRefConfig.LogicalName) -and $workflow.statecode -ne "Activated"){
+                    Write-Host "Enabling Flows"
+                    $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
+                    Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $solutionComponent.objectid -StateCode Activated -StatusCode Activated
+                }
+            }
+        }
+    }
+  displayName: 'Activate Flows for Connection References'
+  condition: and(succeeded(), ne(variables['EnableFlows'], 'false'), ne('$(outConnectionReferences.outConnectionReferences)', ''))
+
+# As a last resort (i.e. EnableFlows is not specified in the condfiguration) enable flows based on ownership
+- template: update-solution-component-ownership.yml
+  parameters:
+    displayName: 'Activate Flows for Component Owners'
+    serviceConnection: '${{parameters.serviceConnection}}'
+    solutionComponentOwnershipConfiguration: '${{parameters.solutionComponentOwnershipConfiguration}}'
+    enableFlows: '$(EnableFlows)'
+    updateComponentOnwership: 'false'
+

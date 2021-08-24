@@ -36,16 +36,33 @@ steps:
     Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)" -Recurse -Filter *.json |
     ForEach-Object {
         $fileContent = (Get-Content $_.FullName) -join ' '
-        if(-Not [string]::IsNullOrWhiteSpace($fileContent)) {
+        if(-not [string]::IsNullOrWhiteSpace($fileContent)) {
             Set-Content $_.FullName $fileContent
         }
     }
   displayName: 'Flatten JSON files'
   enabled: true
 
+- powershell: |
+    $manifestVersion = ''
+    $manifestPaths = Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)" -Recurse -Filter *CanvasManifest.json
+    foreach($manifestPath in $manifestPaths) {
+        $manifest = Get-Content $manifestPath.FullName | ConvertFrom-Json
+        if($manifest.FormatVersion -ne '') {
+            $manifestVersion = $manifest.FormatVersion
+            break
+        }
+    }
+    Write-Host "##vso[task.setvariable variable=ManifestVersion]$manifestVersion"
+    Write-Host "Version: $manifestVersion"
+  displayName: 'Get Unpacked Version'
+  condition: succeeded()
+
 # TEMPORARY WORKAROUND: Power Apps CLI functionality will eventually be surfaced in Azure DevOps tasks.
 # However, to use functionality ahead of the tasks, we install the CLI.  Once the task is available, we move to using the task.
 - template: install-pac.yml
+  parameters:
+    canvasUnpackVersion: $(ManifestVersion)
 
 # Use temp exe from PowerShell to pack source files into msapp
 - pwsh: |
