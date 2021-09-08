@@ -1,7 +1,7 @@
 # This pipeline gets triggered manually or via an API call.  
 # The pipeline is designed to synchronize a github repository into an Azure DevOps git repositiory.
 # It facilitates:
-# -Synchronization of main branch from source git repository into the Azure DevOps git repository
+# -Synchronization of main branch  or a tag from source git repository into the Azure DevOps git repository
 # -Create a Pull Request to merge changes
 # -Assign Pull Request to the user that requested the pipeline to run.
 
@@ -10,11 +10,19 @@
 #                Example: https://github.com/microsoft/coe-alm-accelerator-templates
 
 # The following parameters are required for pipeline to run:
+# SyncFrom: Either Branch or Tag to define if sync is from a branch or a tag
+# SourceBranchOrTag: The branch or tag in remote repository to sync from. If SyncFrom is Branch a branc name is expected. If SyncFrom is Tag a tag is expected
 # BranchToCreate: The name of the new Azure DevOps Branch to create in the Repo above to which we are pulling main branch from Template-repo.
 # TargetBranch: The name of the Azure DevOps Branch to target for the Pull Request.
 
 parameters:
-- name: SourceBranch
+- name: SyncFrom
+  type: string
+  values:
+    - Branch
+    - Tag
+  default: Branch
+- name: SourceBranchOrTag
   type: string
   default: 'main'
 - name: BranchToCreate
@@ -23,7 +31,8 @@ parameters:
 - name: TargetBranch
   type: string
   default: 'main'
-  
+
+
 trigger: none
 pr: none
 
@@ -54,17 +63,33 @@ stages:
           git config --global user.name "$(Build.RequestedFor)"
         displayName: 'Set git user info'
 
-        # Add remote and fetch SourceBranch
+        # Add remote and fetch source branch
       - script: | 
           git remote add template-repo $(TEMPLATE-REPO)
-          git fetch template-repo ${{parameters.SourceBranch}}
-        displayName: 'Fetch ${{parameters.SourceBranch}} branch from cloned repository'
+          git fetch template-repo ${{parameters.SourceBranchOrTag}}
+        displayName: 'Fetch branch from cloned repository'
+        condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Branch'))
+
+        # Add remote and fetch source tag
+      - script: | 
+          git remote add template-repo $(TEMPLATE-REPO)
+          git fetch template-repo refs/tags/${{parameters.SourceBranchOrTag}}:refs/tags/${{parameters.SourceBranchOrTag}}
+        displayName: 'Fetch tag from cloned repository'
+        condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Tag'))
 
         # Create new branch and push to origin
       - script: |
-          git checkout -b ${{parameters.BranchToCreate}} template-repo/${{parameters.SourceBranch}}
+          git checkout -b ${{parameters.BranchToCreate}} template-repo/${{parameters.SourceBranchOrTag}}
           git push origin +${{parameters.BranchToCreate}}
-        displayName: 'Push ${{parameters.BranchToCreate}} to AzDO repo'
+        displayName: 'Push branch to ${{parameters.BranchToCreate}} to AzDO repo'
+        condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Branch'))
+
+        # Create new branch from tag and push to origin
+      - script: |
+          git checkout tags/${{parameters.SourceBranchOrTag}} -b ${{parameters.BranchToCreate}}
+          git push origin +${{parameters.BranchToCreate}}
+        displayName: 'Push tag to ${{parameters.BranchToCreate}} to AzDO repo'
+        condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Tag'))
 
         # Set default org and project
       - powershell: az devops configure --defaults organization=$(System.CollectionUri) project="$(System.TeamProject)"
