@@ -20,7 +20,7 @@ Read the [Documentation](./docs/readme.md) for information on supported commands
 
 To run the application you will require local install of the following or Docker installed.
 
-1. An installation of Node 16.6+
+1. An installation of Node 12+
 
    a. https://nodejs.org/en/download/
 
