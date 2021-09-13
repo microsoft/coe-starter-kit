@@ -1,5 +1,5 @@
 "use strict";
-import commander, { command, Command, helpOption, option, Option, opts, requiredOption } from 'commander';
+import commander, { Command, Option } from 'commander';
 import { LoginCommand } from './login';
 import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMCommand, AA4AMMakerAddArguments } from './aa4am';
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
@@ -33,7 +33,7 @@ class CoeCliCommands {
     logger: winston.Logger
     readline: readline.ReadLine
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
-    writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array, options?: fs.BaseEncodingOptions & { mode?: fs.Mode, flag?: fs.OpenMode } | BufferEncoding | null) => Promise<void>
+    writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array) => Promise<void>
     existsSync: (path: fs.PathLike) => boolean
     outputText: (text: string) => void
     _logOption: commander.Option
