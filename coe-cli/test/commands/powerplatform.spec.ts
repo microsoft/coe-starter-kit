@@ -41,20 +41,20 @@ describe('API Import', () => {
         }
         let mockAxios = mock<AxiosStatic>();
         let mockCli = mock<CommandLineHelper>()
-        let mockReadline = mock<readline.ReadLine>()
+        let readline : any = {
+            question: (query: string, callback: (answer: string) => void) => {
+                // Respond dont want to create connection
+                callback('n')
+            }
+        }
         
         command.getAxios = () => mockAxios
         command.cli = mockCli
 
-        command.readline = mockReadline
+        command.readline = readline
         command.outputText = (text: string) => {}
 
         mockCli.validateAzCliReady.mockResolvedValue(true)
-
-        // Respond dont want to create connection
-        mockReadline.question.mockImplementationOnce( (query: string, callback: (answer: string) => void) => {
-            callback('n')
-        })
 
         mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
