@@ -35,7 +35,7 @@ Home As screen:
         Height: =68
         OnSelect: =
         Size: =20
-        Text: ="Power Platform Application Lifecycle Management (" & LookUp(AllEnvironments, name = ExecutingEnvironmentName).properties.linkedEnvironmentMetadata.friendlyName & ")"
+        Text: ="Power Platform Application Lifecycle Management (" & LookUp(AllEnvironments, name = ExecutingEnvironment.tags.environmentName).properties.linkedEnvironmentMetadata.friendlyName & ")"
         Width: =1920
         ZIndex: =7
 
@@ -1220,7 +1220,7 @@ Home As screen:
                 ClearCollect(
                     SolutionDeploymentSettings,
                     {
-                        EnvironmentUrl: LookUp(AllEnvironments, name = ExecutingEnvironmentName).properties.linkedEnvironmentMetadata.instanceUrl,
+                        EnvironmentUrl: LookUp(AllEnvironments, name = ExecutingEnvironment.tags.environmentName).properties.linkedEnvironmentMetadata.instanceUrl,
                         UserSettingId: ShowColumns(
                             Filter(
                                 'User Settings',
@@ -2686,17 +2686,25 @@ Home As screen:
                 Clear(SelectedEnvironmentSolutions);
                 If(
                     Not IsBlank(SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName),
-                    
                     Collect(
                         SelectedEnvironmentSolutions,
                         GetEnvironmentSolutions.Run(
                             SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            Last(FirstN(ClearCollect(splitCol, Split(SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl, ".")), 2)).Result
+                            Last(
+                                FirstN(
+                                    ClearCollect(
+                                        splitCol,
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        )
+                                    ),
+                                    2
+                                )
+                            ).Result
                         )
                     )
-                
                 );
-                
                 Select(fncResetCheckBuildStatuses);
                 UpdateContext({showLoader: false});
             PressedBorderColor: =fncLoadSolutions.Fill
@@ -3117,6 +3125,31 @@ Home As screen:
                     AppUserSetting_UserSettings,
                     Name = DefaultOrgSettingName
                 ).Value;
+                
+                //Redirect to Deployment Settings Page if the required parameters were supplied
+                ClearCollect(
+                    AllEnvironments,
+                    PowerAppsforMakers.GetEnvironments().value
+                );
+                If(
+                    !IsBlank(Param("configsoln")) && !IsBlank(Param("env")),
+                    Set(
+                        SelectedEnvironment,
+                        LookUp(
+                            AllEnvironments,
+                            name = Param("env")
+                        )
+                    );
+                    Set(
+                        SelectedSolutionToConfigure,
+                        LookUp(
+                            SelectedEnvironmentSolutions,
+                            Text(solutionid) = Param("configsoln")
+                        )
+                    );
+                    Navigate(DeploymentSettingsScreen)
+                );
+                
                 If(
                     IsBlank(DefaultOrg) && CountRows(Orgs) > 0,
                     Set(
@@ -3229,10 +3262,6 @@ Home As screen:
                     "LastSavedEnvironment - " & drpAdoOrganizations.Selected.AccountName & " - " & drpAdoProjects.Selected.name
                 );
                 ClearCollect(
-                    AllEnvironments,
-                    PowerAppsforMakers.GetEnvironments().value
-                );
-                ClearCollect(
                     Environments,
                     Filter(
                         AllEnvironments,
@@ -3247,29 +3276,32 @@ Home As screen:
                     )
                 );
                 If(
-                    IsBlank(DefaultEnvironment) && CountRows(Environments) > 0,
-                    Set(
-                        DefaultEnvironment,
-                        Patch(
-                            'User Settings',
-                            {
-                                'App User Setting': AppUserSetting,
-                                Name: DefaultEnvironmentSettingName,
-                                Value: First(Environments).name
-                            }
+                    IsBlank(SelectedEnvironment),
+                    If(
+                        IsBlank(DefaultEnvironment) && CountRows(Environments) > 0,
+                        Set(
+                            DefaultEnvironment,
+                            Patch(
+                                'User Settings',
+                                {
+                                    'App User Setting': AppUserSetting,
+                                    Name: DefaultEnvironmentSettingName,
+                                    Value: First(Environments).name
+                                }
+                            )
                         )
+                    );
+                    Set(
+                        DefaultEnvironmentToLoad,
+                        LookUp(
+                            Environments,
+                            name = DefaultEnvironment.Value
+                        )
+                    );
+                    Set(
+                        SelectedEnvironment,
+                        DefaultEnvironmentToLoad
                     )
-                );
-                Set(
-                    DefaultEnvironmentToLoad,
-                    LookUp(
-                        Environments,
-                        name = DefaultEnvironment.Value
-                    )
-                );
-                Set(
-                    SelectedEnvironment,
-                    DefaultEnvironmentToLoad
                 );
                 ClearCollect(
                     SelectedProjectPipelines,
