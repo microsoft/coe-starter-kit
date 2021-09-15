@@ -18,56 +18,68 @@ The ALM Accelerator uses json formatted files for updating **connection referenc
       - [Create Solution Component Ownership Json](#create-solution-component-ownership-json)
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
 
+### Creating a Deployment Settings Json File
+
+The deployment settings json file is used to configure connection references and environment variables 
+
 ### Creating a Custom Deployment Settings Json File
 
-The deployment settings json file contains all of the configuration settings required to automate the deployment of your solution. The following is a sample of a custom deployment settings json file which will provide your pipelines with the necessary information required to configure a solution after it's been deployed to an environment.
+The custom deployment settings json file contains the configuration settings required to automate the deployment of your solution. This file contains the configuration for Activating Flows on behalf of a user, specify ownership of Flows, Sharing Canvas Apps with AAD Groups and Creating Dataverse Group Teams after deployment. The following is a sample of a custom deployment settings json file which will provide your pipelines with the necessary information required to configure a solution after it's been deployed to an environment.
 
 ```json
 {
-  "ConnectionReferences": [
-    [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-  ],
-  "DefaultEnvironmentVariables": [
-    [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-    [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-    [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-  ],    
-  "EnvironmentVariables": [
-    [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
-    [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-    [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
-  ],
-  "DefaultEnvironmentVariables": [
-    [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-    [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-    [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-  ],    
-  "AadGroupCanvasConfiguration": [
+  "ActivateFlowConfiguration": [
     {
-      "aadGroupId": "#{canvasshare.aadGroupId}#",
-      "canvasNameInSolution": "cat_devopskitsamplecanvasapp_c7ec5",
-      "roleName": "#{canvasshare.roleName}#"
-    }
-  ],
-  "AadGroupTeamConfiguration": [
+      "solutionComponentName": "DevOpsKitSampleFlow",
+      "solutionComponentUniqueName": "0a43b549-50ed-ea11-a815-000d3af3a7c4",
+      "activateAsUser": "#{activateflow.activateas.DevOpsKitSampleFlow}#"
+    },
     {
-      "aadGroupTeamName": "alm-accelerator-sample-solution",
-      "aadSecurityGroupId": "#{team.aadSecurityGroupId}#",
-      "dataverseSecurityRoleNames": [
-        "ALM Accelerator Sample Role"
-      ]
+      "solutionComponentName": "CallMeFromCanvasApp",
+      "solutionComponentUniqueName": "71cc728c-2487-eb11-a812-000d3a8fe6a3",
+      "activateAsUser": "#{activateflow.activateas.CallMeFromCanvasApp}#"
+    },
+    {
+      "solutionComponentName": "GetEnvironmentVariables",
+      "solutionComponentUniqueName": "d2f7f0e2-a1a9-eb11-b1ac-000d3a53c3c2",
+      "activateAsUser": "#{activateflow.activateas.GetEnvironmentVariables}#"
     }
   ],
   "SolutionComponentOwnershipConfiguration": [
     {
       "solutionComponentType": 29,
-      "solutionComponentUniqueName": "00000000-0000-0000-0000-00000000000",
-      "ownerEmail": "#{owner.ownerEmail}#"
+      "solutionComponentName": "DevOpsKitSampleFlow",
+      "solutionComponentUniqueName": "0a43b549-50ed-ea11-a815-000d3af3a7c4",
+      "ownerEmail": "#{owner.ownerEmail.DevOpsKitSampleFlow}#"
     },
     {
       "solutionComponentType": 29,
-      "solutionComponentUniqueName": "00000000-0000-0000-0000-00000000000",
-      "ownerEmail": "#{owner.ownerEmail}#"
+      "solutionComponentName": "CallMeFromCanvasApp",
+      "solutionComponentUniqueName": "71cc728c-2487-eb11-a812-000d3a8fe6a3",
+      "ownerEmail": "#{owner.ownerEmail.CallMeFromCanvasApp}#"
+    },
+    {
+      "solutionComponentType": 29,
+      "solutionComponentName": "GetEnvironmentVariables",
+      "solutionComponentUniqueName": "d2f7f0e2-a1a9-eb11-b1ac-000d3a53c3c2",
+      "ownerEmail": "#{owner.ownerEmail.GetEnvironmentVariables}#"
+    }
+  ],
+  "AadGroupCanvasConfiguration": [
+    {
+      "aadGroupId": "#{canvasshare.aadGroupId.DevOpsKitSampleCanvasApp}#",
+      "canvasNameInSolution": "cat_devopskitsamplecanvasapp_c7ec5",
+      "canvasDisplayName": "DevOpsKitSampleCanvasApp",
+      "roleName": "#{canvasshare.roleName.DevOpsKitSampleCanvasApp}#"
+    }
+  ],
+  "AadGroupTeamConfiguration": [
+    {
+      "aadGroupTeamName": "Sample Group Team Name",
+      "aadSecurityGroupId": "#{team.samplegroupteamname.aadSecurityGroupId}#",
+      "dataverseSecurityRoleNames": [
+        "#{team.samplegroupteamname.role}#"
+      ]
     }
   ]
 }

@@ -6,7 +6,7 @@ The ALM Accelerator components enable makers to apply source control strategies 
 
 The ALM Accelerator components solution doesn't have a dependency on other components of the CoE Starter Kit. It can be used independently.
 
-## Read before you start...
+## Before you start...
 
 The following documentation is intended to be a step-by-step process for setting up AA4AM manually. However, **it is recommended that you use the [Center of Excellence Command Line Interface (coe-cli)](https://github.com/microsoft/coe-starter-kit/tree/main/coe-cli#readme) to assist in automating these steps**. This document will provide details and context for the actions that are performed by the coe-cli and act as a reference for those who want to know the specifics of each step in the process.
 
