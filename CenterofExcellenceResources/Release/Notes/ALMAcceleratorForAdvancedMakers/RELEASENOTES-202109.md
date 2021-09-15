@@ -1,8 +1,6 @@
->  [!IIMPORTANT] This release includes the use of an update in the platform that will not be released to the following geos (SPL, GCC, USG, CHN) until the last week in July. If you are using AA4AM in one of these geos please wait to upgrade until August 1st 2021.
-
 ## Issues and new features in this release:
 
-https://github.com/microsoft/coe-starter-kit/milestone/10
+https://github.com/microsoft/coe-starter-kit/milestone/13?closed=1
 
 ## First Time Setup Instructions
 To get started with the ALM Accelerator For Advanced Makers you can
@@ -12,7 +10,7 @@ To get started with the ALM Accelerator For Advanced Makers you can
 
 ## Upgrade Instructions
 If you are upgrading to the latest release you will need to perform the following steps.
-- Import the latest AA4AM Solution https://github.com/microsoft/coe-starter-kit/releases/download/ALMAcceleratorForAdvancedMakers-July2021/ALMAcceleratorForAdvancedMakers.zip
+- Import the latest AA4AM Solution https://github.com/microsoft/coe-starter-kit/releases/download/ALMAcceleratorForAdvancedMakers-September2021/ALMAcceleratorForAdvancedMakers.zip
 
 - Update your pipeline templates repo with the latest from https://github.com/microsoft/coe-alm-accelerator-templates
 
