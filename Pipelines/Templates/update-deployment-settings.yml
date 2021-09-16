@@ -5,6 +5,8 @@ parameters:
   type: string
 - name: solutionName
   type: string
+- name: configurationData
+  type: string
 - name: generateEnvironmentVariables
   type: string
   default: 'true'
@@ -31,7 +33,6 @@ steps:
     $customDeploymentSettingsFilePath = '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\config\customDeploymentSettings.json'
     if(!(Test-Path '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\config\')) {
         New-Item '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\' -Name "config" -ItemType "directory"
-        
     }
     Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
     $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
@@ -132,12 +133,11 @@ steps:
             $canvasAppResult =  Get-CrmRecord -conn $conn -EntityLogicalName canvasapp -Id $solutionComponent.objectid -Fields solutionid, name, displayname
             $canvasConfig = $null
             $canvasName = $canvasAppResult.name
-            $placeholdername = $canvasAppResult.displayname.replace(' ','')
             $currentCanvasApps | Foreach-Object { if($_.canvasNameInSolution -eq $canvasName) { $canvasConfig = $_ } }
-            $aadGroupConfigVariable = "#{canvasshare.aadGroupId." + $canvasAppResult.displayname + "}#"
-            $groupRoleConfigVariable = "#{canvasshare.roleName." + $placeholdername + "}#"
+            $aadGroupConfigVariable = "#{canvasshare.aadGroupId." + $canvasName + "}#"
+            $groupRoleConfigVariable = "#{canvasshare.roleName." + $canvasName + "}#"
             if($canvasConfig -eq $null) {
-                $canvasConfig = [PSCustomObject]@{"aadGroupId"="$aadGroupConfigVariable"; "canvasNameInSolution"=$canvasName; "canvasDisplayName"= $canvasAppResult.displayname; "roleName"="#{canvasshare.roleName." + $placeholdername + "}#"}
+                $canvasConfig = [PSCustomObject]@{"aadGroupId"="$aadGroupConfigVariable"; "canvasNameInSolution"=$canvasName; "canvasDisplayName"= $canvasAppResult.displayname; "roleName"="$groupRoleConfigVariable"}
             }
             $cofigurationVariables.Add($aadGroupConfigVariable)
             $cofigurationVariables.Add($groupRoleConfigVariable)
@@ -163,7 +163,7 @@ steps:
             $flowConfig = $null
             $flowActivationConfig = $null
             $workflowName = $solutionComponent.objectid
-            $placeholdername = $flowResult.name.replace(' ','')
+            $placeholdername = $flowResult.name.replace(' ','') + '.' + $solutionComponent.objectid
             $currentFlows | Foreach-Object { if($_.solutionComponentUniqueName -eq $workflowName) { $flowConfig = $_ } }
             $currentFlowActivations | Foreach-Object { if($_.solutionComponentUniqueName -eq $workflowName) { $flowActivationConfig = $_ } }
             $ownerConfigVariable = "#{owner.ownerEmail." + $placeholdername + "}#"
@@ -213,46 +213,79 @@ steps:
     $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupCanvasConfiguration' -Value $canvasApps
     $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupTeamConfiguration' -Value $groupTeams
 
+    #Convert the updated configuration to json and store in customDeploymentSettings.json
     $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
     Set-Content -Path $customDeploymentSettingsFilePath -Value $json
-
+    #If configuration data was passed in use this to set the pipeline variable values
+    $newConfigurationData = [System.Collections.ArrayList]@()
+    if(-Not [string]::IsNullOrWhiteSpace('${{parameters.configurationData}}')) {
+        #The configuration data will point to the records in Dataverse that store the JSON to set pipeline variables
+        $configCriterias = ConvertFrom-Json '${{parameters.configurationData}}'
+        $settingsConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)$($configCriterias.EnvironmentUrl)"
+        #Add the cat_usersetting records to an array
+        foreach($configCriteria in $configCriterias.UserSettingId) {
+            $userSetting = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_usersetting -Id $configCriteria.cat_usersettingid -Fields cat_data
+            $newConfigurationData.Add($userSetting)
+        }
+    }
     #Update / Create Deployment Pipelines
-    $buildDefinitionResourceUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/build/definitions?name=deploy-*-${{parameters.solutionName}}&api-version=6.0"
-    $buildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
+    $buildDefinitionResourceUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/build/definitions?name=deploy-*-${{parameters.solutionName}}&includeAllProperties=true&api-version=6.0"
+    $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
         Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
     }
-    $buildDefinitionResponseResults = $buildDefinitionResponse.value
-    foreach($buildDefinitionResponseResult in $buildDefinitionResponseResults)
+    $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+    #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
+    foreach($buildDefinitionResult in $buildDefinitionResponseResults)
     {
-        $definitionId = $buildDefinitionResponseResult.id
-        $buildDefinitionResourceUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/build/definitions/" + $definitionId + "?api-version=6.0"
-        $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
-            Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
-        }
-        $newBuildDefinitionVariables = $fullBuildDefinitionResponse.variables
-
+        #Getting the build definition id and variables to be updated
+        $definitionId = $buildDefinitionResult.id
+        $newBuildDefinitionVariables = $buildDefinitionResult.variables
+        #Loop through each of the tokens stored above and find an associated variable in the configuration data passed in from AA4AM
         foreach($configurationVariable in $cofigurationVariables) {
             $found = $false
             $configurationVariable = $configurationVariable.replace('#{', '')
             $configurationVariable = $configurationVariable.replace('}#', '')
 
+            #See if the variable already exists
             foreach($buildVariable in $newBuildDefinitionVariables.PSObject.Properties) {
                 if($buildVariable.Name -eq $configurationVariable) {
                     $found = $true
+                    break
                 }
             }
+            #If the variable was not found create it 
             if(!$found) {
                 $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariable -Value @{value = ''}
             }
+            # Set the value to the value passed in on the configuration data
+            if($newConfigurationData -ne $null) {
+                foreach($newEnvironmentConfig in $newConfigurationData) {
+                    foreach($variableConfigurationJson in $newEnvironmentConfig.cat_data) {
+                        #Convert the JSON in the cat_data field to an object
+                        $variableConfiguration = ConvertFrom-Json $variableConfigurationJson
+                        foreach($variable in $variableConfiguration) {
+                            if($variable.Build -eq $buildDefinitionResult.name -and $variable.Name -eq $configurationVariable) {
+                                if($variable.Value -eq $null) {
+                                    $newBuildDefinitionVariables.$configurationVariable.value = ''
+                                }
+                                else {
+                                    $newBuildDefinitionVariables.$configurationVariable.value = $variable.Value
+                                }
+                                break
+                            }
+                        }
+                    }
+                }
+            }
         }
-
-        $fullBuildDefinitionResponse.variables = $newBuildDefinitionVariables
+        #Set the build definition variables to the newly created list
+        $buildDefinitionResult.variables = $newBuildDefinitionVariables
         $buildDefinitionResourceUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/build/definitions/" + $definitionId + "?api-version=6.0"
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
         $headers.Add("Authorization", "Bearer $env:SYSTEM_ACCESSTOKEN")
         $headers.Add("Content-Type", "application/json")
-        $body = ConvertTo-Json -Depth 10 $fullBuildDefinitionResponse
-        Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body $body
+        $body = ConvertTo-Json -Depth 10 $buildDefinitionResult
+        Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null
     }
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
