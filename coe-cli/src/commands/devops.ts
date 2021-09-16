@@ -462,20 +462,6 @@ class DevOpsCommand {
             let exportBuild = builds.filter(b => b.name == "export-solution-to-git")
             let buildId = exportBuild.length == 1 ? exportBuild[0].id.toString() : ""
 
-            let validationConnection = 'TODO'
-            if (typeof args.environments["validation"] !== "undefined") {
-                // Use the named environment
-                validationConnection = args.environments["validation"]
-            }
-            if (typeof args.settings["validation"] != "undefined" && validationConnection == "TODO") {
-                // Use the validation settings
-                validationConnection = args.settings["validation"]
-            }
-            if (args.environment?.length > 0 && validationConnection == "TODO") {
-                // Default to environment 
-                validationConnection = args.environment
-            }
-
             let paramemeters = <VariableGroupParameters>{}
             paramemeters.variableGroupProjectReferences = [
                 <VariableGroupProjectReference>{
@@ -486,8 +472,6 @@ class DevOpsCommand {
                 }]
             paramemeters.name = variableGroupName
             paramemeters.description = 'ALM Accelerator for Advanced Makers'
-
-            let validationUrl = Environment.getEnvironmentUrl(validationConnection, args.settings)
 
             paramemeters.variables = {
                 "CdsBaseConnectionString": <VariableValue>{
@@ -502,12 +486,6 @@ class DevOpsCommand {
                 },
                 "TenantID": <VariableValue>{
                     value: secretInfo.tenantId
-                },
-                "PipelineIdToLoadJsonValuesFrom": <VariableValue>{
-                    value: buildId
-                },
-                "ValidationServiceConnection": <VariableValue>{
-                    value: validationUrl
                 }
             }
 
