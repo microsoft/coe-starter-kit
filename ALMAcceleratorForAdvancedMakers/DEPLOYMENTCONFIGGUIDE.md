@@ -1,3 +1,5 @@
+
+
 # Configuration and Data Deployment in Pipelines (Preview)
 
 > [!NOTE] ALM Accelerator for Advanced Makers is currently in public preview. Please see Issues currently tagged as [vnext](https://github.com/microsoft/coe-starter-kit/issues?q=is%3Aopen+is%3Aissue+label%3Aalm-accelerator+label%3Avnext) for the Roadmap to be completed prior to general availability. While in Public Preview it can be expected that there will be breaking changes and frequent updates to address feedback from preview members. Additionally, the Public Preview is reliant on the experimental [Power Apps Source File Pack and Unpack Utility](https://github.com/microsoft/PowerApps-Language-Tooling) that is being developed separately from AA4AM.
@@ -24,6 +26,12 @@ The following documentation is intended to be a step-by-step process for setting
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
 
 ### Creating a Deployment Settings Json File
+
+When storing the customDeploymentSettings.json in the root of the config directory the same configuration will apply to all envionments. Assuming that you are using File Transformation or Token Replacement to store all of the environment specific information, you can specify the environment specific values in your Pipeline Variables. However, **you can also create environment specific customDeploymentSettings.json files** by creating sub-directories in the config directory with the name of the Environment to allow for more flexibility. The directory name in this case **must match the EnvironmentName pipeline variable** you created when setting up your pipeline (e.g. Validate, Test, Production). If no environment specific deployment settings json / directory is found the pipelines will revert to the configuration in the root of the config directory.
+
+Additionally, you can **create user specific configuration files** (e.g. the JohannaDev directory pictured above) for individual developers to use when importing unmanaged solutions from source control. When the user imports an unmanaged solution from source control they will be presented with the option to choose a specific configuration.
+
+>![Select a configuration from the list](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622130424580.png)
 
 The deployment settings json file is used to configure connection references and environment variables 
 
@@ -73,6 +81,127 @@ The deployment settings json file is used to configure connection references and
     ]
 }
 ```
+
+To create the deployment settings json file follow the steps below
+
+1. Copy the above json to a new file called **deploymentSettings.json**
+
+1. Create a **new Directory called config** and save the new file **under the config folder** in git.
+
+   ![image-20210917153532062](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210917153532062.png)
+
+#### Create Connection Reference Json
+
+The connection reference property in the customDeploymentConfiguration.json is **ConnectionReferences**. This is used for setting connection references in your solution to specific connections configured in a target environment after the solution is imported into an environment. Additionally, the **ConnectionReferences** are used to **enable flows after the solution is imported based on owner of the connection** specified in the variable.
+
+1. **You will need to create the connections manually in your target environments and copy the IDs** for the connection to use in the json value below
+
+1. The format of the json for these variables take the form of an array of name/value pairs.
+
+   ```json
+   "ConnectionReferences": 
+   [
+           {
+               "LogicalName": "connection reference1 schema name",
+               "ConnectionId": "my environment connection ID1",
+               "ConnectorId": "/providers/Microsoft.PowerApps/apis/connectorid1"
+           },
+           {
+               "LogicalName": "connection reference2 schema name",
+               "ConnectionId": "my environment connection ID2",
+               "ConnectorId": "/providers/Microsoft.PowerApps/apis/connectorid2"
+           }
+   ]
+   ```
+
+   - The **schema name** for the connection reference can be obtained from the **connection reference component** in your solution.
+     ![Schema Name in the disabled text field below Name *](.attachments/DEPLOYMENTCONFIGGUIDE/connrefschema.png)
+
+   - The **connection id** can be obtained via the URL of the connection after you create it. For example the id of the connection below is **9f66d1d455f3474ebf24e4fa2c04cea2** where the URL is https://.../connections/shared_commondataservice/9f66d1d455f3474ebf24e4fa2c04cea2/details#
+     ![The connection id embedded in the connection url](.attachments/DEPLOYMENTCONFIGGUIDE/connid.png)
+
+1. Once you've gathered the connection reference schema names and connection ids go to the **customDeploymentSettings.json** and paste the json in  the **ConnectionReferences property**.
+
+   ```json
+   "ConnectionReferences": 
+   [
+           {
+               "LogicalName": "new_sharedsharepointonline_b49bb",
+               "ConnectionId": "#{connectionreference.new_sharedsharepointonline_b49bb}#",
+               "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+           },
+           {
+               "LogicalName": "cat_CDS_Current",
+               "ConnectionId": "#{connectionreference.cat_CDS_Current}#",
+               "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+           }
+   ]
+   ```
+
+1. Using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
+
+1. On the Pipeline Variables screen create the **connection.cat_CDS_Current pipeline variable**.
+
+1. Set the value to the **connection id** you gathered above and **Select Keep this value secret** if you want to ensure the value is not saved as plain text.
+
+   ![Set connection id as a pipeline variable](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210708141947185.png)
+
+1. Where applicable repeat the steps above for each solution / pipeline you create.
+
+#### Create Environment Variable Json
+
+The environment variable property in the customDeploymentConfiguration.json is **EnvironmentVariables**. This is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
+
+> [!NOTE] When exporting and source controlling solutions. Environment variable values are exported with the solution. In some cases this could be a security risk if the environment variables contain sensitive information although it's recommended that you not store sensitive information in environment variables. One way to ensure that your environment variable values are not source controlled is to create a solution specifically for environment variable values in your development environment(s) and set the current value of the environment variables in that solution. This will prevent the current values from being exported during the solution export and being stored in source control.
+
+1. The format of the json for these variables take the form of an array of name/value pairs.
+
+   ```json
+       "EnvironmentVariables": [
+           {
+               "SchemaName": "environment variable1 schema name",
+               "Value": "environment variable1 value"
+           },
+           {
+               "SchemaName": "environment variable2 schema name",
+               "Value": "environment variable2 value"
+           }
+       ]
+   ```
+
+   - The **schema name** for the environment variable can be obtained from the **environment variable component** in your solution.
+     ![Schema name of environment variable in disabled text box under Name label](.attachments/DEPLOYMENTCONFIGGUIDE/envvariableschema.png)
+
+1. Once you've gathered the environment variable schema names and values go to the **customDeploymentSettings.json** and paste the json in the **EnvironmentVariables property**.
+
+   ```json
+   {
+       "EnvironmentVariables": [
+           {
+               "SchemaName": "cat_TextEnvironmentVariable",
+               "Value": "#{variable.cat_TextEnvironmentVariable}#"
+           },
+           {
+               "SchemaName": "cat_DecimalEnvironmentVariable",
+               "Value": "#{variable.cat_DecimalEnvironmentVariable}#"
+           },
+           {
+               "SchemaName": "cat_JsonEnvironmentVariable",
+               "Value": "{\"name\":\"#{variable.cat_JsonEnvironmentVariable.name}#\"}"
+           }
+       ]    
+   }
+   ```
+
+1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
+
+1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. variable.cat_TextEnvironmentVariable).
+
+1. Set the value to the **environment variable value** for that specific environment and **Select Keep this value secret** if you want to ensure the value is not saved as plain text.
+
+   ![Set Text Environment Variable as a pipeline variable](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210708150430680.png)
+
+1. Where applicable repeat the steps above for each solution / pipeline you create.
 
 ### Creating a Custom Deployment Settings Json File
 
@@ -143,108 +272,7 @@ To create the custom deployment settings json file follow the steps below
 
 2. Create a **new Directory called config** and save the new file **under the config folder** in git.
 
-   ![Directory Structure in Azure DevOps SolutionName/config/customDeploymentSettings.json](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622125523627.png)
-
-   - When storing the customDeploymentSettings.json in the root of the config directory the same configuration will apply to all envionments. Assuming that you are using File Transformation or Token Replacement to store all of the environment specific information, you can specify the environment specific values in your Pipeline Variables. However, **you can also create environment specific customDeploymentSettings.json files** by creating sub-directories in the config directory with the name of the Environment to allow for more flexibility. The directory name in this case **must match the EnvironmentName pipeline variable** you created when setting up your pipeline (e.g. Validate, Test, Production). If no environment specific deployment settings json / directory is found the pipelines will revert to the configuration in the root of the config directory.
-   - Additionally, you can **create user specific configuration files** (e.g. the JohannaDev directory pictured above) for individual developers to use when importing unmanaged solutions from source control. When the user imports an unmanaged solution from source control they will be presented with the option to choose a specific configuration.
-   >
-   > ![Select a configuration from the list](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210622130424580.png)
-
-#### Create Connection Reference Json
-
-The connection reference property in the customDeploymentConfiguration.json is **ConnectionReferences**. This is used for setting connection references in your solution to specific connections configured in a target environment after the solution is imported into an environment. Additionally, the **ConnectionReferences** are used to **enable flows after the solution is imported based on owner of the connection** specified in the variable.
-
-1. **You will need to create the connections manually in your target environments and copy the IDs** for the connection to use in the json value below
-
-1. The format of the json for these variables take the form of an array of name/value pairs.
-
-   ```json
-   [
-      [ 
-        "connection reference1 schema name",
-        "my environment connection ID1"
-      ],
-      [
-        "connection reference2 schema name",
-        "my environment connection ID2"
-      ]
-   ]
-   ```
-
-   - The **schema name** for the connection reference can be obtained from the **connection reference component** in your solution.
-     ![Schema Name in the disabled text field below Name *](.attachments/DEPLOYMENTCONFIGGUIDE/connrefschema.png)
-
-   - The **connection id** can be obtained via the URL of the connection after you create it. For example the id of the connection below is **9f66d1d455f3474ebf24e4fa2c04cea2** where the URL is https://.../connections/shared_commondataservice/9f66d1d455f3474ebf24e4fa2c04cea2/details#
-     ![The connection id embedded in the connection url](.attachments/DEPLOYMENTCONFIGGUIDE/connid.png)
-
-1. Once you've gathered the connection reference schema names and connection ids go to the **customDeploymentSettings.json** and paste the json in  the **ConnectionReferences property**.
-
-   ```json
-   {
-     "ConnectionReferences": [
-       [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-     ]
-   }
-   ```
-
-1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
-
-1. On the Pipeline Variables screen create the **connection.cat_CDS_Current pipeline variable**.
-
-1. Set the value to the **connection id** you gathered above and **Select Keep this value secret** if you want to ensure the value is not saved as plain text.
-
-   ![Set connection id as a pipeline variable](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210708141947185.png)
-
-1. Where applicable repeat the steps above for each solution / pipeline you create.
-
-#### Create Environment Variable Json
-
-The environment variable property in the customDeploymentConfiguration.json is **EnvironmentVariables**. This is used for setting Dataverse **Environment variables** in your solution after the solution is imported into an environment.
-
-> [!NOTE] When exporting and source controlling solutions. Environment variable values are exported with the solution. In some cases this could be a security risk if the environment variables contain sensitive information although it's recommended that you not store sensitive information in environment variables. One way to ensure that your environment variable values are not source controlled is to create a solution specifically for environment variable values in your development environment(s) and set the current value of the environment variables in that solution. This will prevent the current values from being exported during the solution export and being stored in source control.
-
-1. The format of the json for these variables take the form of an array of name/value pairs.
-
-   ```json
-   [
-      [
-         "environment variable1 schema name",
-         "environment variable1 value"
-      ],
-      [
-         "environment variable2 schema name",
-         "environment variable2 value"
-      ]
-   ]
-   ```
-
-   - The **schema name** for the environment variable can be obtained from the **environment variable component** in your solution.
-     ![Schema name of environment variable in disabled text box under Name label](.attachments/DEPLOYMENTCONFIGGUIDE/envvariableschema.png)
-
-1. Once you've gathered the environment variable schema names and values go to the **customDeploymentSettings.json** and paste the json in the **EnvironmentVariables property**.
-
-   ```json
-   {
-     "ConnectionReferences": [
-       [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-     ],
-     "EnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_JsonEnvironmentVariable", "{\"name\":\"#{variable.cat_JsonEnvironmentVariable.name}#\"}" ]
-     ]
-   }
-   ```
-
-1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
-
-1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. variable.cat_TextEnvironmentVariable).
-
-1. Set the value to the **environment variable value** for that specific environment and **Select Keep this value secret** if you want to ensure the value is not saved as plain text.
-
-   ![Set Text Environment Variable as a pipeline variable](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210708150430680.png)
-
-1. Where applicable repeat the steps above for each solution / pipeline you create.
+   ![image-20210917153336262](.attachments/DEPLOYMENTCONFIGGUIDE/image-20210917153336262.png)
 
 #### Create Default Environment Variable Json
 
@@ -274,19 +302,6 @@ The environment variable property in the customDeploymentConfiguration.json is *
 
    ```json
    {
-     "ConnectionReferences": [
-       [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-     ],
-     "DefaultEnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],    
-     "EnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],
      "DefaultEnvironmentVariables": [
        [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
        [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
@@ -294,7 +309,7 @@ The environment variable property in the customDeploymentConfiguration.json is *
      ]
    }
    ```
-
+   
 1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
 
 1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. **defaultvariable.cat_TextEnvironmentVariable**).
@@ -339,24 +354,6 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
 
    ```json
    {
-     "ConnectionReferences": [
-       [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-     ],
-     "DefaultEnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],    
-     "EnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],
-     "DefaultEnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],    
      "AadGroupCanvasConfiguration": [
        {
          "aadGroupId": "#{canvasshare.aadGroupId}#",
@@ -366,7 +363,7 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
      ]
    }
    ```
-
+   
 1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
 
 1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. canvasshare.aadGroupId).
@@ -414,31 +411,6 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
 
     ```json
     {
-      "ConnectionReferences": [
-        [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-      ],
-      "DefaultEnvironmentVariables": [
-        [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-        [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-        [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-      ],    
-      "EnvironmentVariables": [
-        [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
-        [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-        [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
-      ],
-      "DefaultEnvironmentVariables": [
-        [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-        [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-        [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-      ],    
-      "AadGroupCanvasConfiguration": [
-        {
-          "aadGroupId": "#{canvasshare.aadGroupId}#",
-          "canvasNameInSolution": "cat_devopskitsamplecanvasapp_c7ec5",
-          "roleName": "#{canvasshare.roleName}#"
-        }
-      ],
       "AadGroupTeamConfiguration": [
         {
           "aadGroupTeamName": "alm-accelerator-sample-solution",
@@ -450,7 +422,7 @@ The AAD group canvas configuration property in the customDeploymentConfiguration
       ]
     }
     ```
-
+    
 1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
 
 1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. team.aadSecurityGroupId).
@@ -492,40 +464,6 @@ The solution component ownership property in the customDeploymentConfiguration.j
 
    ```json
    {
-     "ConnectionReferences": [
-       [ "cat_CDS_Current", "#{connection.cat_CDS_Current}#" ]
-     ],
-     "DefaultEnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],    
-     "EnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{variable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{variable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{variable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],
-     "DefaultEnvironmentVariables": [
-       [ "cat_TextEnvironmentVariable", "#{defaultvariable.cat_TextEnvironmentVariable}#" ],
-       [ "cat_DecimalEnvironmentVariable", "#{defaultvariable.cat_DecimalEnvironmentVariable}#" ],
-       [ "cat_jsonEnvironmentVariable", "{\"name\":\"#{defaultvariable.cat_jsonEnvironmentVariable.name}#\"}" ]
-     ],    
-     "AadGroupCanvasConfiguration": [
-       {
-         "aadGroupId": "#{canvasshare.aadGroupId}#",
-         "canvasNameInSolution": "cat_devopskitsamplecanvasapp_c7ec5",
-         "roleName": "#{canvasshare.roleName}#"
-       }
-     ],
-     "AadGroupTeamConfiguration": [
-       {
-         "aadGroupTeamName": "alm-accelerator-sample-solution",
-         "aadSecurityGroupId": "#{team.aadSecurityGroupId}#",
-         "dataverseSecurityRoleNames": [
-           "ALM Accelerator Sample Role"
-         ]
-       }
-     ],
      "SolutionComponentOwnershipConfiguration": [
        {
          "solutionComponentType": 29,
@@ -540,7 +478,7 @@ The solution component ownership property in the customDeploymentConfiguration.j
      ]
    }
    ```
-
+   
 1. If you are using **'Replace Tokens' extension** and adding tokens in your configuration like in the above example navigate to the pipeline for your solution **Select Edit -> Variables**
 
 1. On the Pipeline Variables screen create a **pipeline variable** for each of the tokens in your configuration (e.g. owner.ownerEmail).
