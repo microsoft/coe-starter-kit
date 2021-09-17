@@ -22,6 +22,53 @@ The ALM Accelerator uses json formatted files for updating **connection referenc
 
 The deployment settings json file is used to configure connection references and environment variables 
 
+```
+{
+    "EnvironmentVariables": [
+        {
+            "SchemaName": "cat_shared_sharepointonline_97456712308a4e65aae18bafcd84c81f",
+            "Value": "#{environmentvariable.cat_shared_sharepointonline_97456712308a4e65aae18bafcd84c81f}#"
+        },
+        {
+            "SchemaName": "cat_shared_sharepointonline_21f63b2d26f043fb85a5c32fc0c65924",
+            "Value": "#{environmentvariable.cat_shared_sharepointonline_21f63b2d26f043fb85a5c32fc0c65924}#"
+        },
+        {
+            "SchemaName": "cat_TextEnvironmentVariable",
+            "Value": "#{environmentvariable.cat_TextEnvironmentVariable}#"
+        },
+        {
+            "SchemaName": "cat_ConnectorBaseUrl",
+            "Value": "#{environmentvariable.cat_ConnectorBaseUrl}#"
+        },
+        {
+            "SchemaName": "cat_DecimalEnvironmentVariable",
+            "Value": "#{environmentvariable.cat_DecimalEnvironmentVariable}#"
+        },
+        {
+            "SchemaName": "cat_JsonEnvironmentVariable",
+            "Value": "#{environmentvariable.cat_JsonEnvironmentVariable}#"
+        },
+        {
+            "SchemaName": "cat_ConnectorHostUrl",
+            "Value": "#{environmentvariable.cat_ConnectorHostUrl}#"
+        }
+    ],
+    "ConnectionReferences": [
+        {
+            "LogicalName": "new_sharedsharepointonline_b49bb",
+            "ConnectionId": "#{connectionreference.new_sharedsharepointonline_b49bb}#",
+            "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+        },
+        {
+            "LogicalName": "cat_CDS_Current",
+            "ConnectionId": "#{connectionreference.cat_CDS_Current}#",
+            "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+        }
+    ]
+}
+```
+
 ### Creating a Custom Deployment Settings Json File
 
 The custom deployment settings json file contains the configuration settings required to automate the deployment of your solution. This file contains the configuration for Activating Flows on behalf of a user, specify ownership of Flows, Sharing Canvas Apps with AAD Groups and Creating Dataverse Group Teams after deployment. The following is a sample of a custom deployment settings json file which will provide your pipelines with the necessary information required to configure a solution after it's been deployed to an environment.
@@ -84,28 +131,6 @@ The custom deployment settings json file contains the configuration settings req
   ]
 }
 ```
-
-There are a few things to note about the sample above.
-
-1. The **values delimited by #{}# are tokens** that are used by the third party **'Replace Tokens' extension** that you may or may not have chosen to install when following the [Setup Guide](SETUPGUIDE.md#install-azure-devops-extensions). These tokens can be replaced by secure pipeline variables so **secrets are not stored in source control**.
-
-1. There is an alternative to using the Replace Tokens 3rd Party extension which uses **File Transformation task** without the need for any Azure DevOps extensions. You can **read more about using the File Transformation task** here https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/transforms-variable-substitution?view=azure-devops&tabs=Classic#jsonvarsubs. 
-
-1. **If you choose not to install the 'Replace Tokens' extension** you will need to modify the deploySolution.yml pipeline template to exclude the call to the extension as the example below shows.
-
-   ```yaml
-   # Third party task to replace tokens in files. The FileTransform above replaces json tokens based on their path as opposed to replacing text tokens in a file which can be more error prone in some cases.
-   # If you aren't using this task it can be safely removed. Sample token: #{VariableNameToReplace}#
-   #- task: qetza.replacetokens.replacetokens-task.replacetokens@3
-   #  displayName: 'Replace Tokens: deploymentSettings.json'
-   #  inputs:
-   #    rootDirectory: '$(ArtifactDropPath)'
-   #    targetFiles: '*deploymentSettings*.json'
-   #    actionOnMissing: 'silently continue'
-   #  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], 3'')))
-   ```
-
-   
 
 To create the custom deployment settings json file follow the steps below
 
