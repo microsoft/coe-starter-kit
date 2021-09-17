@@ -20,4 +20,6 @@ If you are upgrading to the latest release you will need to perform the followin
 
   ![image-20210917083516697](.attachments/RELEASENOTES-202109/image-20210917083516697.png)
 
+- To take advantage of the new deployment configuration functionality it is recommended that you **delete all of your existing deployment pipeline variables except ServiceConnection and EnvironmentName** and reconfigure your solutions for each target environment using the new deployment configuration functionality in the app.
+
 - We've removed the dependency on the **Power DevOps Tools extension** in this release. Any extension that has been removed from this list can be safely removed [Install Azure DevOps Extensions](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#install-azure-devops-extensions).

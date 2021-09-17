@@ -262,11 +262,28 @@ The **VerifyDefaultEnvironmentVariableValues** can be used to ensure that specif
    | Contribute | Allow |
    | Contribute to pull requests | Allow |
    | Create branch | Allow |
-   | Edit build pipeline | Allow |
-
+   
    ![image.png](.attachments/GETTINGSTARTED/image-8505cb38-0569-442b-aac0-cc9ceea3b5a5.png)
-
+   
 1. Find and select the user name **[Your Project Name] Build Service ([Your Organization Name])** under Users and set the **same values as above**.
+
+1. Select **Pipelines** and Select **Manage Security**
+
+   ![image-20210917105656888](.attachments/SETUPGUIDE/image-20210917105656888.png)
+
+1. Set the following permissions for the Build Service user.
+
+   | Permission                            | Value |
+   | ------------------------------------- | ----- |
+   | Edit build pipeline                   | Allow |
+   | Edit build quality                    | Allow |
+   | Manage build queue                    | Allow |
+   | Override check-in validation by build | Allow |
+   | Update build information              | Allow |
+   | View build pipeline                   | Allow |
+   | View builds                           | Allow |
+
+   ![image-20210917105904945](.attachments/SETUPGUIDE/image-20210917105904945.png)
 
 ## Development Project Setup
 

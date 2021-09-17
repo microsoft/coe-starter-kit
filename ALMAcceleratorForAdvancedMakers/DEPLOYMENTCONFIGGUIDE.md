@@ -6,7 +6,12 @@ The ALM Accelerator uses json formatted files for updating **connection referenc
 
 > [!NOTE] For an example of configuration and data deployment configuration see the ALMAcceleratorSampleSolution here  https://github.com/microsoft/coe-starter-kit/blob/ALMAcceleratorSampleSolution/ALMAcceleratorSampleSolution/config/deploymentSettings.json and https://github.com/microsoft/coe-starter-kit/blob/ALMAcceleratorSampleSolution/ALMAcceleratorSampleSolution/config/customDeploymentSettings.json
 
+## Before you start...
+
+The following documentation is intended to be a step-by-step process for setting up deployment configuration files manually. However, it is recommended that you use the in app feature to generate this information on export of your solution. This document will provide details and context for the actions that are performed by the AA4AM app and pipelines and act as a reference for those who want to know the specifics of each step in the process.
+
 ### Table of Contents
+
 - [Configuration and Data Deployment in Pipelines (Preview)](#configuration-and-data-deployment-in-pipelines-preview)
     + [Table of Contents](#table-of-contents)
     + [Creating a Custom Deployment Settings Json File](#creating-a-custom-deployment-settings-json-file)
