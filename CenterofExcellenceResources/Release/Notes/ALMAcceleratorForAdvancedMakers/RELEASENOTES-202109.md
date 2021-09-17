@@ -14,10 +14,10 @@ If you are upgrading to the latest release you will need to perform the followin
 
 - Update your pipeline templates repo with the latest from https://github.com/microsoft/coe-alm-accelerator-templates/archive/refs/tags/ALMAcceleratorForAdvancedMakers-September2021.zip
 
-- In this release we have updated the pipelines to allow for using a deployment configuration file stored in source control as an option rather than using Pipeline variables for the json configuration of Connection References, Component Ownership, App Sharing etc. There is a new doc included on how to setup your deployment configuration file and use variable substitution techniques to secure sensitive data from being source controlled. [DEPLOYMENTCONFIGGUIDE.md](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/DEPLOYMENTCONFIGGUIDE.md).
+- In this release we have updated the pipelines to use deployment configuration files stored in source control rather than using Pipeline variables for the json configuration of Connection References, Environment Variables, Component Ownership, App Sharing etc. We've also split the configuration between a customDeploymentSettings.json and deploymentSettings.json in order to use the built in import task to set environment variables and connection references. Please see [DEPLOYMENTCONFIGGUIDE.md](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/DEPLOYMENTCONFIGGUIDE.md) for more details.
 
   > [!NOTE] If you have previously configured your pipelines using pipeline variables your pipeline variables will no longer work. However, with the addition of functionality to auto generate the deployment configuration files and configure deployment settings via the app in the latest version this should be a simple transition. 
 
-  
+  ![image-20210917083516697](.attachments/RELEASENOTES-202109/image-20210917083516697.png)
 
-- We've removed the dependency on the Power DevOps Tools extension in this release. Any extension that has been removed from this list can be safely removed [Install Azure DevOps Extensions](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#install-azure-devops-extensions).
+- We've removed the dependency on the **Power DevOps Tools extension** in this release. Any extension that has been removed from this list can be safely removed [Install Azure DevOps Extensions](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#install-azure-devops-extensions).
