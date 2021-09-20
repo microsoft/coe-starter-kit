@@ -2,6 +2,7 @@ import * as readline from 'readline';
 
 export class Prompt {         
     public async yesno(text: string, defaultValue: boolean): Promise<boolean> {
+
         let rl =  readline.createInterface({
             terminal: false, 
             input: process.stdin,

@@ -4,11 +4,9 @@ import * as marked from 'marked'
 import * as fs from 'fs';
 import * as path from 'path';
 import { FileHandle } from 'fs/promises';
-import { join } from 'path/posix';
 const {EOL} = require('os');
-const normalizeUrl = require('normalize-url');
 import slash from 'slash';
-import { commands } from 'commander';
+import normalizeUrl from 'normalize-url';
 
 /**
  * Ebook commands
@@ -16,7 +14,7 @@ import { commands } from 'commander';
 class EbookCommand {
     logger: winston.Logger
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
-    writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array, options?: fs.BaseEncodingOptions & { mode?: fs.Mode, flag?: fs.OpenMode } | BufferEncoding | null) => Promise<void>
+    writeFile: (path: fs.PathLike | FileHandle, data: string | Uint8Array) => Promise<void>
     existsSync: (path: fs.PathLike) => boolean
     outputText: (text: string) => void
     

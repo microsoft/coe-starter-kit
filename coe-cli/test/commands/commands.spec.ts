@@ -11,7 +11,6 @@ import readline = require('readline');
 import { Command, Option } from 'commander';
 import { OpenMode, PathLike } from 'fs';
 import { FileHandle } from 'fs/promises';
-import EventEmitter = require('events');
 
 describe('AA4AM', () => {
 
@@ -162,22 +161,23 @@ describe('AA4AM', () => {
     })
 })
 
+
 describe('Prompt For Values', () => {
     test('Generate Text property', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
-        
+        let readline : any = { 
+            question: (prompt: string, callback: (answer: string) => void) => {
+                callback('foo')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
         commands.outputText = (text) => {}
-
-        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
-            callback('foo')
-        })
 
         const program = new Command();
         program.command('install')
@@ -190,28 +190,32 @@ describe('Prompt For Values', () => {
         expect(result.mode).toBe("foo")
     })
 
+    
     test('Generate sub settings', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = { 
+            question: (prompt: string, callback: (answer: string) => void) => {
+            if (prompt.indexOf('Mode') >= 0) {
+                callback('foo')
+                return
+            }
+
+            if (prompt.indexOf('Item 1') >= 0) {
+                callback('test1')
+                return
+            }
+
+            callback('')
+        }}
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
         commands.outputText = (text) => {}
 
-        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
-            if (prompt.indexOf('Mode') >= 0) {
-                callback('foo')
-            }
-
-            if (prompt.indexOf('Item 1') >= 0) {
-                callback('test1')
-            }
-
-            callback('')
-        })
 
         const program = new Command();
         let install = program.command('install')
@@ -233,20 +237,23 @@ describe('Prompt For Values', () => {
         expect(result.settings['item1']).toBe("test1")
     })
 
+
+
     test('Generate Array property', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question: (prompt: string, callback: (answer: string) => void) => {
+                callback('1,2')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
         commands.outputText = (text:string) => {}
-
-        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
-            callback('1,2')
-        })
 
         const program = new Command();
         program.command('install')
@@ -262,17 +269,18 @@ describe('Prompt For Values', () => {
     test('Generate Option - Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question: (prompt: string, callback: (answer: string) => void) => {
+                callback('')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         let mockLoginCommand = mock<LoginCommand>(); 
         let mockDevOpsCommand = mock<DevOpsCommand>(); 
         commands.createLoginCommand = () => mockLoginCommand;
         commands.createDevOpsCommand = () => mockDevOpsCommand;
         commands.outputText = (text:string) => {}
-
-        readline.question.mockImplementation((prompt: string, callback: (answer: string) => void) => {
-            callback('')
-        })
 
         let componentOption = new Option('-c, --components [component]', 'The component(s) to install').default(["A"]).choices(['A', 'B', 'C', 'D']);
 
@@ -292,13 +300,14 @@ describe('Prompt for Option', () => {
     test('Default Value', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question: ( title:string, callback: (answer: string) => void) => {
+                callback('')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         commands.outputText = (text:string) => {}
-
-        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
-            callback('')
-        })
 
         let option = <Option> {
             description: 'Option1',
@@ -320,13 +329,14 @@ describe('Prompt for Option', () => {
     test('Single Arg', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question: ( title:string, callback: (answer: string) => void) => {
+                callback('a')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         commands.outputText = (text:string) => {}
-
-        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
-            callback('a')
-        })
 
         let option = <Option> {
             description: 'Option1',
@@ -346,8 +356,18 @@ describe('Prompt for Option', () => {
     test('Single Arg - Help', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question: ( title:string, callback: (answer: string) => void) => {
+                call++
+                if (call == 1) {
+                    callback('?')
+                }
+                else {
+                    callback('a')
+                }
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
         let output: string[] = []
         commands.outputText = (text)=> output.push(text)
         commands.readline = readline
@@ -367,16 +387,6 @@ Other`)
          }
 
         let call : number = 0
-
-        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
-            call++
-            if (call == 1) {
-                callback('?')
-            }
-            else {
-                callback('a')
-            }
-        })
 
         let option = <Option> {
             description: 'Option1',
@@ -399,14 +409,14 @@ Other`)
     test('Array', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
-        commands.outputText = (text:string) => {}
+        let readline : any = {
+            question: ( title:string, callback: (answer: string) => void) => {
+                callback('a,b')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
         commands.readline = readline
-
-        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
-            callback('a,b')
-        })
+        commands.outputText = (text:string) => {}
 
         let option = <Option> {
             description: 'Option1',
@@ -427,13 +437,14 @@ Other`)
     test('Args - Select Multiple', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question:( title:string, callback: (answer: string) => void) => {
+                callback('0,1')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         commands.outputText = (text:string) => {}
-
-        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
-            callback('0,1')
-        })
 
         let option = <Option> {
             description: 'Option1',
@@ -454,13 +465,14 @@ Other`)
     test('Args - Select Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        let readline = mock<readline.ReadLine>()
-        var commands = new CoeCliCommands(logger, readline);
+        let readline : any = {
+            question: ( title:string, callback: (answer: string) => void) => {
+                callback('')
+            }
+        }
+        var commands = new CoeCliCommands(logger, null);
+        commands.readline = readline
         commands.outputText = (text:string) => {}
-
-        readline.question.mockImplementation(( title:string, callback: (answer: string) => void) => {
-            callback('')
-        })
 
         let option = <Option> {
             description: 'Option1',
