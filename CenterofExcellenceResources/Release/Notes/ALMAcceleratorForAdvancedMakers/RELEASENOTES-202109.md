@@ -20,6 +20,14 @@ If you are upgrading to the latest release you will need to perform the followin
 
   ![image-20210917083516697](.attachments/RELEASENOTES-202109/image-20210917083516697.png)
 
-- To take advantage of the new deployment configuration functionality it is recommended that you **delete all of your existing deployment pipeline variables except ServiceConnection and EnvironmentName** and reconfigure your solutions for each target environment using the new deployment configuration functionality in the app.
+- To take advantage of the new deployment configuration functionality 
+
+  - It is recommended that you **delete all of your existing deployment pipeline variables except ServiceConnection and EnvironmentName** and reconfigure your solutions for each target environment using the new deployment configuration functionality in the app.
+
+  - Update your **export-solution-to-git pipeline** to include the following variable
+
+    ![image-20210920105643412](.attachments/RELEASENOTES-202109/image-20210920105643412.png)
+
+  - Once you've updated the pipeline variable(s) go to the AA4AM App. Configure your solution deployment and export the solution to source control to ensure your deployment settings are stored appropriately in source control and the associated pipeline variables are created.
 
 - We've removed the dependency on the **Power DevOps Tools extension** in this release. Any extension that has been removed from this list can be safely removed [Install Azure DevOps Extensions](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#install-azure-devops-extensions).
