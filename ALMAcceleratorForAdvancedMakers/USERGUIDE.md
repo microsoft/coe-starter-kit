@@ -32,7 +32,7 @@
 
 1. Once your solution is imported into Dataverse, or you've created a new unmanaged solution and made your customizations, you can begin configuring your solution for deployment.
 
-1. Select the Configure Deployment Settings link under the name of the Solution. One the configuration deployment page you will see the following items
+1. **Select the Configure Deployment Settings link** under the name of the Solution. On the configuration deployment page you will see the following items
 
    - Deployment Environments
 
