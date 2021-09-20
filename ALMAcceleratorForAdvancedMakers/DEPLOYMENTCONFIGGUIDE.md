@@ -13,17 +13,20 @@ The ALM Accelerator uses json formatted files for updating **connection referenc
 The following documentation is intended to be a step-by-step process for setting up deployment configuration files manually. However, it is recommended that you use the in app feature to generate this information on export of your solution. This document will provide details and context for the actions that are performed by the AA4AM app and pipelines and act as a reference for those who want to know the specifics of each step in the process.
 
 ### Table of Contents
-
-- [Configuration and Data Deployment in Pipelines (Preview)](#configuration-and-data-deployment-in-pipelines-preview)
+- [Configuration and Data Deployment in Pipelines (Preview)](#configuration-and-data-deployment-in-pipelines--preview-)
+  * [Before you start...](#before-you-start)
     + [Table of Contents](#table-of-contents)
-    + [Creating a Custom Deployment Settings Json File](#creating-a-custom-deployment-settings-json-file)
+    + [Creating a Deployment Settings Json File](#creating-a-deployment-settings-json-file)
       - [Create Connection Reference Json](#create-connection-reference-json)
       - [Create Environment Variable Json](#create-environment-variable-json)
+    + [Creating a Custom Deployment Settings Json File](#creating-a-custom-deployment-settings-json-file)
       - [Create Default Environment Variable Json](#create-default-environment-variable-json)
       - [Create AAD Group Canvas Configuration Json](#create-aad-group-canvas-configuration-json)
       - [Create AAD Group / Team Configuration Json](#create-aad-group---team-configuration-json)
       - [Create Solution Component Ownership Json](#create-solution-component-ownership-json)
     + [Importing Data from your Pipeline](#importing-data-from-your-pipeline)
+
+
 
 ### Creating a Deployment Settings Json File
 
@@ -114,7 +117,7 @@ The connection reference property in the customDeploymentConfiguration.json is *
    ]
    ```
 
-   - The **schema name** for the connection reference can be obtained from the **connection reference component** in your solution.
+   - The **logical name** for the connection reference can be obtained from the **connection reference component** in your solution.
      ![Schema Name in the disabled text field below Name *](.attachments/DEPLOYMENTCONFIGGUIDE/connrefschema.png)
 
    - The **connection id** can be obtained via the URL of the connection after you create it. For example the id of the connection below is **9f66d1d455f3474ebf24e4fa2c04cea2** where the URL is https://.../connections/shared_commondataservice/9f66d1d455f3474ebf24e4fa2c04cea2/details#

@@ -220,7 +220,9 @@ Following the steps below to create the following pipelines based on the YAML in
 
 There are a few optional pipeline variables that can be set on the export-solution-to-git pipeline to control what information is persisted to source control. If you want to **apply these settings globally** you can set the following variables on your export-solution-to-git pipeline or in the case that you want to **apply these to specific solutions on export** you can create a specific export pipeline for your solution as described above and setting the following variables on your solution specific export pipeline.
 
-The **DoNotExportCurrentEnvironmentVariableValues** variable can be used to ensure that the current value of environment variables are never committed to source control during the export process.
+The **DoNotExportCurrentEnvironmentVariableValues** variable can be used to ensure that the current value of environment variables are never committed to source control during the export process. 
+
+>  [!IMPORTANT] This pipeline variable is recommended in order to use the deployment configuration functionality in the AA4AM App.
 
 ![image-20210723164226271](.attachments/SETUPGUIDE/image-20210723164226271.png)
 
