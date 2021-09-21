@@ -30,7 +30,52 @@
 
    ![Import Solution from Branch in Azure DevOps](.attachments/GETTINGSTARTED/image-20210303085946610.png)
 
-1. Once your solution is imported into Dataverse, or you've created a new unmanaged solution and made your customizations, you can push your changes to Git using the **Push Changes to Git** button for your solution.
+1. Once your solution is imported into Dataverse, or you've created a new unmanaged solution and made your customizations, you can begin configuring your solution for deployment.
+
+1. **Select the Configure Deployment Settings link** under the name of the Solution. On the configuration deployment page you will see the following items
+
+   - Deployment Environments
+
+     ![image-20210920121425929](.attachments/USERGUIDE/image-20210920121425929.png)
+
+     - The environments listed here are based on the pipeline(s) configured for the solution in Azure DevOps. In the example above we have 3 pipelines configured in Azure DevOps for this solution deploy-validation-ALMAcceleratorSampleSolution, deploy-test-ALMAcceleratorSampleSolution and deploy-prod-ALMAcceleratorSampleSolution. **The app will look for pipelines named deploy-*-UniqueSolutionName to populate this list. If you have named your pipelines different than the pattern above you won't be able to use the deployment configuration functionality.**
+
+   - Connection References
+
+      ![image-20210920120530010](.attachments/USERGUIDE/image-20210920120530010.png)
+      
+      - This screen lists all of the connection references in your solution and allows users to create connections in their downstream environments to hook up the connection references in the target environment.
+      - To create a new connection **select the + button**.
+      - After creating a new connection **select the refresh button** in the top right to get the latest list of connections.
+      - To select an existing connection in the target environment **select a connection from the dropdown list**.
+      - To Navigate to the connection in the target environment **select the name or the status of the connection**.
+      
+   - Environment Variables
+
+      ![image-20210920120825279](.attachments/USERGUIDE/image-20210920120825279.png)
+
+      - This screen lists all of the environment variables in your solution and allows users to set the value of the environment variables in the downstream environment.
+      - For standard environment variables (e.g. String, Number, JSON) **enter the value in the text box** to the right of the environment variable name
+      - For data source environment variables **use the dropdowns to select the appropriate data source** to use in the downstream environment.
+
+   - App Sharing
+
+      ![image-20210920120908855](.attachments/USERGUIDE/image-20210920120908855.png)
+
+      - This screen lists all of the apps in your solution and allows users to share the apps in the downstream environment with an Azure AAD Group.
+      - Use  the dropdown to **select the Azure AAD group** with which you'd like to share the app. 
+      - To view the Group details **select the details icon**. This will launch a new browser window with a link to the AAD Group in the Azure Portal.
+      - To set the permissions **select the permissions dropdown** and set the permissions to either Can View, Can Edit or Can View and Share.
+
+   - Component Ownership
+
+      ![image-20210920120946888](.attachments/USERGUIDE/image-20210920120946888.png)
+      
+      - This screen lists all of the Flows in your solution and allows users to update the owner of the Flow in the downstream environment by selecting a Dataverse user.
+      - Use  the **dropdown to select a Dataverse user** to own the Flow in the downstream environment.
+      - To view the Flow **select the name of the Flow** to open a new window with the Flow Definition.
+
+1. Once you've configured your solution, you can push your changes to Git using the **Push Changes to Git** button for your solution.
 
    >[!NOTE]: Be sure to publish your changes before initiating the push. If a newly created solution doesn't show in your list immediately. Click the Refresh button to reload all solutions.
 

@@ -85,4 +85,7 @@ The AA4AM Canvas App provides a convenience layer on top of the AA4AM Pipelines 
 [![ALM Accelerator for Advanced Makers Overview Video](http://img.youtube.com/vi/-P3uSUTdsSY/0.jpg)](http://www.youtube.com/watch?v=-P3uSUTdsSY "ALM Accelerator for Advanced Makers Overview Video")
 
 ## ALM Accelerator for Advanced Makers Setup Guide
-To get started setting up ALM Accelerator For Advanced Makers Pipelines and the App go here [Setupguide.md](SETUPGUIDE.md)
+To get started with the ALM Accelerator For Advanced Makers you can
+
+1. (**Recommended**) Use the CoE CLI to automate the install at https://github.com/microsoft/coe-starter-kit/blob/main/coe-cli/docs/aa4am/readme.md or in the [Power Platform CoE CLI E-Book](https://aka.ms/coe-cli-ebook)
+1. Use the manual setup documentation can be found at https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md
