@@ -1,0 +1,2121 @@
+DeploymentSettingsScreen As screen:
+    OnVisible: |-
+        =UpdateContext(
+            {
+                showDeployDialog: true,
+                showDeploymentSettingsLoader: true,
+                showConnectionReferenceSettings: false,
+                showEnvironmentVariablesSettings: false,
+                showSharingSettings: false,
+                showOwnerSettings: false,
+                DeploymentSettingsLoadingText: "LOADING SOLUTION CONFIGURATION...",
+                SaveDeploymentButtonText: "SAVE"
+            }
+        );
+        ClearCollect(
+            SolutionBuilds,
+            CustomAzureDevOps.GetBuildDefinitions(
+                drpAdoOrganizations.Selected.AccountName,
+                drpAdoProjects.Selected.name,
+                {
+                    name: "deploy-*-" & SelectedSolutionToConfigure.uniquename,
+                    includeAllProperties: true
+                }
+            ).value
+        );
+        ClearCollect(
+            DeploymentEnvironments,
+            AddColumns(
+                SolutionBuilds,
+                "DisplayName",
+                LookUp(
+                    variables,
+                    key = "ServiceConnection",
+                    value.value
+                ),
+                "EnvironmentUrl",
+                LookUp(
+                    variables,
+                    key = "ServiceConnection",
+                    value.value
+                ),
+                "EnvironmentId",
+                LookUp(
+                    AllEnvironments,
+                    properties.linkedEnvironmentMetadata.instanceUrl = LookUp(
+                        variables,
+                        key = "ServiceConnection",
+                        value.value
+                    )
+                ).name,
+                "EnvironmentUniqueName",
+                LookUp(
+                    AllEnvironments,
+                    properties.linkedEnvironmentMetadata.instanceUrl = LookUp(
+                        variables,
+                        key = "ServiceConnection",
+                        value.value
+                    )
+                ).properties.linkedEnvironmentMetadata.uniqueName,
+                "BuildName",
+                name
+            )
+        );
+        UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)});
+        Clear(SolutionConnectionReferences);
+        Clear(SolutionCanvasApps);
+        Clear(SolutionEnvironmentVariables);
+        Clear(SolutionFlows);
+        Clear(AppSharingPermissions);
+        Clear(SharepointLists);
+        If(
+            CountRows(DeploymentEnvironments) > 0,
+            Concurrent(
+                Collect(
+                    SolutionConnectionReferences,
+                    AddColumns(
+                        GetSolutionConnectionReferences.Run(
+                            Last(
+                                FirstN(
+                                    ClearCollect(
+                                        splitCol1,
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        )
+                                    ),
+                                    2
+                                )
+                            ).Result,
+                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                            SelectedSolutionToConfigure.solutionid
+                        ),
+                        "CurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "connectionreference." & connectionreferencelogicalname
+                        ).Value
+                    )
+                ),
+                Collect(
+                    SolutionEnvironmentVariables,
+                    AddColumns(
+                        GetSolutionEnvironmentVariableDefinitions.Run(
+                            Last(
+                                FirstN(
+                                    ClearCollect(
+                                        splitCol2,
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        )
+                                    ),
+                                    2
+                                )
+                            ).Result,
+                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                            SelectedSolutionToConfigure.solutionid
+                        ),
+                        "CurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "environmentvariable." & schemaname
+                        ).Value
+                    )
+                ),
+                Collect(
+                    AppSharingPermissions,
+                    {
+                        Text: "Can View",
+                        Value: "CanView"
+                    },
+                    {
+                        Text: "Can Edit",
+                        Value: "CanEdit"
+                    },
+                    {
+                        Text: "Can View and Share",
+                        Value: "CanViewWithShare"
+                    }
+                ),
+                Collect(
+                    SolutionCanvasApps,
+                    AddColumns(
+                        GetSolutionCanvasApps.Run(
+                            Last(
+                                FirstN(
+                                    ClearCollect(
+                                        splitCol3,
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        )
+                                    ),
+                                    2
+                                )
+                            ).Result,
+                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                            SelectedSolutionToConfigure.solutionid
+                        ),
+                        "CurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "canvasshare.aadGroupId." & name
+                        ).Value,
+                        "CurrentPermission",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "canvasshare.roleName." & name
+                        ).Value
+                    )
+                ),
+                Collect(
+                    SolutionFlows,
+                    AddColumns(
+                        GetSolutionFlows.Run(
+                            Last(
+                                FirstN(
+                                    ClearCollect(
+                                        splitCol4,
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        )
+                                    ),
+                                    2
+                                )
+                            ).Result,
+                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                            SelectedSolutionToConfigure.solutionid
+                        ),
+                        "CurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "owner.ownerEmail." & Substitute(
+                                Name,
+                                " ",
+                                ""
+                            ) & "." & workflowid
+                        ).Value
+                    )
+                )
+            );
+        );
+        Select(fncLoadEnvironmentDeploymentSettings);
+        UpdateContext(
+            {
+                showConnectionReferenceSettings: true
+            }
+        );
+
+    DeploymentSettingsDialog As groupContainer:
+        BorderColor: =BorderColorValue
+        BorderThickness: =BorderThicknessValue
+        DisplayMode: =DisplayMode.Edit
+        Fill: =BorderColorValue
+        Height: =1080
+        Visible: =showDeployDialog
+        Width: =1920
+        ZIndex: =1
+
+        rctDeployDialog As rectangle:
+            BorderColor: =ColorFade(rctDeployDialog.Fill, -20%)
+            DisabledFill: =rctDeployDialog.Fill
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =1080
+            HoverFill: =ColorFade(rctDeployDialog.Fill, 20%)
+            PressedFill: =ColorFade(rctDeployDialog.Fill, -20%)
+            Width: =1920
+            ZIndex: =1
+
+        lblDeployAppSharing As label:
+            FontWeight: =If(showSharingSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =45
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="App Sharing"
+            Width: =120
+            X: =443
+            Y: =208
+            ZIndex: =2
+
+        lblDeployFlowOwnership As label:
+            FontWeight: =If(showOwnerSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =45
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Component Ownership"
+            Width: =220
+            X: =562
+            Y: =208
+            ZIndex: =3
+
+        icoDeployOwnership As icon.Add:
+            BorderColor: =ColorFade(icoDeployOwnership.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeployOwnership.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =49
+            HoverBorderColor: =ColorFade(icoDeployOwnership.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployOwnership.Color, 20%)
+            HoverFill: =ColorFade(icoDeployOwnership.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: false,
+                        showEnvironmentVariablesSettings: false,
+                        showOwnerSettings: true,
+                        showSharingSettings: false
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoDeployOwnership.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployOwnership.Color, -20%)
+            PressedFill: =ColorFade(icoDeployOwnership.Fill, -20%)
+            Tooltip: ="Set Sharing Configuration for the Target Environment"
+            Width: =220
+            X: =562
+            Y: =204
+            ZIndex: =4
+
+        lblDeployEnvironmentVariables As label:
+            FontWeight: =If(showEnvironmentVariablesSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =45
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Environment Variables"
+            Width: =210
+            X: =238
+            Y: =208
+            ZIndex: =5
+
+        lblDeployDialogTitle As label:
+            Align: =Center
+            Color: =RGBA(255, 255, 255, 1)
+            Fill: =PrimaryColor2Value
+            FontWeight: =Semibold
+            Height: =64
+            Size: =16
+            Text: ="CONFIGURE DEPLOYMENT SETTINGS (" & SelectedSolutionToConfigure.friendlyname & ")"
+            Width: =1920
+            ZIndex: =6
+
+        icoDeployDialogClose As icon.Cancel:
+            BorderColor: =ColorFade(icoDeployDialogClose.Fill, -20%)
+            Color: =RGBA(255, 255, 255, 1)
+            DisabledFill: =ColorFade(icoDeployDialogClose.Fill, -80%)
+            DisplayMode: =If(!showDeploymentSettingsLoader && !showSolutionComponentLoader, DisplayMode.Edit, DisplayMode.View)
+            Height: =55
+            HoverBorderColor: =ColorFade(icoDeployDialogClose.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployDialogClose.Color, 20%)
+            HoverFill: =ColorFade(icoDeployDialogClose.Fill, 20%)
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =Select(btnSaveDeployment);
+                Navigate(
+                    ReturnScreen,
+                    ScreenTransition.Fade
+                );
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(icoDeployDialogClose.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployDialogClose.Color, -20%)
+            PressedFill: =ColorFade(icoDeployDialogClose.Fill, -20%)
+            Visible: =!IsBlankOrError(ReturnScreen)
+            Width: =55
+            X: =1851
+            Y: =4
+            ZIndex: =7
+
+        lblDeployEnvironment As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Select an Environment to Configure"
+            Width: =600
+            X: =28
+            Y: =84
+            ZIndex: =8
+
+        drpDeployEnvironments As dropdown:
+            ChevronHoverBackground: =ColorFade(drpDeployEnvironments.ChevronBackground, 20%)
+            ChevronHoverFill: =ColorFade(drpDeployEnvironments.ChevronFill, 20%)
+            Default: |
+                =SelectedDeploymentEnvironment.DisplayName
+            Height: =46
+            HoverBorderColor: =ColorFade(drpDeployEnvironments.BorderColor, 20%)
+            HoverColor: =ColorFade(drpDeployEnvironments.Color, 20%)
+            HoverFill: =ColorFade(drpDeployEnvironments.SelectionFill, 20%)
+            Items: =DeploymentEnvironments
+            OnChange: |-
+                =Select(btnSaveDeployment);
+                Select(fncLoadEnvironmentDeploymentSettings);
+            OnSelect: =
+            PressedBorderColor: =drpDeployEnvironments.HoverBorderColor
+            PressedColor: =drpDeployEnvironments.Fill
+            PressedFill: =drpDeployEnvironments.Color
+            Tooltip: ="Select an Environment to Configure Deployment Settings"
+            Visible: =!showNewDeployEnvironment
+            Width: =1837
+            X: =28
+            Y: =137
+            ZIndex: =9
+
+        btnSaveDeployment As button:
+            DisplayMode: =If(SaveDeploymentButtonText = "SAVE", DisplayMode.Edit, DisplayMode.View)
+            Height: =45
+            HoverBorderColor: =ColorFade(btnSaveDeployment.BorderColor, 20%)
+            HoverColor: =ColorFade(btnSaveDeployment.Color, 20%)
+            HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
+            OnSelect: |-
+                =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                Clear(DeploymentSettings);
+                ForAll(
+                    glrConnectionReferences.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Name: "connectionreference." & connectionreferencelogicalname,
+                            Value: If(
+                                IsBlank(drpConnectionReferenceConnections.Selected),
+                                "",
+                                drpConnectionReferenceConnections.Selected.ConnectionId
+                            )
+                        }
+                    )
+                );
+                ForAll(
+                    glrEnvironmentVariables.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Name: "environmentvariable." & schemaname,
+                            Value: If(
+                                type = 100000004 && apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline",
+                                If(
+                                    parameterkey = "dataset",
+                                    drpSharepointSites.Selected.webUrl,
+                                    drpSharepointLists.Selected.id
+                                ),
+                                txtEnvironmentVariableValue.Text
+                            )
+                        }
+                    )
+                );
+                ForAll(
+                    glrCanvasApps.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Name: "canvasshare.aadGroupId." & name,
+                            Value: drpCanvasAppShareGroups.Selected.id
+                        },
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Name: "canvasshare.roleName." & name,
+                            Value: drpCanvasAppSharePermission.Selected.Value
+                        }
+                    )
+                );
+                ForAll(
+                    glrFlows.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Name: "owner.ownerEmail." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid,
+                            Value: drpFlowOwnerUsers.Selected.domainname
+                        }
+                    )
+                );
+                UpdateContext({settingsJsonText: JSON(DeploymentSettings)});
+                
+                UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
+                UpdateContext(
+                    {
+                        locEnvironmentDeploymentSetting: LookUp(
+                            'User Settings',
+                            Name = locSolutionEnvironmentDeploySettingName
+                        )
+                    }
+                );
+                If(
+                    IsBlank(locEnvironmentDeploymentSetting),// create it if we don't have one
+                    Patch(
+                        'User Settings',
+                        {
+                            'App User Setting': AppUserSetting,
+                            Name: locSolutionEnvironmentDeploySettingName,
+                            Data: settingsJsonText
+                        }
+                    );
+                    Patch(
+                        AppUserSetting_UserSettings,
+                        {
+                            'App User Setting': AppUserSetting,
+                            Name: locSolutionEnvironmentDeploySettingName,
+                            Data: settingsJsonText
+                        }
+                    ),
+                    Patch(
+                        'User Settings',
+                        locEnvironmentDeploymentSetting,
+                        {Data: settingsJsonText}
+                    );
+                    Patch(
+                        AppUserSetting_UserSettings,
+                        locEnvironmentDeploymentSetting,
+                        {Data: settingsJsonText}
+                    )
+                );
+                UpdateContext({SaveDeploymentButtonText: "SAVE"})
+            PressedBorderColor: =btnSaveDeployment.Fill
+            PressedColor: =btnSaveDeployment.Fill
+            PressedFill: =btnSaveDeployment.Color
+            Text: =SaveDeploymentButtonText
+            Tooltip: ="Save the Current Environment's Deployment Configuration"
+            Visible: =IsBlankOrError(ReturnScreen)
+            Width: =200
+            X: =1674
+            Y: =1003
+            ZIndex: =10
+
+        icoAddDeploymentEnvironment As icon.Add:
+            BorderColor: =ColorFade(icoAddDeploymentEnvironment.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoAddDeploymentEnvironment.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =47
+            HoverBorderColor: =ColorFade(icoAddDeploymentEnvironment.BorderColor, 20%)
+            HoverColor: =ColorFade(icoAddDeploymentEnvironment.Color, 20%)
+            HoverFill: =ColorFade(icoAddDeploymentEnvironment.Fill, 20%)
+            Icon: =Icon.Add
+            OnSelect: |-
+                =UpdateContext({showNewDeployEnvironment: true})
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoAddDeploymentEnvironment.BorderColor, -20%)
+            PressedColor: =ColorFade(icoAddDeploymentEnvironment.Color, -20%)
+            PressedFill: =ColorFade(icoAddDeploymentEnvironment.Fill, -20%)
+            Tooltip: ="Cancel Adding New Deployment Environment"
+            Visible: =false
+            Width: =57
+            X: =1168
+            Y: =138
+            ZIndex: =11
+
+        txtNewDeployEnvironment As text:
+            Default: =""
+            Height: =45
+            HintText: ="Enter a Name for the Environment"
+            HoverBorderColor: =ColorFade(txtNewDeployEnvironment.BorderColor, 20%)
+            HoverColor: =ColorFade(txtNewDeployEnvironment.Color, 20%)
+            HoverFill: =ColorFade(txtNewDeployEnvironment.Fill, 20%)
+            PressedBorderColor: =txtNewDeployEnvironment.HoverBorderColor
+            PressedColor: =txtNewDeployEnvironment.Color
+            PressedFill: =txtNewDeployEnvironment.Fill
+            Tooltip: ="Enter a Name for the Environment"
+            Visible: =showNewDeployEnvironment
+            Width: =1140
+            X: =28
+            Y: =138
+            ZIndex: =12
+
+        icoDeployNewEnvironmentClose As icon.Cancel:
+            BorderColor: =ColorFade(icoDeployNewEnvironmentClose.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeployNewEnvironmentClose.Fill, -80%)
+            Height: =47
+            HoverBorderColor: =ColorFade(icoDeployNewEnvironmentClose.BorderColor, 20%)
+            HoverColor: =ColorFade(icoAddDeploymentEnvironment.Color, 20%)
+            HoverFill: =ColorFade(icoDeployNewEnvironmentClose.Fill, 20%)
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showNewDeployEnvironment: false})
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(icoDeployNewEnvironmentClose.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployNewEnvironmentClose.Color, -20%)
+            PressedFill: =ColorFade(icoDeployNewEnvironmentClose.Fill, -20%)
+            Visible: =showNewDeployEnvironment
+            Width: =57
+            X: =1168
+            Y: =137
+            ZIndex: =13
+
+        "glrFlows As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =715
+            Items: =SolutionFlows
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =68
+            Visible: =showOwnerSettings
+            Width: =1850
+            X: =24
+            Y: =253
+            ZIndex: =14
+
+            icoFlow As image:
+                BorderColor: =ColorFade(icoFlow.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoFlow.BorderColor, 20%)
+                HoverFill: =ColorFade(icoFlow.Fill, 20%)
+                Image: =PowerAutomate_scalable
+                OnSelect: =Select(Parent);
+                PressedBorderColor: =ColorFade(icoFlow.BorderColor, -20%)
+                PressedFill: =ColorFade(icoFlow.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =58
+                Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                ZIndex: =1
+
+            lblFlowName As label:
+                Height: =24
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.name
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =10
+                ZIndex: =2
+
+            lblFlowId As label:
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: =ThisItem.workflowid
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =35
+                ZIndex: =3
+
+            Separator3_3 As rectangle:
+                BorderColor: =ColorFade(Separator3_3.Fill, -20%)
+                DisabledFill: =Separator3_3.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3_3.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3_3.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =5
+
+            icoOpenFlow As icon.Add:
+                BorderColor: =ColorFade(icoOpenFlow.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoOpenFlow.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =45
+                HoverBorderColor: =ColorFade(icoOpenFlow.BorderColor, 20%)
+                HoverColor: =ColorFade(icoOpenFlow.Color, 20%)
+                HoverFill: =ColorFade(icoOpenFlow.Fill, 20%)
+                Icon: =
+                OnSelect: |-
+                    =Select(Parent);
+                    Launch("https://us.flow.microsoft.com/manage/environments/" & SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName & "/solutions/" & glrSolutions.Selected.solutionid & "/flows/" & ThisItem.workflowidunique,
+                        "",
+                        "_blank"
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoOpenFlow.BorderColor, -20%)
+                PressedColor: =ColorFade(icoOpenFlow.Color, -20%)
+                PressedFill: =ColorFade(icoOpenFlow.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =600
+                Y: =10
+                ZIndex: =9
+
+            drpFlowOwnerUsers As dropdown:
+                ChevronHoverBackground: =ColorFade(drpFlowOwnerUsers.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpFlowOwnerUsers.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(EnvironmentUsers).domainname, ThisItem.CurrentValue)
+                Height: =45
+                HoverBorderColor: =ColorFade(drpFlowOwnerUsers.BorderColor, 20%)
+                HoverColor: =ColorFade(drpFlowOwnerUsers.Color, 20%)
+                HoverFill: =ColorFade(drpFlowOwnerUsers.SelectionFill, 20%)
+                Items: =EnvironmentUsers
+                PressedBorderColor: =drpFlowOwnerUsers.HoverBorderColor
+                PressedColor: =drpFlowOwnerUsers.Fill
+                PressedFill: =drpFlowOwnerUsers.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select an Existing AAD Group"
+                Width: =928
+                X: =896
+                Y: =11
+                ZIndex: =10
+
+        "glrEnvironmentVariables As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =715
+            Items: =SolutionEnvironmentVariables
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =68
+            Visible: =showEnvironmentVariablesSettings
+            Width: =1850
+            X: =24
+            Y: =253
+            ZIndex: =15
+
+            lblEnvironmentVariableLogicalName As label:
+                Height: =24
+                OnSelect: =ThisItem.schemaname
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.displayname
+                Tooltip: =ThisItem.displayname
+                VerticalAlign: =VerticalAlign.Top
+                Width: =880
+                X: =58
+                Y: =10
+                ZIndex: =2
+
+            lblEnvironmentVariableType As label:
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: =ThisItem._type_label
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =35
+                ZIndex: =3
+
+            Separator3_1 As rectangle:
+                BorderColor: =ColorFade(Separator3_1.Fill, -20%)
+                DisabledFill: =Separator3_1.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3_1.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3_1.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =5
+
+            icoEnvironmentVariable As image:
+                BorderColor: =ColorFade(icoEnvironmentVariable.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoEnvironmentVariable.BorderColor, 20%)
+                HoverFill: =ColorFade(icoEnvironmentVariable.Fill, 20%)
+                Image: =If(ThisItem.type = 100000004, sharepointicon, download)
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =ColorFade(icoEnvironmentVariable.BorderColor, -20%)
+                PressedFill: =ColorFade(icoEnvironmentVariable.Fill, -20%)
+                Width: =58
+                Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                ZIndex: =6
+
+            txtEnvironmentVariableValue As text:
+                Default: =ThisItem.CurrentValue
+                HoverBorderColor: =ColorFade(txtEnvironmentVariableValue.BorderColor, 20%)
+                HoverColor: =ColorFade(txtEnvironmentVariableValue.Color, 20%)
+                HoverFill: =ColorFade(txtEnvironmentVariableValue.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =txtEnvironmentVariableValue.HoverBorderColor
+                PressedColor: =txtEnvironmentVariableValue.Color
+                PressedFill: =txtEnvironmentVariableValue.Fill
+                Reset: =resetEnvironment
+                Tooltip: ="Enter a Value for this Environment Variable in the Target Environment"
+                Visible: =ThisItem.type <> 100000004
+                Width: =880
+                X: =943
+                Y: =14
+                ZIndex: =8
+
+            drpSharepointSites As dropdown:
+                ChevronHoverBackground: =ColorFade(drpSharepointSites.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpSharepointSites.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(SharepointSites).webUrl, ThisItem.CurrentValue)
+                Height: =44
+                HoverBorderColor: =ColorFade(drpSharepointSites.BorderColor, 20%)
+                HoverColor: =ColorFade(drpSharepointSites.Color, 20%)
+                HoverFill: =ColorFade(drpSharepointSites.SelectionFill, 20%)
+                Items: =SharepointSites
+                OnChange: |-
+                    =ClearCollect(SharepointLists, Filter(
+                        SharepointLists,
+                        DefinitionId <> ThisItem.environmentvariabledefinitionid
+                    ));
+                    If(
+                        Not IsBlank(drpSharepointSites.Selected.id),
+                        Collect(
+                            SharepointLists,
+                            AddColumns(
+                                GetSharepointLists.Run(drpSharepointSites.Selected.id).value,
+                                "DefinitionId",
+                                ThisItem.environmentvariabledefinitionid
+                            )
+                        )
+                    );
+                    txtEnvironmentVariableValue.Text = drpSharepointSites.Selected.webUrl
+                PressedBorderColor: =drpSharepointSites.HoverBorderColor
+                PressedColor: =drpSharepointSites.Fill
+                PressedFill: =drpSharepointSites.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select a Sharepoint Site"
+                Visible: =ThisItem.type = 100000004 && ThisItem.parameterkey = "dataset" && ThisItem.apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline"
+                Width: =880
+                X: =943
+                Y: =12
+                ZIndex: =9
+
+            drpSharepointLists As dropdown:
+                ChevronHoverBackground: =ColorFade(drpSharepointLists.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpSharepointLists.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(SharepointLists).name, LookUp(SharepointLists, id = ThisItem.CurrentValue).name)
+                DisplayMode: |-
+                    =If(
+                        IsBlank(First(Filter(
+                            SharepointLists,
+                            DefinitionId = ThisItem._parentdefinitionid_value
+                        )).id),
+                        Disabled,
+                        Edit
+                    )
+                Height: =45
+                HoverBorderColor: =ColorFade(drpSharepointLists.BorderColor, 20%)
+                HoverColor: =ColorFade(drpSharepointLists.Color, 20%)
+                HoverFill: =ColorFade(drpSharepointLists.SelectionFill, 20%)
+                Items: =Filter(SharepointLists, DefinitionId = ThisItem._parentdefinitionid_value)
+                OnChange: =txtEnvironmentVariableValue.Text = drpSharepointLists.Selected.id
+                PressedBorderColor: =drpSharepointLists.HoverBorderColor
+                PressedColor: =drpSharepointLists.Fill
+                PressedFill: =drpSharepointLists.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select a Sharepoint List"
+                Visible: =ThisItem.type = 100000004 && ThisItem.parameterkey = "table" && ThisItem.apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline"
+                Width: =850
+                X: =973
+                Y: =12
+                ZIndex: =10
+
+            icoChildEnvironmentVariable1 As icon.Cancel:
+                BorderColor: =ColorFade(icoChildEnvironmentVariable1.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoChildEnvironmentVariable1.Fill, -80%)
+                Height: =42
+                HoverBorderColor: =ColorFade(icoChildEnvironmentVariable1.BorderColor, 20%)
+                HoverColor: =ColorFade(icoChildEnvironmentVariable1.Color, 20%)
+                HoverFill: =ColorFade(icoChildEnvironmentVariable1.Fill, 20%)
+                Icon: =Icon.HorizontalLine
+                OnSelect: =
+                PaddingBottom: =10
+                PaddingLeft: =10
+                PaddingRight: =10
+                PaddingTop: =10
+                PressedBorderColor: =ColorFade(icoChildEnvironmentVariable1.BorderColor, -20%)
+                PressedColor: =ColorFade(icoChildEnvironmentVariable1.Color, -20%)
+                PressedFill: =ColorFade(icoChildEnvironmentVariable1.Fill, -20%)
+                Visible: =ThisItem.type = 100000004 && ThisItem.parameterkey = "table"
+                Width: =42
+                X: =934
+                Y: =15
+                ZIndex: =11
+
+            icoChildEnvironmentVariable2 As icon.Cancel:
+                BorderColor: =ColorFade(icoChildEnvironmentVariable2.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoChildEnvironmentVariable2.Fill, -80%)
+                Height: =42
+                HoverBorderColor: =ColorFade(icoChildEnvironmentVariable2.BorderColor, 20%)
+                HoverColor: =ColorFade(icoChildEnvironmentVariable2.Color, 20%)
+                HoverFill: =ColorFade(icoChildEnvironmentVariable2.Fill, 20%)
+                Icon: =Icon.VerticalLine
+                OnSelect: =
+                PaddingBottom: =10
+                PaddingLeft: =10
+                PaddingRight: =10
+                PaddingTop: =10
+                PressedBorderColor: =ColorFade(icoChildEnvironmentVariable2.BorderColor, -20%)
+                PressedColor: =ColorFade(icoChildEnvironmentVariable2.Color, -20%)
+                PressedFill: =ColorFade(icoChildEnvironmentVariable2.Fill, -20%)
+                Visible: =ThisItem.type = 100000004 && ThisItem.parameterkey = "table"
+                Width: =42
+                X: =923
+                Y: =5
+                ZIndex: =12
+
+        "glrConnectionReferences As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =715
+            Items: =SolutionConnectionReferences
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =68
+            Visible: =showConnectionReferenceSettings
+            Width: =1850
+            X: =24
+            Y: =253
+            ZIndex: =16
+
+            icoConnectorIcon As image:
+                BorderColor: =ColorFade(icoConnectorIcon.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoConnectorIcon.BorderColor, 20%)
+                HoverFill: =ColorFade(icoConnectorIcon.Fill, 20%)
+                Image: =drpConnectionReferenceConnections.Selected.IconUrl
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =ColorFade(icoConnectorIcon.BorderColor, -20%)
+                PressedFill: =ColorFade(icoConnectorIcon.Fill, -20%)
+                Width: =58
+                Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                ZIndex: =1
+
+            lblConnectionReferenceName As label:
+                Height: =24
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.connectionreferencedisplayname
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =10
+                ZIndex: =2
+
+            lblConnectionReferenceLogicalName As label:
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: =ThisItem.connectionreferencelogicalname
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =35
+                ZIndex: =3
+
+            Separator3 As rectangle:
+                BorderColor: =ColorFade(Separator3.Fill, -20%)
+                DisabledFill: =Separator3.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =5
+
+            drpConnectionReferenceConnections As dropdown:
+                ChevronHoverBackground: =ColorFade(drpConnectionReferenceConnections.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpConnectionReferenceConnections.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(Filter(EnvironmentConnections, ApiId = ThisItem.connectorid And Status = "Connected")).DisplayName, LookUp(EnvironmentConnections, ConnectionId = ThisItem.CurrentValue).DisplayName)
+                Height: =51
+                HoverBorderColor: =ColorFade(drpConnectionReferenceConnections.BorderColor, 20%)
+                HoverColor: =ColorFade(drpConnectionReferenceConnections.Color, 20%)
+                HoverFill: =ColorFade(drpConnectionReferenceConnections.SelectionFill, 20%)
+                Items: =Sort(Filter(EnvironmentConnections, ApiId = ThisItem.connectorid), Status)
+                PressedBorderColor: =drpConnectionReferenceConnections.HoverBorderColor
+                PressedColor: =drpConnectionReferenceConnections.Fill
+                PressedFill: =drpConnectionReferenceConnections.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select and Existing Connection"
+                Width: =860
+                X: =846
+                Y: =5
+                ZIndex: =6
+
+            lblConnectionStatus As label:
+                Align: =Align.Center
+                Color: =If(lblConnectionStatus.Text = "Connected", Color.Green, Color.Red)
+                FontWeight: =FontWeight.Semibold
+                Height: =43
+                PaddingLeft: =0
+                PaddingTop: =0
+                Text: =If(IsBlank(drpConnectionReferenceConnections.Selected), "Not Connected", drpConnectionReferenceConnections.Selected.Status)
+                Tooltip: =If(IsBlank(drpConnectionReferenceConnections.Selected), "Select + to Create a New Connection", drpConnectionReferenceConnections.Selected.Status)
+                Width: =200
+                X: =642
+                Y: =12
+                ZIndex: =7
+
+            icoNewConnection As icon.Add:
+                BorderColor: =ColorFade(icoNewConnection.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoNewConnection.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =47
+                HoverBorderColor: =ColorFade(icoNewConnection.BorderColor, 20%)
+                HoverColor: =ColorFade(icoNewConnection.Color, 20%)
+                HoverFill: =ColorFade(icoNewConnection.Fill, 20%)
+                Icon: =Icon.Add
+                OnSelect: |-
+                    =Select(Parent);
+                    Launch(
+                        "https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/available?apiName=" & Last(
+                            Split(
+                                glrConnectionReferences.Selected.connectorid,
+                                "/"
+                            )
+                        ).Result,
+                        "",
+                        "_blank"
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoNewConnection.BorderColor, -20%)
+                PressedColor: =ColorFade(icoNewConnection.Color, -20%)
+                PressedFill: =ColorFade(icoNewConnection.Fill, -20%)
+                Tooltip: ="Create a New Connection"
+                Width: =57
+                X: =1712
+                Y: =9
+                ZIndex: =8
+
+            icoConnectionStatus As icon.Add:
+                BorderColor: =ColorFade(icoConnectionStatus.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoConnectionStatus.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =58
+                HoverBorderColor: =ColorFade(icoConnectionStatus.BorderColor, 20%)
+                HoverColor: =ColorFade(icoConnectionStatus.Color, 20%)
+                HoverFill: =ColorFade(icoConnectionStatus.Fill, 20%)
+                Icon: =
+                OnSelect: |-
+                    =Select(Parent);
+                        Set(
+                            connectorName,
+                            Last(
+                                Split(
+                                    glrConnectionReferences.Selected.connectorid,
+                                    "/"
+                                )
+                            ).Result
+                        );
+                    If(
+                        IsBlank(glrConnectionReferences.Selected.drpConnectionReferenceConnections.Selected),
+                        Launch(
+                        "https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/available?apiName=" & connectorName,
+                        "",
+                        "_blank"
+                    ),
+                    
+                        Launch(
+                            "https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/" & connectorName & "/" & glrConnectionReferences.Selected.drpConnectionReferenceConnections.Selected.ConnectionId &"/details?apiName=" & connectorName,
+                            "",
+                            "_blank"
+                        )
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoConnectionStatus.BorderColor, -20%)
+                PressedColor: =ColorFade(icoConnectionStatus.Color, -20%)
+                PressedFill: =ColorFade(icoConnectionStatus.Fill, -20%)
+                Tooltip: ="Select to open the Connection"
+                Width: =842
+                Y: =5
+                ZIndex: =9
+
+            icoRequestConnection As icon.Add:
+                BorderColor: =ColorFade(icoRequestConnection.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoRequestConnection.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =47
+                HoverBorderColor: =ColorFade(icoRequestConnection.BorderColor, 20%)
+                HoverColor: =ColorFade(icoRequestConnection.Color, 20%)
+                HoverFill: =ColorFade(icoRequestConnection.Fill, 20%)
+                Icon: =Icon.AddUser
+                OnSelect: |
+                    =UpdateContext(
+                        {
+                            showDeploymentDialogOverlay: true,
+                            showConnectionRequestDialog: true
+                        }
+                    );
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoRequestConnection.BorderColor, -20%)
+                PressedColor: =ColorFade(icoRequestConnection.Color, -20%)
+                PressedFill: =ColorFade(icoRequestConnection.Fill, -20%)
+                Tooltip: ="Request a New Connection from Another User"
+                Visible: =false
+                Width: =57
+                X: =1766
+                Y: =9
+                ZIndex: =10
+
+        "glrCanvasApps As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            Height: =715
+            Items: =SolutionCanvasApps
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =68
+            Visible: =showSharingSettings
+            Width: =1850
+            X: =24
+            Y: =253
+            ZIndex: =17
+
+            icoCanvasApp As image:
+                BorderColor: =ColorFade(icoCanvasApp.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoCanvasApp.BorderColor, 20%)
+                HoverFill: =ColorFade(icoCanvasApp.Fill, 20%)
+                Image: =PowerApps_scalable
+                OnSelect: =Select(Parent);
+                PressedBorderColor: =ColorFade(icoCanvasApp.BorderColor, -20%)
+                PressedFill: =ColorFade(icoCanvasApp.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =58
+                Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                ZIndex: =1
+
+            lblCanvasAppName As label:
+                Height: =24
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.displayname
+                VerticalAlign: =VerticalAlign.Top
+                Width: =644
+                X: =58
+                Y: =10
+                ZIndex: =2
+
+            lblCanvasAppLogicalName As label:
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: =ThisItem.name
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =35
+                ZIndex: =3
+
+            Separator3_2 As rectangle:
+                BorderColor: =ColorFade(Separator3_2.Fill, -20%)
+                DisabledFill: =Separator3_2.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3_2.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3_2.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =4
+
+            drpCanvasAppSharePermission As dropdown:
+                ChevronHoverBackground: =ColorFade(drpCanvasAppSharePermission.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpCanvasAppSharePermission.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.CurrentPermission), First(AppSharingPermissions).Text, LookUp(AppSharingPermissions, Value = ThisItem.CurrentPermission).Text)
+                Height: =45
+                HoverBorderColor: =ColorFade(drpCanvasAppSharePermission.BorderColor, 20%)
+                HoverColor: =ColorFade(drpCanvasAppSharePermission.Color, 20%)
+                HoverFill: =ColorFade(drpCanvasAppSharePermission.SelectionFill, 20%)
+                Items: =AppSharingPermissions
+                PressedBorderColor: =drpCanvasAppSharePermission.HoverBorderColor
+                PressedColor: =drpCanvasAppSharePermission.Fill
+                PressedFill: =drpCanvasAppSharePermission.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select a Permission for the Group"
+                Width: =220
+                X: =1603
+                Y: =12
+                ZIndex: =5
+
+            icoLaunchApp As icon.Add:
+                BorderColor: =ColorFade(icoLaunchApp.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoLaunchApp.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =46
+                HoverBorderColor: =ColorFade(icoLaunchApp.BorderColor, 20%)
+                HoverColor: =ColorFade(icoLaunchApp.Color, 20%)
+                HoverFill: =ColorFade(icoLaunchApp.Fill, 20%)
+                Icon: =
+                OnSelect: |-
+                    =Select(Parent);
+                    Launch(ThisItem.appopenuri,
+                        "",
+                        "_blank"
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoLaunchApp.BorderColor, -20%)
+                PressedColor: =ColorFade(icoLaunchApp.Color, -20%)
+                PressedFill: =ColorFade(icoLaunchApp.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =691
+                Y: =10
+                ZIndex: =6
+
+            drpCanvasAppShareGroups As dropdown:
+                ChevronHoverBackground: =ColorFade(drpCanvasAppShareGroups.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpCanvasAppShareGroups.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(AADGroups).displayName, LookUp(AADGroups, Text(id) = ThisItem.CurrentValue).displayName)
+                Height: =46
+                HoverBorderColor: =ColorFade(drpCanvasAppShareGroups.BorderColor, 20%)
+                HoverColor: =ColorFade(drpCanvasAppShareGroups.Color, 20%)
+                HoverFill: =ColorFade(drpCanvasAppShareGroups.SelectionFill, 20%)
+                Items: =AADGroups
+                PressedBorderColor: =drpCanvasAppShareGroups.HoverBorderColor
+                PressedColor: =drpCanvasAppShareGroups.Fill
+                PressedFill: =drpCanvasAppShareGroups.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select an Existing AAD Group"
+                Width: =838
+                X: =707
+                Y: =12
+                ZIndex: =7
+
+            icoViewGroupMembers As icon.Add:
+                BorderColor: =ColorFade(icoViewGroupMembers.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoViewGroupMembers.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =47
+                HoverBorderColor: =ColorFade(icoViewGroupMembers.BorderColor, 20%)
+                HoverColor: =ColorFade(icoViewGroupMembers.Color, 20%)
+                HoverFill: =ColorFade(icoViewGroupMembers.Fill, 20%)
+                Icon: =Icon.DetailList
+                OnSelect: |-
+                    =Select(Parent);
+                    Launch(
+                        "https://portal.azure.com/#blade/Microsoft_AAD_IAM/GroupDetailsMenuBlade/Members/groupId/" & drpCanvasAppShareGroups.Selected.id,
+                        "",
+                        "_blank"
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoViewGroupMembers.BorderColor, -20%)
+                PressedColor: =ColorFade(icoViewGroupMembers.Color, -20%)
+                PressedFill: =ColorFade(icoViewGroupMembers.Fill, -20%)
+                Tooltip: ="Create a New Connection"
+                Width: =57
+                X: =1546
+                Y: =12
+                ZIndex: =8
+
+        lblDeployConnectionReferences As label:
+            FontWeight: =If(showConnectionReferenceSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =45
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Connection References"
+            Width: =210
+            X: =28
+            Y: =208
+            ZIndex: =18
+
+        icoRefreshConnections As icon.Add:
+            BorderColor: =ColorFade(icoRefreshConnections.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledColor: =ColorFade(icoRefreshConnections.Color, 50%)
+            DisabledFill: =ColorFade(icoRefreshConnections.Fill, -80%)
+            Height: =45
+            HoverBorderColor: =ColorFade(icoRefreshConnections.BorderColor, 20%)
+            HoverColor: =ColorFade(icoRefreshConnections.Color, 20%)
+            HoverFill: =ColorFade(icoRefreshConnections.Fill, 20%)
+            Icon: =Icon.Reload
+            OnSelect: |+
+                =Select(btnSaveDeployment);
+                Select(fncLoadEnvironmentDeploymentSettings);
+                
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoRefreshConnections.BorderColor, -20%)
+            PressedColor: =ColorFade(icoRefreshConnections.Color, -20%)
+            PressedFill: =ColorFade(icoRefreshConnections.Fill, -20%)
+            Tooltip: ="Click to Refresh"
+            Visible: =showConnectionReferenceSettings
+            Width: =45
+            X: =1793
+            Y: =206
+            ZIndex: =19
+
+        loaderSolutionComponents As Preloader:
+            Height: =827
+            IsLoading: =showSolutionComponentLoader
+            SpinnerColorHex: =LookUp(loaderSolutionComponents.Styles, Name = "PrimaryColor2Value").Value
+            Styles: =ComponentStyles
+            Visible: =loaderSolutionComponents.IsLoading
+            Width: =1920
+            Y: =253
+            ZIndex: =20
+
+        loaderDeploymentEnvironment As Preloader:
+            Height: =1016
+            IsLoading: =showDeploymentSettingsLoader
+            SpinnerColorHex: =LookUp(loaderDeploymentEnvironment.Styles, Name = "PrimaryColor2Value").Value
+            Styles: =ComponentStyles
+            Text: =DeploymentSettingsLoadingText
+            Visible: =loaderDeploymentEnvironment.IsLoading
+            Width: =1920
+            Y: =64
+            ZIndex: =21
+
+        icoDeployConnectionReferences As icon.Add:
+            BorderColor: =ColorFade(icoDeployConnectionReferences.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeployConnectionReferences.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =49
+            HoverBorderColor: =ColorFade(icoDeployConnectionReferences.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployConnectionReferences.Color, 20%)
+            HoverFill: =ColorFade(icoDeployConnectionReferences.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: true,
+                        showEnvironmentVariablesSettings: false,
+                        showOwnerSettings: false,
+                        showSharingSettings: false
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoDeployConnectionReferences.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployConnectionReferences.Color, -20%)
+            PressedFill: =ColorFade(icoDeployConnectionReferences.Fill, -20%)
+            Tooltip: ="Set Connection References for the Target Environment"
+            Width: =200
+            X: =24
+            Y: =204
+            ZIndex: =22
+
+        icoDeployEnvironmentVariables As icon.Add:
+            BorderColor: =ColorFade(icoDeployEnvironmentVariables.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeployEnvironmentVariables.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =49
+            HoverBorderColor: =ColorFade(icoDeployEnvironmentVariables.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployEnvironmentVariables.Color, 20%)
+            HoverFill: =ColorFade(icoDeployEnvironmentVariables.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: false,
+                        showEnvironmentVariablesSettings: true,
+                        showOwnerSettings: false,
+                        showSharingSettings: false
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoDeployEnvironmentVariables.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployEnvironmentVariables.Color, -20%)
+            PressedFill: =ColorFade(icoDeployEnvironmentVariables.Fill, -20%)
+            Tooltip: ="Set Environment Variable Values for the Target Environment"
+            Width: =200
+            X: =236
+            Y: =204
+            ZIndex: =23
+
+        icoDeploySharing As icon.Add:
+            BorderColor: =ColorFade(icoDeploySharing.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeploySharing.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =49
+            HoverBorderColor: =ColorFade(icoDeploySharing.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeploySharing.Color, 20%)
+            HoverFill: =ColorFade(icoDeploySharing.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: false,
+                        showEnvironmentVariablesSettings: false,
+                        showOwnerSettings: false,
+                        showSharingSettings: true
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoDeploySharing.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeploySharing.Color, -20%)
+            PressedFill: =ColorFade(icoDeploySharing.Fill, -20%)
+            Tooltip: ="Set Sharing Configuration for the Target Environment"
+            Width: =120
+            X: =439
+            Y: =204
+            ZIndex: =24
+
+        lblNoEnvironmentVariables As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="There are no environment variables in this solution."
+            Visible: =IsEmpty(glrEnvironmentVariables.AllItems) && glrEnvironmentVariables.Visible
+            Width: =600
+            X: =653
+            Y: =476
+            ZIndex: =25
+
+        lblNoConnectionReferences As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="There are no connection references in this solution."
+            Visible: =IsEmpty(glrConnectionReferences.AllItems) && glrConnectionReferences.Visible
+            Width: =600
+            X: =653
+            Y: =476
+            ZIndex: =26
+
+        lblNoApps As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="There are no canvas apps in this solution."
+            Visible: =IsEmpty(glrCanvasApps.AllItems) && glrCanvasApps.Visible
+            Width: =600
+            X: =653
+            Y: =476
+            ZIndex: =27
+
+        lblNoFlows As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="There are no flows in this solution."
+            Visible: =IsEmpty(glrFlows.AllItems) && glrFlows.Visible
+            Width: =600
+            X: =653
+            Y: =476
+            ZIndex: =28
+
+    btnFunctionsDeploy As groupContainer:
+        DisplayMode: =DisplayMode.Edit
+        Height: =320
+        Visible: =false
+        Width: =564
+        X: =1
+        Y: =760
+        ZIndex: =2
+
+        fncLoadEnvironmentDeploymentSettings As button:
+            HoverBorderColor: =ColorFade(fncLoadEnvironmentDeploymentSettings.BorderColor, 20%)
+            HoverColor: =ColorFade(fncLoadEnvironmentDeploymentSettings.Color, 20%)
+            HoverFill: =ColorFade(fncLoadEnvironmentDeploymentSettings.Fill, 20%)
+            OnSelect: |
+                =UpdateContext({showSolutionComponentLoader: true});
+                UpdateContext(
+                    {
+                        DeploymentSettingsLoadingText: "LOADING DEPLOYMENT ENVIRONMENT CONFIGURATION..."
+                    }
+                );
+                If(
+                    IsBlank(drpDeployEnvironments.Selected),
+                    UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
+                    UpdateContext({SelectedDeploymentEnvironment: drpDeployEnvironments.Selected})
+                );
+                If(
+                    Not IsBlank(SelectedDeploymentEnvironment),
+                    UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & SelectedSolutionToConfigure.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
+                    UpdateContext(
+                        {
+                            locEnvironmentDeploymentSetting: LookUp(
+                                'User Settings',
+                                Name = locSolutionEnvironmentDeploySettingName
+                            )
+                        }
+                    );
+                    If(
+                        IsBlank(locEnvironmentDeploymentSetting.Data),
+                        UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run("[]")}),
+                        UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
+                    );
+                    Concurrent(
+                        UpdateIf(
+                            SolutionConnectionReferences,
+                            true,
+                            {
+                                CurrentValue: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "connectionreference." & connectionreferencelogicalname
+                                ).Value
+                            }
+                        ),
+                        UpdateIf(
+                            SolutionEnvironmentVariables,
+                            true,
+                            {
+                                CurrentValue: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "environmentvariable." & schemaname
+                                ).Value
+                            }
+                        ),
+                        UpdateIf(
+                            SolutionCanvasApps,
+                            true,
+                            {
+                                CurrentValue: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "canvasshare.aadGroupId." & name
+                                ).Value,
+                                CurrentPermission: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "canvasshare.roleName." & name
+                                ).Value
+                            }
+                        ),
+                        UpdateIf(
+                            SolutionFlows,
+                            true,
+                            {
+                                CurrentValue: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "owner.ownerEmail." & Substitute(
+                                        name,
+                                        " ",
+                                        ""
+                                    ) & "." & workflowid
+                                ).Value
+                            }
+                        ),
+                        ClearCollect(
+                            EnvironmentUsers,
+                            GetDeploymentEnvironmentUsers.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol1,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                SelectedSolutionToConfigure.solutionid
+                            )
+                        ),
+                        ClearCollect(
+                            EnvironmentConnections,
+                            AddColumns(
+                                PowerAppsforMakers.GetConnections(
+                                    {
+                                        '$filter': "environment eq '" & LookUp(
+                                            AllEnvironments,
+                                            properties.linkedEnvironmentMetadata.instanceUrl = SelectedDeploymentEnvironment.EnvironmentUrl,
+                                            name
+                                        ) & "'",
+                                        'api-version': "2016-11-01",
+                                        '$top': 100
+                                    }
+                                ).value,
+                                "DisplayName",
+                                properties.displayName,
+                                "ConnectionId",
+                                name,
+                                "ApiId",
+                                properties.apiId,
+                                "IconUrl",
+                                properties.iconUri,
+                                "Status",
+                                First(properties.statuses).status
+                            )
+                        )
+                    );
+                    Clear(SharepointLists);
+                    ForAll(
+                        Filter(
+                            SolutionEnvironmentVariables,
+                            type = 100000004 && parameterkey = "dataset"
+                        ),
+                        If(
+                            Not IsBlank(CurrentValue) && Not IsBlank(First(Filter(SharepointSites, webUrl = CurrentValue)).id),
+                            Collect(
+                                SharepointLists,
+                                AddColumns(
+                                    GetSharepointLists.Run(
+                                        LookUp(
+                                            SharepointSites,
+                                            webUrl = CurrentValue
+                                        ).id
+                                    ).value,
+                                    "DefinitionId",
+                                    environmentvariabledefinitionid
+                                )
+                            )
+                        )
+                    )
+                );
+                //Add an empty row to EnvironmentUsers
+                Collect(
+                    EnvironmentUsers,
+                    {domainname: ""}
+                );
+                ClearCollect(
+                    EnvironmentUsers,
+                    Sort(
+                        EnvironmentUsers,
+                        domainname,
+                        Ascending
+                    )
+                );
+                UpdateContext({resetEnvironment: false});
+                UpdateContext({resetEnvironment: true});
+                UpdateContext(
+                    {
+                        showDeploymentSettingsLoader: false,
+                        showSolutionComponentLoader: false
+                    }
+                );
+            PressedBorderColor: =fncLoadEnvironmentDeploymentSettings.Fill
+            PressedColor: =fncLoadEnvironmentDeploymentSettings.Fill
+            PressedFill: =fncLoadEnvironmentDeploymentSettings.Color
+            Text: ="fncInitializeHome"
+            Width: =560
+            X: =4
+            Y: =80
+            ZIndex: =9
+
+    DeploymentDialogOverlay As rectangle:
+        BorderColor: =ColorFade(DeploymentDialogOverlay.Fill, -20%)
+        DisabledFill: =DeploymentDialogOverlay.Fill
+        Fill: =RGBA(0, 0, 0, .5)
+        Height: =1080
+        HoverFill: =RGBA(0, 0, 0, .5)
+        PressedFill: =ColorFade(DeploymentDialogOverlay.Fill, -20%)
+        Visible: =showDeploymentDialogOverlay
+        Width: =1920
+        ZIndex: =3
+
+    ConnectionRequestDialog As groupContainer:
+        DisplayMode: =DisplayMode.Edit
+        Height: =1080
+        Visible: =showConnectionRequestDialog
+        Width: =550
+        X: =1370
+        ZIndex: =4
+
+        rctConnectionRequestDialog As rectangle:
+            BorderColor: =ColorFade(rctConnectionRequestDialog.Fill, -20%)
+            DisabledFill: =rctConnectionRequestDialog.Fill
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =1080
+            HoverFill: =ColorFade(rctConnectionRequestDialog.Fill, 20%)
+            PressedFill: =ColorFade(rctConnectionRequestDialog.Fill, -20%)
+            Width: =550
+            ZIndex: =1
+
+        lblConnectionRequestDialogTitle As label:
+            Align: =Center
+            FontWeight: =Semibold
+            Height: =64
+            Size: =16
+            Text: ="CONNECTION REQUEST"
+            Width: =546
+            ZIndex: =2
+
+        icoConnectionRequestDialogClose As icon.Cancel:
+            BorderColor: =ColorFade(icoConnectionRequestDialogClose.Fill, -20%)
+            DisabledFill: =ColorFade(icoConnectionRequestDialogClose.Fill, -80%)
+            Height: =55
+            HoverBorderColor: =ColorFade(icoConnectionRequestDialogClose.BorderColor, 20%)
+            HoverColor: =ColorFade(icoConnectionRequestDialogClose.Color, 20%)
+            HoverFill: =ColorFade(icoConnectionRequestDialogClose.Fill, 20%)
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showDeploymentDialogOverlay:false,showConnectionRequestDialog:false});
+                Clear(MyPeople);
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(icoConnectionRequestDialogClose.BorderColor, -20%)
+            PressedColor: =ColorFade(icoConnectionRequestDialogClose.Color, -20%)
+            PressedFill: =ColorFade(icoConnectionRequestDialogClose.Fill, -20%)
+            Width: =55
+            X: =495
+            Y: =4
+            ZIndex: =3
+
+        btnSendRequest As button:
+            DisplayMode: |-
+                =If(
+                    CountRows(glrInvitedUsers.AllItems) = 0,
+                    DisplayMode.Disabled,
+                    DisplayMode.Edit
+                )
+            Height: =45
+            HoverBorderColor: =ColorFade(btnSendRequest.BorderColor, 20%)
+            HoverColor: =ColorFade(btnSendRequest.Color, 20%)
+            HoverFill: =ColorFade(btnSendRequest.Fill, 20%)
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showDeploymentDialogOverlay: false,
+                        showConnectionRequestDialog: false
+                    }
+                );
+                Launch(
+                    "mailto:" & Concat(
+                        glrInvitedUsers.AllItems,
+                        Mail & ";"
+                    ) & "?subject=" & gblUser.FullName & " is requesting your help to re-establish a Power Apps Solution Connection" & "&body=" & "Hello,%0D%0A%0D%0ACan you assist with re-establishing the following connection in " & drpDeployEnvironments.Selected.DisplayName & "%0D%0A%0D%0APlease use the following link to login and re-establish the connection https://web.powerapps.com/apps/" & First(
+                        Filter(
+                            PowerAppsforMakers.GetApps().value,
+                            properties.displayName = "ALM Accelerator for Advanced Makers" && properties.environment.name = ExecutingEnvironment.tags.environmentName
+                        )
+                    ).name & "?env=" & SelectedEnvironment.name & "%26configsoln=" & Text(SelectedSolutionToConfigure.solutionid)
+                );
+                Clear(MyPeople);
+            PressedBorderColor: =btnSendRequest.Fill
+            PressedColor: =btnSendRequest.Fill
+            PressedFill: =btnSendRequest.Color
+            Text: ="SEND"
+            Width: =200
+            X: =330
+            Y: =1015
+            ZIndex: =8
+
+        lblPullRequestSolutionFriendlyName_1 As label:
+            Align: =Center
+            FontWeight: =FontWeight.Semibold
+            Height: =28
+            Size: =16
+            Text: =glrConnectionReferences.Selected.connectionreferencedisplayname
+            Width: =550
+            Y: =58
+            ZIndex: =14
+
+        lblConnectionRequestInstructions As label:
+            Align: =Center
+            FontWeight: =FontWeight.Semibold
+            Height: =62
+            PaddingLeft: =0
+            Text: ="Use the search below to invite another user to create and / or refresh connections in the target environment."
+            Width: =513
+            X: =28
+            Y: =97
+            ZIndex: =15
+
+        LblAppName1 As label:
+            Height: =64
+            Text: ="People"
+            Width: =Parent.Width - Self.X * 2
+            Wrap: =false
+            X: =32
+            ZIndex: =16
+
+        txtConnectionRequestSearch As text:
+            Align: =Left
+            Default: =""
+            Height: =48
+            HintText: ="Enter a name or email address"
+            HoverBorderColor: =ColorFade(txtConnectionRequestSearch.BorderColor, 20%)
+            HoverColor: =ColorFade(txtConnectionRequestSearch.Color, 20%)
+            HoverFill: =ColorFade(txtConnectionRequestSearch.Fill, 20%)
+            PaddingLeft: =70
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Width: =550
+            Y: =187
+            ZIndex: =17
+
+        SearchIcon1 As icon.Search:
+            BorderColor: =ColorFade(SearchIcon1.Fill, -20%)
+            DisabledFill: =ColorFade(SearchIcon1.Fill, -80%)
+            Height: =38
+            HoverBorderColor: =ColorFade(SearchIcon1.BorderColor, 20%)
+            HoverColor: =ColorFade(SearchIcon1.Color, 20%)
+            HoverFill: =ColorFade(SearchIcon1.Fill, 20%)
+            Icon: =Icon.Search
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =8
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(SearchIcon1.BorderColor, -20%)
+            PressedColor: =ColorFade(SearchIcon1.Color, -20%)
+            PressedFill: =ColorFade(SearchIcon1.Fill, -20%)
+            Tooltip: ="Search"
+            Width: =43
+            X: =24
+            Y: =190
+            ZIndex: =18
+
+        glrConnectionRequestBrowseUsers As gallery.PeoplePickerTabletGallery:
+            AccessibleLabel: ="User look up search results"
+            BorderColor: =PrimaryColor3Value
+            Fill: =Parent.Fill
+            Height: =364
+            Items: |-
+                =If(!IsBlank(Trim(txtConnectionRequestSearch.Text)), Office365Users.SearchUser({searchTerm: Trim(txtConnectionRequestSearch.Text), top: 15}))
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =87
+            Width: =550
+            Y: =228
+            ZIndex: =23
+
+            Rectangle2 As rectangle:
+                BorderColor: =connectionRequestUserName.Color
+                DisabledFill: =Rectangle2.Fill
+                Fill: =RGBA(0,0,0,0)
+                FocusedBorderThickness: =2
+                Height: =Parent.TemplateHeight - 2*Self.Y
+                HoverFill: =RGBA(0,0,0,0)
+                OnSelect: =Select(connectionRequestUserName)
+                PressedFill: =ColorFade(Rectangle2.Fill, -20%)
+                Width: =Parent.TemplateWidth - 2*Self.X
+                X: =1
+                Y: =1
+                ZIndex: =1
+
+            iconUser1 As icon.Person:
+                BorderColor: =ColorFade(iconUser1.Color, -20%)
+                Color: =PrimaryColor1Value
+                Fill: =PrimaryColor1Value
+                Height: =connectionRequestUserImage.Height
+                Icon: =Icon.Person
+                OnSelect: =Select(connectionRequestUserName)
+                PaddingBottom: =12
+                PaddingLeft: =12
+                PaddingRight: =12
+                PaddingTop: =12
+                PressedFill: =ColorFade(iconUser1.Color, -20%)
+                Width: =connectionRequestUserImage.Width
+                X: =connectionRequestUserImage.X
+                Y: =connectionRequestUserImage.Y
+                ZIndex: =2
+
+            connectionRequestUserImage As image:
+                BorderColor: =ColorFade(connectionRequestUserImage.Fill, -20%)
+                FocusedBorderThickness: =2
+                Height: =Self.Width
+                HoverBorderColor: =ColorFade(connectionRequestUserImage.BorderColor, 20%)
+                HoverFill: =ColorFade(connectionRequestUserImage.Fill, 20%)
+                Image: =If(!IsBlank(ThisItem.Id), Office365Users.UserPhotoV2(ThisItem.Id))
+                OnSelect: =Select(connectionRequestUserName)
+                PressedBorderColor: =ColorFade(connectionRequestUserImage.BorderColor, -20%)
+                PressedFill: =ColorFade(connectionRequestUserImage.Fill, -20%)
+                Width: =glrConnectionRequestBrowseUsers.TemplateHeight - 10
+                X: =28
+                Y: =10
+                ZIndex: =3
+
+            connectionRequestUserName As label:
+                BorderColor: =Self.Color
+                FocusedBorderThickness: =2
+                FontWeight: =FontWeight.Semibold
+                Height: =Self.Size * 1.8
+                OnSelect: |-
+                    =/*Select user, clear search contents and if this user hasn't been added to MyPeople collection, add them*/
+                    Concurrent(
+                        Reset(txtConnectionRequestSearch),
+                        If(
+                            Not(ThisItem.UserPrincipalName in MyPeople.UserPrincipalName),
+                            Collect(
+                                MyPeople,
+                                ThisItem
+                            )
+                        )
+                    )
+                Size: =12
+                TabIndex: =0
+                Text: =ThisItem.DisplayName
+                VerticalAlign: =Middle
+                Width: =glrConnectionRequestBrowseUsers.TemplateWidth - 232
+                Wrap: =false
+                X: =connectionRequestUserImage.X + connectionRequestUserImage.Width + 16
+                Y: =16
+                ZIndex: =4
+
+            connectionRequestUserEmail As label:
+                FocusedBorderThickness: =2
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(connectionRequestUserName)
+                Size: =12
+                Text: =ThisItem.Mail
+                VerticalAlign: =Middle
+                Width: =connectionRequestUserName.Width
+                Wrap: =false
+                X: =connectionRequestUserName.X
+                Y: =glrConnectionRequestBrowseUsers.TemplateHeight - Self.Height - 20
+                ZIndex: =5
+
+            Separator5 As rectangle:
+                BorderColor: =ColorFade(Separator5.Fill, -20%)
+                DisabledFill: =Separator5.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator5.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator5.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =6
+
+            icoSelectUser As icon.Cancel:
+                BorderColor: =ColorFade(icoSelectUser.Fill, -20%)
+                DisabledFill: =ColorFade(icoSelectUser.Fill, -80%)
+                Height: =77
+                HoverBorderColor: =ColorFade(icoSelectUser.BorderColor, 20%)
+                HoverColor: =ColorFade(icoSelectUser.Color, 20%)
+                HoverFill: =ColorFade(icoSelectUser.Fill, 20%)
+                Icon: =
+                OnSelect: =Select(connectionRequestUserName)
+                PaddingBottom: =10
+                PaddingLeft: =10
+                PaddingRight: =10
+                PaddingTop: =10
+                PressedBorderColor: =ColorFade(icoSelectUser.BorderColor, -20%)
+                PressedColor: =ColorFade(icoSelectUser.Color, -20%)
+                PressedFill: =ColorFade(icoSelectUser.Fill, -20%)
+                Width: =549
+                X: =1
+                Y: =10
+                ZIndex: =7
+
+        glrInvitedUsers As gallery.PeoplePickerTabletGallery:
+            AccessibleLabel: ="User look up search results"
+            BorderColor: =PrimaryColor3Value
+            Fill: =Parent.Fill
+            Height: =314
+            Items: =MyPeople
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =87
+            Width: =550
+            Y: =662
+            ZIndex: =24
+
+            Rectangle2_1 As rectangle:
+                BorderColor: =PrimaryColor2Value
+                DisabledFill: =Rectangle2_1.Fill
+                Fill: =RGBA(0,0,0,0)
+                FocusedBorderThickness: =2
+                Height: =Parent.TemplateHeight - 2*Self.Y
+                HoverFill: =RGBA(0,0,0,0)
+                OnSelect: =Select(connectionInvitedUserName)
+                PressedFill: =ColorFade(Rectangle2_1.Fill, -20%)
+                Width: =Parent.TemplateWidth - 2*Self.X
+                X: =1
+                Y: =1
+                ZIndex: =1
+
+            iconUser1_1 As icon.Person:
+                BorderColor: =ColorFade(iconUser1_1.Color, -20%)
+                Color: =PrimaryColor1Value
+                Fill: =PrimaryColor1Value
+                Height: =connectionRequestUserImage_1.Height
+                Icon: =Icon.Person
+                OnSelect: =Select(connectionInvitedUserName)
+                PaddingBottom: =12
+                PaddingLeft: =12
+                PaddingRight: =12
+                PaddingTop: =12
+                PressedFill: =ColorFade(iconUser1_1.Color, -20%)
+                Width: =connectionRequestUserImage_1.Width
+                X: =connectionRequestUserImage_1.X
+                Y: =connectionRequestUserImage_1.Y
+                ZIndex: =2
+
+            connectionRequestUserImage_1 As image:
+                BorderColor: =ColorFade(connectionRequestUserImage_1.Fill, -20%)
+                FocusedBorderThickness: =2
+                Height: =Self.Width
+                HoverBorderColor: =ColorFade(connectionRequestUserImage_1.BorderColor, 20%)
+                HoverFill: =ColorFade(connectionRequestUserImage_1.Fill, 20%)
+                Image: =If(!IsBlank(ThisItem.Id), Office365Users.UserPhotoV2(ThisItem.Id))
+                OnSelect: =
+                PressedBorderColor: =ColorFade(connectionRequestUserImage_1.BorderColor, -20%)
+                PressedFill: =ColorFade(connectionRequestUserImage_1.Fill, -20%)
+                Width: =glrInvitedUsers.TemplateHeight - 10
+                X: =28
+                Y: =(glrInvitedUsers.TemplateHeight / 2) - (Self.Height/2)
+                ZIndex: =3
+
+            connectionInvitedUserName As label:
+                BorderColor: =Self.Color
+                FocusedBorderThickness: =2
+                FontWeight: =FontWeight.Semibold
+                Height: =Self.Size * 1.8
+                OnSelect: |-
+                    =/*Select user, clear search contents and if this user hasn't been added to MyPeople collection, add them*/
+                    Concurrent(
+                    Reset(txtConnectionRequestSearch),
+                    If(Not(ThisItem.UserPrincipalName in MyPeople.UserPrincipalName), Collect(MyPeople, ThisItem)))
+                Size: =12
+                TabIndex: =0
+                Text: =ThisItem.DisplayName
+                VerticalAlign: =Middle
+                Width: =glrInvitedUsers.TemplateWidth - 232
+                Wrap: =false
+                X: =connectionRequestUserImage_1.X + connectionRequestUserImage_1.Width + 16
+                Y: =16
+                ZIndex: =4
+
+            connectionInvitedUserEmail As label:
+                FocusedBorderThickness: =2
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(connectionInvitedUserName)
+                Size: =12
+                Text: =ThisItem.Mail
+                VerticalAlign: =Middle
+                Width: =connectionInvitedUserName.Width
+                Wrap: =false
+                X: =connectionInvitedUserName.X
+                Y: =glrInvitedUsers.TemplateHeight - Self.Height - 20
+                ZIndex: =5
+
+            Separator5_1 As rectangle:
+                BorderColor: =ColorFade(Separator5_1.Fill, -20%)
+                DisabledFill: =Separator5_1.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator5_1.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator5_1.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =6
+
+            icoConnectionRequestRemoveUser As icon.Cancel:
+                BorderColor: =ColorFade(icoConnectionRequestRemoveUser.Fill, -20%)
+                DisabledFill: =ColorFade(icoConnectionRequestRemoveUser.Fill, -80%)
+                Height: =55
+                HoverBorderColor: =ColorFade(icoConnectionRequestRemoveUser.BorderColor, 20%)
+                HoverColor: =ColorFade(icoConnectionRequestRemoveUser.Color, 20%)
+                HoverFill: =ColorFade(icoConnectionRequestRemoveUser.Fill, 20%)
+                Icon: =Icon.Cancel
+                OnSelect: =Remove(MyPeople, LookUp(MyPeople, UserPrincipalName = ThisItem.UserPrincipalName))
+                PaddingBottom: =10
+                PaddingLeft: =10
+                PaddingRight: =10
+                PaddingTop: =10
+                PressedBorderColor: =ColorFade(icoConnectionRequestRemoveUser.BorderColor, -20%)
+                PressedColor: =ColorFade(icoConnectionRequestRemoveUser.Color, -20%)
+                PressedFill: =ColorFade(icoConnectionRequestRemoveUser.Fill, -20%)
+                Width: =55
+                X: =483
+                Y: =17
+                ZIndex: =7
+
+        lblInvitedUserTitle As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =28
+            Size: =16
+            Text: ="Invited Users"
+            Width: =550
+            Y: =622
+            ZIndex: =25
+
+        RectSeparator2_1 As rectangle:
+            BorderColor: =ColorFade(RectSeparator2_1.Fill, -20%)
+            DisabledFill: =RectSeparator2_1.Fill
+            Height: =1
+            HoverFill: =ColorFade(RectSeparator2_1.Fill, 20%)
+            PressedFill: =ColorFade(RectSeparator2_1.Fill, -20%)
+            Width: =Parent.Width
+            Y: =235
+            ZIndex: =26
+
+        RectSeparator2_2 As rectangle:
+            BorderColor: =ColorFade(RectSeparator2_2.Fill, -20%)
+            DisabledFill: =RectSeparator2_2.Fill
+            Height: =1
+            HoverFill: =ColorFade(RectSeparator2_2.Fill, 20%)
+            PressedFill: =ColorFade(RectSeparator2_2.Fill, -20%)
+            Width: =Parent.Width
+            Y: =655
+            ZIndex: =27
+
+        lblNoUsersSelected As label:
+            Align: =Center
+            FontWeight: =FontWeight.Semibold
+            Height: =62
+            PaddingLeft: =0
+            Text: ="No users have been invited. Search for a user to add them to the invitation."
+            Visible: =CountRows(glrInvitedUsers.AllItems) = 0
+            Width: =513
+            X: =18
+            Y: =674
+            ZIndex: =28
+
