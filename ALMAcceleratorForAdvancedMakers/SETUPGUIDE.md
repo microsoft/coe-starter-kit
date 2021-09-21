@@ -4,11 +4,11 @@
 
 The ALM Accelerator components enable makers to apply source control strategies using Azure DevOps and use automated builds and deployment of solutions to their environments without the need for manual intervention by the maker, administrator, developer, or tester. In addition the ALM Accelerator provides makers the ability to work without intimate knowledge of the downstream technologies and to be able to switch quickly from developing solutions to source controlling the solution and ultimately pushing their apps to other environments with as few interruptions to their work as possible.
 
-This solution uses Azure DevOps for source control and deployments (pipelines). You can sign up for Azure DevOps for free for up to 5 users on the [Azure DevOps](https://azure.microsoft.com/en-us/services/DevOps/) site.
+The ALM Accelerator components solution doesn't have a dependency on other components of the CoE Starter Kit. It can be used independently.
 
-**The ALM Accelerator components solution doesn't have a dependency on other components of the CoE Starter Kit. It can be used independently.**
+## Before you start...
 
->[!NOTE] The pipelines in the ALM Accelerator components rely on some third party extensions to fill gaps in areas where native utilities are not available or the effort to recreate the functionality is prohibitive. We recognize that this isn't ideal and are working toward eliminating these utilities as we grow the solution and native capabilities become available. However, in the interest of providing a sample implementation of full end to end Power Platform Pipelines it was decided that this would be necessary at the moment. The documentation below calls out these third party tools, their purpose and their documentation / source code.
+The following documentation is intended to be a step-by-step process for setting up AA4AM manually. However, **it is recommended that you use the [Center of Excellence Command Line Interface (coe-cli)](https://github.com/microsoft/coe-starter-kit/tree/main/coe-cli#readme) to assist in automating these steps**. This document will provide details and context for the actions that are performed by the coe-cli and act as a reference for those who want to know the specifics of each step in the process.
 
 
 ## Document structure
@@ -25,7 +25,7 @@ The GETTINGSTARTED.md is structured into 7 main sections
 
 ## Table of Contents
 
-- [Set up ALM Accelerator for Advanced Makers (AA4AM) components (Preview)](#set-up-alm-accelerator-for-advanced-makers-aa4am-components-preview
+- Set up ALM Accelerator for Advanced Makers (AA4AM) components (Preview)
   * [Document structure](#document-structure)
   * [Table of Contents](#table-of-contents)
   * [Prerequisites](#prerequisites)
@@ -63,15 +63,17 @@ The GETTINGSTARTED.md is structured into 7 main sections
 
 ## Prerequisites
 
-### Environments
+### Dataverse Environments
 
-The application will manage deploying solutions from Development to Validation to Testing and to Production. While you can setup your pipelines to use two environments  initially (e.g. one for your Development / Deploying the ALM Accelerator Solution and one for Validation, Test and Production. Ultimately, you will want to have separate environments setup for each of at least Development, Validation, Test and Production.
-
-- The environment into which you are deploying the ALM Accelerator app will need to be created with a Dataverse database. Additionally, any target environment requires a Dataverse database in order to deploy your solutions.
+The application will manage deploying solutions from Development to Validation to Testing and to Production. The environment into which you are deploying the ALM Accelerator app will need to be created with a Dataverse database. Additionally, any target environment requires a Dataverse database in order to deploy your solutions.
 
 > [!NOTE] Currently the ALM Accelerator is not compatible with Dataverse for Teams. Both the AA4AM App and the associated AzDO pipelines assume the full version of Dataverse is being used in all environments.
 
 You'll need to **create an environment in which to set up the AA4AM Solution**. It's recommended to install AA4AM in the same environment as other CoE Starter Kit Solutions. For more information about how to decide on the best strategy for your organization, go [Establishing an Environment Strategy for Microsoft Power Platform](https://docs.microsoft.com/en-us/power-platform/guidance/adoption/environment-strategy) and [Environment strategy for ALM](https://docs.microsoft.com/en-us/power-platform/alm/environment-strategy-alm).
+
+## Azure DevOps Environment
+
+This solution uses Azure DevOps for source control and deployments (pipelines). You can sign up for Azure DevOps for free for up to 5 users on the [Azure DevOps](https://azure.microsoft.com/en-us/services/DevOps/) site.
 
 ### Users and Permissions
 
@@ -86,13 +88,14 @@ In order to complete the steps below you will need the following users and permi
 
 For the AA4AM Canvas App to work as expected the following connectors must be available to be used together in the environment into which the ALM Accelerator solution is imported.
 
-- Dataverse
-- Power Apps for Makers
+- [Dataverse (Legacy)](https://docs.microsoft.com/en-us/connectors/commondataservice/)
+- [Power Apps for Makers](https://docs.microsoft.com/en-us/connectors/powerappsforappmakers/)
+- [HTTP with Azure AD](https://docs.microsoft.com/en-us/connectors/webcontents/)
 - ALM Accelerator Custom Azure DevOps
 
 ## Foundational Setup
 
-The following steps will guide you through setting up the foundations of the AA4AM. These steps are general to the functionality of the ALM Accelerator and not project or solution specific.
+The following steps will guide you through setting up the foundations of AA4AM. These steps are general to the functionality of the ALM Accelerator and not project or solution specific.
 
 ### Create an App Registration in your AAD Environment
 
@@ -168,27 +171,12 @@ The ALM Accelerator uses several Azure DevOps extensions, including some third-p
 1. Install the following Extensions
    - **Power Platform Build Tools (required)**: This extension contains the first-party build tasks for Dataverse. (https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
 
-   - **Power DevOps Tools (required)**: This extension contains several build tasks not currently supported by the first party build tools. (https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks | https://github.com/WaelHamze/dyn365-ce-vsts-tasks)
+   - **Replace Tokens (required)**: This extension is used by the pipelines to replace tokens in configuration files in order to be able to store secure values in private variables configured for a pipeline. (https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens | https://github.com/qetza/vsts-replacetokens-task)
 
-   - **Replace Tokens (optional)**: This extension is used by the pipelines to replace tokens in configuration files in order to be able to store secure values in private variables configured for a pipeline. While this extension is optional, if it is not installed you will be required to manually edit the pipeline YAML in order to disable it usage. (https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens | https://github.com/qetza/vsts-replacetokens-task)
-
-      - If you choose not to install the 'Replace Tokens' extension you will need to modify the deploySolution.yml pipeline template to exclude the call to the extension as the example below shows.
-
-      ```
-      # Third party task to replace tokens in files. The FileTransform above replaces json tokens based on their path as opposed to replacing text tokens in a file which can be more error prone in some cases.
-      # If you aren't using this task it can be safely removed. Sample token: #{VariableNameToReplace}#
-      #- task: qetza.replacetokens.replacetokens-task.replacetokens@3
-      #  displayName: 'Replace Tokens: deploymentSettings.json'
-      #  inputs:
-      #    rootDirectory: '$(ArtifactDropPath)'
-      #    targetFiles: '*deploymentSettings*.json'
-      #    actionOnMissing: 'silently continue'
-      #  condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], 3'')))
-      ```
-   
    - **SARIF SAST Scans Tab (optional)**: This extension can be used to visualize the .**sarif files** that get generated by the **Solution Checker** during a build. ([SARIF SAST Scans Tab - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sariftools.scans))
    
-     ![image-20210217102344719](.attachments/GETTINGSTARTED/image-20210217102344719.png)
+      ![image-20210217102344719](.attachments/GETTINGSTARTED/image-20210217102344719.png)
+   
 
 
 ### Clone the YAML Pipelines from GitHub to your Azure DevOps instance
@@ -232,7 +220,9 @@ Following the steps below to create the following pipelines based on the YAML in
 
 There are a few optional pipeline variables that can be set on the export-solution-to-git pipeline to control what information is persisted to source control. If you want to **apply these settings globally** you can set the following variables on your export-solution-to-git pipeline or in the case that you want to **apply these to specific solutions on export** you can create a specific export pipeline for your solution as described above and setting the following variables on your solution specific export pipeline.
 
-The **DoNotExportCurrentEnvironmentVariableValues** variable can be used to ensure that the current value of environment variables are never committed to source control during the export process.
+The **DoNotExportCurrentEnvironmentVariableValues** variable can be used to ensure that the current value of environment variables are never committed to source control during the export process. 
+
+>  [!IMPORTANT] This pipeline variable is recommended in order to use the deployment configuration functionality in the AA4AM App.
 
 ![image-20210723164226271](.attachments/SETUPGUIDE/image-20210723164226271.png)
 
@@ -274,9 +264,28 @@ The **VerifyDefaultEnvironmentVariableValues** can be used to ensure that specif
    | Contribute | Allow |
    | Contribute to pull requests | Allow |
    | Create branch | Allow |
+   
    ![image.png](.attachments/GETTINGSTARTED/image-8505cb38-0569-442b-aac0-cc9ceea3b5a5.png)
-
+   
 1. Find and select the user name **[Your Project Name] Build Service ([Your Organization Name])** under Users and set the **same values as above**.
+
+1. Select **Pipelines** and Select **Manage Security**
+
+   ![image-20210917105656888](.attachments/SETUPGUIDE/image-20210917105656888.png)
+
+1. Set the following permissions for the Build Service user.
+
+   | Permission                            | Value |
+   | ------------------------------------- | ----- |
+   | Edit build pipeline                   | Allow |
+   | Edit build quality                    | Allow |
+   | Manage build queue                    | Allow |
+   | Override check-in validation by build | Allow |
+   | Update build information              | Allow |
+   | View build pipeline                   | Allow |
+   | View builds                           | Allow |
+
+   ![image-20210917105904945](.attachments/SETUPGUIDE/image-20210917105904945.png)
 
 ## Development Project Setup
 
