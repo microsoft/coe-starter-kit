@@ -16,7 +16,11 @@ If you are upgrading to the latest release you will need to perform the followin
 
 - We've removed the dependency on the **Power DevOps Tools extension** in this release. Any extension that has been removed from this list can be safely removed [Install Azure DevOps Extensions](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#install-azure-devops-extensions).
 
-- In this release we have updated the pipelines to use deployment configuration files stored in source control rather than using Pipeline variables for the json configuration of Connection References, Environment Variables, Component Ownership, App Sharing etc. We've also split the configuration between a customDeploymentSettings.json and deploymentSettings.json in order to use the built in import task to set environment variables and connection references. Please see [DEPLOYMENTCONFIGGUIDE.md](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/DEPLOYMENTCONFIGGUIDE.md) for more details.
+- Ensure that you have the latest version of **Power Platform Build Tools (1.0.35)** installed.
+
+- Update the Azure DevOps Build Service Permissions to allow the pipelines to configure other pipelines (e.g. setting variables for deployment configuration). Follow the [SETUPGUIDE.md](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to set the permissions.
+
+- In this release we have updated the pipelines to use deployment configuration files stored in source control rather than using Pipeline variables for the json configuration of Connection References, Environment Variables, Component Ownership, App Sharing etc. We've also split the configuration between a **customDeploymentSettings.json and deploymentSettings.json** in order to use the built in import task to set environment variables and connection references. Please see [DEPLOYMENTCONFIGGUIDE.md](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/DEPLOYMENTCONFIGGUIDE.md) for more details.
 
   > [!NOTE] If you have previously configured your pipelines using pipeline variables your pipeline variables will no longer work. However, with the addition of functionality to auto generate the deployment configuration files and configure deployment settings via the app in the latest version this should be a simple transition. 
 
