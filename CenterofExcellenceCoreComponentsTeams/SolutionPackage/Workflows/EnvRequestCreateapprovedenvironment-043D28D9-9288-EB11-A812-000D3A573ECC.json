@@ -1,0 +1,773 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins_1": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Append_to_array_variable_-_varEnvAdmins": {
+          "inputs": {
+            "name": "varEnvAdmins",
+            "value": {
+              "admin_makerid": "@{outputs('Get_a_row_by_ID_-_requestor_user')?['body/azureactivedirectoryobjectid']}",
+              "admin_userprincipalname": "@{outputs('Get_a_row_by_ID_-_requestor_user')?['body/domainname']}"
+            }
+          },
+          "runAfter": {
+            "Get_a_row_by_ID_-_requestor_user": [
+              "Succeeded"
+            ]
+          },
+          "type": "AppendToArrayVariable"
+        },
+        "Get_a_record_-_environment_request": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "$expand": "coe_EnvCreationRequest_SystemAdmins($select=admin_makerid,admin_userprincipalname), coe_DLPPolicyChangeRequest_CreationReques($select=coe_dlppolicychangerequestid),createdby($select=fullname,domainname,azureactivedirectoryobjectid)",
+              "entityName": "coe_environmentcreationrequests",
+              "recordId": "@triggerOutputs()?['body/coe_environmentcreationrequestid']"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {},
+          "type": "OpenApiConnection"
+        },
+        "Get_a_row_by_ID_-_requestor_user": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "entityName": "systemusers",
+              "recordId": "@outputs('Get_a_record_-_environment_request')?['body/_createdby_value']"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_-_varExpriationEmailCard": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Initialize_variable_-_varDlpChangeRequests": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varDlpChangeRequests",
+                "type": "array",
+                "value": "@body('Parse_JSON')?['coe_DLPPolicyChangeRequest_CreationReques']"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_-_varEnvAdmins": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_-_varEnvAdminEmails": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varEnvAdminEmails",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_-_varDlpChangeRequests": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_-_varEnvAdmins": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varEnvAdmins",
+                "type": "array",
+                "value": "@body('Parse_JSON')?['coe_EnvCreationRequest_SystemAdmins']"
+              }
+            ]
+          },
+          "runAfter": {
+            "Parse_JSON": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_-_varErrorMessage": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varErrorMessage",
+                "type": "string",
+                "value": "An error occured when provisioning the approved environment."
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_-_varEnvAdminEmails": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_-_varExpriationEmailCard": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varExpriationEmailCard",
+                "type": "string",
+                "value": "The Environment does not have any expiration date and can be used indefinitely. If at any point in the future this Environment is no longer needed, help keep costs down by deleting the Environment."
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_variable_-_varErrorMessage": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_variable_-_varSecurityGroupId": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varSecurityGroupId",
+                "type": "string",
+                "value": "@triggerOutputs()?['body/coe_databasesecuritygroupid']"
+              }
+            ]
+          },
+          "runAfter": {
+            "Append_to_array_variable_-_varEnvAdmins": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Parse_JSON": {
+          "inputs": {
+            "content": "@outputs('Get_a_record_-_environment_request')?['body']",
+            "schema": {
+              "properties": {
+                "coe_DLPPolicyChangeRequest_CreationReques": {
+                  "items": {
+                    "properties": {
+                      "coe_dlppolicychangerequestid": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "coe_dlppolicychangerequestid"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "coe_EnvCreationRequest_SystemAdmins": {
+                  "items": {
+                    "properties": {
+                      "@@odata.editLink": {
+                        "type": "string"
+                      },
+                      "@@odata.etag": {
+                        "type": "string"
+                      },
+                      "@@odata.id": {
+                        "type": "string"
+                      },
+                      "@@odata.type": {
+                        "type": "string"
+                      },
+                      "admin_makerid": {
+                        "type": "string"
+                      },
+                      "admin_makerid@odata.type": {
+                        "type": "string"
+                      },
+                      "admin_userprincipalname": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "@@odata.type",
+                      "@@odata.id",
+                      "@@odata.etag",
+                      "@@odata.editLink",
+                      "admin_makerid@odata.type",
+                      "admin_makerid",
+                      "admin_userprincipalname"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "runAfter": {
+            "Get_a_record_-_environment_request": [
+              "Succeeded"
+            ]
+          },
+          "type": "ParseJson"
+        },
+        "Scope_-_Environment_provisioning_failed": {
+          "actions": {
+            "Apply_to_each_-_DLP_Policy_Change_Request_-_Environment_provisioning_failed": {
+              "actions": {
+                "Update_a_record_-_DLP_Policy_Change_Requests_(failed)": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "coe_dlppolicychangerequests",
+                      "item/coe_requeststatus": 597910007,
+                      "item/statecode": 1,
+                      "recordId": "@items('Apply_to_each_-_DLP_Policy_Change_Request_-_Environment_provisioning_failed')?['coe_dlppolicychangerequestid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@variables('varDlpChangeRequests')",
+              "runAfter": {
+                "Update_a_record_-_Environment_provisioning_failed": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Send_an_email_-_Environment_provisioning_failed": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2"
+                },
+                "parameters": {
+                  "emailMessage/Body": "<p><span style=\"font-size: 16px\"><strong>Notice: There was a problem provisioning the Environment.</strong></span><br>\nThe approved Environment Creation Request was not completed, and the record has been closed. Please evaluate the error message and review the issue in the flow run history, then re-submit the request.<br>\n<br>\n<span style=\"color: rgb(184,49,47)\">Error: </span><span style=\"color: rgb(184,49,47)\">@{variables('varErrorMessage')}</span><span style=\"color: rgb(184,49,47)\"></span><br>\n</p>",
+                  "emailMessage/Subject": "@{triggerOutputs()?['body/coe_name']} - There was an issue processing an Environment Creation Request",
+                  "emailMessage/To": "@{parameters('Admin eMail')};@{variables('varEnvAdminEmails')}"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Update_a_record_-_Environment_provisioning_failed": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord"
+                },
+                "parameters": {
+                  "entityName": "coe_environmentcreationrequests",
+                  "item/coe_notes": "@concat(outputs('Get_a_record_-_environment_request')?['body/coe_notes'], '; Error while provisioning: ',variables('varErrorMessage'))",
+                  "item/coe_requeststatus": 597910007,
+                  "item/statecode": 1,
+                  "recordId": "@outputs('Get_a_record_-_environment_request')?['body/coe_environmentcreationrequestid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Send_an_email_-_Environment_provisioning_failed": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Scope_-_Provision_environment": [
+              "Failed",
+              "TimedOut",
+              "Skipped"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Scope_-_Provision_environment": {
+          "actions": {
+            "Add_a_new_row_-_Environments_table": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_environments",
+                  "item/admin_Maker@odata.bind": "admin_makers(@{outputs('Get_a_row_by_ID_-_requestor_user')?['body/azureactivedirectoryobjectid']})",
+                  "item/admin_displayname": "@outputs('Get_Environment_as_Admin')?['body/properties/displayName']",
+                  "item/admin_environmentcdsinstanceurl": "@outputs('Get_Environment_as_Admin')?['body/properties/linkedEnvironmentMetadata/instanceUrl']",
+                  "item/admin_environmentcdsmetadataname": "@outputs('Get_Environment_as_Admin')?['body/properties/linkedEnvironmentMetadata/friendlyName']",
+                  "item/admin_environmentcreatedon": "@outputs('Get_Environment_as_Admin')?['body/properties/createdTime']",
+                  "item/admin_environmentdeleted": false,
+                  "item/admin_environmentid": "@outputs('Get_Environment_as_Admin')?['body/name']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Condition_-_Security_Group_ID": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Apply_to_each_-_DLP_Policy_Change_Request": {
+              "actions": {
+                "Update_a_row_-_DLP_Policy_Change_Request": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "coe_dlppolicychangerequests",
+                      "item/coe_Environment@odata.bind": "admin_environments(@{outputs('Add_a_new_row_-_Environments_table')?['body/admin_environmentid']})",
+                      "item/coe_requeststatus": 597910003,
+                      "recordId": "@item()?['coe_dlppolicychangerequestid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@variables('varDlpChangeRequests')",
+              "runAfter": {
+                "Update_a_record_-_Environment_is_Live": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Apply_to_each_-_Grant_access_to_system_admins": {
+              "actions": {
+                "Append_to_string_variable": {
+                  "inputs": {
+                    "name": "varEnvAdminEmails",
+                    "value": "@items('Apply_to_each_-_Grant_access_to_system_admins')?['admin_userprincipalname']"
+                  },
+                  "runAfter": {
+                    "Make_User_an_Environment_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "AppendToStringVariable"
+                },
+                "Make_User_an_Environment_Admin": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins_1",
+                      "operationId": "Edit-AdminEnvironmentRoleAssignment"
+                    },
+                    "parameters": {
+                      "api-version": "2018-10-01",
+                      "body/add": [
+                        {
+                          "properties/principal/email": "@items('Apply_to_each_-_Grant_access_to_system_admins')?['admin_userprincipalname']",
+                          "properties/principal/id": "@items('Apply_to_each_-_Grant_access_to_system_admins')?['admin_makerid']",
+                          "properties/principal/tenantId": "@outputs('Get_Environment_as_Admin')?['body/properties/createdBy/tenantId']",
+                          "properties/principal/type": "User",
+                          "properties/roleDefinition/id": "/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments/@{outputs('Get_Environment_as_Admin')?['body/name']}/roleDefinitions/EnvironmentAdmin"
+                        }
+                      ],
+                      "environment": "@outputs('Get_Environment_as_Admin')?['body/name']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@variables('varEnvAdmins')",
+              "runAfter": {
+                "Get_Environment_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Condition_-_Expiration_date": {
+              "actions": {
+                "Calculate_expiration_date": {
+                  "inputs": {
+                    "baseTime": "@{utcNow()}",
+                    "interval": "@outputs('Get_a_record_-_environment_request')?['body/coe_durationrequested']",
+                    "timeUnit": "Day"
+                  },
+                  "kind": "AddToTime",
+                  "runAfter": {},
+                  "type": "Expression"
+                },
+                "Set_variable_-_Expiration_message": {
+                  "inputs": {
+                    "name": "varExpriationEmailCard",
+                    "value": "<b>⚠Temporary Environment Clean-Up Warning:</b> To keep the tenant clean, the Environment will be automatically cleaned up on @{body('Calculate_expiration_date')} (@{triggerOutputs()?['body/coe_durationrequested']} days). You will be notified weekly when the Environment is close to being cleaned up. Please make sure to save work that will be needed beyond the expiration date outside of the Environment."
+                  },
+                  "runAfter": {
+                    "Calculate_expiration_date": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@triggerOutputs()?['body/coe_expirationdate']",
+                  "@true"
+                ]
+              },
+              "runAfter": {
+                "Add_a_new_row_-_Environments_table": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Condition_-_Provision_database": {
+              "actions": {
+                "Create_Database": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins_1",
+                      "operationId": "ProvisionInstance"
+                    },
+                    "parameters": {
+                      "body/baseLanguage": "@outputs('Get_a_record_-_environment_request')?['body/coe_dblanguage']",
+                      "body/currency/code": "@outputs('Get_a_record_-_environment_request')?['body/coe_dbcurrency']",
+                      "environment": "@outputs('Get_Environment_as_Admin')?['body/name']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@outputs('Get_a_record_-_environment_request')?['body/coe_hasdatabase']",
+                  "@true"
+                ]
+              },
+              "runAfter": {
+                "Apply_to_each_-_Grant_access_to_system_admins": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Condition_-_Security_Group_ID": {
+              "actions": {
+                "Update_Environment_with_security_group": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins_1",
+                      "operationId": "UpdateEnvironment"
+                    },
+                    "parameters": {
+                      "api-version": "2020-10-01",
+                      "body/properties/linkedEnvironmentMetadata/securityGroupId": "@triggerOutputs()?['body/coe_databasesecuritygroupid']",
+                      "environment": "@outputs('Get_Environment_as_Admin')?['body/name']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(variables('varSecurityGroupId'))",
+                  0
+                ]
+              },
+              "runAfter": {
+                "Condition_-_Provision_database": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Create_Environment": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins_1",
+                  "operationId": "NewAdminEnvironment"
+                },
+                "parameters": {
+                  "api-version": "2020-05-01",
+                  "body/location": "@outputs('Get_a_record_-_environment_request')?['body/coe_envregion']",
+                  "body/properties/displayName": "@outputs('Get_a_record_-_environment_request')?['body/coe_envdisplayname']",
+                  "body/properties/environmentSku": "@outputs('Get_a_record_-_environment_request')?['body/coe_envsku@OData.Community.Display.V1.FormattedValue']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "operationOptions": "DisableAsyncPattern",
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Get_Environment_as_Admin": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                  "connectionName": "shared_powerplatformforadmins_1",
+                  "operationId": "GetSingleEnvironment"
+                },
+                "parameters": {
+                  "api-version": "2018-10-01",
+                  "environment": "@outputs('Create_Environment')?['body/name']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Create_Environment": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Send_an_email_-_Environment_is_live": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2"
+                },
+                "parameters": {
+                  "emailMessage/Body": "<p><span style=\"font-size: 16px\"><strong>Your new Power Platform Environment has been created.</strong></span><br>\nYour request to create the new Power Platform environment '@{outputs('Update_a_record_-_Environment_is_Live')?['body/coe_envdisplayname']}' has been approved. You are now the adminstrator of the environment.<br>\n<br>\nAccess your environment in the maker portal here: @{parameters('PowerApp Maker Environment Variable')}environments/@{outputs('Get_Environment_as_Admin')?['body/name']}/home<br>\n<br>\n@{variables('varExpriationEmailCard')}</p>",
+                  "emailMessage/Subject": "@{outputs('Update_a_record_-_Environment_is_Live')?['body/coe_name']} - Your new Power Platform Environment is Live",
+                  "emailMessage/To": "@outputs('Get_a_row_by_ID_-_requestor_user')?['body/internalemailaddress']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Apply_to_each_-_DLP_Policy_Change_Request": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Set_variable_-_varErrorMessage": {
+              "inputs": {
+                "name": "varErrorMessage",
+                "value": "There was an issue creating the environment. Error message: @{body('Create_Environment')?['error']?['message']}"
+              },
+              "runAfter": {
+                "Create_Environment": [
+                  "Failed",
+                  "Skipped",
+                  "TimedOut"
+                ]
+              },
+              "type": "SetVariable"
+            },
+            "Update_a_record_-_Environment_is_Live": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord"
+                },
+                "parameters": {
+                  "entityName": "coe_environmentcreationrequests",
+                  "item/coe_expirationdate": "@body('Calculate_expiration_date')",
+                  "item/coe_requeststatus": 597910006,
+                  "recordId": "@outputs('Get_a_record_-_environment_request')?['body/coe_environmentcreationrequestid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Condition_-_Expiration_date": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_-_varSecurityGroupId": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail": {
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "metadata": {
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
+            "schemaName": "admin_AdminMail"
+          },
+          "type": "String"
+        },
+        "PowerApp Maker Environment Variable": {
+          "defaultValue": "https://make.powerapps.com/",
+          "metadata": {
+            "description": "The maker URL used by PowerApps for your cloud. Ex https://make.powerapps.com/",
+            "schemaName": "admin_PowerAppEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "description": "Triggers when the request status is updated to Approved",
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "coe_environmentcreationrequest",
+              "subscriptionRequest/filterexpression": "coe_requeststatus eq 597910003",
+              "subscriptionRequest/filteringattributes": "coe_requeststatus",
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
