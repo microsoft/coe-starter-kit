@@ -1,0 +1,285 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "impersonation": {},
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsAdmin"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforappmakers": {
+        "api": {
+          "name": "shared_powerappsforappmakers"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsMakers"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Initialize_ReturnString_to_pass": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ReturnString",
+                "type": "string",
+                "value": "pass"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "inputs": {
+            "body": {
+              "thereturnstring": "@variables('ReturnString')"
+            },
+            "schema": {
+              "properties": {
+                "thereturnstring": {
+                  "title": "theReturnString",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "runAfter": {
+            "Switch_on_action_input": [
+              "Succeeded"
+            ]
+          },
+          "type": "Response"
+        },
+        "Switch_on_action_input": {
+          "cases": {
+            "Case_assign": {
+              "actions": {
+                "Mark_app_owner_in_CoE": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "item/admin_AppOwner@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                      "item/cr5d5_appisorphaned": "no",
+                      "recordId": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Set_ReturnString_to_failed_-_assign": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Set_App_Owner": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                      "connectionName": "shared_powerappsforadmins",
+                      "operationId": "Set-AdminAppOwner"
+                    },
+                    "parameters": {
+                      "Content-Type": " application/json",
+                      "api-version": "2016-11-01",
+                      "app": "@triggerBody()['text_1']",
+                      "body/newAppOwner": "@triggerBody()['text']",
+                      "body/roleForOldAppOwner": "CanEdit",
+                      "environment": "@triggerBody()['text_2']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_ReturnString_to_failed_-_assign": {
+                  "inputs": {
+                    "name": "ReturnString",
+                    "value": "failed"
+                  },
+                  "runAfter": {
+                    "Set_App_Owner": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "case": "assign"
+            },
+            "Case_delete": {
+              "actions": {
+                "Mark_app_as_deleted_in_CoE": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "item/admin_appdeleted": true,
+                      "item/admin_appdeletedon": "@utcNow()",
+                      "recordId": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Set_ReturnString_to_failed_-_delete": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Remove_App": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforappmakers",
+                      "connectionName": "shared_powerappsforappmakers",
+                      "operationId": "Remove-App"
+                    },
+                    "parameters": {
+                      "api-version": "2017-06-01",
+                      "app": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_ReturnString_to_failed_-_delete": {
+                  "inputs": {
+                    "name": "ReturnString",
+                    "value": "failed"
+                  },
+                  "runAfter": {
+                    "Remove_App": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "case": "delete"
+            }
+          },
+          "default": {
+            "actions": {}
+          },
+          "expression": "@triggerBody()['text_3']",
+          "runAfter": {
+            "Initialize_ReturnString_to_pass": [
+              "Succeeded"
+            ]
+          },
+          "type": "Switch"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "newOwner",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "appName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_2": {
+                  "description": "Please enter your input",
+                  "title": "envName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_3": {
+                  "description": "Please enter your input",
+                  "title": "action",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2",
+                "text_3"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
