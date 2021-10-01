@@ -1,0 +1,575 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_flowmanagement": {
+        "api": {
+          "name": "shared_flowmanagement"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_microsoftflowforadmins": {
+        "api": {
+          "name": "shared_microsoftflowforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateAdmin"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "EnvtGUID": {
+          "inputs": "@substring(triggerBody()['text_2'], sub(length(triggerBody()['text_2']),36), 36)",
+          "runAfter": {
+            "Initialize_SolutionAwareFlow_to_true": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose"
+        },
+        "Initialize_ReturnString_to_pass": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ReturnString",
+                "type": "string",
+                "value": "pass"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_ReturnValue_to_200": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_ReturnValue_to_200": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "ReturnValue",
+                "type": "integer",
+                "value": 200
+              }
+            ]
+          },
+          "runAfter": {
+            "EnvtGUID": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_SolutionAwareFlow_to_true": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "SolutionAwareFlow",
+                "type": "boolean",
+                "value": "@true"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "inputs": {
+            "body": {
+              "thereturnstring": "@variables('ReturnString')"
+            },
+            "schema": {
+              "properties": {
+                "thereturnstring": {
+                  "title": "theReturnString",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "runAfter": {
+            "Switch_on_action_input": [
+              "Succeeded"
+            ]
+          },
+          "type": "Response"
+        },
+        "Switch_on_action_input": {
+          "cases": {
+            "Case_assign": {
+              "actions": {
+                "Get_Flow_as_Admin": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                      "connectionName": "shared_flowmanagement",
+                      "operationId": "AdminGetFlow"
+                    },
+                    "parameters": {
+                      "environmentName": "@triggerBody()['text_2']",
+                      "flowName": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_SolutionAwareFlow_to_false_if_error": {
+                  "inputs": {
+                    "name": "SolutionAwareFlow",
+                    "value": "@false"
+                  },
+                  "runAfter": {
+                    "get_guid_length": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "get_guid_length": {
+                  "inputs": "@length(outputs('workflowEntityId'))",
+                  "runAfter": {
+                    "workflowEntityId": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                },
+                "see_if_solution_flow": {
+                  "actions": {
+                    "Get_environments_CDSMetadataName": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem"
+                        },
+                        "parameters": {
+                          "$select": "admin_environmentcdsmetadataname, admin_environmentcdsinstanceurl",
+                          "entityName": "admin_environments",
+                          "recordId": "@outputs('EnvtGUID')"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "OpenApiConnection"
+                    },
+                    "Get_first_from_list": {
+                      "inputs": "@first(outputs('List_users_from_target_envt')?['body/value'])",
+                      "runAfter": {
+                        "List_users_from_target_envt": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "Get_new_owner_SystemUser_id": {
+                      "inputs": "@outputs('Get_first_from_list')?['iteminternalid']",
+                      "runAfter": {
+                        "Get_first_from_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Compose"
+                    },
+                    "List_users_from_target_envt": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice",
+                          "operationId": "GetItems_V2"
+                        },
+                        "parameters": {
+                          "$filter": "azureactivedirectoryobjectid eq @{triggerBody()['text']}",
+                          "dataset": "@outputs('Get_environments_CDSMetadataName')?['body/admin_environmentcdsinstanceurl']",
+                          "table": "systemusers"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Get_environments_CDSMetadataName": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Mark_app_owner_in_CoE_Soln_Flow": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_flows",
+                          "item/admin_DerivedOwner@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                          "item/cr5d5_flowisorphaned": "no",
+                          "recordId": "@triggerBody()['text_1']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Set_ReturnString_to_failed_-_assign_solution_aware": [
+                          "Skipped"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Set_ReturnString_to_failed_-_assign_solution_aware": {
+                      "inputs": {
+                        "name": "ReturnString",
+                        "value": "failed"
+                      },
+                      "runAfter": {
+                        "Update_flow_owner": [
+                          "Failed"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    },
+                    "Update_flow_owner": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice",
+                          "operationId": "PatchItem_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@outputs('Get_environments_CDSMetadataName')?['body/admin_environmentcdsinstanceurl']",
+                          "id": "@outputs('workflowEntityId')",
+                          "item": {
+                            "_ownerid_type": "systemusers",
+                            "_ownerid_value": "@outputs('Get_new_owner_SystemUser_id')"
+                          },
+                          "table": "workflows"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Get_new_owner_SystemUser_id": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Edit_Flow_Owner_Role_as_Admin": {
+                        "inputs": {
+                          "authentication": {
+                            "type": "Raw",
+                            "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftflowforadmins",
+                            "connectionName": "shared_microsoftflowforadmins",
+                            "operationId": "Edit-AdminFlowOwnerRole"
+                          },
+                          "parameters": {
+                            "Content-Type": "application/json",
+                            "api-version": "2016-11-01",
+                            "body/put": [
+                              {
+                                "properties/principal/id": "@triggerBody()['text']",
+                                "properties/roleName": "CanEdit"
+                              }
+                            ],
+                            "environment": "@triggerBody()['text_2']",
+                            "flow": "@triggerBody()['text_1']"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      },
+                      "Mark_app_owner_in_CoE": {
+                        "inputs": {
+                          "authentication": {
+                            "type": "Raw",
+                            "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "admin_flows",
+                            "item/admin_DerivedOwner@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                            "item/cr5d5_flowisorphaned": "no",
+                            "recordId": "@triggerBody()['text_1']"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {
+                          "Set_ReturnString_to_failed_-_assign_not_solution_aware": [
+                            "Skipped"
+                          ]
+                        },
+                        "type": "OpenApiConnection"
+                      },
+                      "Set_ReturnString_to_failed_-_assign_not_solution_aware": {
+                        "inputs": {
+                          "name": "ReturnString",
+                          "value": "failed"
+                        },
+                        "runAfter": {
+                          "Edit_Flow_Owner_Role_as_Admin": [
+                            "Failed"
+                          ]
+                        },
+                        "type": "SetVariable"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('SolutionAwareFlow')",
+                      "@true"
+                    ]
+                  },
+                  "runAfter": {
+                    "Set_SolutionAwareFlow_to_false_if_error": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "workflowEntityId": {
+                  "inputs": "@outputs('Get_Flow_as_Admin')?['body/properties/workflowEntityId']",
+                  "runAfter": {
+                    "Get_Flow_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Compose"
+                }
+              },
+              "case": "assign"
+            },
+            "Case_delete": {
+              "actions": {
+                "Mark_flow_as_deleted_in_CoE": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_flows",
+                      "item/admin_flowdeleted": true,
+                      "item/admin_flowdeletedon": "@utcNow()",
+                      "recordId": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Set_ReturnString_to_failed_-_delete": [
+                      "Skipped"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Remove_Flow_as_Admin": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftflowforadmins",
+                      "connectionName": "shared_microsoftflowforadmins",
+                      "operationId": "Remove-AdminFlow"
+                    },
+                    "parameters": {
+                      "api-version": "2016-11-01",
+                      "environment": "@triggerBody()['text_2']",
+                      "flow": "@triggerBody()['text_1']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Set_ReturnString_to_failed_-_delete": {
+                  "inputs": {
+                    "name": "ReturnString",
+                    "value": "failed"
+                  },
+                  "runAfter": {
+                    "Remove_Flow_as_Admin": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                }
+              },
+              "case": "delete"
+            }
+          },
+          "default": {
+            "actions": {}
+          },
+          "expression": "@triggerBody()['text_3']",
+          "runAfter": {
+            "Initialize_ReturnString_to_pass": [
+              "Succeeded"
+            ]
+          },
+          "type": "Switch"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "newOwner",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "flowName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_2": {
+                  "description": "Please enter your input",
+                  "title": "envName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_3": {
+                  "description": "Please enter your input",
+                  "title": "action",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2",
+                "text_3"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

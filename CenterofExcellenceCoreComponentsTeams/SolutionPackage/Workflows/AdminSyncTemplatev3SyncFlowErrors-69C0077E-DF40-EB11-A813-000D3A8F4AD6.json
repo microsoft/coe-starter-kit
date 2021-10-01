@@ -1,7 +1,7 @@
 ﻿{
   "properties": {
     "connectionReferences": {
-      "shared_commondataserviceforapps_1": {
+      "shared_commondataserviceforapps": {
         "api": {
           "name": "shared_commondataserviceforapps"
         },
@@ -10,7 +10,7 @@
         },
         "runtimeSource": "embedded"
       },
-      "shared_office365": {
+      "shared_office365_1": {
         "api": {
           "name": "shared_office365"
         },
@@ -51,24 +51,28 @@
                   }
                 ],
                 "format": "HTML",
-                "from": "@outputs('List_Sync_Flow_Errors')?['body/value']"
+                "from": "@body('Filter_array')"
               },
-              "runAfter": {},
+              "runAfter": {
+                "Filter_array": [
+                  "Succeeded"
+                ]
+              },
               "type": "Table"
             },
-            "Delete_last_days_Sync_Flow_errors": {
+            "Delete_week_old_Sync_Flow_errors": {
               "actions": {
                 "Delete_a_record": {
                   "inputs": {
                     "authentication": "@parameters('$authentication')",
                     "host": {
                       "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                      "connectionName": "shared_commondataserviceforapps_1",
+                      "connectionName": "shared_commondataserviceforapps",
                       "operationId": "DeleteRecord"
                     },
                     "parameters": {
                       "entityName": "admin_syncflowerrorses",
-                      "recordId": "@items('Delete_last_days_Sync_Flow_errors')?['admin_syncflowerrorsid']"
+                      "recordId": "@items('Delete_week_old_Sync_Flow_errors')?['admin_syncflowerrorsid']"
                     },
                     "retryPolicy": {
                       "count": 10,
@@ -80,34 +84,66 @@
                   "type": "OpenApiConnection"
                 }
               },
-              "foreach": "@outputs('List_Sync_Flow_Errors')?['body/value']",
+              "foreach": "@body('Filter_week_old')",
               "runAfter": {
-                "Send_an_email_(V2)": [
+                "Filter_week_old": [
                   "Succeeded"
                 ]
               },
               "type": "Foreach"
             },
-            "Send_an_email_(V2)": {
+            "Filter_array": {
               "inputs": {
-                "authentication": "@parameters('$authentication')",
-                "host": {
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                  "connectionName": "shared_office365",
-                  "operationId": "SendEmailV2"
-                },
-                "parameters": {
-                  "emailMessage/Body": "<p>@{variables('css')}<br>\n&lt;p&gt;Some of the Sync Flows in the CoE Starter Kit have failed. See below and navigate to the Flow Instance URL to find out more details:&lt;br&gt;<br>\n&lt;br&gt;<br>\n@{outputs('Compose_HTML_Table')}&lt;br&gt;<br>\n&lt;/p&gt;</p>",
-                  "emailMessage/Subject": "Admin | Sync Flow Errors",
-                  "emailMessage/To": "@variables('adminMail')"
+                "from": "@outputs('List_Sync_Flow_Errors')?['body/value']",
+                "where": "@greater(item()?['createdon'], body('Get_yesterday'))"
+              },
+              "runAfter": {},
+              "type": "Query"
+            },
+            "Filter_week_old": {
+              "inputs": {
+                "from": "@outputs('List_Sync_Flow_Errors')?['body/value']",
+                "where": "@less(item()?['createdon'], body('Get_7_days_past'))"
+              },
+              "runAfter": {
+                "If_table_is_not_empty,_send_mail": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query"
+            },
+            "If_table_is_not_empty,_send_mail": {
+              "actions": {
+                "Send_an_email_(V2)": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365_1",
+                      "operationId": "SendEmailV2"
+                    },
+                    "parameters": {
+                      "emailMessage/Body": "<p>@{variables('css')}<br>\n</p>\n<p>Some of the Sync Flows in the CoE Starter Kit have failed. See below and navigate to the Flow Instance URL to find out more details:<br>\n<br>\n@{outputs('Compose_HTML_Table')}<br>\n</p>",
+                      "emailMessage/Subject": "Admin | Sync Flow Errors",
+                      "emailMessage/To": "@variables('adminMail')"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
                 }
+              },
+              "expression": {
+                "greater": [
+                  "@length(body('Filter_array'))",
+                  0
+                ]
               },
               "runAfter": {
                 "Compose_HTML_Table": [
                   "Succeeded"
                 ]
               },
-              "type": "OpenApiConnection"
+              "type": "If"
             }
           },
           "expression": {
@@ -122,6 +158,32 @@
             ]
           },
           "type": "If"
+        },
+        "Get_7_days_past": {
+          "inputs": {
+            "interval": 7,
+            "timeUnit": "Day"
+          },
+          "kind": "GetPastTime",
+          "runAfter": {
+            "Get_yesterday": [
+              "Succeeded"
+            ]
+          },
+          "type": "Expression"
+        },
+        "Get_yesterday": {
+          "inputs": {
+            "interval": 1,
+            "timeUnit": "Day"
+          },
+          "kind": "GetPastTime",
+          "runAfter": {
+            "Initialize_Style_for_HTML_eMail": [
+              "Succeeded"
+            ]
+          },
+          "type": "Expression"
         },
         "Initialize_Admin_eMail_variable": {
           "description": "Environment location specific Flow URL - remember / at the end",
@@ -160,12 +222,12 @@
             "authentication": "@parameters('$authentication')",
             "host": {
               "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-              "connectionName": "shared_commondataserviceforapps_1",
+              "connectionName": "shared_commondataserviceforapps",
               "operationId": "ListRecords"
             },
             "parameters": {
               "$filter": "admin_flowinstanceurl ne ''",
-              "$select": "admin_environmentname, admin_flowinstanceurl, admin_name",
+              "$select": "admin_environmentname, admin_flowinstanceurl, admin_name,createdon",
               "entityName": "admin_syncflowerrorses"
             },
             "retryPolicy": {
@@ -175,7 +237,7 @@
             }
           },
           "runAfter": {
-            "Initialize_Style_for_HTML_eMail": [
+            "Get_7_days_past": [
               "Succeeded"
             ]
           },
@@ -194,7 +256,7 @@
           "type": "Object"
         },
         "Admin eMail": {
-          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "defaultValue": "leeg@pplatform.onmicrosoft.com",
           "metadata": {
             "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
             "schemaName": "admin_AdminMail"

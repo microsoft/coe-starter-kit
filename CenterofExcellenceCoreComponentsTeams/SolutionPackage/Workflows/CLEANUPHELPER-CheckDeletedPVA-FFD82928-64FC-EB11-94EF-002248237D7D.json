@@ -1,0 +1,1083 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice": {
+        "api": {
+          "name": "shared_commondataservice"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_Deleted_Scope": {
+          "actions": {
+            "List_PVAs": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_admin_pvaenvironment_value eq '@{triggerBody()['text']}'",
+                  "$select": "admin_pvaid, admin_pvadeletedon",
+                  "entityName": "admin_pvas"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "See_if_need_to_check_deleted_status_before_marking_delete": {
+              "actions": {
+                "Catch_failure_and_set_noPVAs_to_true": {
+                  "inputs": {
+                    "name": "noPVAs",
+                    "value": "@true"
+                  },
+                  "runAfter": {
+                    "Get_this_envs_PVAs_from_bots": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "SetVariable"
+                },
+                "Get_this_envs_PVAs_from_bots": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                      "connectionName": "shared_commondataservice",
+                      "operationId": "GetItems_V2"
+                    },
+                    "parameters": {
+                      "dataset": "@outputs('EnvtMetadataName')",
+                      "table": "bots"
+                    }
+                  },
+                  "runAfter": {
+                    "List_PVAs_not_yet_marked_deleted": [
+                      "Succeeded"
+                    ]
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "List_PVAs_not_yet_marked_deleted": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "_admin_pvaenvironment_value eq '@{triggerBody()['text']}' and admin_pvadeleted eq false",
+                      "$select": "admin_pvaid",
+                      "entityName": "admin_pvas"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "if_no_PVAs,_mark_all_deleted,_else_look_each_up": {
+                  "actions": {
+                    "Mark_all_PVAs_deleted": {
+                      "actions": {
+                        "List_Bot_Components_for_Marking_Delete_-_this_bot": {
+                          "inputs": {
+                            "authentication": {
+                              "type": "Raw",
+                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "ListRecords"
+                            },
+                            "parameters": {
+                              "$filter": "_admin_pvabot_value eq @{items('Mark_all_PVAs_deleted')?['admin_pvaid']}",
+                              "$select": "admin_pvacomponentid",
+                              "entityName": "admin_pvacomponents"
+                            }
+                          },
+                          "runAfter": {
+                            "Mark_all_PVAs_deleted_-_this_PVA": [
+                              "Succeeded"
+                            ]
+                          },
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "Loop_Bot_Components_-_this_bot": {
+                          "actions": {
+                            "Mark_PVA_Component_Deleted_-_this_bot": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvacomponents",
+                                  "item/admin_componentdeleted": true,
+                                  "item/admin_componentdeletedon": "@utcNow()",
+                                  "recordId": "@items('Loop_Bot_Components_-_this_bot')?['admin_pvacomponentid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_Bot_Components_for_Marking_Delete_-_this_bot')?['body/value']",
+                          "runAfter": {
+                            "List_Bot_Components_for_Marking_Delete_-_this_bot": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "Foreach"
+                        },
+                        "Mark_all_PVAs_deleted_-_this_PVA": {
+                          "inputs": {
+                            "authentication": {
+                              "type": "Raw",
+                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "UpdateRecord"
+                            },
+                            "parameters": {
+                              "entityName": "admin_pvas",
+                              "item/admin_pvadeleted": true,
+                              "item/admin_pvadeletedon": "@utcNow()",
+                              "recordId": "@items('Mark_all_PVAs_deleted')?['admin_pvaid']"
+                            },
+                            "retryPolicy": {
+                              "count": 10,
+                              "interval": "PT10S",
+                              "type": "exponential"
+                            }
+                          },
+                          "runAfter": {},
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "foreach": "@outputs('List_PVAs_not_yet_marked_deleted')?['body/value']",
+                      "runAfter": {},
+                      "type": "Foreach"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Check_each_PVA_to_see_if_still_in_environment": {
+                        "actions": {
+                          "Apply_to_each_PVA": {
+                            "actions": {
+                              "Parse_PVA_JSON": {
+                                "inputs": {
+                                  "content": "@items('Apply_to_each_PVA')",
+                                  "schema": {
+                                    "properties": {
+                                      "@@odata.etag": {
+                                        "type": "string"
+                                      },
+                                      "@@odata.id": {
+                                        "type": "string"
+                                      },
+                                      "ItemInternalId": {
+                                        "type": "string"
+                                      },
+                                      "_componentstate_label": {
+                                        "type": "string"
+                                      },
+                                      "_createdby_type": {
+                                        "type": "string"
+                                      },
+                                      "_createdby_value": {
+                                        "type": "string"
+                                      },
+                                      "_language_label": {
+                                        "type": "string"
+                                      },
+                                      "_modifiedby_type": {
+                                        "type": "string"
+                                      },
+                                      "_modifiedby_value": {
+                                        "type": "string"
+                                      },
+                                      "_ownerid_type": {
+                                        "type": "string"
+                                      },
+                                      "_ownerid_value": {
+                                        "type": "string"
+                                      },
+                                      "_owningbusinessunit_type": {
+                                        "type": "string"
+                                      },
+                                      "_owningbusinessunit_value": {
+                                        "type": "string"
+                                      },
+                                      "_owningteam_value": {},
+                                      "_statecode_label": {
+                                        "type": "string"
+                                      },
+                                      "_statuscode_label": {
+                                        "type": "string"
+                                      },
+                                      "botid": {
+                                        "type": "string"
+                                      },
+                                      "componentidunique": {
+                                        "type": "string"
+                                      },
+                                      "componentstate": {
+                                        "type": "integer"
+                                      },
+                                      "createdon": {
+                                        "type": "string"
+                                      },
+                                      "importsequencenumber": {},
+                                      "iscustomizable": {
+                                        "type": "boolean"
+                                      },
+                                      "ismanaged": {
+                                        "type": "boolean"
+                                      },
+                                      "language": {
+                                        "type": "integer"
+                                      },
+                                      "modifiedon": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "overriddencreatedon": {},
+                                      "overwritetime": {
+                                        "type": "string"
+                                      },
+                                      "schemaname": {
+                                        "type": "string"
+                                      },
+                                      "solutionid": {
+                                        "type": "string"
+                                      },
+                                      "statecode": {
+                                        "type": "integer"
+                                      },
+                                      "statuscode": {
+                                        "type": "integer"
+                                      },
+                                      "timezoneruleversionnumber": {},
+                                      "utcconversiontimezonecode": {},
+                                      "versionnumber": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "type": "object"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "ParseJson"
+                              },
+                              "See_if_our_current_PVA": {
+                                "actions": {
+                                  "Set_PVAfound_to_true": {
+                                    "inputs": {
+                                      "name": "PVAfound",
+                                      "value": "@true"
+                                    },
+                                    "runAfter": {},
+                                    "type": "SetVariable"
+                                  }
+                                },
+                                "expression": {
+                                  "equals": [
+                                    "@body('Parse_PVA_JSON')?['ItemInternalId']",
+                                    "@items('Check_each_PVA_to_see_if_still_in_environment')?['admin_pvaid']"
+                                  ]
+                                },
+                                "runAfter": {
+                                  "Parse_PVA_JSON": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "If"
+                              }
+                            },
+                            "foreach": "@outputs('Get_this_envs_PVAs_from_bots')?['body/value']",
+                            "runAfter": {
+                              "reset_PVAfound": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Foreach"
+                          },
+                          "If_PVA_not_found,_delete_or_mark_deleted": {
+                            "actions": {
+                              "See_if_delete_row_from_inventory_or_mark_deleted_-_check_deleted": {
+                                "actions": {
+                                  "Delete_this_PVA_from_inventory": {
+                                    "inputs": {
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                      },
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "DeleteRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_pvas",
+                                        "recordId": "@items('Check_each_PVA_to_see_if_still_in_environment')?['admin_pvaid']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Delete_this_PVAs_components_from_inventory": {
+                                    "actions": {
+                                      "Delete_this_PVA_component": {
+                                        "inputs": {
+                                          "authentication": {
+                                            "type": "Raw",
+                                            "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                          },
+                                          "host": {
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                            "connectionName": "shared_commondataserviceforapps",
+                                            "operationId": "DeleteRecord"
+                                          },
+                                          "parameters": {
+                                            "entityName": "admin_pvacomponents",
+                                            "recordId": "@items('Delete_this_PVAs_components_from_inventory')?['admin_pvacomponentid']"
+                                          },
+                                          "retryPolicy": {
+                                            "count": 10,
+                                            "interval": "PT10S",
+                                            "type": "exponential"
+                                          }
+                                        },
+                                        "runAfter": {},
+                                        "type": "OpenApiConnection"
+                                      }
+                                    },
+                                    "foreach": "@outputs('List_this_PVAs_components_to_delete_from_inventory')?['body/value']",
+                                    "runAfter": {
+                                      "List_this_PVAs_components_to_delete_from_inventory": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "Foreach"
+                                  },
+                                  "List_this_PVAs_components_to_delete_from_inventory": {
+                                    "inputs": {
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                      },
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "ListRecords"
+                                      },
+                                      "parameters": {
+                                        "$filter": "_admin_pvabot_value eq @{items('Check_each_PVA_to_see_if_still_in_environment')?['admin_pvaid']}",
+                                        "$select": "admin_pvacomponentid",
+                                        "entityName": "admin_pvacomponents"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "Delete_this_PVA_from_inventory": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "runtimeConfiguration": {
+                                      "paginationPolicy": {
+                                        "minimumItemCount": 100000
+                                      }
+                                    },
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "List_this_PVAs_components_to_mark_deleted_from_inventory": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "type": "Raw",
+                                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                        },
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "ListRecords"
+                                        },
+                                        "parameters": {
+                                          "$filter": "_admin_pvabot_value eq @{items('Check_each_PVA_to_see_if_still_in_environment')?['admin_pvaid']}",
+                                          "$select": "admin_pvacomponentid",
+                                          "entityName": "admin_pvacomponents"
+                                        }
+                                      },
+                                      "runAfter": {
+                                        "Mark_this_PVA_as_deleted_today": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "runtimeConfiguration": {
+                                        "paginationPolicy": {
+                                          "minimumItemCount": 100000
+                                        }
+                                      },
+                                      "type": "OpenApiConnection"
+                                    },
+                                    "Mark_this_PVA_as_deleted_today": {
+                                      "inputs": {
+                                        "authentication": {
+                                          "type": "Raw",
+                                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                        },
+                                        "host": {
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "UpdateRecord"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_pvas",
+                                          "item/admin_pvadeleted": true,
+                                          "item/admin_pvadeletedon": "@utcnow()",
+                                          "recordId": "@items('Check_each_PVA_to_see_if_still_in_environment')?['admin_pvaid']"
+                                        },
+                                        "retryPolicy": {
+                                          "count": 10,
+                                          "interval": "PT10S",
+                                          "type": "exponential"
+                                        }
+                                      },
+                                      "runAfter": {},
+                                      "type": "OpenApiConnection"
+                                    },
+                                    "Mark_this_PVAs_components_to_deleted_from_inventory": {
+                                      "actions": {
+                                        "Mark_this_PVA_component_deleted": {
+                                          "inputs": {
+                                            "authentication": {
+                                              "type": "Raw",
+                                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                            },
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_pvacomponents",
+                                              "item/admin_componentdeleted": true,
+                                              "item/admin_componentdeletedon": "@utcnow()",
+                                              "recordId": "@items('Mark_this_PVAs_components_to_deleted_from_inventory')?['admin_pvacomponentid']"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "foreach": "@outputs('List_this_PVAs_components_to_mark_deleted_from_inventory')?['body/value']",
+                                      "runAfter": {
+                                        "List_this_PVAs_components_to_mark_deleted_from_inventory": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "Foreach"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "equals": [
+                                    "@triggerBody()['boolean_1']",
+                                    "@true"
+                                  ]
+                                },
+                                "runAfter": {},
+                                "type": "If"
+                              }
+                            },
+                            "expression": {
+                              "not": {
+                                "equals": [
+                                  "@variables('PVAfound')",
+                                  "@true"
+                                ]
+                              }
+                            },
+                            "runAfter": {
+                              "Apply_to_each_PVA": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "If"
+                          },
+                          "reset_PVAfound": {
+                            "inputs": {
+                              "name": "PVAfound",
+                              "value": "@false"
+                            },
+                            "runAfter": {},
+                            "type": "SetVariable"
+                          }
+                        },
+                        "foreach": "@outputs('List_PVAs_not_yet_marked_deleted')?['body/value']",
+                        "runAfter": {},
+                        "type": "Foreach"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('noPVAs')",
+                      "@true"
+                    ]
+                  },
+                  "runAfter": {
+                    "Catch_failure_and_set_noPVAs_to_true": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "type": "If"
+                }
+              },
+              "else": {
+                "actions": {
+                  "See_if_delete_row_from_inventory_or_mark_deleted": {
+                    "actions": {
+                      "Delete_all_the_pvas_from_inventory": {
+                        "actions": {
+                          "Delete_PVA_from_inventory": {
+                            "inputs": {
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "DeleteRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_pvas",
+                                "recordId": "@items('Delete_all_the_pvas_from_inventory')?['admin_pvaid']"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          },
+                          "Delete_each_PVA_Component_from_inventory": {
+                            "actions": {
+                              "Delete_PVA_Component_from_inventory": {
+                                "inputs": {
+                                  "authentication": {
+                                    "type": "Raw",
+                                    "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                  },
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "DeleteRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_pvacomponents",
+                                    "recordId": "@items('Delete_each_PVA_Component_from_inventory')?['admin_pvacomponentid']"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            },
+                            "foreach": "@outputs('List_bot_components_to_delete')?['body/value']",
+                            "runAfter": {
+                              "List_bot_components_to_delete": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Foreach"
+                          },
+                          "List_bot_components_to_delete": {
+                            "inputs": {
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "ListRecords"
+                              },
+                              "parameters": {
+                                "$filter": "_admin_pvabot_value eq @{items('Delete_all_the_pvas_from_inventory')?['admin_pvaid']}",
+                                "$select": "admin_pvacomponentid",
+                                "entityName": "admin_pvacomponents"
+                              }
+                            },
+                            "runAfter": {
+                              "Delete_PVA_from_inventory": [
+                                "Succeeded"
+                              ]
+                            },
+                            "runtimeConfiguration": {
+                              "paginationPolicy": {
+                                "minimumItemCount": 100000
+                              }
+                            },
+                            "type": "OpenApiConnection"
+                          }
+                        },
+                        "foreach": "@outputs('List_PVAs')?['body/value']",
+                        "runAfter": {},
+                        "type": "Foreach"
+                      }
+                    },
+                    "else": {
+                      "actions": {
+                        "Mark_all_PVAs_in_inventory_as_deleted_today": {
+                          "actions": {
+                            "List_bot_components_to_mark_deleted_today": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecords"
+                                },
+                                "parameters": {
+                                  "$filter": "_admin_pvabot_value eq @{items('Mark_all_PVAs_in_inventory_as_deleted_today')?['admin_pvaid']}",
+                                  "$select": "admin_pvacomponentid",
+                                  "entityName": "admin_pvacomponents"
+                                }
+                              },
+                              "runAfter": {
+                                "Mark_PVA_as_deleted_today": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Mark_PVA_as_deleted_today": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvas",
+                                  "item/admin_pvadeleted": true,
+                                  "item/admin_pvadeletedon": "@utcNow()",
+                                  "recordId": "@items('Mark_all_PVAs_in_inventory_as_deleted_today')?['admin_pvaid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            },
+                            "Mark_each_PVA_Component_deleted_today": {
+                              "actions": {
+                                "Mark_PVA_Component_deleted_today": {
+                                  "inputs": {
+                                    "authentication": {
+                                      "type": "Raw",
+                                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                    },
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_pvacomponents",
+                                      "item/admin_componentdeleted": true,
+                                      "item/admin_componentdeletedon": "@utcNow()",
+                                      "recordId": "@items('Mark_each_PVA_Component_deleted_today')?['admin_pvacomponentid']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "type": "OpenApiConnection"
+                                }
+                              },
+                              "foreach": "@outputs('List_bot_components_to_mark_deleted_today')?['body/value']",
+                              "runAfter": {
+                                "List_bot_components_to_mark_deleted_today": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "Foreach"
+                            }
+                          },
+                          "foreach": "@outputs('List_PVAs')?['body/value']",
+                          "runAfter": {},
+                          "type": "Foreach"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "equals": [
+                        "@triggerBody()['boolean_1']",
+                        "@true"
+                      ]
+                    },
+                    "runAfter": {},
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@triggerBody()['boolean']",
+                  "@true"
+                ]
+              },
+              "runAfter": {
+                "List_PVAs": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_PVAfound": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Error_Handling_Scope": {
+          "actions": {
+            "Create_Sync_Flow_Error_record": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerBody()['text']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "CLEANUP HELPER - Check Deleted (PVA)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Set_returnValue_to_fail": {
+              "inputs": {
+                "name": "returnValue",
+                "value": "fail"
+              },
+              "runAfter": {
+                "Create_Sync_Flow_Error_record": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable"
+            }
+          },
+          "runAfter": {
+            "Check_Deleted_Scope": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Get_Envt_CDS_MetaDataName": {
+          "actions": {
+            "EnvtMetadataName": {
+              "inputs": "@outputs('Get_Envt_from_CoE_inventory')?['body/admin_environmentcdsmetadataname']",
+              "runAfter": {
+                "Get_Envt_from_CoE_inventory": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Get_Envt_from_CoE_inventory": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem"
+                },
+                "parameters": {
+                  "$select": "admin_environmentcdsmetadataname",
+                  "entityName": "admin_environments",
+                  "recordId": "@triggerBody()['text']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "runAfter": {},
+          "type": "Scope"
+        },
+        "Initialize_PVAfound": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "PVAfound",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_noPVAs": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_noPVAs": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "noPVAs",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_returnValue": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_returnValue": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "returnValue",
+                "type": "string",
+                "value": "pass"
+              }
+            ]
+          },
+          "runAfter": {
+            "Get_Envt_CDS_MetaDataName": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "inputs": {
+            "body": {
+              "thereturnvalue": "@variables('returnValue')"
+            },
+            "schema": {
+              "properties": {
+                "thereturnvalue": {
+                  "title": "theReturnValue",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "runAfter": {
+            "Error_Handling_Scope": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "type": "Response"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - Ex for US: https://us.flow.microsoft.com/manage/environments/",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "boolean": {
+                  "description": "Please select yes or no",
+                  "title": "CheckIfDeleted",
+                  "type": "boolean",
+                  "x-ms-content-hint": "BOOLEAN",
+                  "x-ms-dynamically-added": true
+                },
+                "boolean_1": {
+                  "description": "Please select yes or no",
+                  "title": "DeleteFromCoE",
+                  "type": "boolean",
+                  "x-ms-content-hint": "BOOLEAN",
+                  "x-ms-dynamically-added": true
+                },
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "EnvtID",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "EnvtName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "boolean",
+                "boolean_1",
+                "text_1"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
