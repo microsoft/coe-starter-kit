@@ -1,0 +1,323 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users_1": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreOffice365Users"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Condition:_Add_requestor_if_not_already_in_the_related_maker_table": {
+          "actions": {
+            "Append_to_array_variable": {
+              "inputs": {
+                "name": "varEnvAdmins",
+                "value": {
+                  "admin_displayname": "@{outputs('Upsert_requestor''s_Maker_record')?['body/admin_displayname']}",
+                  "admin_makerid": "@{outputs('Upsert_requestor''s_Maker_record')?['body/admin_makerid']}",
+                  "admin_userprincipalname": "@{outputs('Upsert_requestor''s_Maker_record')?['body/admin_userprincipalname']}"
+                }
+              },
+              "runAfter": {
+                "Relate_rows_-_Add_requestor_to_admins_list": [
+                  "Succeeded"
+                ]
+              },
+              "type": "AppendToArrayVariable"
+            },
+            "Get_requestor's_user_profile": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                  "connectionName": "shared_office365users_1",
+                  "operationId": "UserProfile_V2"
+                },
+                "parameters": {
+                  "id": "@body('Parse_JSON')?['createdby']?['azureactivedirectoryobjectid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Relate_rows_-_Add_requestor_to_admins_list": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "AssociateEntities"
+                },
+                "parameters": {
+                  "associationEntityRelationship": "coe_EnvCreationRequest_SystemAdmins",
+                  "entityName": "coe_environmentcreationrequests",
+                  "item/@odata.id": "@outputs('Upsert_requestor''s_Maker_record')?['body/admin_makerid']",
+                  "recordId": "@triggerOutputs()?['body/coe_environmentcreationrequestid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Upsert_requestor's_Maker_record": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            },
+            "Upsert_requestor's_Maker_record": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "UpdateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_makers",
+                  "item/admin_displayname": "@outputs('Get_requestor''s_user_profile')?['body/displayName']",
+                  "item/admin_jobtitle": "@outputs('Get_requestor''s_user_profile')?['body/jobTitle']",
+                  "item/admin_userprincipalname": "@outputs('Get_requestor''s_user_profile')?['body/userPrincipalName']",
+                  "recordId": "@body('Parse_JSON')?['createdby']?['azureactivedirectoryobjectid']"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {
+                "Get_requestor's_user_profile": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "expression": {
+            "equals": [
+              "@length(body('Filter_array_-_Find_requestor'))",
+              0
+            ]
+          },
+          "runAfter": {
+            "Filter_array_-_Find_requestor": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Filter_array_-_Find_requestor": {
+          "inputs": {
+            "from": "@body('Parse_JSON')?['coe_EnvCreationRequest_SystemAdmins']",
+            "where": "@equals(item()?['admin_makerid'], body('Parse_JSON')?['createdby']?['azureactivedirectoryobjectid'])"
+          },
+          "runAfter": {
+            "Initialize_variable_-_varEnvAdmins": [
+              "Succeeded"
+            ]
+          },
+          "type": "Query"
+        },
+        "Get_a_row_-_Environment_Creation_Request": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "$expand": "coe_EnvCreationRequest_SystemAdmins($select=admin_displayname,admin_makerid,admin_userprincipalname),createdby($select=fullname,domainname,azureactivedirectoryobjectid,systemuserid),coe_Env_DLP_Connectors($select=admin_displayname,admin_iconuri)",
+              "entityName": "coe_environmentcreationrequests",
+              "recordId": "@triggerOutputs()?['body/coe_environmentcreationrequestid']"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {},
+          "type": "OpenApiConnection"
+        },
+        "Initialize_variable_-_varEnvAdmins": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varEnvAdmins",
+                "type": "array",
+                "value": "@body('Parse_JSON')?['coe_EnvCreationRequest_SystemAdmins']"
+              }
+            ]
+          },
+          "runAfter": {
+            "Parse_JSON": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Parse_JSON": {
+          "inputs": {
+            "content": "@outputs('Get_a_row_-_Environment_Creation_Request')?['body']",
+            "schema": {
+              "properties": {
+                "coe_EnvCreationRequest_SystemAdmins": {
+                  "items": {
+                    "properties": {
+                      "admin_displayname": {
+                        "type": "string"
+                      },
+                      "admin_makerid": {
+                        "type": "string"
+                      },
+                      "admin_userprincipalname": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "admin_makerid",
+                      "admin_userprincipalname",
+                      "admin_displayname"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "createdby": {
+                  "properties": {
+                    "azureactivedirectoryobjectid": {
+                      "type": "string"
+                    },
+                    "domainname": {
+                      "type": "string"
+                    },
+                    "fullname": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "runAfter": {
+            "Get_a_row_-_Environment_Creation_Request": [
+              "Succeeded"
+            ]
+          },
+          "type": "ParseJson"
+        },
+        "Send_an_email_-_a_new_request_is_ready_for_admin_review": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "connectionName": "shared_office365",
+              "operationId": "SendEmailV2"
+            },
+            "parameters": {
+              "emailMessage/Body": "<p><span style=\"font-size: 16px\"><strong>A new Environment Creation Request was submitted.<br>\n</strong></span><br>\nView request details and find the best DLP Policy configuration to accomodate the requested connectors with the Environment Request Admin App.<br>\n<br>\n<br>\n<span style=\"font-size: 14px\"><strong>Instructions<br>\n</strong></span><br>\n1. Go to the Environment Request Admin App: <a href='@{parameters('Environment Request Admin App Url')}'>LINK</a>.<br>\n2. Find and select the request '@{outputs('Get_a_row_-_Environment_Creation_Request')?['body/coe_name']}'.<br>\n3. Use the app to see how adding the new environment to DLP Policies will impact the requested connectors. Any modifications made in the app will be processed when the environment is created.<br>\n<br>\n<br>\n<span style=\"font-size: 14px\"><strong>Details</strong></span><br>\n<br>\nDisplay name: @{triggerOutputs()?['body/coe_envdisplayname']}<br>\nRequested by: @{body('Parse_JSON')?['createdby']?['fullname']}&lt;@{body('Parse_JSON')?['createdby']?['domainname']}&gt;<br>\nPurpose: @{triggerOutputs()?['body/coe_justification']}<br>\nRegion: @{triggerOutputs()?['body/coe_envregion']}<br>\nDoes the environment need a Dataverse database?: @{triggerOutputs()?['body/coe_hasdatabase']}<br>\nCan the environment be automatically deleted after use?: @{coalesce(triggerOutputs()?['body/coe_canexpire'])}<br>\nDuration requested: @{coalesce(triggerOutputs()?['body/coe_durationrequested'])}</p>",
+              "emailMessage/Subject": "@{triggerOutputs()?['body/coe_name']} - New Power Platform Environment Creation Request",
+              "emailMessage/To": "@parameters('Admin eMail')"
+            },
+            "retryPolicy": {
+              "count": 10,
+              "interval": "PT10S",
+              "type": "exponential"
+            }
+          },
+          "runAfter": {
+            "Condition:_Add_requestor_if_not_already_in_the_related_maker_table": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail": {
+          "defaultValue": "leeg@pplatform.onmicrosoft.com",
+          "metadata": {
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
+            "schemaName": "admin_AdminMail"
+          },
+          "type": "String"
+        },
+        "Environment Request Admin App Url": {
+          "defaultValue": "https://apps.powerapps.com/play/b3b3c805-ec5c-4e55-92c6-61e84a3d54f1?tenantId=8a235459-3d2c-415d-8c1e-e2fe133509ad",
+          "metadata": {
+            "description": "Leave blank on Import. URL to Environment Request Admin Canvas App.",
+            "schemaName": "coe_EnvironmentRequestAdminAppUrl"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_request_status_is_updated_-_request_submitted_as_pending": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "coe_environmentcreationrequest",
+              "subscriptionRequest/filterexpression": "coe_requeststatus eq 597910002",
+              "subscriptionRequest/filteringattributes": "coe_requeststatus",
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

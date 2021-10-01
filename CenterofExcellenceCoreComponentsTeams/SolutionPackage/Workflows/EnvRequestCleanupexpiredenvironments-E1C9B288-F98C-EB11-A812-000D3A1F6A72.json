@@ -1,0 +1,462 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerplatformforadmins": {
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Apply_to_each_-_environment_creation_request": {
+          "actions": {
+            "Apply_to_each_-_get_maker_emails": {
+              "actions": {
+                "Append_to_string_variable_-_varEmailList": {
+                  "inputs": {
+                    "name": "varEmailList",
+                    "value": "@{items('Apply_to_each_-_get_maker_emails')?['admin_userprincipalname']};"
+                  },
+                  "runAfter": {},
+                  "type": "AppendToStringVariable"
+                }
+              },
+              "foreach": "@body('Parse_JSON')?['coe_EnvCreationRequest_SystemAdmins']",
+              "runAfter": {
+                "Parse_JSON": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Condition_-_expired_environment": {
+              "actions": {
+                "Compose_-_deletion_notification": {
+                  "inputs": "The environment @{items('Apply_to_each_-_environment_creation_request')?['coe_envdisplayname']} has been deleted.",
+                  "runAfter": {},
+                  "type": "Compose"
+                },
+                "Delete_Environment": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins",
+                      "operationId": "Remove-AdminEnvironment"
+                    },
+                    "parameters": {
+                      "api-version": "2018-10-01",
+                      "environment": "@items('Apply_to_each_-_environment_creation_request')?['_coe_environment_value']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "operationOptions": "DisableAsyncPattern",
+                  "runAfter": {
+                    "Get_Environment_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Get_Environment_as_Admin": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+                      "connectionName": "shared_powerplatformforadmins",
+                      "operationId": "GetSingleEnvironment"
+                    },
+                    "parameters": {
+                      "api-version": "2018-10-01",
+                      "environment": "@items('Apply_to_each_-_environment_creation_request')?['_coe_environment_value']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Compose_-_deletion_notification": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Send_an_email_-_deleted_environment": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2"
+                    },
+                    "parameters": {
+                      "emailMessage/Body": "<p><span style=\"font-size: 16px\"><strong>Your Environment has been cleaned up.</strong></span><br>\nThe Environment @{outputs('Update_a_row_-_deleted_environment')?['body/coe_envdisplayname']} has been deleted. The database can be restored by your admin for up to 7 days.</p>",
+                      "emailMessage/Subject": "@{items('Apply_to_each_-_environment_creation_request')?['coe_name']} - Your Power Platform Environment has been deleted",
+                      "emailMessage/To": "@variables('varEmailList')"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Update_a_row_-_deleted_environment": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Send_an_email_-_deletion_failed": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2"
+                    },
+                    "parameters": {
+                      "emailMessage/Body": "<p><span style=\"font-size: 16px\"><strong>There was a problem cleaning up an environment.</strong></span><br>\n<br>\nThere was an issue deleting an environment that was created by an Environment Creation Request. Please confirm if the environment still exists and mange it further (e.g., delete the environment manually) in the Power Platform Admin Center (https://admin.powerplatform.microsoft.com).<br>\n<br>\n<span style=\"font-size: 14px\"><strong>Details</strong></span><br>\nEnvironment name: @{items('Apply_to_each_-_environment_creation_request')?['coe_envdisplayname']}<br>\nEnvironment Id: @{items('Apply_to_each_-_environment_creation_request')?['_coe_environment_value']}<br>\nExpiration date: @{items('Apply_to_each_-_environment_creation_request')?['coe_expirationdate']}</p>",
+                      "emailMessage/Subject": "@{items('Apply_to_each_-_environment_creation_request')?['coe_name']} - Power Platform Environment cleanup failed ",
+                      "emailMessage/To": "@parameters('Admin eMail')"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Delete_Environment": [
+                      "Failed",
+                      "Skipped",
+                      "TimedOut"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Send_an_email_-_environment_not_found": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2"
+                    },
+                    "parameters": {
+                      "emailMessage/Body": "<p><span style=\"font-size: 16px\"><strong>Notice: Closing the Environment Creation Request record.</strong></span><br>\nAn environment provisioned from an Environment Creation Request ticket that was scheduled to be cleaned up, but was not found.<br>\n<br>\nThis is a notification that the ticket is being closed. No further action is needed.</p>",
+                      "emailMessage/Subject": "[No Action Required] @{items('Apply_to_each_-_environment_creation_request')?['coe_name']} - Closing the Environment Creation Request record.",
+                      "emailMessage/To": "@{parameters('Admin eMail')};@{variables('varEmailList')}"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Environment_as_Admin": [
+                      "Failed"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Update_a_row_-_deleted_environment": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "coe_environmentcreationrequests",
+                      "item/coe_requeststatus": 181330002,
+                      "item/statecode": 1,
+                      "recordId": "@items('Apply_to_each_-_environment_creation_request')?['coe_environmentcreationrequestid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Delete_Environment": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Update_a_row_-_environment_not_found": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "coe_environmentcreationrequests",
+                      "item/coe_requeststatus": 181330002,
+                      "item/statecode": 1,
+                      "recordId": "@items('Apply_to_each_-_environment_creation_request')?['coe_environmentcreationrequestid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {
+                    "Send_an_email_-_environment_not_found": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "else": {
+                "actions": {
+                  "Condition_-_send_emails_once_a_week": {
+                    "actions": {
+                      "Send_an_email_-_upcoming_deletion_warning": {
+                        "inputs": {
+                          "authentication": "@parameters('$authentication')",
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                            "connectionName": "shared_office365",
+                            "operationId": "SendEmailV2"
+                          },
+                          "parameters": {
+                            "emailMessage/Body": "<p>Your Power Platform Environment will be cleaned up soon.<br>\nThe environment '@{items('Apply_to_each_-_environment_creation_request')?['coe_envdisplayname']}' will be deleted on @{items('Apply_to_each_-_environment_creation_request')?['coe_expirationdate']}. Please save all work in the environment to source control or storage external to the environment before it is deleted. Once the environment has been deleted, the admin can restor it for up to 7 days.<br>\n<br>\n<strong>Url for the Environment in the Maker Portal</strong>: https://make.preview.powerapps.com/environments/@{items('Apply_to_each_-_environment_creation_request')?['_coe_environment_value']}/home</p>",
+                            "emailMessage/Subject": "@{items('Apply_to_each_-_environment_creation_request')?['coe_name']} - ⚠ Warning: Your Power Platform Environment will be deleted soon",
+                            "emailMessage/To": "@variables('varEmailList')"
+                          },
+                          "retryPolicy": {
+                            "count": 10,
+                            "interval": "PT10S",
+                            "type": "exponential"
+                          }
+                        },
+                        "runAfter": {},
+                        "type": "OpenApiConnection"
+                      }
+                    },
+                    "description": "Only sends emails on Mondays (value=1); Change number to day of week if desired.",
+                    "expression": {
+                      "equals": [
+                        "@dayOfWeek(utcNow())",
+                        1
+                      ]
+                    },
+                    "runAfter": {},
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "less": [
+                  "@items('Apply_to_each_-_environment_creation_request')?['coe_expirationdate']",
+                  "@utcNow()"
+                ]
+              },
+              "runAfter": {
+                "Apply_to_each_-_get_maker_emails": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            },
+            "Parse_JSON": {
+              "inputs": {
+                "content": "@item()",
+                "schema": {
+                  "properties": {
+                    "coe_EnvCreationRequest_SystemAdmins": {
+                      "items": {
+                        "properties": {
+                          "@@odata.editLink": {
+                            "type": "string"
+                          },
+                          "@@odata.etag": {
+                            "type": "string"
+                          },
+                          "@@odata.id": {
+                            "type": "string"
+                          },
+                          "@@odata.type": {
+                            "type": "string"
+                          },
+                          "admin_makerid": {
+                            "type": "string"
+                          },
+                          "admin_makerid@odata.type": {
+                            "type": "string"
+                          },
+                          "admin_userprincipalname": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "@@odata.type",
+                          "@@odata.id",
+                          "@@odata.etag",
+                          "@@odata.editLink",
+                          "admin_makerid@odata.type",
+                          "admin_makerid"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "runAfter": {},
+              "type": "ParseJson"
+            },
+            "Set_variable_-_reset_varEmailList": {
+              "inputs": {
+                "name": "varEmailList",
+                "value": "@{null}"
+              },
+              "runAfter": {
+                "Condition_-_expired_environment": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable"
+            }
+          },
+          "foreach": "@outputs('List_rows_-_environment_creation_requests_expiring_in_1_month')?['body/value']",
+          "runAfter": {
+            "List_rows_-_environment_creation_requests_expiring_in_1_month": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach"
+        },
+        "Get_future_time_-_1_month": {
+          "inputs": {
+            "interval": 1,
+            "timeUnit": "Month"
+          },
+          "kind": "GetFutureTime",
+          "runAfter": {
+            "Initialize_variable_-_varEmailList": [
+              "Succeeded"
+            ]
+          },
+          "type": "Expression"
+        },
+        "Initialize_variable_-_varEmailList": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "varEmailList",
+                "type": "string"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "List_rows_-_environment_creation_requests_expiring_in_1_month": {
+          "description": "coe_requeststatus value 597910006 maps to 'Completed'",
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$expand": "coe_EnvCreationRequest_SystemAdmins($select=admin_makerid,admin_userprincipalname)",
+              "$filter": "coe_canexpire eq true and statuscode eq 1 and coe_requeststatus eq 597910006 and coe_expirationdate le @{body('Get_future_time_-_1_month')} and _coe_environment_value ne null",
+              "entityName": "coe_environmentcreationrequests"
+            }
+          },
+          "runAfter": {
+            "Get_future_time_-_1_month": [
+              "Succeeded"
+            ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail": {
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "metadata": {
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list",
+            "schemaName": "admin_AdminMail"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "schedule": {
+              "hours": [
+                "0"
+              ]
+            },
+            "timeZone": "UTC"
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

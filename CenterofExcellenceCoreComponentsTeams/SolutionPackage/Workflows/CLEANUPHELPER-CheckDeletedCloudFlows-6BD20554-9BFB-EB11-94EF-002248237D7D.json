@@ -1,0 +1,472 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_flowmanagement": {
+        "api": {
+          "name": "shared_flowmanagement"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_Deleted_Scope": {
+          "actions": {
+            "List_Cloud_Flows": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "_admin_flowenvironment_value eq '@{triggerBody()['text']}'",
+                  "$select": "admin_flowid, admin_flowdeletedon",
+                  "entityName": "admin_flows"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              },
+              "type": "OpenApiConnection"
+            },
+            "See_if_need_to_check_deleted_status_before_marking_delete": {
+              "actions": {
+                "Check_each_flow_to_see_if_still_in_environment": {
+                  "actions": {
+                    "Filter_tenant_list_of_flows_to_this_flowid": {
+                      "inputs": {
+                        "from": "@outputs('List_Flows_as_Admin')?['body/value']",
+                        "where": "@equals(item()?['name'], items('Check_each_flow_to_see_if_still_in_environment')?['admin_flowid'])"
+                      },
+                      "runAfter": {},
+                      "type": "Query"
+                    },
+                    "If_not_found_in_tenant,_delete_or_mark_deleted": {
+                      "actions": {
+                        "See_if_delete_row_from_inventory_or_mark_deleted_-_check_deleted": {
+                          "actions": {
+                            "Delete_this_flow_from_inventory": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "DeleteRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "recordId": "@items('Check_each_flow_to_see_if_still_in_environment')?['admin_flowid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "Mark_this_flow_as_deleted_today": {
+                                "inputs": {
+                                  "authentication": {
+                                    "type": "Raw",
+                                    "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                  },
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "UpdateRecord"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_flows",
+                                    "item/admin_flowdeleted": true,
+                                    "item/admin_flowdeletedon": "@utcNow()",
+                                    "recordId": "@items('Check_each_flow_to_see_if_still_in_environment')?['admin_flowid']"
+                                  },
+                                  "retryPolicy": {
+                                    "count": 10,
+                                    "interval": "PT10S",
+                                    "type": "exponential"
+                                  }
+                                },
+                                "runAfter": {},
+                                "type": "OpenApiConnection"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@triggerBody()['boolean_1']",
+                              "@true"
+                            ]
+                          },
+                          "runAfter": {},
+                          "type": "If"
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(body('Filter_tenant_list_of_flows_to_this_flowid'))",
+                          0
+                        ]
+                      },
+                      "runAfter": {
+                        "Filter_tenant_list_of_flows_to_this_flowid": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "foreach": "@outputs('List_Cloud_Flows_not_yet_marked_deleted')?['body/value']",
+                  "runAfter": {
+                    "List_Flows_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Foreach"
+                },
+                "List_Cloud_Flows_not_yet_marked_deleted": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "_admin_flowenvironment_value eq '@{triggerBody()['text']}' and admin_flowdeleted eq false",
+                      "$select": "admin_flowid, admin_flowdeletedon",
+                      "entityName": "admin_flows"
+                    }
+                  },
+                  "runAfter": {},
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "List_Flows_as_Admin": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement",
+                      "connectionName": "shared_flowmanagement",
+                      "operationId": "ListFlowsInEnvironment"
+                    },
+                    "parameters": {
+                      "environmentName": "@triggerBody()['text_1']"
+                    }
+                  },
+                  "runAfter": {
+                    "List_Cloud_Flows_not_yet_marked_deleted": [
+                      "Succeeded"
+                    ]
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "else": {
+                "actions": {
+                  "See_if_delete_row_from_inventory_or_mark_deleted": {
+                    "actions": {
+                      "Delete_all_the_flows_from_inventory": {
+                        "actions": {
+                          "Delete_flow_from_inventory": {
+                            "inputs": {
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "DeleteRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_flows",
+                                "recordId": "@items('Delete_all_the_flows_from_inventory')?['admin_flowid']"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        },
+                        "foreach": "@outputs('List_Cloud_Flows')?['body/value']",
+                        "runAfter": {},
+                        "type": "Foreach"
+                      }
+                    },
+                    "else": {
+                      "actions": {
+                        "Mark_all_flows_in_inventory_as_deleted_today": {
+                          "actions": {
+                            "Mark_flow_as_deleted_today": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "item/admin_flowdeleted": true,
+                                  "item/admin_flowdeletedon": "@utcNow()",
+                                  "recordId": "@items('Mark_all_flows_in_inventory_as_deleted_today')?['admin_flowid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_Cloud_Flows')?['body/value']",
+                          "runAfter": {},
+                          "type": "Foreach"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "equals": [
+                        "@triggerBody()['boolean_1']",
+                        "@true"
+                      ]
+                    },
+                    "runAfter": {},
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@triggerBody()['boolean']",
+                  "@true"
+                ]
+              },
+              "runAfter": {
+                "List_Cloud_Flows": [
+                  "Succeeded"
+                ]
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_returnValue": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Error_Handling_Scope": {
+          "actions": {
+            "Create_Sync_Flow_Error_record": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_environmentname": "@triggerBody()['text']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])",
+                  "item/admin_name": "CLEANUP HELPER - Check Deleted (Cloud Flows)"
+                },
+                "retryPolicy": {
+                  "count": 10,
+                  "interval": "PT10S",
+                  "type": "exponential"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Set_returnValue_to_fail": {
+              "inputs": {
+                "name": "returnValue",
+                "value": "fail"
+              },
+              "runAfter": {
+                "Create_Sync_Flow_Error_record": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable"
+            }
+          },
+          "runAfter": {
+            "Check_Deleted_Scope": [
+              "Failed"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Initialize_returnValue": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "returnValue",
+                "type": "string",
+                "value": "pass"
+              }
+            ]
+          },
+          "runAfter": {},
+          "type": "InitializeVariable"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "inputs": {
+            "body": {
+              "thereturnvalue": "@variables('returnValue')"
+            },
+            "schema": {
+              "properties": {
+                "thereturnvalue": {
+                  "title": "theReturnValue",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "runAfter": {
+            "Error_Handling_Scope": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "type": "Response"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Power Automate Environment Variable": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "metadata": {
+            "description": "Environment, including geographic location, for Power Automate - Ex for US: https://us.flow.microsoft.com/manage/environments/",
+            "schemaName": "admin_PowerAutomateEnvironmentVariable"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "boolean": {
+                  "description": "Please select yes or no",
+                  "title": "CheckIfDeleted",
+                  "type": "boolean",
+                  "x-ms-content-hint": "BOOLEAN",
+                  "x-ms-dynamically-added": true
+                },
+                "boolean_1": {
+                  "description": "Please select yes or no",
+                  "title": "DeleteFromCoE",
+                  "type": "boolean",
+                  "x-ms-content-hint": "BOOLEAN",
+                  "x-ms-dynamically-added": true
+                },
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "EnvtID",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "EnvtName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "boolean",
+                "boolean_1",
+                "text_1"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
