@@ -163,32 +163,6 @@
             },
             "Loop_Through_each_website_record": {
               "actions": {
-                "Get_Portal_Website_Record_by_ID_from_COE_admin_portal_table": {
-                  "inputs": {
-                    "authentication": "@parameters('$authentication')",
-                    "host": {
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                      "connectionName": "shared_commondataserviceforapps",
-                      "operationId": "GetItem"
-                    },
-                    "parameters": {
-                      "$select": "admin_portalid,admin_portalmodifiedon",
-                      "entityName": "admin_portals",
-                      "recordId": "@body('Parse_Portals_JSON')?['ItemInternalId']"
-                    },
-                    "retryPolicy": {
-                      "count": 10,
-                      "interval": "PT10S",
-                      "type": "exponential"
-                    }
-                  },
-                  "runAfter": {
-                    "Get_the_owner_and_first_orphan_check": [
-                      "Succeeded"
-                    ]
-                  },
-                  "type": "OpenApiConnection"
-                },
                 "Get_the_owner_and_first_orphan_check": {
                   "actions": {
                     "Get_ADX_Website_Owner": {
@@ -251,11 +225,81 @@
                     }
                   },
                   "runAfter": {
-                    "Parse_Portals_JSON": [
+                    "UniqueNameString": [
                       "Succeeded"
                     ]
                   },
                   "type": "Scope"
+                },
+                "If_did_not_return_rows_then_new_to_Coe_else_get_portal_GUID": {
+                  "actions": {
+                    "Set_isNewToCoEto_true": {
+                      "inputs": {
+                        "name": "isNewToCoE",
+                        "value": "@true"
+                      },
+                      "runAfter": {},
+                      "type": "SetVariable"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "PortalGUID": {
+                        "description": "first(outputs('List_Portals_that_match_by_Portal_Unique_Name')?['body/value'])['admin_portalid']",
+                        "inputs": "@first(outputs('List_Portals_that_match_by_Portal_Unique_Name')?['body/value'])['admin_portalid']",
+                        "runAfter": {},
+                        "type": "Compose"
+                      },
+                      "PortalLastModified": {
+                        "description": "first(outputs('List_Portals_that_match_by_Portal_Unique_Name')?['body/value'])['admin_portalmodifiedon']",
+                        "inputs": "@first(outputs('List_Portals_that_match_by_Portal_Unique_Name')?['body/value'])['admin_portalmodifiedon']",
+                        "runAfter": {
+                          "PortalGUID": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Compose"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@length(outputs('List_Portals_that_match_by_Portal_Unique_Name')?['body/value'])",
+                      0
+                    ]
+                  },
+                  "runAfter": {
+                    "List_Portals_that_match_by_Portal_Unique_Name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "List_Portals_that_match_by_Portal_Unique_Name": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "admin_portaluniquename eq '@{outputs('UniqueNameString')}'",
+                      "$select": "admin_portalid, admin_portalmodifiedon",
+                      "entityName": "admin_portals"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_the_owner_and_first_orphan_check": [
+                      "Succeeded"
+                    ]
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 5000
+                    }
+                  },
+                  "type": "OpenApiConnection"
                 },
                 "Parse_Portals_JSON": {
                   "inputs": {
@@ -388,10 +432,11 @@
                                   "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
                                   "item/admin_portalisophaned": false,
                                   "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                  "item/admin_portaluniquename": "@outputs('UniqueNameString')",
                                   "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                   "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
                                   "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']",
-                                  "recordId": "@body('Parse_Portals_JSON')?['adx_websiteid']"
+                                  "recordId": "@outputs('PortalGUID')"
                                 },
                                 "retryPolicy": {
                                   "count": 10,
@@ -593,10 +638,11 @@
                                         "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
                                         "item/admin_portalisophaned": false,
                                         "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                        "item/admin_portaluniquename": "@outputs('UniqueNameString')",
                                         "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                         "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
                                         "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']",
-                                        "recordId": "@body('Parse_Portals_JSON')?['adx_websiteid']"
+                                        "recordId": "@outputs('PortalGUID')"
                                       },
                                       "retryPolicy": {
                                         "count": 10,
@@ -627,10 +673,11 @@
                                           "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
                                           "item/admin_portalisophaned": true,
                                           "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                          "item/admin_portaluniquename": "@outputs('UniqueNameString')",
                                           "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                           "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
                                           "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']",
-                                          "recordId": "@body('Parse_Portals_JSON')?['adx_websiteid']"
+                                          "recordId": "@outputs('PortalGUID')"
                                         },
                                         "retryPolicy": {
                                           "count": 10,
@@ -692,11 +739,13 @@
                       "type": "If"
                     },
                     "lastMod_from_COE": {
-                      "inputs": "@coalesce(formatDateTime(outputs('Get_Portal_Website_Record_by_ID_from_COE_admin_portal_table')?['body/admin_portalmodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')",
+                      "description": "coalesce(formatDateTime(outputs('PortalLastModified'), 'yyyy-MM-dd HH:mm:ss'), '')",
+                      "inputs": "@coalesce(formatDateTime(outputs('PortalLastModified'), 'yyyy-MM-dd HH:mm:ss'), '')",
                       "runAfter": {},
                       "type": "Compose"
                     },
                     "lastMod_from_Portal": {
+                      "description": "formatDateTime(body('Parse_Portals_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
                       "inputs": "@formatDateTime(body('Parse_Portals_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
                       "runAfter": {
                         "lastMod_from_COE": [
@@ -728,7 +777,7 @@
                                 "item/admin_portalid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                 "item/admin_portalisophaned": false,
                                 "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
-                                "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
+                                "item/admin_portaluniquename": "@outputs('UniqueNameString')",
                                 "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']"
                               },
                               "retryPolicy": {
@@ -770,9 +819,9 @@
                                       "item/admin_hasportalmanagementapp": true,
                                       "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
                                       "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
-                                      "item/admin_portalid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                       "item/admin_portalisophaned": false,
                                       "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                      "item/admin_portaluniquename": "@outputs('UniqueNameString')",
                                       "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                       "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
                                       "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']"
@@ -805,9 +854,9 @@
                                         "item/admin_hasportalmanagementapp": true,
                                         "item/admin_portalcreatedon": "@body('Parse_Portals_JSON')?['createdon']",
                                         "item/admin_portaldisplayname": "@body('Parse_Portals_JSON')?['adx_name']",
-                                        "item/admin_portalid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                         "item/admin_portalisophaned": true,
                                         "item/admin_portalmodifiedon": "@body('Parse_Portals_JSON')?['modifiedon']",
+                                        "item/admin_portaluniquename": "@outputs('UniqueNameString')",
                                         "item/admin_portalwebsiteid": "@body('Parse_Portals_JSON')?['adx_websiteid']",
                                         "item/admin_portalwebsitename": "@body('Parse_Portals_JSON')?['adx_primarydomainname']",
                                         "item/admin_portalwebsiterecordstatus": "@body('Parse_Portals_JSON')?['_statecode_label']"
@@ -1034,24 +1083,21 @@
                     ]
                   },
                   "runAfter": {
-                    "Set_isNewToCoEto_true": [
-                      "Succeeded",
-                      "Skipped"
+                    "If_did_not_return_rows_then_new_to_Coe_else_get_portal_GUID": [
+                      "Succeeded"
                     ]
                   },
                   "type": "If"
                 },
-                "Set_isNewToCoEto_true": {
-                  "inputs": {
-                    "name": "isNewToCoE",
-                    "value": "@true"
-                  },
+                "UniqueNameString": {
+                  "description": "concat(triggerOutputs()?['body/admin_environmentid'], '_', body('Parse_Portals_JSON')?['adx_websiteid'])",
+                  "inputs": "@concat(triggerOutputs()?['body/admin_environmentid'], '_', body('Parse_Portals_JSON')?['adx_websiteid'])",
                   "runAfter": {
-                    "Get_Portal_Website_Record_by_ID_from_COE_admin_portal_table": [
-                      "Failed"
+                    "Parse_Portals_JSON": [
+                      "Succeeded"
                     ]
                   },
-                  "type": "SetVariable"
+                  "type": "Compose"
                 }
               },
               "foreach": "@outputs('List_ADX_Websites')?['body/value']",
@@ -1084,6 +1130,71 @@
           },
           "runAfter": {
             "Initialize_variable_fullInventory": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
+        "Clean_up_Envt_-_GitHub_1096": {
+          "actions": {
+            "Delete_all_portals_-_clean_up": {
+              "actions": {
+                "Delete_a_row_-_clean_up": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "DeleteRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_portals",
+                      "recordId": "@items('Delete_all_portals_-_clean_up')?['admin_portalid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@outputs('List_portals_for_this_envt_-_clean_up')?['body/value']",
+              "runAfter": {
+                "List_portals_for_this_envt_-_clean_up": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "List_portals_for_this_envt_-_clean_up": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_portaluniquename eq null and _admin_portalenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}'",
+                  "$select": "admin_portalid",
+                  "entityName": "admin_portals"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 5000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "description": "Scope added to clean up duplicate records as we changed GUID scheme. Will delete this scope in a few months after repair is complete. ",
+          "runAfter": {
+            "Get_ADX_Websites._Terminate_if_no_portals": [
               "Succeeded"
             ]
           },
@@ -1226,7 +1337,7 @@
             ]
           },
           "runAfter": {
-            "Get_ADX_Websites._Terminate_if_no_portals": [
+            "Clean_up_Envt_-_GitHub_1096": [
               "Succeeded"
             ]
           },

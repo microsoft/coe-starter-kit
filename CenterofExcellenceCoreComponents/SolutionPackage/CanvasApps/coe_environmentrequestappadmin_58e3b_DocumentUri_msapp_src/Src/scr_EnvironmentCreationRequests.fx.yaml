@@ -155,58 +155,22 @@
                             HoverColor: =RGBA(0, 0, 0, 1)
                             HoverFill: =RGBA(0, 0, 0, 0.1)
                             OnSelect: |-
-                                =UpdateContext({ var_pagesize : 1000, var_loading: true });
-                                Refresh('Environment Creation Requests');
-                                Concurrent(
-                                    /* Get policies */
-                                    ClearCollect(col_allPoliciesv2, AddColumns(Filter(PowerPlatformforAdmins.ListPoliciesV2().value, environmentType<>"SingleEnvironment"), 
-                                        "blocked", LookUp(connectorGroups, classification="Blocked").connectors, 
-                                        "general", LookUp(connectorGroups, classification="General").connectors, 
-                                        "confidential", LookUp(connectorGroups, classification="Confidential").connectors
-                                        )    
-                                    );
-                                    ClearCollect(col_allPolicieswithConflicts, Filter( col_allPoliciesv2, !IsEmpty(general) && !IsEmpty(confidential)));
-                                    ClearCollect(col_allNonIncludePolicies, Filter(col_allPoliciesv2, environmentType <> "OnlyEnvironments"));
+                                =UpdateContext({var_pagesize:1000,var_loading: true });Refresh('Environment Creation Requests');Concurrent(
+                                    ClearCollect(col_requestStatuses, Choices('Environment Creation Requests'.'Request status'));
                                     ,
+                                    /* Get policies */
+                                ClearCollect(col_allPoliciesv2,AddColumns(Filter(PowerPlatformforAdmins.ListPoliciesV2().value,environmentType<>"SingleEnvironment"),"blocked",LookUp(connectorGroups,classification="Blocked").connectors,"general",LookUp(connectorGroups,classification="General").connectors,"confidential",LookUp(connectorGroups,classification="Confidential").connectors));ClearCollect(col_allPolicieswithConflicts,Filter(col_allPoliciesv2,!IsEmpty(general)&&!IsEmpty(confidential)));ClearCollect(col_allNonIncludePolicies,Filter(col_allPoliciesv2,environmentType<>"OnlyEnvironments"));,
                                     /* Get Environments */
-                                    UpdateContext({ var_getEnvResponse : PowerPlatformforAdmins.GetAdminEnvironment({ '$top': var_pagesize }) });
-                                    ClearCollect( col_allEnvironments, var_getEnvResponse.value );
-                                    Select(btn_getNextPageENV); // copy and paste this line to load more environments on start
+                                UpdateContext({var_getEnvResponse:PowerPlatformforAdmins.GetAdminEnvironment({'$top':var_pagesize})});ClearCollect(col_allEnvironments,var_getEnvResponse.value);Select(btn_getNextPageENV);// copy and paste this line to load more environments on start
                                 
                                     /* Get standard connectors */
-                                    ClearCollect(col_connectors, PowerAppsforMakers.GetConnectors({ '$filter':"environment eq '"& First(col_allEnvironments).name &"'", '$top':1000 }).value);
-                                    ,
+                                ClearCollect(col_connectors,PowerAppsforMakers.GetConnectors({'$filter':"environment eq '"&First(col_allEnvironments).name&"'",'$top':1000}).value);,
                                     /* Get Environment regions*/
-                                    ClearCollect( col_regions, 
-                                        AddColumns(PowerPlatformforAdmins.ListSupportedLocations().value,
-                                        "DisplayName",properties.displayName & If(properties.isDefault," (default)"))
-                                    );
+                                ClearCollect(col_regions,AddColumns(PowerPlatformforAdmins.ListSupportedLocations().value,"DisplayName",properties.displayName&If(properties.isDefault," (default)")));
                                     /* Get all currencies and languages from the first Environment */
-                                    Concurrent(
-                                        ClearCollect(col_currencies, 
-                                        {name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentCurrencies(First(col_regions).name).value,"DisplayName",properties.localizedName))
-                                        ,
-                                        ClearCollect(col_languages, 
-                                        {name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentLanguages(First(col_regions).name).value,"DisplayName",properties.displayName))
-                                    );
-                                    ,
-                                
+                                Concurrent(ClearCollect(col_currencies,{name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentCurrencies(First(col_regions).name).value,"DisplayName",properties.localizedName)),ClearCollect(col_languages,{name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentLanguages(First(col_regions).name).value,"DisplayName",properties.displayName)));,
                                     /* Get entire existing makers table */
-                                    ClearCollect(col_allmakers, Makers);
-                                    ,
-                                
-                                    Set( var_myProfile, Office365Users.MyProfileV2() );
-                                    Set( var_myUserRecord, LookUp(Users, azureactivedirectoryobjectid = GUID(var_myProfile.id)) );
-                                    ,
-                                    ClearCollect(col_pendingECRs, Filter('Environment Creation Requests', 'Environment Creation Requests (Views)'.'Pending Environment Creation Requests'));
-                                    Patch( col_nav, First(col_nav), { Notifications: CountRows(col_pendingECRs) });
-                                    ,
-                                    Set( var_today, Today());
-                                    ,
-                                    ClearCollect( col_groups, Filter(Office365Groups.ListOwnedGroupsV3().value, securityEnabled));
-                                );
-                                
-                                UpdateContext({ var_loading: false });
+                                ClearCollect(col_allmakers,Makers);,Set(var_myProfile,Office365Users.MyProfileV2());Set(var_myUserRecord,LookUp(Users,azureactivedirectoryobjectid=GUID(var_myProfile.id)));,ClearCollect(col_pendingECRs,Filter('Environment Creation Requests','Environment Creation Requests (Views)'.'Pending Environment Creation Requests'));Patch(col_nav,First(col_nav),{Notifications:CountRows(col_pendingECRs)});,Set(var_today,Today());,ClearCollect(col_groups,Filter(Office365Groups.ListOwnedGroupsV3().value,securityEnabled)););UpdateContext({var_loading: false });
                             PaddingLeft: =10
                             PressedBorderColor: =ColorFade(Self.BorderColor, 0%)
                             PressedColor: =RGBA(0, 0, 0, 1)
@@ -425,7 +389,7 @@
                             HoverColor: =RGBA(51, 51, 51, 1)
                             HoverFill: =Self.Fill
                             IsSearchable: =false
-                            Items: =Choices('Environment Creation Requests'.'Request status')
+                            Items: =Sort(col_requestStatuses, Text(Value), Ascending)
                             NoSelectionText: ="Any status"
                             OnChange: =Set(var_selectedItem, Blank())
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -30%)
@@ -796,13 +760,13 @@
                                 BorderColor: =RGBA(0, 0, 0, 0)
                                 BorderStyle: =BorderStyle.None
                                 BorderThickness: =2
-                                Color: =RGBA(51, 51, 51, 1)
+                                Color: =RGBA(0, 0, 0, 1)
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(166, 166, 166, 1)
                                 FocusedBorderThickness: =4
                                 Font: =Font.'Segoe UI'
                                 LayoutMinWidth: =btn_header_environment.Width
-                                Size: =11
+                                Size: =12
                                 Text: =ThisItem.'Environment display name'
                                 Width: =btn_header_environment.Width
                                 Wrap: =false
@@ -812,7 +776,7 @@
                                 BorderColor: =RGBA(0, 0, 0, 0)
                                 BorderStyle: =BorderStyle.None
                                 BorderThickness: =2
-                                Color: =RGBA(51, 51, 51, 1)
+                                Color: =RGBA(151, 151, 151, 1)
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(166, 166, 166, 1)
                                 FillPortions: =1
@@ -835,7 +799,7 @@
                                 BorderColor: =RGBA(0, 0, 0, 0)
                                 BorderStyle: =BorderStyle.None
                                 BorderThickness: =2
-                                Color: =RGBA(51, 51, 51, 1)
+                                Color: =RGBA(151, 151, 151, 1)
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(166, 166, 166, 1)
                                 FocusedBorderThickness: =4
@@ -850,7 +814,7 @@
                                 BorderColor: =RGBA(0, 0, 0, 0)
                                 BorderStyle: =BorderStyle.None
                                 BorderThickness: =2
-                                Color: =RGBA(51, 51, 51, 1)
+                                Color: =RGBA(151, 151, 151, 1)
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(166, 166, 166, 1)
                                 FocusedBorderThickness: =4
@@ -875,7 +839,7 @@
                             Height: =Parent.TemplateHeight
                             HoverBorderColor: =RGBA(0, 0, 0, 0)
                             HoverColor: =RGBA(255, 255, 255, 1)
-                            HoverFill: =ColorFade(RGBA(105, 121, 126, 0.1), -10%)
+                            HoverFill: =RGBA(243, 242, 241, 0.1)
                             OnSelect: =
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 0), -50%)
                             PressedColor: =RGBA(255, 255, 255, 1)
