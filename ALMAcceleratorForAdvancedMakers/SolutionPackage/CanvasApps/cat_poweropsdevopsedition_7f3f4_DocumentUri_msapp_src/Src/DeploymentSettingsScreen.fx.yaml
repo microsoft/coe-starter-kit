@@ -8,70 +8,47 @@ DeploymentSettingsScreen As screen:
                 showEnvironmentVariablesSettings: false,
                 showSharingSettings: false,
                 showOwnerSettings: false,
-                DeploymentSettingsLoadingText: "LOADING SOLUTION CONFIGURATION...",
+                SolutionLoaderText: "Loading...",
+                DeploymentSettingsLoadingText: "ANALYZING SOLUTION DEPENDENCIES...",
                 SaveDeploymentButtonText: "SAVE"
             }
         );
         ClearCollect(
-            SolutionBuilds,
-            CustomAzureDevOps.GetBuildDefinitions(
-                drpAdoOrganizations.Selected.AccountName,
-                drpAdoProjects.Selected.name,
-                {
-                    name: "deploy-*-" & SelectedSolutionToConfigure.uniquename,
-                    includeAllProperties: true
-                }
-            ).value
+            DeploymentSteps,
+            Filter(
+                'Deployment Steps',
+                'Deployment Profile'.'Deployment Profile' = SelectedDeploymentProfile.'Deployment Profile'
+            )
         );
         ClearCollect(
             DeploymentEnvironments,
             AddColumns(
-                SolutionBuilds,
-                "DisplayName",
-                LookUp(
-                    variables,
-                    key = "ServiceConnection",
-                    value.value
-                ),
+                DeploymentSteps,
                 "EnvironmentUrl",
-                LookUp(
-                    variables,
-                    key = "ServiceConnection",
-                    value.value
-                ),
+                'Deployment Environment'.URL,
                 "EnvironmentId",
                 LookUp(
                     AllEnvironments,
-                    properties.linkedEnvironmentMetadata.instanceUrl = LookUp(
-                        variables,
-                        key = "ServiceConnection",
-                        value.value
-                    )
+                    properties.linkedEnvironmentMetadata.instanceUrl = 'Deployment Environment'.URL
                 ).name,
                 "EnvironmentUniqueName",
                 LookUp(
                     AllEnvironments,
-                    properties.linkedEnvironmentMetadata.instanceUrl = LookUp(
-                        variables,
-                        key = "ServiceConnection",
-                        value.value
-                    )
+                    properties.linkedEnvironmentMetadata.instanceUrl = 'Deployment Environment'.URL
                 ).properties.linkedEnvironmentMetadata.uniqueName,
                 "BuildName",
-                name
+                Name
             )
         );
         If(
-            IsBlankOrError(SelectedDeploymentStep),
+            IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
             UpdateContext(
                 {
-                    ShowEnvironmentPicker: true,
                     SelectedDeploymentEnvironment: First(DeploymentEnvironments)
                 }
             ),
             UpdateContext(
                 {
-                    ShowEnvironmentPicker: false,
                     SelectedDeploymentEnvironment: LookUp(
                         DeploymentEnvironments,
                         EnvironmentUrl = SelectedDeploymentStep.'Deployment Environment'.URL
@@ -331,8 +308,9 @@ DeploymentSettingsScreen As screen:
             HoverColor: =ColorFade(icoDeployDialogClose.Color, 20%)
             HoverFill: =ColorFade(icoDeployDialogClose.Fill, 20%)
             Icon: =Icon.Cancel
-            OnSelect: |-
-                =Select(btnSaveDeployment);
+            OnSelect: |
+                =UpdateContext({SolutionLoaderText: "Saving..."});
+                Select(btnSaveDeployment);
                 Navigate(
                     ReturnScreen,
                     ScreenTransition.Fade
@@ -365,16 +343,13 @@ DeploymentSettingsScreen As screen:
             ChevronHoverBackground: =ColorFade(drpDeployEnvironments.ChevronBackground, 20%)
             ChevronHoverFill: =ColorFade(drpDeployEnvironments.ChevronFill, 20%)
             Default: |
-                =SelectedDeploymentEnvironment.DisplayName
-            DisplayMode: =If(ShowEnvironmentPicker, DisplayMode.Edit, DisplayMode.Disabled)
+                =SelectedDeploymentEnvironment.Name
             Height: =46
             HoverBorderColor: =ColorFade(drpDeployEnvironments.BorderColor, 20%)
             HoverColor: =ColorFade(drpDeployEnvironments.Color, 20%)
             HoverFill: =ColorFade(drpDeployEnvironments.SelectionFill, 20%)
             Items: =DeploymentEnvironments
-            OnChange: |-
-                =Select(btnSaveDeployment);
-                Select(fncLoadEnvironmentDeploymentSettings);
+            OnChange: =Select(btnSaveDeployment);
             OnSelect: =
             PressedBorderColor: =drpDeployEnvironments.HoverBorderColor
             PressedColor: =drpDeployEnvironments.Fill
@@ -394,6 +369,7 @@ DeploymentSettingsScreen As screen:
             HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
             OnSelect: |-
                 =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                ClearCollect(DeploymentSettings, {});
                 Clear(DeploymentSettings);
                 ForAll(
                     glrConnectionReferences.AllItems,
@@ -401,7 +377,7 @@ DeploymentSettingsScreen As screen:
                         DeploymentSettings,
                         {
                             Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Environment: SelectedDeploymentEnvironment.Name,
                             Name: "connectionreference." & connectionreferencelogicalname,
                             Value: If(
                                 IsBlank(drpConnectionReferenceConnections.Selected),
@@ -417,7 +393,7 @@ DeploymentSettingsScreen As screen:
                         DeploymentSettings,
                         {
                             Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Environment: SelectedDeploymentEnvironment.Name,
                             Name: "environmentvariable." & schemaname,
                             Value: If(
                                 type = 100000004 && apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline",
@@ -437,13 +413,13 @@ DeploymentSettingsScreen As screen:
                         DeploymentSettings,
                         {
                             Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Environment: SelectedDeploymentEnvironment.Name,
                             Name: "canvasshare.aadGroupId." & name,
                             Value: drpCanvasAppShareGroups.Selected.id
                         },
                         {
                             Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Environment: SelectedDeploymentEnvironment.Name,
                             Name: "canvasshare.roleName." & name,
                             Value: drpCanvasAppSharePermission.Selected.Value
                         }
@@ -455,7 +431,7 @@ DeploymentSettingsScreen As screen:
                         DeploymentSettings,
                         {
                             Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.DisplayName,
+                            Environment: SelectedDeploymentEnvironment.Name,
                             Name: "owner.ownerEmail." & Substitute(
                                 name,
                                 " ",
@@ -505,6 +481,7 @@ DeploymentSettingsScreen As screen:
                         {Data: settingsJsonText}
                     )
                 );
+                Select(fncLoadEnvironmentDeploymentSettings);
                 UpdateContext({SaveDeploymentButtonText: "SAVE"})
             PressedBorderColor: =btnSaveDeployment.Fill
             PressedColor: =btnSaveDeployment.Fill
@@ -711,6 +688,7 @@ DeploymentSettingsScreen As screen:
             ZIndex: =15
 
             lblEnvironmentVariableLogicalName As label:
+                FocusedBorderThickness: =FocusedBorderThicknessValue
                 Height: =24
                 OnSelect: =ThisItem.schemaname
                 PaddingBottom: =0
@@ -1314,6 +1292,7 @@ DeploymentSettingsScreen As screen:
             IsLoading: =showSolutionComponentLoader
             SpinnerColorHex: =LookUp(loaderSolutionComponents.Styles, Name = "PrimaryColor2Value").Value
             Styles: =ComponentStyles
+            Text: =SolutionLoaderText
             Visible: =loaderSolutionComponents.IsLoading
             Width: =1920
             Y: =253
@@ -1754,7 +1733,7 @@ DeploymentSettingsScreen As screen:
                     "mailto:" & Concat(
                         glrInvitedUsers.AllItems,
                         Mail & ";"
-                    ) & "?subject=" & gblUser.FullName & " is requesting your help to re-establish a Power Apps Solution Connection" & "&body=" & "Hello,%0D%0A%0D%0ACan you assist with re-establishing the following connection in " & drpDeployEnvironments.Selected.DisplayName & "%0D%0A%0D%0APlease use the following link to login and re-establish the connection https://web.powerapps.com/apps/" & First(
+                    ) & "?subject=" & gblUser.FullName & " is requesting your help to re-establish a Power Apps Solution Connection" & "&body=" & "Hello,%0D%0A%0D%0ACan you assist with re-establishing the following connection in " & drpDeployEnvironments.Selected.Name & "%0D%0A%0D%0APlease use the following link to login and re-establish the connection https://web.powerapps.com/apps/" & First(
                         Filter(
                             PowerAppsforMakers.GetApps().value,
                             properties.displayName = "ALM Accelerator for Advanced Makers" && properties.environment.name = ExecutingEnvironment.tags.environmentName
