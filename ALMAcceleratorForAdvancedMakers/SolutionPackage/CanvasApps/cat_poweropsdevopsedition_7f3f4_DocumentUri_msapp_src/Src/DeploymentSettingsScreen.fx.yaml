@@ -8,8 +8,10 @@ DeploymentSettingsScreen As screen:
                 showEnvironmentVariablesSettings: false,
                 showSharingSettings: false,
                 showOwnerSettings: false,
+                locCloseAfterSave: true,
                 SolutionLoaderText: "Loading...",
-                DeploymentSettingsLoadingText: "ANALYZING SOLUTION DEPENDENCIES..."
+                DeploymentSettingsLoadingText: "ANALYZING SOLUTION DEPENDENCIES...",
+                SaveDeploymentButtonText: "SAVE AND CLOSE"
             }
         );
         ClearCollect(
@@ -35,17 +37,14 @@ DeploymentSettingsScreen As screen:
                     AllEnvironments,
                     properties.linkedEnvironmentMetadata.instanceUrl = 'Deployment Environment'.URL
                 ).properties.linkedEnvironmentMetadata.uniqueName,
+                //TODO: May want to make the build name a setting on the Step. For now assume a build exists with the appropriate name
                 "BuildName",
-                Name
+                "deploy-" & Lower(Name) & "-" & SelectedSolutionToConfigure.uniquename
             )
         );
         If(
             IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
-            UpdateContext(
-                {
-                    SelectedDeploymentEnvironment: First(DeploymentEnvironments)
-                }
-            ),
+            UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
             UpdateContext(
                 {
                     SelectedDeploymentEnvironment: LookUp(
@@ -310,13 +309,9 @@ DeploymentSettingsScreen As screen:
             HoverColor: =ColorFade(icoDeployDialogClose.Color, 20%)
             HoverFill: =ColorFade(icoDeployDialogClose.Fill, 20%)
             Icon: =Icon.Cancel
-            OnSelect: |
+            OnSelect: |-
                 =UpdateContext({SolutionLoaderText: "Saving..."});
                 Select(btnSaveDeployment);
-                Navigate(
-                    ReturnScreen,
-                    ScreenTransition.Fade
-                );
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -352,7 +347,9 @@ DeploymentSettingsScreen As screen:
             HoverColor: =ColorFade(drpDeployEnvironments.Color, 20%)
             HoverFill: =ColorFade(drpDeployEnvironments.SelectionFill, 20%)
             Items: =DeploymentEnvironments
-            OnChange: =Select(btnSaveDeployment);
+            OnChange: |-
+                =UpdateContext({locCloseAfterSave: false});
+                Select(btnSaveDeployment);
             OnSelect: =
             PressedBorderColor: =drpDeployEnvironments.HoverBorderColor
             PressedColor: =drpDeployEnvironments.Fill
@@ -363,139 +360,6 @@ DeploymentSettingsScreen As screen:
             X: =28
             Y: =137
             ZIndex: =9
-
-        btnSaveDeployment As button:
-            DisplayMode: =If(SaveDeploymentButtonText = "SAVE", DisplayMode.Edit, DisplayMode.View)
-            Height: =45
-            HoverBorderColor: =ColorFade(btnSaveDeployment.BorderColor, 20%)
-            HoverColor: =ColorFade(btnSaveDeployment.Color, 20%)
-            HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
-            OnSelect: |-
-                =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
-                ClearCollect(DeploymentSettings, {});
-                Clear(DeploymentSettings);
-                ForAll(
-                    glrConnectionReferences.AllItems,
-                    Collect(
-                        DeploymentSettings,
-                        {
-                            Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.Name,
-                            Name: "connectionreference." & connectionreferencelogicalname,
-                            Value: If(
-                                IsBlank(drpConnectionReferenceConnections.Selected),
-                                "",
-                                drpConnectionReferenceConnections.Selected.ConnectionId
-                            )
-                        }
-                    )
-                );
-                ForAll(
-                    glrEnvironmentVariables.AllItems,
-                    Collect(
-                        DeploymentSettings,
-                        {
-                            Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.Name,
-                            Name: "environmentvariable." & schemaname,
-                            Value: If(
-                                type = 100000004 && apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline",
-                                If(
-                                    parameterkey = "dataset",
-                                    drpSharepointSites.Selected.webUrl,
-                                    drpSharepointLists.Selected.id
-                                ),
-                                txtEnvironmentVariableValue.Text
-                            )
-                        }
-                    )
-                );
-                ForAll(
-                    glrCanvasApps.AllItems,
-                    Collect(
-                        DeploymentSettings,
-                        {
-                            Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.Name,
-                            Name: "canvasshare.aadGroupId." & name,
-                            Value: drpCanvasAppShareGroups.Selected.id
-                        },
-                        {
-                            Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.Name,
-                            Name: "canvasshare.roleName." & name,
-                            Value: drpCanvasAppSharePermission.Selected.Value
-                        }
-                    )
-                );
-                ForAll(
-                    glrFlows.AllItems,
-                    Collect(
-                        DeploymentSettings,
-                        {
-                            Build: SelectedDeploymentEnvironment.BuildName,
-                            Environment: SelectedDeploymentEnvironment.Name,
-                            Name: "owner.ownerEmail." & Substitute(
-                                name,
-                                " ",
-                                ""
-                            ) & "." & workflowid,
-                            Value: drpFlowOwnerUsers.Selected.domainname
-                        }
-                    )
-                );
-                UpdateContext({settingsJsonText: JSON(DeploymentSettings)});
-                
-                UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
-                UpdateContext(
-                    {
-                        locEnvironmentDeploymentSetting: LookUp(
-                            'User Settings',
-                            Name = locSolutionEnvironmentDeploySettingName
-                        )
-                    }
-                );
-                If(
-                    IsBlank(locEnvironmentDeploymentSetting),// create it if we don't have one
-                    Patch(
-                        'User Settings',
-                        {
-                            'App User Setting': AppUserSetting,
-                            Name: locSolutionEnvironmentDeploySettingName,
-                            Data: settingsJsonText
-                        }
-                    );
-                    Patch(
-                        AppUserSetting_UserSettings,
-                        {
-                            'App User Setting': AppUserSetting,
-                            Name: locSolutionEnvironmentDeploySettingName,
-                            Data: settingsJsonText
-                        }
-                    ),
-                    Patch(
-                        'User Settings',
-                        locEnvironmentDeploymentSetting,
-                        {Data: settingsJsonText}
-                    );
-                    Patch(
-                        AppUserSetting_UserSettings,
-                        locEnvironmentDeploymentSetting,
-                        {Data: settingsJsonText}
-                    )
-                );
-                Select(fncLoadEnvironmentDeploymentSettings);
-                UpdateContext({SaveDeploymentButtonText: "SAVE"})
-            PressedBorderColor: =btnSaveDeployment.Fill
-            PressedColor: =btnSaveDeployment.Fill
-            PressedFill: =btnSaveDeployment.Color
-            Text: =SaveDeploymentButtonText
-            Tooltip: ="Save the Current Environment's Deployment Configuration"
-            Visible: =IsBlankOrError(ReturnScreen) Or !IsBlankOrError(SaveDeploymentButtonText)
-            Width: =200
-            X: =1674
-            Y: =1003
-            ZIndex: =10
 
         icoAddDeploymentEnvironment As icon.Add:
             AccessibleLabel: ="Create Environment"
@@ -522,7 +386,7 @@ DeploymentSettingsScreen As screen:
             Width: =57
             X: =1168
             Y: =138
-            ZIndex: =11
+            ZIndex: =10
 
         txtNewDeployEnvironment As text:
             AccessibleLabel: ="Create Environment"
@@ -540,7 +404,7 @@ DeploymentSettingsScreen As screen:
             Width: =1140
             X: =28
             Y: =138
-            ZIndex: =12
+            ZIndex: =11
 
         icoDeployNewEnvironmentClose As icon.Cancel:
             AccessibleLabel: ="Close"
@@ -565,7 +429,7 @@ DeploymentSettingsScreen As screen:
             Width: =57
             X: =1168
             Y: =137
-            ZIndex: =13
+            ZIndex: =12
 
         "glrFlows As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Flows"
@@ -578,7 +442,7 @@ DeploymentSettingsScreen As screen:
             Width: =1850
             X: =24
             Y: =253
-            ZIndex: =14
+            ZIndex: =13
 
             icoFlow As image:
                 AccessibleLabel: ="Flow"
@@ -696,7 +560,7 @@ DeploymentSettingsScreen As screen:
             Width: =1850
             X: =24
             Y: =253
-            ZIndex: =15
+            ZIndex: =14
 
             lblEnvironmentVariableLogicalName As label:
                 FocusedBorderThickness: =FocusedBorderThicknessValue
@@ -898,7 +762,7 @@ DeploymentSettingsScreen As screen:
             Width: =1850
             X: =24
             Y: =253
-            ZIndex: =16
+            ZIndex: =15
 
             icoConnectorIcon As image:
                 BorderColor: =ColorFade(icoConnectorIcon.Fill, -20%)
@@ -1098,6 +962,7 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoRequestConnection.Color, -20%)
                 PressedFill: =ColorFade(icoRequestConnection.Fill, -20%)
                 Tooltip: ="Request a New Connection from Another User"
+                Visible: =false
                 Width: =57
                 X: =1766
                 Y: =9
@@ -1114,7 +979,7 @@ DeploymentSettingsScreen As screen:
             Width: =1850
             X: =24
             Y: =253
-            ZIndex: =17
+            ZIndex: =16
 
             icoCanvasApp As image:
                 AccessibleLabel: ="Canvas App"
@@ -1271,6 +1136,148 @@ DeploymentSettingsScreen As screen:
                 X: =1546
                 Y: =12
                 ZIndex: =8
+
+        btnSaveDeployment As button:
+            Height: =45
+            HoverBorderColor: =ColorFade(btnSaveDeployment.BorderColor, 20%)
+            HoverColor: =ColorFade(btnSaveDeployment.Color, 20%)
+            HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
+            OnSelect: |-
+                =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                Clear(DeploymentSettings);
+                ForAll(
+                    glrConnectionReferences.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "connectionreference." & connectionreferencelogicalname,
+                            Value: If(
+                                IsBlank(drpConnectionReferenceConnections.Selected),
+                                "",
+                                drpConnectionReferenceConnections.Selected.ConnectionId
+                            )
+                        }
+                    )
+                );
+                ForAll(
+                    glrEnvironmentVariables.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "environmentvariable." & schemaname,
+                            Value: If(
+                                type = 100000004 && apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline",
+                                If(
+                                    parameterkey = "dataset",
+                                    drpSharepointSites.Selected.webUrl,
+                                    drpSharepointLists.Selected.id
+                                ),
+                                txtEnvironmentVariableValue.Text
+                            )
+                        }
+                    )
+                );
+                ForAll(
+                    glrCanvasApps.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "canvasshare.aadGroupId." & name,
+                            Value: drpCanvasAppShareGroups.Selected.id
+                        },
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "canvasshare.roleName." & name,
+                            Value: drpCanvasAppSharePermission.Selected.Value
+                        }
+                    )
+                );
+                ForAll(
+                    glrFlows.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "owner.ownerEmail." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid,
+                            Value: drpFlowOwnerUsers.Selected.domainname
+                        }
+                    )
+                );
+                UpdateContext({settingsJsonText: JSON(DeploymentSettings)});
+                UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
+                UpdateContext(
+                    {
+                        locEnvironmentDeploymentSetting: LookUp(
+                            'User Settings',
+                            Name = locSolutionEnvironmentDeploySettingName
+                        )
+                    }
+                );
+                If(
+                    IsBlank(locEnvironmentDeploymentSetting),// create it if we don't have one
+                    Patch(
+                        'User Settings',
+                        {
+                            'App User Setting': AppUserSetting,
+                            Name: locSolutionEnvironmentDeploySettingName,
+                            Data: settingsJsonText
+                        }
+                    );
+                    Patch(
+                        AppUserSetting_UserSettings,
+                        {
+                            'App User Setting': AppUserSetting,
+                            Name: locSolutionEnvironmentDeploySettingName,
+                            Data: settingsJsonText
+                        }
+                    ),
+                    Patch(
+                        'User Settings',
+                        locEnvironmentDeploymentSetting,
+                        {Data: settingsJsonText}
+                    );
+                    Patch(
+                        AppUserSetting_UserSettings,
+                        locEnvironmentDeploymentSetting,
+                        {Data: settingsJsonText}
+                    )
+                );
+                If(
+                    locCloseAfterSave,
+                    Navigate(
+                        ReturnScreen,
+                        Fade
+                    ),
+                    Select(fncLoadEnvironmentDeploymentSettings)
+                );
+                UpdateContext(
+                    {
+                        locCloseAfterSave: true,
+                        SaveDeploymentButtonText: "SAVE AND CLOSE"
+                    }
+                )
+            PressedBorderColor: =btnSaveDeployment.Fill
+            PressedColor: =btnSaveDeployment.Fill
+            PressedFill: =btnSaveDeployment.Color
+            Text: =SaveDeploymentButtonText
+            Tooltip: ="Save the Current Environment's Deployment Configuration"
+            Visible: =IsBlankOrError(ReturnScreen) Or !IsBlankOrError(SaveDeploymentButtonText)
+            Width: =200
+            X: =1674
+            Y: =1003
+            ZIndex: =17
 
         lblDeployConnectionReferences As label:
             FontWeight: =If(showConnectionReferenceSettings, FontWeight.Bold, FontWeight.Semibold)

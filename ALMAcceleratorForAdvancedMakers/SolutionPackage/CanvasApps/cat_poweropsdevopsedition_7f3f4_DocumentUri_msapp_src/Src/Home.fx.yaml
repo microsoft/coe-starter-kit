@@ -3,7 +3,8 @@ Home As screen:
     Height: =Max(App.Height, App.DesignHeight)
     OnVisible: |-
         =If(ReinitializeHome,
-        Select(fncInitializeHome))
+            Select(fncInitializeHome);
+        )
     Width: =Max(App.Width, App.DesignWidth)
 
     SearchBox As group:
@@ -141,7 +142,14 @@ Home As screen:
                             SolutionsLatestBuildStatuses,
                             uniquename = ThisItem.uniquename
                         ).deleteSolutionStatus.buildNumber
-                    ) And !IsBlankOrError(ThisItem.deploymentprofile),
+                    ) And !IsBlankOrError(ThisItem.deploymentprofile) And !IsBlankOrError(
+                        First(
+                            Filter(
+                                ThisItem.deploymentrequests,
+                                'Request Type' = [@Type].Publish And 'Created By'.User = gblCdsUser.User
+                            )
+                        )
+                    ),
                     DisplayMode.Edit,
                     DisplayMode.Disabled
                 )
@@ -157,8 +165,6 @@ Home As screen:
                         showDialogOverlay: true
                     }
                 );
-                
-                Reset(drpPRDeploymentProfiles);
                 UpdateContext(
                     {
                         LastDeployRequest: First(
@@ -166,11 +172,17 @@ Home As screen:
                                 glrSolutions.Selected.deploymentrequests,
                                 'Request Type' = [@Type].Deploy And 'Created By'.User = gblCdsUser.User
                             )
+                        ),
+                        LastPublishRequest: First(
+                            Filter(
+                                glrSolutions.Selected.deploymentrequests,
+                                'Request Type' = [@Type].Publish And 'Created By'.User = gblCdsUser.User
+                            )
                         )
                     }
                 );
                 If(
-                    IsBlankOrError(LastDeployRequest) Or IsBlankOrError(LastDeployRequest.'Target Branch'),
+                    IsBlankOrError(LastPublishRequest) Or IsBlankOrError(LastPublishRequest.'Target Branch'),
                     UpdateContext(
                         {
                             locDefaultBranchForCommit: LookUp(
@@ -180,17 +192,22 @@ Home As screen:
                             )
                         }
                     ),
-                    UpdateContext({locDefaultBranchForCommit: LastDeployRequest.'Target Branch'})
+                    UpdateContext({locDefaultBranchForCommit: LastPublishRequest.'Target Branch'})
                 );
-                UpdateContext(
-                    {
-                        locTargetBranchForPullRequest: LookUp(
-                            SelectedRepoBranches,
-                            glrSolutions.Selected.uniquename in DisplayName,
-                            DisplayName
-                        )
-                    }
+                If(
+                    IsBlankOrError(LastDeployRequest) Or IsBlankOrError(LastDeployRequest.'Target Branch'),
+                    UpdateContext(
+                        {
+                            locTargetBranchForPullRequest: LookUp(
+                                SelectedRepoBranches,
+                                glrSolutions.Selected.uniquename in DisplayName,
+                                DisplayName
+                            )
+                        }
+                    ),
+                    UpdateContext({locTargetBranchForPullRequest: LastDeployRequest.'Target Branch'})
                 );
+                
                 UpdateContext(
                     {
                         showPullRequestDialog: true
@@ -200,7 +217,7 @@ Home As screen:
             PressedColor: =btnCreatePullRequest.Fill
             PressedFill: =btnCreatePullRequest.Color
             Size: =11
-            Text: ="DEPLOY SOLUTION"
+            Text: ="REQUEST DEPLOYMENT"
             Tooltip: =
             Width: =200
             X: =767
@@ -256,7 +273,29 @@ Home As screen:
                         showDialogOverlay: true
                     }
                 );
-                
+                UpdateContext(
+                    {
+                        LastPublishRequest: First(
+                            Filter(
+                                glrSolutions.Selected.deploymentrequests,
+                                'Request Type' = [@Type].Publish And 'Created By'.User = gblCdsUser.User
+                            )
+                        )
+                    }
+                );
+                If(
+                    IsBlankOrError(LastPublishRequest) Or IsBlankOrError(LastPublishRequest.'Target Branch'),
+                    UpdateContext(
+                        {
+                            locDefaultBranchForCommit: LookUp(
+                                SelectedRepoBranches,
+                                glrSolutions.Selected.uniquename in DisplayName,
+                                DisplayName
+                            )
+                        }
+                    ),
+                    UpdateContext({locDefaultBranchForCommit: LastPublishRequest.'Target Branch'})
+                );
                 ClearCollect(
                     SelectedProjectRepos,
                     CustomAzureDevOps.GetGitRepos(
@@ -303,6 +342,7 @@ Home As screen:
                         'Deployment Profile'.'Deployment Profile' = glrSolutions.Selected.deploymentprofile.'Deployment Profile'
                     )
                 );
+                Reset(drpAdoBranches);
                 UpdateContext(
                     {
                         selectedStep: First(SelectedProfileSteps).Name,
@@ -314,8 +354,7 @@ Home As screen:
             PressedColor: =btnCommitAndPush.Fill
             PressedFill: =btnCommitAndPush.Color
             Size: =11
-            Text: |
-                ="PUBLISH SOLUTION"
+            Text: ="PROMOTE SOLUTION"
             Width: =200
             X: =407
             Y: =17
@@ -325,7 +364,7 @@ Home As screen:
             AccessibleLabel: ="Publish Status"
             BorderColor: =ColorFade(imgCommitStatus.Fill, -20%)
             DisplayMode: =DisplayMode.View
-            Height: =46
+            Height: =45
             HoverBorderColor: =ColorFade(imgCommitStatus.BorderColor, 20%)
             HoverFill: =ColorFade(imgCommitStatus.Fill, 20%)
             Image: |-
@@ -370,8 +409,8 @@ Home As screen:
             PressedBorderColor: =ColorFade(imgCommitStatus.BorderColor, -20%)
             PressedFill: =ColorFade(imgCommitStatus.Fill, -20%)
             Tooltip: =
-            Width: =149
-            X: =596
+            Width: =50
+            X: =632
             Y: =17
             ZIndex: =6
 
@@ -418,8 +457,8 @@ Home As screen:
             PressedBorderColor: =ColorFade(imgPullRequestStatus.BorderColor, -20%)
             PressedFill: =ColorFade(imgPullRequestStatus.Fill, -20%)
             Width: =50
-            X: =1005
-            Y: =21
+            X: =996
+            Y: =17
             ZIndex: =7
 
         icoLaunchExportBuildUrl As icon.Add:
@@ -427,6 +466,12 @@ Home As screen:
             BorderColor: =ColorFade(icoLaunchExportBuildUrl.Fill, -20%)
             Color: =RGBA(0, 0, 0, 0)
             DisabledFill: =ColorFade(icoLaunchExportBuildUrl.Fill, -80%)
+            DisplayMode: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Drillthrough Status') Or DeploymentUserSetting.'Drillthrough Status' = 'A Yes or No boolean'.Allowed,
+                    DisplayMode.Edit,
+                    DisplayMode.Disabled
+                )
             Fill: =RGBA(0, 0, 0, 0)
             Height: =80
             HoverBorderColor: =ColorFade(icoLaunchExportBuildUrl.BorderColor, 20%)
@@ -472,7 +517,7 @@ Home As screen:
                     ),
                     Blank()
                 )
-            X: =637
+            X: =626
             ZIndex: =8
 
         icoLaunchPullRequestUrl As icon.Add:
@@ -480,8 +525,14 @@ Home As screen:
             BorderColor: =ColorFade(icoLaunchPullRequestUrl.Fill, -20%)
             Color: =RGBA(0, 0, 0, 0)
             DisabledFill: =ColorFade(icoLaunchPullRequestUrl.Fill, -80%)
+            DisplayMode: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Drillthrough Status') Or DeploymentUserSetting.'Drillthrough Status' = 'A Yes or No boolean'.Allowed,
+                    DisplayMode.Edit,
+                    DisplayMode.Disabled
+                )
             Fill: =RGBA(0, 0, 0, 0)
-            Height: =45
+            Height: =80
             HoverBorderColor: =ColorFade(icoLaunchPullRequestUrl.BorderColor, 20%)
             HoverColor: =ColorFade(icoLaunchPullRequestUrl.Color, 20%)
             HoverFill: =ColorFade(icoLaunchPullRequestUrl.Fill, 20%)
@@ -531,9 +582,7 @@ Home As screen:
                     ),
                     Blank()
                 )
-            Width: =23
-            X: =1018
-            Y: =21
+            X: =987
             ZIndex: =9
 
         icoOpenSolution As icon.Add:
@@ -628,7 +677,7 @@ Home As screen:
             Text: ="DELETE SOLUTION"
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Delete Solutions') Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
@@ -641,7 +690,7 @@ Home As screen:
             AccessibleLabel: ="Delete Status"
             BorderColor: =ColorFade(imgDeleteStatus.Fill, -20%)
             DisplayMode: =DisplayMode.View
-            Height: =46
+            Height: =45
             HoverBorderColor: =ColorFade(imgDeleteStatus.BorderColor, 20%)
             HoverFill: =ColorFade(imgDeleteStatus.Fill, 20%)
             Image: |-
@@ -672,11 +721,12 @@ Home As screen:
             Tooltip: =
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Delete Solutions') Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
-            X: =1672
+            Width: =50
+            X: =1699
             Y: =17
             ZIndex: =13
 
@@ -685,6 +735,12 @@ Home As screen:
             BorderColor: =ColorFade(icoLaunchDeleteBuildUrl.Fill, -20%)
             Color: =RGBA(0, 0, 0, 0)
             DisabledFill: =ColorFade(icoLaunchDeleteBuildUrl.Fill, -80%)
+            DisplayMode: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Drillthrough Status') Or DeploymentUserSetting.'Drillthrough Status' = 'A Yes or No boolean'.Allowed,
+                    DisplayMode.Edit,
+                    DisplayMode.Disabled
+                )
             Fill: =RGBA(0, 0, 0, 0)
             Height: =80
             HoverBorderColor: =ColorFade(icoLaunchDeleteBuildUrl.BorderColor, 20%)
@@ -732,11 +788,11 @@ Home As screen:
                 )
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Delete Solutions') Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
-            X: =1715
+            X: =1692
             ZIndex: =14
 
         lblConfigureDeployment As label:
@@ -824,7 +880,7 @@ Home As screen:
             VerticalAlign: =VerticalAlign.Top
             Width: =400
             Wrap: =false
-            X: =1057
+            X: =1048
             Y: =17
             ZIndex: =17
 
@@ -855,7 +911,7 @@ Home As screen:
             Tooltip: =ThisItem.friendlyname
             Width: =400
             Wrap: =false
-            X: =1057
+            X: =1048
             Y: =42
             ZIndex: =18
 
@@ -920,7 +976,7 @@ Home As screen:
             PressedColor: =ColorFade(icoDeploymentProfile.Color, -20%)
             PressedFill: =ColorFade(icoDeploymentProfile.Fill, -20%)
             Width: =400
-            X: =1057
+            X: =1048
             Y: =16
             ZIndex: =19
 
@@ -1178,10 +1234,6 @@ Home As screen:
                         SelectedSolutionToConfigure,
                         glrSolutions.Selected
                     );
-                    Set(
-                        SaveDeploymentButtonText,
-                        "SAVE AND PUBLISH"
-                    );
                     Navigate(
                         DeploymentSettingsScreen,
                         ScreenTransition.Fade
@@ -1296,6 +1348,23 @@ Home As screen:
                             ) & ")",
                             'Solution Name': glrSolutions.Selected.uniquename,
                             'Deployment Profile': drpPushDeploymentProfiles.Selected,
+                            'Target Branch': If(
+                                tglCreateBranch.Value,
+                                txtBranchToCreate.Text,
+                                If(
+                                    txtBranch.Visible,
+                                    txtBranch.Text,
+                                    drpAdoBranches.Selected.DisplayName
+                                )
+                            ),
+                            'Source Branch': If(
+                                tglCreateBranch.Value,
+                                If(
+                                    txtBranch.Visible,
+                                    txtBranch.Text,
+                                    drpAdoBranches.Selected.DisplayName
+                                )
+                            ),
                             'Build ID': publishBuildId,
                             'Request Type': [@Type].Publish
                         }
@@ -1345,7 +1414,7 @@ Home As screen:
             FontWeight: =Semibold
             Height: =55
             Size: =16
-            Text: ="PUBLISH SOLUTION"
+            Text: ="PROMOTE SOLUTION"
             Visible: =showCommitDialog
             Width: =550
             ZIndex: =4
@@ -1397,7 +1466,7 @@ Home As screen:
             Visible: =tglPublishAdvancedSettings.Value
             Width: =498
             X: =30
-            Y: =If(tglCreateBranch.Value = false, txtBranchToCreate.Y, txtBranchToCreate.Y + 45)
+            Y: =If(tglCreateBranch.Value = false, txtBranchToCreate.Y - 10, txtBranchToCreate.Y + 45)
             ZIndex: =7
 
             drpAdoBranches As dropdown:
@@ -1445,7 +1514,6 @@ Home As screen:
                 PressedFill: =txtBranch.Fill
                 Visible: =(CountRows(SelectedRepoBranches) = 0)
                 Width: =498
-                X: =1
                 Y: =45
                 ZIndex: =7
 
@@ -1520,6 +1588,8 @@ Home As screen:
 
         tglPublishAdvancedSettings As toggleSwitch:
             AccessibleLabel: ="Show Advanced"
+            Default: =true
+            DisplayMode: =DisplayMode.Disabled
             FalseFill: =RGBA(237, 237, 237, 1)
             FalseHoverFill: =ColorFade(tglPublishAdvancedSettings.FalseFill, 20%)
             FalseText: ="Show Advanced"
@@ -1532,7 +1602,7 @@ Home As screen:
             TrueText: ="Show Advanced"
             Width: =200
             X: =30
-            Y: =345
+            Y: =336
             ZIndex: =13
 
         txtCommitMessage As text:
@@ -1576,11 +1646,11 @@ Home As screen:
             AccessibleLabel: ="Close"
             BorderColor: =ColorFade(icoCommitDialogHelp.Fill, -20%)
             DisabledFill: =ColorFade(icoCommitDialogHelp.Fill, -80%)
-            Height: =45
+            Height: =55
             HoverBorderColor: =ColorFade(icoCommitDialogHelp.BorderColor, 20%)
             HoverColor: =ColorFade(icoCommitDialogHelp.Color, 20%)
             HoverFill: =ColorFade(icoCommitDialogHelp.Fill, 20%)
-            Icon: =Icon.QuestionMark
+            Icon: =Icon.Information
             OnSelect: =
             PaddingBottom: =10
             PaddingLeft: =10
@@ -1589,11 +1659,10 @@ Home As screen:
             PressedBorderColor: =ColorFade(icoCommitDialogHelp.BorderColor, -20%)
             PressedColor: =ColorFade(icoCommitDialogHelp.Color, -20%)
             PressedFill: =ColorFade(icoCommitDialogHelp.Fill, -20%)
-            Tooltip: ="Publishing a solution allows you to share your work in progress in a central repository. Your work will not be available for others to use after you publish it, but other Makers will be able to see you solution in this central repository and import your work to allow them to collaborate on the solution in another environment."
-            Visible: =false
-            Width: =45
-            X: =462
-            Y: =5
+            Tooltip: |-
+                ="Promoting a solution allows you to share your work in progress to a central repository. Your work will not be available for others to use after you promote it, but other Makers will be able to see your solution in the central repository and import your work to allow them to collaborate on the solution in another environment. Hint: Promoting a solution is a good way to keep a backup of your work and restore it later as well."
+            Width: =52
+            X: =450
             ZIndex: =16
 
     ImportDialog As groupContainer:
@@ -1745,7 +1814,7 @@ Home As screen:
             PressedBorderColor: =drpSolutionFolders.HoverBorderColor
             PressedColor: =drpSolutionFolders.Fill
             PressedFill: =drpSolutionFolders.Color
-            Width: =506
+            Width: =500
             X: =30
             Y: =284
             ZIndex: =14
@@ -1771,7 +1840,7 @@ Home As screen:
             PressedBorderColor: =dpBranchName.HoverBorderColor
             PressedColor: =dpBranchName.Fill
             PressedFill: =dpBranchName.Color
-            Width: =506
+            Width: =500
             X: =30
             Y: =202
             ZIndex: =16
@@ -1945,7 +2014,7 @@ Home As screen:
             PressedBorderColor: =drpConfigFolders.HoverBorderColor
             PressedColor: =drpConfigFolders.Fill
             PressedFill: =drpConfigFolders.Color
-            Width: =506
+            Width: =500
             X: =30
             Y: =364
             ZIndex: =21
@@ -2058,6 +2127,29 @@ Home As screen:
             Y: =79
             ZIndex: =24
 
+        icoImportDialogHelp As icon.Cancel:
+            AccessibleLabel: ="Close"
+            BorderColor: =ColorFade(icoImportDialogHelp.Fill, -20%)
+            DisabledFill: =ColorFade(icoImportDialogHelp.Fill, -80%)
+            Height: =55
+            HoverBorderColor: =ColorFade(icoImportDialogHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(icoImportDialogHelp.Color, 20%)
+            HoverFill: =ColorFade(icoImportDialogHelp.Fill, 20%)
+            Icon: =Icon.Information
+            OnSelect: =
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(icoImportDialogHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(icoImportDialogHelp.Color, -20%)
+            PressedFill: =ColorFade(icoImportDialogHelp.Fill, -20%)
+            Tooltip: |-
+                ="Importing a solution allows you to bring a previously promoted or deployed version of your solution into your maker environment. Importing a solution cannot be undone and has the potential to overwrite any changes you've made in your maker environment. You should only use this function if you understand the potential consequences. Hint: Importing a solution is a good way to get the latest, or previous, changes you've made or another maker has made into your environment. In combination with the delete solution function you can effectively wipe away any changes you've made to a solution and import a previous version of your solution from a promoted version."
+            Width: =52
+            X: =450
+            ZIndex: =25
+
     grpImportSolution As group:
         Height: =5
         Width: =5
@@ -2077,7 +2169,7 @@ Home As screen:
             Text: ="IMPORT SOLUTION"
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Import Solutions') Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
@@ -2129,8 +2221,8 @@ Home As screen:
             Tooltip: ="Import an Unmanaged Solution from Source Control"
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
-                    IsBlankOrError(locImportSolutionStatus),
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Import Solutions') Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
+                    true,
                     false
                 )
             Width: =45
@@ -2171,7 +2263,7 @@ Home As screen:
             PressedFill: =ColorFade(imgImportStatus.Fill, -20%)
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Import Solutions') Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
@@ -2202,7 +2294,7 @@ Home As screen:
             PressedFill: =ColorFade(icoImportStatus.Fill, -20%)
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Import Solutions') Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
@@ -2319,7 +2411,7 @@ Home As screen:
             Tooltip: ="Import an Unmanaged Solution from Source Control"
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Import Solutions') Or DeploymentUserSetting.'Import Solutions' = 'A Yes or No boolean'.Allowed,
                     true,
                     false
                 )
@@ -2520,8 +2612,7 @@ Home As screen:
             PressedColor: =ColorFade(icoPullRequestDialogClose.Color, -20%)
             PressedFill: =ColorFade(icoPullRequestDialogClose.Fill, -20%)
             Width: =55
-            X: =495
-            Y: =4
+            X: =498
             ZIndex: =3
 
         lblSourceBranch As label:
@@ -2632,6 +2723,8 @@ Home As screen:
                         ) & ")",
                         'Solution Name': glrSolutions.Selected.uniquename,
                         'Deployment Profile': drpPRDeploymentProfiles.Selected,
+                        'Source Branch': drpPullRequestSourceBranches.Selected.DisplayName,
+                        'Target Branch': drpPullRequestTargetBranches.Selected.DisplayName,
                         'Build ID': pullRequestId,
                         'Request Type': [@Type].Deploy
                     }
@@ -2814,6 +2907,8 @@ Home As screen:
 
         tglPRAdvancedSettings As toggleSwitch:
             AccessibleLabel: ="Advanced Settings"
+            Default: =true
+            DisplayMode: =DisplayMode.Disabled
             FalseFill: =RGBA(237, 237, 237, 1)
             FalseHoverFill: =ColorFade(tglPRAdvancedSettings.FalseFill, 20%)
             FalseText: ="Advanced Settings"
@@ -2828,6 +2923,29 @@ Home As screen:
             X: =31
             Y: =436
             ZIndex: =22
+
+        icoDeployDialogHelp As icon.Cancel:
+            AccessibleLabel: ="Close"
+            BorderColor: =ColorFade(icoDeployDialogHelp.Fill, -20%)
+            DisabledFill: =ColorFade(icoDeployDialogHelp.Fill, -80%)
+            Height: =55
+            HoverBorderColor: =ColorFade(icoDeployDialogHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployDialogHelp.Color, 20%)
+            HoverFill: =ColorFade(icoDeployDialogHelp.Fill, 20%)
+            Icon: =Icon.Information
+            OnSelect: =
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(icoDeployDialogHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployDialogHelp.Color, -20%)
+            PressedFill: =ColorFade(icoDeployDialogHelp.Fill, -20%)
+            Tooltip: |-
+                ="Requesting deployment of a solution allows you to share your work with users in another environment. Once you've finished your work on the solution and tested your work you can request a deployment that will be reviewed and either accepted or rejected with requests for changes. Hint: Deploying a solution requires that you configure your deployment settings for the environments to which your solution will be deployed to ensure that it will work in those environments when the deployment request is approved."
+            Width: =52
+            X: =450
+            ZIndex: =23
 
     DeleteSolutionDialog As groupContainer:
         DisplayMode: =DisplayMode.Edit
@@ -2875,9 +2993,8 @@ Home As screen:
             PressedBorderColor: =ColorFade(icoDeleteSolutionDialogClose.BorderColor, -20%)
             PressedColor: =ColorFade(icoDeleteSolutionDialogClose.Color, -20%)
             PressedFill: =ColorFade(icoDeleteSolutionDialogClose.Fill, -20%)
-            Width: =55
-            X: =495
-            Y: =4
+            Width: =52
+            X: =498
             ZIndex: =3
 
         btnDelete As button:
@@ -3061,6 +3178,29 @@ Home As screen:
             X: =25
             Y: =252
             ZIndex: =17
+
+        icoDeleteDialogHelp As icon.Cancel:
+            AccessibleLabel: ="Close"
+            BorderColor: =ColorFade(icoDeleteDialogHelp.Fill, -20%)
+            DisabledFill: =ColorFade(icoDeleteDialogHelp.Fill, -80%)
+            Height: =55
+            HoverBorderColor: =ColorFade(icoDeleteDialogHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeleteDialogHelp.Color, 20%)
+            HoverFill: =ColorFade(icoDeleteDialogHelp.Fill, 20%)
+            Icon: =Icon.Information
+            OnSelect: =
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(icoDeleteDialogHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeleteDialogHelp.Color, -20%)
+            PressedFill: =ColorFade(icoDeleteDialogHelp.Fill, -20%)
+            Tooltip: |-
+                ="Deleting a solution allows you to remove all of the components associated with a solution. Deleting a solution cannot be undone and will remove all of the components from your maker environment associated with your solution. You should only use this function if you know what you're doing. Hint: Deleting a solution is a good way to clean out unnecessary work from your maker environment that has already been promoted. In combination with the import solution function you can effectively wipe away any changes you've made to a solution and import a previous version of your solution from a promoted version."
+            Width: =52
+            X: =450
+            ZIndex: =18
 
     DeploymentProfileDialog As groupContainer:
         DisplayMode: =DisplayMode.Edit
@@ -3479,7 +3619,18 @@ Home As screen:
                         drpProfileOrgs.Selected.AccountName,
                         drpProfileRepositories.Selected.name
                     ).value
-                )
+                );
+                ClearCollect(
+                    SolutionBuilds,
+                    CustomAzureDevOps.GetBuildDefinitions(
+                        drpProfileOrgs.Selected.AccountName,
+                        drpProfileProjects.Selected.name,
+                        {
+                            name: "deploy-*-" & SelectedSolutionToConfigure.uniquename,
+                            includeAllProperties: true
+                        }
+                    ).value
+                );
             PressedBorderColor: =drpProfileProjects.HoverBorderColor
             PressedColor: =drpProfileProjects.Fill
             PressedFill: =drpProfileProjects.Color
@@ -4170,11 +4321,12 @@ Home As screen:
             Size: =10
             Text: ="DELETE STATUS"
             Visible: |-
-                =If(
-                    IsBlankOrError(DeploymentUserSetting) Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
-                    true,
-                    false
-                )
+                =//If(
+                //    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Delete Solutions') Or DeploymentUserSetting.'Delete Solutions' = 'A Yes or No boolean'.Allowed,
+                //    true,
+                //    false
+                //)
+                false
             X: =1664
             Y: =146
             ZIndex: =7
@@ -4185,7 +4337,8 @@ Home As screen:
             FontWeight: =Semibold
             Height: =29
             Size: =10
-            Text: ="PUBLISH STATUS"
+            Text: ="STATUS"
+            Visible: =false
             Width: =170
             X: =605
             Y: =146
@@ -4197,7 +4350,8 @@ Home As screen:
             FontWeight: =Semibold
             Height: =32
             Size: =10
-            Text: ="DEPLOY STATUS"
+            Text: ="STATUS"
+            Visible: =false
             Width: =292
             X: =906
             Y: =146
@@ -4211,7 +4365,7 @@ Home As screen:
             Size: =10
             Text: ="PROFILE"
             Width: =310
-            X: =1121
+            X: =1112
             Y: =146
             ZIndex: =25
 
@@ -4232,6 +4386,12 @@ Home As screen:
                 =UpdateContext({showDialogOverlay:true, showImportDialog:true})
             Size: =14
             Text: ="MANAGE SOLUTIONS"
+            Visible: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Manage Solutions') Or DeploymentUserSetting.'Manage Solutions' = 'A Yes or No boolean'.Allowed,
+                    true,
+                    false
+                )
             Width: =200
             X: =212
             Y: =90
@@ -4278,6 +4438,12 @@ Home As screen:
             PressedColor: =ColorFade(icoManageSolutions.Color, -20%)
             PressedFill: =ColorFade(icoManageSolutions.Fill, -20%)
             Tooltip: ="Import an Unmanaged Solution from Source Control"
+            Visible: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Manage Solutions') Or DeploymentUserSetting.'Manage Solutions' = 'A Yes or No boolean'.Allowed,
+                    true,
+                    false
+                )
             Width: =57
             X: =160
             Y: =90
@@ -4307,6 +4473,12 @@ Home As screen:
             PressedColor: =ColorFade(icoManageSolutionsLabel.Color, -20%)
             PressedFill: =ColorFade(icoManageSolutionsLabel.Fill, -20%)
             Tooltip: ="Import an Unmanaged Solution from Source Control"
+            Visible: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Manage Solutions') Or DeploymentUserSetting.'Manage Solutions' = 'A Yes or No boolean'.Allowed,
+                    true,
+                    false
+                )
             Width: =190
             X: =217
             Y: =90
