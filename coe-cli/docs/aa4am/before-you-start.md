@@ -84,8 +84,6 @@ Notes:
 
    - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
 
-   - [RegexReplace Azure Pipelines Task](https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task)
-
    - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
   
    - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
