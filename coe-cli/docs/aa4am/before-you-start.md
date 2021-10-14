@@ -37,15 +37,15 @@ In the maker environment you will need a Dataverse connection to be created by t
 This can be done using the following steps
 1. Go to https://make.powerapps.com/
 
-2. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
+1. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
 
-3. Navigate to Data -> Connections
+1. Navigate to Data -> Connections
 
-4. New Connection
+1. New Connection
 
-5. Microsoft Dataverse (legacy)
+1. Microsoft Dataverse (legacy)
 
-6. Select Create
+1. Select Create
 
 ### Azure
 
@@ -79,7 +79,7 @@ Notes:
 
    - Create initial project e.g. alm-sandbox
 
-2. Review the Azure [DevOps Extensions](../../config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
+1. Review the Azure [DevOps Extensions](../../config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
    - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
 
    - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
@@ -91,4 +91,4 @@ Notes:
 Once you have verified the above
 
 1. Determine the install [deployment scenario](./scenarios/readme.md) you are targeting
-2. Complete the [Admin Install](./admin-install.md)
+1. Complete the [Admin Install](./admin-install.md)
