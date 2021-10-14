@@ -85,6 +85,8 @@ Notes:
    - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
 
    - [RegexReplace Azure Pipelines Task](https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task)
+
+   - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
   
    - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 
@@ -93,4 +95,4 @@ Notes:
 Once you have verified the above
 
 1. Determine the install [deployment scenario](./scenarios/readme.md) you are targeting
-1. Complete the [Admin Install](./admin-install.md)
+2. Complete the [Admin Install](./admin-install.md)
