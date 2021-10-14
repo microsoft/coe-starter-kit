@@ -26,7 +26,7 @@ Notes:
    4) Select Create Tenant
    5) Select tenant location
    6) Select "Dynamics 365 Customer Engagement"
-2. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
+1. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
 
    ![Environments](../images/environments.jpg)
 
