@@ -57,7 +57,7 @@ Global Administrator or Privileged Role Administrator|Grant tenant-wide admin co
 
 ### Azure DevOps
 
-The following must be installed before the CoE CLI AA4AM install cab begin
+The following must be installed before the CoE CLI AA4AM install can begin
 
 Component | Description
 --------- | ----------
