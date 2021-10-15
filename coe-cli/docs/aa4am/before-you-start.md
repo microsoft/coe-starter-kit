@@ -26,7 +26,7 @@ Notes:
    4) Select Create Tenant
    5) Select tenant location
    6) Select "Dynamics 365 Customer Engagement"
-2. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
+1. Sample environment from https://admin.powerplatform.microsoft.com/environments for a [Demo Deployment](./scenarios/tenant-deployments.md#demonstration-deployment)
 
    ![Environments](../images/environments.jpg)
 
@@ -37,15 +37,15 @@ In the maker environment you will need a Dataverse connection to be created by t
 This can be done using the following steps
 1. Go to https://make.powerapps.com/
 
-2. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
+1. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
 
-3. Navigate to Data -> Connections
+1. Navigate to Data -> Connections
 
-4. New Connection
+1. New Connection
 
-5. Microsoft Dataverse (legacy)
+1. Microsoft Dataverse (legacy)
 
-6. Select Create
+1. Select Create
 
 ### Azure
 
@@ -57,7 +57,7 @@ Global Administrator or Privileged Role Administrator|Grant tenant-wide admin co
 
 ### Azure DevOps
 
-The following must be installed before the CoE CLI AA4AM install cab begin
+The following must be installed before the CoE CLI AA4AM install can begin
 
 Component | Description
 --------- | ----------
@@ -79,12 +79,10 @@ Notes:
 
    - Create initial project e.g. alm-sandbox
 
-2. Review the Azure [DevOps Extensions](../../config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
+1. Review the Azure [DevOps Extensions](../../config/AzureDevOpsExtensionsDetails.json) that will be installed by the CLI application to ensure your organization gives consent for them to be installed. 
    - [Power Platform Build Tools](https://marketplace.visualstudio.com/items?itemName=microsoft-IsvExpTools.PowerPlatform-BuildTools)
 
-   - [Power DevOps Tools](https://marketplace.visualstudio.com/items?itemName=WaelHamze.xrm-ci-framework-build-tasks)
-
-   - [RegexReplace Azure Pipelines Task](https://marketplace.visualstudio.com/items?itemName=knom.regexreplace-task)
+   - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
   
    - [SARIF SAST Scans Tab](https://marketplace.visualstudio.com/items?itemName=sariftools.scans)
 
