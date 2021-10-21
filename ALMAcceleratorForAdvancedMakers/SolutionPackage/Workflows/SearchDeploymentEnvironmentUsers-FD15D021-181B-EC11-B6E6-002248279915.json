@@ -14,27 +14,101 @@
     "definition": {
       "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
       "actions": {
-        "Get_Users": {
-          "inputs": {
-            "authentication": "@parameters('$authentication')",
-            "host": {
-              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
-              "connectionName": "shared_commondataservice",
-              "operationId": "GetItems_V2"
+        "Condition": {
+          "actions": {
+            "Get_All_Users": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                  "connectionName": "shared_commondataservice",
+                  "operationId": "GetItems_V2"
+                },
+                "parameters": {
+                  "$filter": "accessmode ne 3 and accessmode ne 5 and isdisabled eq false",
+                  "$orderby": "domainname",
+                  "dataset": "@{triggerBody()['text_1']}.@{triggerBody()['text']}",
+                  "table": "systemusers"
+                }
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
             },
-            "parameters": {
-              "$filter": "accessmode ne 3 and accessmode ne 5 and isdisabled eq false",
-              "$orderby": "domainname",
-              "dataset": "@{triggerBody()['text_1']}.@{triggerBody()['text']}",
-              "table": "systemusers"
+            "Set_User_Response_to_Get_All_Users": {
+              "inputs": {
+                "name": "UserResponse",
+                "value": "@outputs('Get_All_Users')?['body/value']"
+              },
+              "runAfter": {
+                "Get_All_Users": [
+                  "Succeeded"
+                ]
+              },
+              "type": "SetVariable"
             }
           },
+          "else": {
+            "actions": {
+              "Search_Users": {
+                "inputs": {
+                  "authentication": "@parameters('$authentication')",
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                    "connectionName": "shared_commondataservice",
+                    "operationId": "GetItems_V2"
+                  },
+                  "parameters": {
+                    "$filter": "accessmode ne 3 and accessmode ne 5 and isdisabled eq false and (startswith(domainname, '@{triggerBody()['text_3']}') or domainname eq '@{triggerBody()['text_4']}')",
+                    "$orderby": "domainname",
+                    "dataset": "@{triggerBody()['text_1']}.@{triggerBody()['text']}",
+                    "table": "systemusers"
+                  }
+                },
+                "runAfter": {},
+                "type": "OpenApiConnection"
+              },
+              "Set_User_Response_to_Search_Users": {
+                "inputs": {
+                  "name": "UserResponse",
+                  "value": "@outputs('Search_Users')?['body/value']"
+                },
+                "runAfter": {
+                  "Search_Users": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "SetVariable"
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@length(triggerBody()['text_3'])",
+              0
+            ]
+          },
+          "runAfter": {
+            "Initialize_User_Response": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Initialize_User_Response": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "UserResponse",
+                "type": "array"
+              }
+            ]
+          },
           "runAfter": {},
-          "type": "OpenApiConnection"
+          "type": "InitializeVariable"
         },
         "Response": {
           "inputs": {
-            "body": "@outputs('Get_Users')?['body/value']",
+            "body": "@variables('UserResponse')",
             "schema": {
               "items": {
                 "properties": {
@@ -333,7 +407,7 @@
           },
           "kind": "Http",
           "runAfter": {
-            "Get_Users": [
+            "Condition": [
               "Succeeded"
             ]
           },
@@ -377,12 +451,28 @@
                   "type": "string",
                   "x-ms-content-hint": "TEXT",
                   "x-ms-dynamically-added": true
+                },
+                "text_3": {
+                  "description": "Search Text",
+                  "title": "Search Text",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_4": {
+                  "description": "Current User Name",
+                  "title": "Current User Name",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
                 }
               },
               "required": [
                 "text",
                 "text_1",
-                "text_2"
+                "text_2",
+                "text_3",
+                "text_4"
               ],
               "type": "object"
             }
