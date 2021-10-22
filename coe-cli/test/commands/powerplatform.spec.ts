@@ -5,7 +5,6 @@ import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
 import winston from 'winston';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
 import { CommandLineHelper } from '../../src/common/cli';
-import * as readline from 'readline';
             
 describe('Import', () => {
     test('Default', async () => {
@@ -179,6 +178,14 @@ describe('API Import', () => {
                 return response
             }
 
+            if ( url.indexOf('/connectionreferences') > 0 ) {
+                response = mockResponse(url, '/connectionreferences', { value: [{
+                    connectionid: 'ABC',
+                    connectorid: '/shared_test'
+                }] })
+                return response
+            } 
+
             response = mockResponse(url, '/connections', { value: [{
                 properties: {
                     createdBy: {
@@ -247,8 +254,10 @@ describe('API Import', () => {
     })
 
     test('Solution found - New Connection', async () => {
+
         // Arrange
         let logger = mock<winston.Logger>()
+        
         var command = new PowerPlatformCommand(logger);
         command.getUrl = (url: string) => { return Promise.resolve('{"value":[]}') }
         command.getBinaryUrl = (url: string) => {
@@ -267,6 +276,17 @@ describe('API Import', () => {
             clientSecret: "VALUE"
         })
 
+        let readline : any = {
+            question: (query: string, callback: (answer: string) => void) => {
+                // Respond want to create connection
+                callback('y')
+            },
+            close: () => {}
+        }
+        command.readline = readline
+
+        let connectionReferencesCount = 0
+
         mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
             response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
@@ -279,6 +299,24 @@ describe('API Import', () => {
                 linkedEnvironmentMetadata: { domainName: "test" }
             }}] })
             if (response != null ) {
+                return response
+            }
+
+            if ( url.indexOf('/connectionreferences') > 0 && connectionReferencesCount == 0 ) {
+                response = mockResponse(url, '/connectionreferences', { value: [{
+                    connectionid: null,
+                    connectorid: '/shared_test'
+                }] })
+                connectionReferencesCount++
+                return response
+            } 
+
+            if ( url.indexOf('/connectionreferences') > 0 && connectionReferencesCount > 0 ) {
+                response = mockResponse(url, '/connectionreferences', { value: [{
+                    connectionid: 'ABC',
+                    connectorid: '/shared_test'
+                }] })
+                connectionReferencesCount++
                 return response
             }
 
