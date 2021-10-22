@@ -298,7 +298,7 @@ class PowerPlatformCommand {
 
             let connectionParameters = JSON.parse(connectorMatch[0].connectionparameters)
             
-            if (connectionParameters.token.oAuthSettings.clientId != clientid || connectionParameters.token.oAuthSettings.properties.AzureActiveDirectoryResourceId != "499b84ac-1321-427f-aa17-267ca6975798") {
+            if (typeof connectionParameters.token != undefined && connectionParameters.token.oAuthSettings.clientId != clientid || connectionParameters.token.oAuthSettings.properties.AzureActiveDirectoryResourceId != "499b84ac-1321-427f-aa17-267ca6975798") {
                 this.logger?.debug("Connector needs update")
                 let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
                 let bapUrl = this.mapEndpoint("bap", args.endpoint)
@@ -329,47 +329,50 @@ class PowerPlatformCommand {
                 url = `${powerAppsUrl}providers/Microsoft.PowerApps/apis/${connectorName}/?$filter=environment eq '${environment}'&api-version=2016-11-01`
                 let updateConnection: AxiosResponse<any>
                 try {
-                    // Based on work of paconn update of 
-                    // https://github.com/microsoft/PowerPlatformConnectors/blob/1b81ada7b083302b59c33d9ed6b14cb2ac8a0785/tools/paconn-cli/paconn/operations/upsert.py
+                    if ( typeof data.properties.connectionParameters.token != "undefined" )
+                    {
+                        // Based on work of paconn update of 
+                        // https://github.com/microsoft/PowerPlatformConnectors/blob/1b81ada7b083302b59c33d9ed6b14cb2ac8a0785/tools/paconn-cli/paconn/operations/upsert.py
 
-                    if (typeof data.properties.connectionParameters.token.oAuthSettings.customParameters !== "undefined") {
-                        data.properties.connectionParameters.token.oAuthSettings.customParameters.resourceUri.value = "499b84ac-1321-427f-aa17-267ca6975798"
-                    }
-                    
-                    if (typeof data.properties.connectionParameters.token.oAuthSettings.properties !== "undefined") {
-                        data.properties.connectionParameters.token.oAuthSettings.properties.AzureActiveDirectoryResourceId = "499b84ac-1321-427f-aa17-267ca6975798"
-                    }
-
-                    let update = {
-                        properties: {
-                            connectionParameters: {
-                                token: {
-                                    oAuthSettings: {
-                                        clientId: clientid,
-                                        clientSecret: secret.clientSecret,
-                                        properties: data.properties.connectionParameters.token.oAuthSettings.properties,
-                                        customParameters: data.properties.connectionParameters.token.oAuthSettings.customParameters,
-                                        identityProvider: data.properties.connectionParameters.token.oAuthSettings.identityProvider,
-                                        redirectMode: data.properties.connectionParameters.token.oAuthSettings.redirectMode,
-                                        scopes: data.properties.connectionParameters.token.oAuthSettings.scopes
-                                    },
-                                    type: "oAuthSetting"
-                                }
-                            },
-                            backendService: data.properties.backendService,
-                            environment: { name: environment },
-                            description: data.properties.description,
-                            openApiDefinition: original.data,
-                            policyTemplateInstances: data.properties.policyTemplateInstances
+                        if (typeof data.properties.connectionParameters.token.oAuthSettings.customParameters !== "undefined") {
+                            data.properties.connectionParameters.token.oAuthSettings.customParameters.resourceUri.value = "499b84ac-1321-427f-aa17-267ca6975798"
+                        }
+                        
+                        if (typeof data.properties.connectionParameters.token.oAuthSettings.properties !== "undefined") {
+                            data.properties.connectionParameters.token.oAuthSettings.properties.AzureActiveDirectoryResourceId = "499b84ac-1321-427f-aa17-267ca6975798"
                         }
 
-                    }
-                    updateConnection = await this.getAxios().patch(url, update, {
-                        headers: {
-                            "Authorization": `Bearer ${token}`,
-                            "Content-Type": "application/json;charset=UTF-8"
+                        let update = {
+                            properties: {
+                                connectionParameters: {
+                                    token: {
+                                        oAuthSettings: {
+                                            clientId: clientid,
+                                            clientSecret: secret.clientSecret,
+                                            properties: data.properties.connectionParameters.token.oAuthSettings.properties,
+                                            customParameters: data.properties.connectionParameters.token.oAuthSettings.customParameters,
+                                            identityProvider: data.properties.connectionParameters.token.oAuthSettings.identityProvider,
+                                            redirectMode: data.properties.connectionParameters.token.oAuthSettings.redirectMode,
+                                            scopes: data.properties.connectionParameters.token.oAuthSettings.scopes
+                                        },
+                                        type: "oAuthSetting"
+                                    }
+                                },
+                                backendService: data.properties.backendService,
+                                environment: { name: environment },
+                                description: data.properties.description,
+                                openApiDefinition: original.data,
+                                policyTemplateInstances: data.properties.policyTemplateInstances
+                            }
+
                         }
-                    })
+                        updateConnection = await this.getAxios().patch(url, update, {
+                            headers: {
+                                "Authorization": `Bearer ${token}`,
+                                "Content-Type": "application/json;charset=UTF-8"
+                            }
+                        })
+                    }
                 } catch (err) {
                     this.logger?.error(err)
                 }
@@ -421,6 +424,11 @@ class PowerPlatformCommand {
     }
 
     async fixConnectionReferences(environment: string, solutions: any, args: PowerPlatformImportSolutionArguments): Promise<void> {
+        if ( typeof solutions == undefined || typeof solutions.value == undefined || solutions.value.length <= 0 ) {
+            this.logger?.error("No solution found")
+            return
+        }
+
         this.logger?.info("Check connection reference")
 
         let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
@@ -429,96 +437,89 @@ class PowerPlatformCommand {
 
         let aadInfo = (await this.getSecureJson(`${environmentUrl}api/data/v9.0/systemusers?$filter=systemuserid eq '${whoAmI.UserId}'&$select=azureactivedirectoryobjectid`, args.accessToken))
 
-        this.logger?.debug('Query environment connecctions')
+        this.logger?.debug('Query environment connections')
         let powerAppsUrl = this.mapEndpoint("powerapps", args.endpoint)
         let bapUrl = this.mapEndpoint("bap", args.endpoint)
         let token = args.accessTokens[bapUrl]
+        
         // Source: Microsoft.PowerApps.Administration.PowerShell.psm1
         let url = `${powerAppsUrl}providers/Microsoft.PowerApps/scopes/admin/environments/${environment}/connections?api-version=2016-11-01`
 
-        let connection: any[]
+        let connectionReferenceUrl = `${environmentUrl}api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`
 
         let stopped = false
         while ( !stopped ) {
-            let connectionResults = await this.getAxios().get(url, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            })
+            let connectionReferences = (await this.getSecureJson(connectionReferenceUrl, args.accessToken)).value
 
-            this.logger?.info(`Found ${connectionResults.data.value.length} connection(s)`)
+            let unconnectedConnectionReferences = connectionReferences.filter((con: any) => con.connectionid == null)
+
+            if ( unconnectedConnectionReferences.length == 0 ) {
+                break
+            }
+
+            let connectionTypeParts = unconnectedConnectionReferences[0].connectorid.split('/')
+            let connectionType = connectionTypeParts[connectionTypeParts.length - 1]
+
+            this.logger?.error(`Missing '${unconnectedConnectionReferences[0].connectionreferencedisplayname}' connection reference`)
             
-            connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId?.endsWith('/shared_commondataservice'))
-    
-            if (connection.length == 0) {
-                this.logger?.error('No Microsoft Dataverse (Legacy Found) in environment ${environmentUrl}.')
-                this.readline = ReadLineManagement.setupReadLine(this.readline)
-                let result = await new Promise((resolve, reject) => {
-                    this.readline.question("Create connection now (Y/n)? ", (answer: string) => {
+            this.readline = ReadLineManagement.setupReadLine(this.readline)
+            let result = await new Promise((resolve, reject) => {
+                this.readline.question("Create connection now (Y/n)? ", (answer: string) => {
+                    if ( answer.length == 0 || answer.toLowerCase() == 'y') {
+                        resolve('y')
+                    } else {
+                        resolve('n')
+                    }
+                })
+            })
+            if (result == 'y') {
+                this.outputText(`Create a connection by opening page https://make.powerapps.com/environments/${environment}/connections/available?apiName=${connectionType} in your browser`)
+                result = await new Promise((resolve, reject) => {
+                    this.readline.question("Check again now (Y/n)? ", (answer: string) => {
                         if ( answer.length == 0 || answer.toLowerCase() == 'y') {
                             resolve('y')
                         } else {
                             resolve('n')
                         }
                     })
-                })
-                if (result == 'y') {
-                    this.outputText(`Create a connection by open page https://make.powerapps.com/environments/${environment}/connections/available?apiName=shared_commondataservice`)
-                    result = await new Promise((resolve, reject) => {
-                        this.readline.question("Check again now (Y/n)? ", (answer: string) => {
-                            if ( answer.length == 0 || answer.toLowerCase() == 'y') {
-                                resolve('y')
-                            } else {
-                                resolve('n')
-                            }
-                        })
-                    })                    
-                }
-                if (result == 'n') {
-                    this.logger?.info("Exiting install")
-                    stopped = true
-                    return Promise.resolve();
-                }
-            } else {
-                // Found a connection
+                })                    
+            }
+            if (result == 'n') {
+                this.logger?.info("Exiting install")
                 stopped = true
+                return Promise.resolve();
+            }
+
+            let connectionResults = await this.getAxios().get(url, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
+            
+            let connection = connectionResults.data.value.filter((c: any) => c.properties.createdBy?.id == aadInfo.value[0].azureactivedirectoryobjectid && c.properties.apiId?.endsWith(`/${connectionType}`))
+
+            try {
+                let update = {
+                    "connectionid": `${connection[0].name}`
+                }
+
+                await this.getAxios().patch(`${environmentUrl}api/data/v9.0/connectionreferences(${unconnectedConnectionReferences[0].connectionreferenceid})`, update, {
+                    headers: {
+                        'Authorization': 'Bearer ' + args.accessToken,
+                        'Content-Type': 'application/json',
+                        'OData-MaxVersion': '4.0',
+                        'OData-Version': '4.0',
+                        'If-Match': '*'
+                    }
+                })
+                this.logger?.info("Connection reference updated")
+            } catch (err) {
+                this.logger?.error(err)
             }
         }
 
         this.readline?.close()
         this.readline = null
-
-        let connectionReferences = (await this.getSecureJson(`${environmentUrl}api/data/v9.0/connectionreferences?$filter=solutionid eq '${solutions.value[0].solutionid}'`, args.accessToken)).value
-        let connectionMatch = connectionReferences?.filter((c: any) => c.connectionreferencelogicalname.startsWith('cat_CDSDevOps'))
-
-        if (typeof connectionMatch === "undefined" || connectionMatch?.length == 0) {
-            this.logger?.info('Dataverse Connection not found')
-            return Promise.resolve();
-        } else {
-            this.logger?.info("Connection found")
-            if (connectionMatch[0].connectionid == null) {
-                this.logger?.info("Connection id needs to be updated")
-                let update = {
-                    "connectionid": `${connection[0].name}`
-                }
-                try {
-                    await this.getAxios().patch(`${environmentUrl}api/data/v9.0/connectionreferences(${connectionMatch[0].connectionreferenceid})`, update, {
-                        headers: {
-                            'Authorization': 'Bearer ' + args.accessToken,
-                            'Content-Type': 'application/json',
-                            'OData-MaxVersion': '4.0',
-                            'OData-Version': '4.0',
-                            'If-Match': '*'
-                        }
-                    })
-                    this.logger?.info("Connection reference updated")
-                } catch (err) {
-                    this.logger?.error(err)
-                }
-            } else {
-                this.logger?.debug("Connection already connected")
-            }
-        }
     }
 
     /**
