@@ -26,7 +26,7 @@ class PowerPlatformCommand {
     createAADCommand: () => AADCommand
     createAA4AMCommand: () => AA4AMCommand
     logger: winston.Logger
-    readline: readline.ReadLine
+    readline: any
     outputText: (text: string) => void
 
     constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null) {
