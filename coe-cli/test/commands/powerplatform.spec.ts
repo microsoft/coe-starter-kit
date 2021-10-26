@@ -178,6 +178,20 @@ describe('API Import', () => {
                 return response
             }
 
+            if ( url.indexOf('/solutioncomponentdefinitions') > 0 ) {
+                response = mockResponse(url, '/solutioncomponentdefinitions', { value: [{
+                    "solutioncomponenttype": 10049
+                }] })
+                return response
+            }
+
+            if ( url.indexOf('/solutioncomponents') > 0 ) {
+                response = mockResponse(url, '/solutioncomponents', { value: [{
+                    "objectid": '7f6187bb-2586-4e5d-b195-2396533999fc'
+                }] })
+                return response
+            }
+
             if ( url.indexOf('/connectionreferences') > 0 ) {
                 response = mockResponse(url, '/connectionreferences', { value: [{
                     connectionid: 'ABC',
@@ -302,10 +316,29 @@ describe('API Import', () => {
                 return response
             }
 
+            if ( url.indexOf('/solutioncomponentdefinitions') > 0 ) {
+                response = mockResponse(url, '/solutioncomponentdefinitions', { value: [{
+                    "solutioncomponenttype": 10049
+                }] })
+                return response
+            }
+
+            if ( url.indexOf('/solutioncomponents') > 0 ) {
+                response = mockResponse(url, '/solutioncomponents', { value: [{
+                    "objectid": '7f6187bb-2586-4e5d-b195-2396533999fc'
+                }] })
+                return response
+            }
+
             if ( url.indexOf('/connectionreferences') > 0 && connectionReferencesCount == 0 ) {
                 response = mockResponse(url, '/connectionreferences', { value: [{
                     connectionid: null,
-                    connectorid: '/shared_test'
+                    connectorid: '/shared_test',
+                     properties: {
+                        createdBy: {
+                            id: "U123"
+                        }
+                    }
                 }] })
                 connectionReferencesCount++
                 return response
@@ -314,7 +347,12 @@ describe('API Import', () => {
             if ( url.indexOf('/connectionreferences') > 0 && connectionReferencesCount > 0 ) {
                 response = mockResponse(url, '/connectionreferences', { value: [{
                     connectionid: 'ABC',
-                    connectorid: '/shared_test'
+                    connectorid: '/shared_test',
+                    properties: {
+                        createdBy: {
+                            id: "U123"
+                        }
+                    }
                 }] })
                 connectionReferencesCount++
                 return response
@@ -345,10 +383,11 @@ describe('API Import', () => {
 
             response = mockResponse(url, '/connections', { value: [{
                 properties: {
+                    name: 'ABC',
                     createdBy: {
                         id: 'A123'
                     },
-                    apiId: 'http://text.crm.dynamics.com/apis/shared_commondataservice'
+                    apiId: 'http://text.crm.dynamics.com/apis/shared_test'
                 }
             }] })
 
