@@ -19,6 +19,15 @@
         },
         "runtimeSource": "embedded"
       },
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "runtimeSource": "embedded"
+      },
       "shared_office365users_1": {
         "api": {
           "name": "shared_office365users"
@@ -129,6 +138,71 @@
           },
           "type": "If"
         },
+        "Clean_up_Envt_-_GitHub_1345": {
+          "actions": {
+            "Delete_all_apps_-_clean_up": {
+              "actions": {
+                "Delete_a_row_-_clean_up": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "DeleteRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "recordId": "@items('Delete_all_apps_-_clean_up')?['admin_appid']"
+                    },
+                    "retryPolicy": {
+                      "count": 10,
+                      "interval": "PT10S",
+                      "type": "exponential"
+                    }
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@outputs('List_apps_for_this_envt_-_clean_up')?['body/value']",
+              "runAfter": {
+                "List_apps_for_this_envt_-_clean_up": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "List_apps_for_this_envt_-_clean_up": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "$filter": "admin_appuniquename eq null and _admin_appenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}' and admin_powerappstype eq 597910001",
+                  "$select": "admin_appid",
+                  "entityName": "admin_apps"
+                }
+              },
+              "runAfter": {},
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 5000
+                }
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "description": "Scope added to clean up duplicate records as we changed GUID scheme. Will delete this scope in a few months after repair is complete and add to Bad Data cleanup flow instead",
+          "runAfter": {
+            "Get_App_Modules_Table._Fail_out_if_no_permissions_to_environment": [
+              "Succeeded"
+            ]
+          },
+          "type": "Scope"
+        },
         "Get_App_Modules_Table._Fail_out_if_no_permissions_to_environment": {
           "actions": {
             "Fail_if_no_permissions": {
@@ -180,32 +254,6 @@
           "actions": {
             "Apply_to_each_Model_Driven_App": {
               "actions": {
-                "Get_Model_Driven_App_from_CoE": {
-                  "inputs": {
-                    "authentication": "@parameters('$authentication')",
-                    "host": {
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                      "connectionName": "shared_commondataserviceforapps",
-                      "operationId": "GetItem"
-                    },
-                    "parameters": {
-                      "$select": "admin_appid,admin_appmodifiedon",
-                      "entityName": "admin_apps",
-                      "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
-                    },
-                    "retryPolicy": {
-                      "count": 10,
-                      "interval": "PT10S",
-                      "type": "exponential"
-                    }
-                  },
-                  "runAfter": {
-                    "Get_Owner_and_first_orphan_check": [
-                      "Succeeded"
-                    ]
-                  },
-                  "type": "OpenApiConnection"
-                },
                 "Get_Owner_and_first_orphan_check": {
                   "actions": {
                     "Get_MDD_App_Creator": {
@@ -268,11 +316,76 @@
                     }
                   },
                   "runAfter": {
-                    "Parse_Model_Driven_App_JSON": [
+                    "UniqueNameString": [
                       "Succeeded"
                     ]
                   },
                   "type": "Scope"
+                },
+                "If_did_not_return_rows_then_new_to_Coe_else_get_app_GUID": {
+                  "actions": {
+                    "Set_isNewToCoE_to_true": {
+                      "inputs": {
+                        "name": "isNewToCoE",
+                        "value": "@true"
+                      },
+                      "runAfter": {},
+                      "type": "SetVariable"
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "appGUID": {
+                        "description": "first(outputs('List_Model_Driven_Apps_that_match_by_Unique_Name')?['body/value'])['admin_appid']",
+                        "inputs": "@first(outputs('List_Model_Driven_Apps_that_match_by_Unique_Name')?['body/value'])['admin_appid']",
+                        "runAfter": {},
+                        "type": "Compose"
+                      },
+                      "appLastModified": {
+                        "description": "first(outputs('List_Model_Driven_Apps_that_match_by_Unique_Name')?['body/value'])['admin_appmodifiedon']",
+                        "inputs": "@first(outputs('List_Model_Driven_Apps_that_match_by_Unique_Name')?['body/value'])['admin_appmodifiedon']",
+                        "runAfter": {
+                          "appGUID": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "Compose"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@length(outputs('List_Model_Driven_Apps_that_match_by_Unique_Name')?['body/value'])",
+                      0
+                    ]
+                  },
+                  "runAfter": {
+                    "List_Model_Driven_Apps_that_match_by_Unique_Name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "If"
+                },
+                "List_Model_Driven_Apps_that_match_by_Unique_Name": {
+                  "inputs": {
+                    "authentication": "@parameters('$authentication')",
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "$filter": "admin_appuniquename eq '@{outputs('UniqueNameString')}'",
+                      "$select": "admin_appid, admin_appmodifiedon",
+                      "entityName": "admin_apps"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Owner_and_first_orphan_check": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
                 },
                 "Parse_Model_Driven_App_JSON": {
                   "inputs": {
@@ -402,13 +515,15 @@
                                   "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
                                   "item/admin_appdeleted": false,
                                   "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_appenvironmentid": "@triggerOutputs()?['body/admin_environmentname']",
                                   "item/admin_appidstring": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
                                   "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
                                   "item/admin_appownerdisplayname": "SYSTEM",
+                                  "item/admin_appuniquename": "@outputs('UniqueNameString')",
                                   "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
                                   "item/admin_powerappstype": 597910001,
                                   "item/cr5d5_appisorphaned": "no",
-                                  "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                                  "recordId": "@outputs('appGUID')"
                                 },
                                 "retryPolicy": {
                                   "count": 10,
@@ -603,16 +718,18 @@
                                         "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
                                         "item/admin_appdeleted": false,
                                         "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_appenvironmentid": "@triggerOutputs()?['body/admin_environmentname']",
                                         "item/admin_appidstring": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
                                         "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
                                         "item/admin_appownerdisplayname": "@outputs('Get_PowerApp_Owner_profile')?['body/displayName']",
+                                        "item/admin_appuniquename": "@outputs('UniqueNameString')",
                                         "item/admin_city": "@outputs('Get_PowerApp_Owner_profile')?['body/city']",
                                         "item/admin_country": "@outputs('Get_PowerApp_Owner_profile')?['body/country']",
                                         "item/admin_department": "@outputs('Get_PowerApp_Owner_profile')?['body/department']",
                                         "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
                                         "item/admin_powerappstype": 597910001,
                                         "item/cr5d5_appisorphaned": "no",
-                                        "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                                        "recordId": "@outputs('appGUID')"
                                       },
                                       "retryPolicy": {
                                         "count": 10,
@@ -640,12 +757,14 @@
                                           "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
                                           "item/admin_appdeleted": false,
                                           "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                          "item/admin_appenvironmentid": "@triggerOutputs()?['body/admin_environmentname']",
                                           "item/admin_appidstring": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
                                           "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                          "item/admin_appuniquename": "@outputs('UniqueNameString')",
                                           "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
                                           "item/admin_powerappstype": 597910001,
                                           "item/cr5d5_appisorphaned": "yes",
-                                          "recordId": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']"
+                                          "recordId": "@outputs('appGUID')"
                                         },
                                         "retryPolicy": {
                                           "count": 10,
@@ -707,11 +826,13 @@
                       "type": "If"
                     },
                     "lastMod_from_CoE": {
-                      "inputs": "@coalesce(formatDateTime(outputs('Get_Model_Driven_App_from_CoE')?['body/admin_appmodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')",
+                      "description": "coalesce(formatDateTime(outputs('appLastModified'), 'yyyy-MM-dd HH:mm:ss'), '')",
+                      "inputs": "@coalesce(formatDateTime(outputs('appLastModified'), 'yyyy-MM-dd HH:mm:ss'), '')",
                       "runAfter": {},
                       "type": "Compose"
                     },
                     "lastMod_from_MDA": {
+                      "description": "formatDateTime(body('Parse_Model_Driven_App_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
                       "inputs": "@formatDateTime(body('Parse_Model_Driven_App_JSON')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')",
                       "runAfter": {
                         "lastMod_from_CoE": [
@@ -739,10 +860,11 @@
                                 "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
                                 "item/admin_appdeleted": false,
                                 "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
-                                "item/admin_appid": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
+                                "item/admin_appenvironmentid": "@triggerOutputs()?['body/admin_environmentname']",
                                 "item/admin_appidstring": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
                                 "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
                                 "item/admin_appownerdisplayname": "SYSTEM",
+                                "item/admin_appuniquename": "@outputs('UniqueNameString')",
                                 "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
                                 "item/admin_powerappstype": 597910001,
                                 "item/cr5d5_appisorphaned": "no"
@@ -940,10 +1062,11 @@
                                       "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
                                       "item/admin_appdeleted": false,
                                       "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
-                                      "item/admin_appid": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
+                                      "item/admin_appenvironmentid": "@triggerOutputs()?['body/admin_environmentname']",
                                       "item/admin_appidstring": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
                                       "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
                                       "item/admin_appownerdisplayname": "@outputs('Get_PowerApp_Owner_profile_new')?['body/displayName']",
+                                      "item/admin_appuniquename": "@outputs('UniqueNameString')",
                                       "item/admin_city": "@outputs('Get_PowerApp_Owner_profile_new')?['body/city']",
                                       "item/admin_country": "@outputs('Get_PowerApp_Owner_profile_new')?['body/country']",
                                       "item/admin_department": "@outputs('Get_PowerApp_Owner_profile_new')?['body/department']",
@@ -977,9 +1100,10 @@
                                         "item/admin_appcreatedon": "@body('Parse_Model_Driven_App_JSON')?['createdon']",
                                         "item/admin_appdeleted": false,
                                         "item/admin_appenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
-                                        "item/admin_appid": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
+                                        "item/admin_appenvironmentid": "@triggerOutputs()?['body/admin_environmentname']",
                                         "item/admin_appidstring": "@body('Parse_Model_Driven_App_JSON')?['ItemInternalId']",
                                         "item/admin_appmodifiedon": "@body('Parse_Model_Driven_App_JSON')?['modifiedon']",
+                                        "item/admin_appuniquename": "@outputs('UniqueNameString')",
                                         "item/admin_displayname": "@body('Parse_Model_Driven_App_JSON')?['name']",
                                         "item/admin_powerappstype": 597910001,
                                         "item/cr5d5_appisorphaned": "yes"
@@ -1028,24 +1152,21 @@
                     ]
                   },
                   "runAfter": {
-                    "Set_isNewToCoE_to_true": [
-                      "Succeeded",
-                      "Skipped"
+                    "If_did_not_return_rows_then_new_to_Coe_else_get_app_GUID": [
+                      "Succeeded"
                     ]
                   },
                   "type": "If"
                 },
-                "Set_isNewToCoE_to_true": {
-                  "inputs": {
-                    "name": "isNewToCoE",
-                    "value": "@true"
-                  },
+                "UniqueNameString": {
+                  "description": "concat(triggerOutputs()?['body/admin_environmentid'], '_', body('Parse_Model_Driven_App_JSON')?['ItemInternalId'])",
+                  "inputs": "@concat(triggerOutputs()?['body/admin_environmentid'], '_', body('Parse_Model_Driven_App_JSON')?['ItemInternalId'])",
                   "runAfter": {
-                    "Get_Model_Driven_App_from_CoE": [
-                      "Failed"
+                    "Parse_Model_Driven_App_JSON": [
+                      "Succeeded"
                     ]
                   },
-                  "type": "SetVariable"
+                  "type": "Compose"
                 }
               },
               "foreach": "@outputs('List_Model_Driven_Apps')?['body/value']",
@@ -1201,7 +1322,7 @@
             ]
           },
           "runAfter": {
-            "Get_App_Modules_Table._Fail_out_if_no_permissions_to_environment": [
+            "Clean_up_Envt_-_GitHub_1345": [
               "Succeeded"
             ]
           },

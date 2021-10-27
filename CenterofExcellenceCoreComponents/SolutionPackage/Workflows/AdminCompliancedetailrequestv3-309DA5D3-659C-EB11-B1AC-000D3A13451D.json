@@ -45,7 +45,7 @@
           "actions": {
             "Ignore_Default_if_using_old_env_var_technique": {
               "actions": {
-                "no-op": {
+                "no-op_-_asked_to_ignore_Default": {
                   "inputs": "No-op. Ignore default if 'Exclude Default environment from Compliance Request flows' is true",
                   "runAfter": {},
                   "type": "Compose"
@@ -57,6 +57,416 @@
                     "actions": {
                       "Apply_to_each_envt_App": {
                         "actions": {
+                          "Condition:_Audit_apps_that_are_broadly_shared_or_admin_has_requested_audit": {
+                            "actions": {
+                              "Check_if_any_of_the_requirements_are_not_yet_complete": {
+                                "actions": {
+                                  "If_BPF_not_already_started_for_this_app,_start_it": {
+                                    "actions": {
+                                      "Start_App_Audit_BPF": {
+                                        "inputs": {
+                                          "authentication": "@parameters('$authentication')",
+                                          "host": {
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                            "connectionName": "shared_commondataserviceforapps",
+                                            "operationId": "CreateRecord"
+                                          },
+                                          "parameters": {
+                                            "entityName": "new_bpf_ffa183a676d64ec9aee6a558129651a2s",
+                                            "item/activestagestartedon": "@utcNow()",
+                                            "item/bpf_admin_appid@odata.bind": "admin_apps(@{items('Apply_to_each_envt_App')?['admin_appid']})",
+                                            "item/bpf_name": "Audit for @{items('Apply_to_each_envt_App')?['admin_displayname']}"
+                                          },
+                                          "retryPolicy": {
+                                            "count": 10,
+                                            "interval": "PT10S",
+                                            "type": "exponential"
+                                          }
+                                        },
+                                        "runAfter": {},
+                                        "type": "OpenApiConnection"
+                                      }
+                                    },
+                                    "expression": {
+                                      "equals": [
+                                        "@length(outputs('List_BPFs_for_this_App')?['body/value'])",
+                                        0
+                                      ]
+                                    },
+                                    "runAfter": {
+                                      "List_BPFs_for_this_App": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "If"
+                                  },
+                                  "List_BPFs_for_this_App": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "ListRecords"
+                                      },
+                                      "parameters": {
+                                        "$filter": "_bpf_admin_appid_value eq '@{items('Apply_to_each_envt_App')?['admin_appid']}'",
+                                        "$select": "businessprocessflowinstanceid",
+                                        "entityName": "new_bpf_ffa183a676d64ec9aee6a558129651a2s"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Send_Audit_Mail_to_Admin_-_Apps": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                        "connectionName": "shared_office365_1",
+                                        "operationId": "SendEmailV2"
+                                      },
+                                      "parameters": {
+                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b> REASSIGNED TO ADMIN </b></p>\n<p>PowerApps</p>\n<p>Your admin needs details about your broadly shared app. </p>\n<div align=\"left\">\n<p>You own an app that's currently shared or used broadly and missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p>Display Name:  @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p>Environment:  @{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<strong><u>How to become compliant</u></strong><br>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Add a description to your app.</li>\n      <li>Provide a business justification.</li>\n      <li>Iterate the solution's dependencies.</li>\n      <li>Profide details on the solution's access managment.</li>\n      <li>Select the business impact.</li>\n      <li>Selat the data classification.</li>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
+                                        "emailMessage/Subject": "Submit compliance details for your app -- Reassigned to Admin",
+                                        "emailMessage/To": "@parameters('Admin eMail')"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "Send_Audit_Mail_to_Owner_-_Apps": [
+                                        "Failed"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Send_Audit_Mail_to_Owner_-_Apps": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                        "connectionName": "shared_office365_1",
+                                        "operationId": "SendEmailV2"
+                                      },
+                                      "parameters": {
+                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>PowerApps</p>\n<p>Your admin needs details about your broadly shared app. </p>\n<div align=\"left\">\n<p>You own an app that's currently shared or used broadly and missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p>Display Name:  @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p>Environment:  @{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<strong><u>How to become compliant</u></strong><br>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Add a description to your app.</li>\n      <li>Provide a business justification.</li>\n      <li>Iterate the solution's dependencies.</li>\n      <li>Profide details on the solution's access managment.</li>\n      <li>Select the business impact.</li>\n      <li>Selat the data classification.</li>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
+                                        "emailMessage/Subject": "Submit compliance details for your app",
+                                        "emailMessage/To": "@variables('varAssignee')"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "Update_apps_Risk_Assessment_State_to_Requested": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Update_apps_Risk_Assessment_State_to_Requested": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_apps",
+                                        "item/admin_adminrequirementriskassessmentstate": 597910001,
+                                        "recordId": "@items('Apply_to_each_envt_App')?['admin_appid']"
+                                      },
+                                      "retryPolicy": {
+                                        "count": 10,
+                                        "interval": "PT10S",
+                                        "type": "exponential"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "If_BPF_not_already_started_for_this_app,_start_it": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "If_not_already_submitted_or_complete,_mark_as_submitted": {
+                                      "actions": {
+                                        "Update_apps_Risk_Assessment_State_to_Submitted": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_1",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_apps",
+                                              "item/admin_adminrequirementriskassessmentstate": 597910002,
+                                              "recordId": "@items('Apply_to_each_envt_App')?['admin_appid']"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "expression": {
+                                        "and": [
+                                          {
+                                            "not": {
+                                              "equals": [
+                                                "",
+                                                597910003
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "not": {
+                                              "equals": [
+                                                "",
+                                                597910002
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "runAfter": {},
+                                      "type": "If"
+                                    },
+                                    "If_not_recently_published,_send_for_testing_and_republish": {
+                                      "actions": {
+                                        "Send_Republish_Mail_to_Admin_-_Apps": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                              "connectionName": "shared_office365_1",
+                                              "operationId": "SendEmailV2"
+                                            },
+                                            "parameters": {
+                                              "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b> REASSIGNED TO ADMIN </b></p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that's currently shared or used broadly but which has not been published recently. It is best practice to test and republish such apps regularly in order to ensure they stay up to date with product changes. Please test and republish the app. You can use the Developer Compliance Center app to view all required work.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:</b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:</b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>View all apps that require work.</li>\n      <li>Test and republish this app.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
+                                              "emailMessage/Subject": "Keep your app updated to stay compliant -- Reassigned to Admin",
+                                              "emailMessage/To": "@parameters('Admin eMail')"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {
+                                            "Send_Republish_Mail_to_Owner_-_Apps": [
+                                              "Failed"
+                                            ]
+                                          },
+                                          "type": "OpenApiConnection"
+                                        },
+                                        "Send_Republish_Mail_to_Owner_-_Apps": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                              "connectionName": "shared_office365_1",
+                                              "operationId": "SendEmailV2"
+                                            },
+                                            "parameters": {
+                                              "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that's currently shared or used broadly but which has not been published recently. It is best practice to test and republish such apps regularly in order to ensure they stay up to date with product changes. Please test and republish the app. You can use the Developer Compliance Center app to view all required work.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:</b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:</b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>View all apps that require work.</li>\n      <li>Test and republish this app.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
+                                              "emailMessage/Subject": "Keep your app updated to stay compliant",
+                                              "emailMessage/To": "@variables('varAssignee')"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {
+                                            "Update_apps_Republish_State_to_Requested": [
+                                              "Succeeded"
+                                            ]
+                                          },
+                                          "type": "OpenApiConnection"
+                                        },
+                                        "Update_apps_Republish_State_to_Requested": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_1",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_apps",
+                                              "item/admin_adminrequirementrepublishstate": 597910001,
+                                              "recordId": "@items('Apply_to_each_envt_App')?['admin_appid']"
+                                            },
+                                            "retryPolicy": {
+                                              "count": 10,
+                                              "interval": "PT10S",
+                                              "type": "exponential"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "else": {
+                                        "actions": {
+                                          "Update_apps_Republish_State_to_Complete": {
+                                            "inputs": {
+                                              "authentication": "@parameters('$authentication')",
+                                              "host": {
+                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                                "connectionName": "shared_commondataserviceforapps_1",
+                                                "operationId": "UpdateRecord"
+                                              },
+                                              "parameters": {
+                                                "entityName": "admin_apps",
+                                                "item/admin_adminrequirementrepublishstate": 597910003,
+                                                "recordId": "@items('Apply_to_each_envt_App')?['admin_appid']"
+                                              }
+                                            },
+                                            "runAfter": {},
+                                            "type": "OpenApiConnection"
+                                          }
+                                        }
+                                      },
+                                      "expression": {
+                                        "or": [
+                                          {
+                                            "equals": [
+                                              "",
+                                              "@null"
+                                            ]
+                                          },
+                                          {
+                                            "less": [
+                                              "@addDays(items('Apply_to_each_envt_App')?['admin_apppublished'], parameters('Compliance – Apps – Number Days Since Published'))",
+                                              "@utcNow()"
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "runAfter": {
+                                        "If_not_already_submitted_or_complete,_mark_as_submitted": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "If"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "or": [
+                                    {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "not": {
+                                        "equals": [
+                                          "",
+                                          "@true"
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "runAfter": {},
+                                "type": "If"
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "No-op,_not_broadly_used_or_shared": {
+                                  "inputs": "No-op, not broadly used or shared",
+                                  "runAfter": {},
+                                  "type": "Compose"
+                                }
+                              }
+                            },
+                            "expression": {
+                              "or": [
+                                {
+                                  "greaterOrEquals": [
+                                    "@add(0, coalesce(items('Apply_to_each_envt_App')?['admin_appsharedusers'], 0))",
+                                    "@variables('NumberUsersShared')"
+                                  ]
+                                },
+                                {
+                                  "greaterOrEquals": [
+                                    "@add(0, coalesce(items('Apply_to_each_envt_App')?['admin_appsharedgroups'], 0))",
+                                    "@variables('NumberGroupsShared')"
+                                  ]
+                                },
+                                {
+                                  "greaterOrEquals": [
+                                    "@outputs('This_apps_launches_this_month')",
+                                    "@variables('NumberLaunchesLast30Days')"
+                                  ]
+                                },
+                                {
+                                  "not": {
+                                    "equals": [
+                                      "@items('Apply_to_each_envt_App')?['admin_adminrequirementriskassessmentstate']",
+                                      597910000
+                                    ]
+                                  }
+                                }
+                              ]
+                            },
+                            "runAfter": {
+                              "Get_Session_Count_last_30_days": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "If"
+                          },
                           "Get_Assignee_apps": {
                             "actions": {
                               "Set_Assignee_to_Admin": {
@@ -81,6 +491,11 @@
                                     "parameters": {
                                       "$select": "displayName,mail",
                                       "id": "@items('Apply_to_each_envt_App')?['_admin_appowner_value']"
+                                    },
+                                    "retryPolicy": {
+                                      "count": 10,
+                                      "interval": "PT10S",
+                                      "type": "exponential"
                                     }
                                   },
                                   "runAfter": {},
@@ -139,19 +554,19 @@
                                 },
                                 {
                                   "equals": [
-                                    "@items('Apply_to_each_envt_App')?['cr5d5_appisorphaned']",
+                                    "",
                                     "yes"
                                   ]
                                 },
                                 {
                                   "equals": [
-                                    "@items('Apply_to_each_envt_App')?['admin_appowner/admin_userisserviceprinciple']",
+                                    "",
                                     "@true"
                                   ]
                                 },
                                 {
                                   "equals": [
-                                    "@items('Apply_to_each_envt_App')?['_admin_appowner_value']",
+                                    "",
                                     "@null"
                                   ]
                                 }
@@ -160,262 +575,46 @@
                             "runAfter": {},
                             "type": "If"
                           },
-                          "Maker_has_submitted_business_requirements_apps": {
+                          "Get_Session_Count_last_30_days": {
                             "actions": {
-                              "App_missing_mitigation_plan_apps": {
-                                "actions": {
-                                  "Send_an_email_(V2)_11": {
-                                    "inputs": {
-                                      "authentication": "@parameters('$authentication')",
-                                      "host": {
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                        "connectionName": "shared_office365_1",
-                                        "operationId": "SendEmailV2"
-                                      },
-                                      "parameters": {
-                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that has not been updated recently or is missing a description. Please keep your app updated to ensure it continues to function correctly. Review these requirements in the Developer Compliance Center app.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:  </b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:  </b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
-                                        "emailMessage/Subject": "Mitigation Plan required to stay compliant",
-                                        "emailMessage/To": "@variables('varAssignee')"
-                                      }
-                                    },
-                                    "runAfter": {},
-                                    "type": "OpenApiConnection"
+                              "List_launches_for_this_app_last_30_days": {
+                                "inputs": {
+                                  "authentication": "@parameters('$authentication')",
+                                  "host": {
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                    "connectionName": "shared_commondataserviceforapps_1",
+                                    "operationId": "ListRecords"
                                   },
-                                  "Send_an_email_(V2)_12": {
-                                    "inputs": {
-                                      "authentication": "@parameters('$authentication')",
-                                      "host": {
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                        "connectionName": "shared_office365_1",
-                                        "operationId": "SendEmailV2"
-                                      },
-                                      "parameters": {
-                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b> REASSIGNED TO ADMIN </b></p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that has not been updated recently or is missing a description. Please keep your app updated to ensure it continues to function correctly. Review these requirements in the Developer Compliance Center app.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:  </b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:  </b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
-                                        "emailMessage/Subject": "Mitigation Plan required to stay compliant",
-                                        "emailMessage/To": "@parameters('Admin eMail')"
-                                      }
-                                    },
-                                    "runAfter": {
-                                      "Send_an_email_(V2)_11": [
-                                        "Failed"
-                                      ]
-                                    },
-                                    "type": "OpenApiConnection"
+                                  "parameters": {
+                                    "$filter": "admin_appid eq '@{items('Apply_to_each_envt_App')?['admin_appid']}' and admin_creationtime gt @{addDays(utcNow(), -30)} and admin_operation eq 'LaunchPowerApp'",
+                                    "$select": "admin_auditlogid",
+                                    "entityName": "admin_auditlogs"
                                   }
-                                },
-                                "else": {
-                                  "actions": {
-                                    "App_is_recently_published_and_has_description_apps": {
-                                      "actions": {
-                                        "Compose_2": {
-                                          "inputs": {
-                                            "expiration": "@{addDays(items('Apply_to_each_envt_App')?['admin_apppublished'], 60)}",
-                                            "hasExpired": "@lessOrEquals(addDays(items('Apply_to_each_envt_App')?['admin_apppublished'], 60), utcNow())",
-                                            "published": "@{items('Apply_to_each_envt_App')?['admin_apppublished']}"
-                                          },
-                                          "runAfter": {},
-                                          "type": "Compose"
-                                        }
-                                      },
-                                      "description": "Expiration date has not passed and description is not blank",
-                                      "else": {
-                                        "actions": {
-                                          "Send_an_email_(V2)_13": {
-                                            "inputs": {
-                                              "authentication": "@parameters('$authentication')",
-                                              "host": {
-                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                                "connectionName": "shared_office365_1",
-                                                "operationId": "SendEmailV2"
-                                              },
-                                              "parameters": {
-                                                "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that has not been updated recently or is missing a description. Please keep your app updated to ensure it continues to function correctly. Review these requirements in the Developer Compliance Center app.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:</b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:</b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
-                                                "emailMessage/Subject": "Keep your app updated to stay compliant",
-                                                "emailMessage/To": "@variables('varAssignee')"
-                                              }
-                                            },
-                                            "runAfter": {},
-                                            "type": "OpenApiConnection"
-                                          },
-                                          "Send_an_email_(V2)_14": {
-                                            "inputs": {
-                                              "authentication": "@parameters('$authentication')",
-                                              "host": {
-                                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                                "connectionName": "shared_office365_1",
-                                                "operationId": "SendEmailV2"
-                                              },
-                                              "parameters": {
-                                                "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b> REASSIGNED TO ADMIN </b></p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that has not been updated recently or is missing a description. Please keep your app updated to ensure it continues to function correctly. Review these requirements in the Developer Compliance Center app.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:  </b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:  </b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
-                                                "emailMessage/Subject": "Keep your app updated to stay compliant",
-                                                "emailMessage/To": "@parameters('Admin eMail')"
-                                              }
-                                            },
-                                            "runAfter": {
-                                              "Send_an_email_(V2)_13": [
-                                                "Failed"
-                                              ]
-                                            },
-                                            "type": "OpenApiConnection"
-                                          }
-                                        }
-                                      },
-                                      "expression": {
-                                        "and": [
-                                          {
-                                            "greater": [
-                                              "@addDays(items('Apply_to_each_envt_App')?['admin_apppublished'], 60)",
-                                              "@utcNow()"
-                                            ]
-                                          },
-                                          {
-                                            "not": {
-                                              "equals": [
-                                                "@items('Apply_to_each_envt_App')?['admin_appdescription']",
-                                                "@null"
-                                              ]
-                                            }
-                                          }
-                                        ]
-                                      },
-                                      "runAfter": {},
-                                      "type": "If"
-                                    }
-                                  }
-                                },
-                                "expression": {
-                                  "and": [
-                                    {
-                                      "equals": [
-                                        "@items('Apply_to_each_envt_App')?['admin_requirement_4']",
-                                        597910002
-                                      ]
-                                    },
-                                    {
-                                      "not": {
-                                        "equals": [
-                                          "@items('Apply_to_each_envt_App')?['admin_requirement_5']",
-                                          "@true"
-                                        ]
-                                      }
-                                    }
-                                  ]
                                 },
                                 "runAfter": {},
-                                "type": "If"
-                              }
-                            },
-                            "else": {
-                              "actions": {
-                                "Condition:_Audit_apps_that_are_broadly_shared_2": {
-                                  "actions": {
-                                    "Send_an_email_(V2)_15": {
-                                      "inputs": {
-                                        "authentication": "@parameters('$authentication')",
-                                        "host": {
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                          "connectionName": "shared_office365_1",
-                                          "operationId": "SendEmailV2"
-                                        },
-                                        "parameters": {
-                                          "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b> REASSIGNED TO ADMIN </b></p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that's currently shared broadly and missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:  </b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:  </b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
-                                          "emailMessage/Subject": "Submit business justification details for your app",
-                                          "emailMessage/To": "@parameters('Admin eMail')"
-                                        }
-                                      },
-                                      "runAfter": {
-                                        "Send_an_email_(V2)_16": [
-                                          "Failed"
-                                        ]
-                                      },
-                                      "type": "OpenApiConnection"
-                                    },
-                                    "Send_an_email_(V2)_16": {
-                                      "inputs": {
-                                        "authentication": "@parameters('$authentication')",
-                                        "host": {
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                          "connectionName": "shared_office365_1",
-                                          "operationId": "SendEmailV2"
-                                        },
-                                        "parameters": {
-                                          "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>PowerApps</p>\n<p>Keep your app updated to stay compliant.</p>\n<div align=\"left\">\n<p>You own an app that's currently shared broadly and missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>App Details</u></strong><br>\n</p>\n<p><b>Display Name:  </b> @{items('Apply_to_each_envt_App')?['admin_displayname']}</p>\n<p><b>Environment:  </b>@{items('Apply_to_each_envt_App')?['admin_appenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_envt_App')?['admin_appid']}'>Developer Compliance Center</a>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
-                                          "emailMessage/Subject": "Submit business justification details for your app",
-                                          "emailMessage/To": "@variables('varAssignee')"
-                                        }
-                                      },
-                                      "runAfter": {
-                                        "Start_App_Audit_BPF_2": [
-                                          "Succeeded",
-                                          "Failed"
-                                        ]
-                                      },
-                                      "type": "OpenApiConnection"
-                                    },
-                                    "Start_App_Audit_BPF_2": {
-                                      "inputs": {
-                                        "authentication": "@parameters('$authentication')",
-                                        "host": {
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                                          "connectionName": "shared_commondataserviceforapps",
-                                          "operationId": "CreateRecord"
-                                        },
-                                        "parameters": {
-                                          "entityName": "new_bpf_ffa183a676d64ec9aee6a558129651a2s",
-                                          "item/activestagestartedon": "@utcNow()",
-                                          "item/bpf_admin_appid@odata.bind": "admin_apps(@{items('Apply_to_each_envt_App')?['admin_appid']})",
-                                          "item/bpf_name": "Audit for @{items('Apply_to_each_envt_App')?['admin_displayname']}"
-                                        }
-                                      },
-                                      "runAfter": {},
-                                      "type": "OpenApiConnection"
-                                    }
-                                  },
-                                  "expression": {
-                                    "or": [
-                                      {
-                                        "greaterOrEquals": [
-                                          "@add(0, coalesce(items('Apply_to_each_envt_App')?['admin_appsharedusers'], 0))",
-                                          20
-                                        ]
-                                      },
-                                      {
-                                        "greaterOrEquals": [
-                                          "@add(0, coalesce(items('Apply_to_each_envt_App')?['admin_appsharedgroups'], 0))",
-                                          1
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  "runAfter": {},
-                                  "type": "If"
-                                }
-                              }
-                            },
-                            "expression": {
-                              "and": [
-                                {
-                                  "equals": [
-                                    "@items('Apply_to_each_envt_App')?['admin_makersubmittedrequirements']",
-                                    "@true"
+                                "runtimeConfiguration": {
+                                  "paginationPolicy": {
+                                    "minimumItemCount": 100000
+                                  }
+                                },
+                                "type": "OpenApiConnection"
+                              },
+                              "This_apps_launches_this_month": {
+                                "inputs": "@length(outputs('List_launches_for_this_app_last_30_days')?['body/value'])",
+                                "runAfter": {
+                                  "List_launches_for_this_app_last_30_days": [
+                                    "Succeeded"
                                   ]
                                 },
-                                {
-                                  "not": {
-                                    "equals": [
-                                      "@items('Apply_to_each_envt_App')?['admin_apppublished']",
-                                      "@null"
-                                    ]
-                                  }
-                                }
-                              ]
+                                "type": "Compose"
+                              }
                             },
                             "runAfter": {
                               "Get_Assignee_apps": [
                                 "Succeeded"
                               ]
                             },
-                            "type": "If"
+                            "type": "Scope"
                           }
                         },
                         "foreach": "@outputs('List_this_envt_apps')?['body/value']",
@@ -437,11 +636,16 @@
                           "parameters": {
                             "$expand": "admin_AppOwner($select=admin_userisserviceprinciple)",
                             "$filter": "_admin_appowner_value ne null and admin_appdeleted ne true and admin_appownerdisplayname ne 'SYSTEM' and admin_appenvironmentid eq '@{items('Apply_to_each_envt')?['admin_environmentid']}'",
-                            "$select": "admin_appdescription,admin_displayname,admin_apppublished,admin_appsharedgroups,admin_appsharedusers,admin_requirement_2,admin_requirement_1,admin_requirement_3,admin_requirement_4,admin_requirement_6,admin_makersubmittedrequirements,admin_requirement_5,cr5d5_appisorphaned,_admin_appowner_value, admin_appenvironmentdisplayname",
+                            "$select": "admin_appdescription,admin_displayname,admin_apppublished,admin_appsharedgroups,admin_appsharedusers,admin_requirement_2,admin_requirement_1,admin_requirement_3,admin_requirement_4,admin_requirement_6,admin_makersubmittedrequirements,admin_requirement_5,cr5d5_appisorphaned,_admin_appowner_value, admin_appenvironmentdisplayname, admin_adminrequirementriskassessmentstate, admin_adminrequirementrepublishstate",
                             "entityName": "admin_apps"
                           }
                         },
                         "runAfter": {},
+                        "runtimeConfiguration": {
+                          "paginationPolicy": {
+                            "minimumItemCount": 100000
+                          }
+                        },
                         "type": "OpenApiConnection"
                       }
                     },
@@ -452,6 +656,252 @@
                     "actions": {
                       "Apply_to_each_chatbot": {
                         "actions": {
+                          "Condition:_Audit_chatbots_that_are_highly_used_or_admin_has_requested_audit": {
+                            "actions": {
+                              "Check_if_any_of_the_requirements_are_not_yet_complete_-_bots": {
+                                "actions": {
+                                  "If_BPF_not_already_started_for_this_chatbot,_start_it": {
+                                    "actions": {
+                                      "Start_Chatbot_Approval_Business_Process_Flow": {
+                                        "inputs": {
+                                          "authentication": "@parameters('$authentication')",
+                                          "host": {
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                            "connectionName": "shared_commondataserviceforapps",
+                                            "operationId": "CreateRecord"
+                                          },
+                                          "parameters": {
+                                            "entityName": "new_chatbotapprovalbpfs",
+                                            "item/activestagestartedon": "@utcNow()",
+                                            "item/bpf_admin_pvaid@odata.bind": "admin_pvas(@{items('Apply_to_each_chatbot')?['admin_pvaid']})",
+                                            "item/bpf_name": "Audit for @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}"
+                                          }
+                                        },
+                                        "runAfter": {},
+                                        "type": "OpenApiConnection"
+                                      }
+                                    },
+                                    "expression": {
+                                      "equals": [
+                                        "@length(outputs('List_BPFs_for_this_Chatbot')?['body/value'])",
+                                        0
+                                      ]
+                                    },
+                                    "runAfter": {
+                                      "List_BPFs_for_this_Chatbot": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "If"
+                                  },
+                                  "List_BPFs_for_this_Chatbot": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "ListRecords"
+                                      },
+                                      "parameters": {
+                                        "$filter": "_bpf_admin_pvaid_value eq '@{items('Apply_to_each_chatbot')?['admin_pvaid']}'",
+                                        "$select": "businessprocessflowinstanceid",
+                                        "entityName": "new_chatbotapprovalbpfs"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Send_Audit_Mail_to_Admin_-_Bots": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                        "connectionName": "shared_office365_1",
+                                        "operationId": "SendEmailV2"
+                                      },
+                                      "parameters": {
+                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b> REASSIGNED TO ADMIN </b></p>\n<p>Your admin needs details about your frequently used chatbot. </p>\n<div align=\"left\">\n<p>You own a chatbot that's frequently used and which missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>Chatbot Details</u></strong><br>\n</p>\n<p><b>Display Name: </b> @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}</p>\n<p><b>Environment: </b> @{items('Apply_to_each_chatbot')?['admin_pvaenvironmentdisplayname']}</p>\n<strong><u>How to become compliant</u></strong><br>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_chatbot')?['admin_pvaid']}'>Developer Compliance Center</a>\n      <li>Add a description.</li>\n      <li>Provide a business justification.</li>\n      <li>Iterate the solution's dependencies.</li>\n      <li>Provide details on the solution's access managment.</li>\n      <li>Select the business impact.</li>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
+                                        "emailMessage/Subject": "Submit business justification details for your chatbot",
+                                        "emailMessage/To": "@parameters('Admin eMail')"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "Send_Audit_Mail_to_Owner_-_Bots": [
+                                        "Failed"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Send_Audit_Mail_to_Owner_-_Bots": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                                        "connectionName": "shared_office365_1",
+                                        "operationId": "SendEmailV2"
+                                      },
+                                      "parameters": {
+                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>Your admin needs details about your frequently used chatbot. </p>\n<div align=\"left\">\n<p>You own a chatbot that's frequently used and which missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>Chatbot Details</u></strong><br>\n</p>\n<p><b>Display Name: </b> @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}</p>\n<p><b>Environment: </b> @{items('Apply_to_each_chatbot')?['admin_pvaenvironmentdisplayname']}</p>\n<strong><u>How to become compliant</u></strong><br>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}?appName=@{items('Apply_to_each_chatbot')?['admin_pvaid']}'>Developer Compliance Center</a>\n      <li>Add a description.</li>\n      <li>Provide a business justification.</li>\n      <li>Iterate the solution's dependencies.</li>\n      <li>Provide details on the solution's access managment.</li>\n      <li>Select the business impact.</li>\n      <li>Provide a Mitigation plan in the form of an attachment.</li>\n      <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n    </ol>\n  </li>\n</ol>\n</div>",
+                                        "emailMessage/Subject": "Submit compliance details for your chatbot",
+                                        "emailMessage/To": "@variables('varAssignee')"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "Update_bot_Risk_Assessment_State_to_Requested": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  },
+                                  "Update_bot_Risk_Assessment_State_to_Requested": {
+                                    "inputs": {
+                                      "authentication": "@parameters('$authentication')",
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps_1",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_pvas",
+                                        "item/admin_adminrequirementriskassessmentstate": 597910001,
+                                        "recordId": "@items('Apply_to_each_chatbot')?['admin_pvaid']"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "If_BPF_not_already_started_for_this_chatbot,_start_it": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection"
+                                  }
+                                },
+                                "else": {
+                                  "actions": {
+                                    "If_not_already_submitted_or_complete,_mark_bot_as_submitted": {
+                                      "actions": {
+                                        "Update_bots_Risk_Assessment_State_to_Submitted": {
+                                          "inputs": {
+                                            "authentication": "@parameters('$authentication')",
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "connectionName": "shared_commondataserviceforapps_1",
+                                              "operationId": "UpdateRecord"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_pvas",
+                                              "item/admin_adminrequirementriskassessmentstate": 597910002,
+                                              "recordId": "@items('Apply_to_each_chatbot')?['admin_pvaid']"
+                                            }
+                                          },
+                                          "runAfter": {},
+                                          "type": "OpenApiConnection"
+                                        }
+                                      },
+                                      "expression": {
+                                        "and": [
+                                          {
+                                            "not": {
+                                              "equals": [
+                                                "@items('Apply_to_each_chatbot')?['admin_adminrequirementriskassessmentstate']",
+                                                597910003
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "not": {
+                                              "equals": [
+                                                "@items('Apply_to_each_chatbot')?['admin_adminrequirementriskassessmentstate']",
+                                                597910002
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "runAfter": {},
+                                      "type": "If"
+                                    }
+                                  }
+                                },
+                                "expression": {
+                                  "or": [
+                                    {
+                                      "equals": [
+                                        "@items('Apply_to_each_chatbot')?['admin_makerrequirementbusinessjustification']",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "@items('Apply_to_each_chatbot')?['admin_makerrequirementaccessmanagement']",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "@items('Apply_to_each_chatbot')?['admin_makerrequirementdependencies']",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "equals": [
+                                        "@items('Apply_to_each_chatbot')?['admin_makerrequirementbusinessimpact']",
+                                        "@null"
+                                      ]
+                                    },
+                                    {
+                                      "not": {
+                                        "equals": [
+                                          "@items('Apply_to_each_chatbot')?['admin_mitigationplanprovided']",
+                                          "@true"
+                                        ]
+                                      }
+                                    },
+                                    {
+                                      "equals": [
+                                        "@items('Apply_to_each_chatbot')?['admin_chatbotdescription']",
+                                        "@null"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "runAfter": {},
+                                "type": "If"
+                              }
+                            },
+                            "else": {
+                              "actions": {
+                                "No-op,_not_heavily_used": {
+                                  "inputs": "No-op, not heavily used",
+                                  "runAfter": {},
+                                  "type": "Compose"
+                                }
+                              }
+                            },
+                            "expression": {
+                              "and": [
+                                {
+                                  "greaterOrEquals": [
+                                    "@outputs('NumLaunchesWithNullCheck')",
+                                    "@variables('NumberChatbotLaunches')"
+                                  ]
+                                },
+                                {
+                                  "not": {
+                                    "equals": [
+                                      "@items('Apply_to_each_chatbot')?['admin_adminrequirementriskassessmentstate']",
+                                      597910000
+                                    ]
+                                  }
+                                }
+                              ]
+                            },
+                            "runAfter": {
+                              "NumLaunchesWithNullCheck": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "If"
+                          },
                           "Get_Assignee_for_Bots": {
                             "actions": {
                               "Set_variable_2": {
@@ -554,179 +1004,54 @@
                             "runAfter": {},
                             "type": "If"
                           },
-                          "Maker_has_submitted_requirements": {
-                            "actions": {
-                              "Condition:_Check_if_Mitigation_plan_is_provided_for_High_Impact_bots": {
-                                "actions": {
-                                  "Send_an_email_(V2)_6": {
-                                    "inputs": {
-                                      "authentication": "@parameters('$authentication')",
-                                      "host": {
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                        "connectionName": "shared_office365_1",
-                                        "operationId": "SendEmailV2"
-                                      },
-                                      "parameters": {
-                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>Update your chatbot details to stay compliant.</p>\n<div align=\"left\">\n<p>You own a chatbot that has been marked as having a high business impact and it's missing a mitigation plan. Please upload a mitigation plan in the Developer Compliance Center app to stay compliant.<br>\n<br>\n<strong><u>Chatbot Details</u></strong><br>\n</p>\n<p><b>Display Name: </b> @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}</p>\n<p><b>Environment: </b> @{items('Apply_to_each_chatbot')?['admin_pvaenvironmentdisplayname']}</p>\n<ol>\n  <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}'>Developer Compliance Center</a> and locate your bot.</li>\n  <li>Enter your business justification and other details in the \"Support Details\" form.</li>\n  <li>If your chatbot indicates a high business impact, you must provide additional documentation for a mitigation plan and required support details.</li>\n</ol>\n</div>",
-                                        "emailMessage/Subject": "Submit mitigation plan for your chatbot to stay compliant ",
-                                        "emailMessage/To": "@variables('varAssignee')"
-                                      }
-                                    },
-                                    "runAfter": {},
-                                    "type": "OpenApiConnection"
-                                  },
-                                  "Send_an_email_(V2)_7": {
-                                    "inputs": {
-                                      "authentication": "@parameters('$authentication')",
-                                      "host": {
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                        "connectionName": "shared_office365_1",
-                                        "operationId": "SendEmailV2"
-                                      },
-                                      "parameters": {
-                                        "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b>REASSIGNED TO ADMIN</b></p>\n<p>Update your chatbot details to stay compliant.</p>\n<div align=\"left\">\n<p>You own a chatbot that has been marked as having a high business impact and it's missing a mitigation plan. Please upload a mitigation plan in the Developer Compliance Center app to stay compliant.<br>\n<br>\n<strong><u>Chatbot Details</u></strong><br>\n</p>\n<p><b>Display Name: </b> @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}</p>\n<p><b>Environment: </b> @{items('Apply_to_each_chatbot')?['admin_pvaenvironmentdisplayname']}</p>\n<ol>\n <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}'>Developer Compliance Center</a> and locate your bot.</li>\n <li>Enter your business justification and other details in the \"Support Details\" form.</li>\n <li>If your chatbot indicates a high business impact, you must provide additional documentation for a mitigation plan and required support details.</li>\n</ol>\n</div>",
-                                        "emailMessage/Subject": "Submit mitigation plan for your chatbot to stay compliant ",
-                                        "emailMessage/To": "@parameters('Admin eMail')"
-                                      }
-                                    },
-                                    "runAfter": {
-                                      "Send_an_email_(V2)_6": [
-                                        "Failed"
-                                      ]
-                                    },
-                                    "type": "OpenApiConnection"
-                                  }
-                                },
-                                "expression": {
-                                  "and": [
-                                    {
-                                      "equals": [
-                                        "@items('Apply_to_each_chatbot')?['admin_makerrequirementbusinessimpact']",
-                                        597910002
-                                      ]
-                                    },
-                                    {
-                                      "not": {
-                                        "equals": [
-                                          "@items('Apply_to_each_chatbot')?['admin_mitigationplanprovided']",
-                                          "@true"
-                                        ]
-                                      }
-                                    }
-                                  ]
-                                },
-                                "runAfter": {},
-                                "type": "If"
-                              }
-                            },
-                            "else": {
-                              "actions": {
-                                "Condition:_Audit_chatbots_that_are_highly_used": {
-                                  "actions": {
-                                    "Send_an_email_(V2)_8": {
-                                      "inputs": {
-                                        "authentication": "@parameters('$authentication')",
-                                        "host": {
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                          "connectionName": "shared_office365_1",
-                                          "operationId": "SendEmailV2"
-                                        },
-                                        "parameters": {
-                                          "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p>Update your chatbot details to stay compliant.</p>\n<div align=\"left\">\n<p>Update your chatbot details to stay compliant. You own a chatbot that's currently used broadly and missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>Chatbot Details</u></strong><br>\n</p>\n<p><b>Display Name: </b> @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}</p>\n<p><b>Environment: </b> @{items('Apply_to_each_chatbot')?['admin_pvaenvironmentdisplayname']}</p>\n<ol>\n <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}'>Developer Compliance Center</a> and locate your bot.</li>\n <li>Enter your business justification and other details in the \"Support Details\" form.</li>\n <li>If your chatbot indicates a high business impact, you must provide additional documentation for a mitigation plan and required support details.</li>\n</ol>\n</div>",
-                                          "emailMessage/Subject": "Submit business justification details for your chatbot",
-                                          "emailMessage/To": "@variables('varAssignee')"
-                                        }
-                                      },
-                                      "runAfter": {
-                                        "Start_Chatbot_Approval_Business_Process_Flow": [
-                                          "Succeeded",
-                                          "Failed"
-                                        ]
-                                      },
-                                      "type": "OpenApiConnection"
-                                    },
-                                    "Send_an_email_(V2)_9": {
-                                      "inputs": {
-                                        "authentication": "@parameters('$authentication')",
-                                        "host": {
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                                          "connectionName": "shared_office365_1",
-                                          "operationId": "SendEmailV2"
-                                        },
-                                        "parameters": {
-                                          "emailMessage/Body": "<p>@{parameters('eMail Header Style')}</p>\n<p><b>REASSIGNED TO ADMIN</b></p>\n<p>Update your chatbot details to stay compliant.</p>\n<div align=\"left\">\n<p>Update your chatbot details to stay compliant. You own a chatbot that's currently used broadly and missing compliance details, which means it needs to be audited by an administrator per our support policy. Please complete the business justification details in the Developer Compliance Center app to document the intended use.<br>\n<br>\n<strong><u>Chatbot Details</u></strong><br>\n</p>\n<p><b>Display Name: </b> @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}</p>\n<p><b>Environment: </b> @{items('Apply_to_each_chatbot')?['admin_pvaenvironmentdisplayname']}</p>\n<ol>\n <li>Login to the <a href='@{parameters('Developer Compliance Center URL')}'>Developer Compliance Center</a> and locate your bot.</li>\n <li>Enter your business justification and other details in the \"Support Details\" form.</li>\n <li>If your chatbot indicates a high business impact, you must provide additional documentation for a mitigation plan and required support details.</li>\n</ol>\n</div>",
-                                          "emailMessage/Subject": "Submit business justification details for your chatbot",
-                                          "emailMessage/To": "@parameters('Admin eMail')"
-                                        }
-                                      },
-                                      "runAfter": {
-                                        "Send_an_email_(V2)_8": [
-                                          "Failed"
-                                        ]
-                                      },
-                                      "type": "OpenApiConnection"
-                                    },
-                                    "Start_Chatbot_Approval_Business_Process_Flow": {
-                                      "inputs": {
-                                        "authentication": "@parameters('$authentication')",
-                                        "host": {
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
-                                          "connectionName": "shared_commondataserviceforapps",
-                                          "operationId": "CreateRecord"
-                                        },
-                                        "parameters": {
-                                          "entityName": "new_chatbotapprovalbpfs",
-                                          "item/activestagestartedon": "@utcNow()",
-                                          "item/bpf_admin_pvaid@odata.bind": "admin_pvas(@{items('Apply_to_each_chatbot')?['admin_pvaid']})",
-                                          "item/bpf_name": "Audit for @{items('Apply_to_each_chatbot')?['admin_pvadisplayname']}"
-                                        }
-                                      },
-                                      "runAfter": {},
-                                      "type": "OpenApiConnection"
-                                    }
-                                  },
-                                  "expression": {
-                                    "greater": [
-                                      "@outputs('NumLaunchesWithNullCheck')",
-                                      50
-                                    ]
-                                  },
-                                  "runAfter": {
-                                    "NumLaunchesWithNullCheck": [
-                                      "Succeeded"
-                                    ]
-                                  },
-                                  "type": "If"
-                                },
-                                "NumLaunchesWithNullCheck": {
-                                  "inputs": "@coalesce(items('Apply_to_each_chatbot')?['admin_pvanumberlaunches'], 0)",
-                                  "runAfter": {},
-                                  "type": "Compose"
-                                }
-                              }
-                            },
-                            "expression": {
-                              "and": [
-                                {
-                                  "equals": [
-                                    "@items('Apply_to_each_chatbot')?['admin_makersubmittedrequirements']",
-                                    "@true"
-                                  ]
-                                },
-                                {
-                                  "equals": [
-                                    "@items('Apply_to_each_chatbot')?['admin_pvastate']",
-                                    "Published"
-                                  ]
-                                }
+                          "NumLaunchesWithNullCheck": {
+                            "inputs": "@coalesce(items('Apply_to_each_chatbot')?['admin_pvanumberlaunches'], 0)",
+                            "runAfter": {
+                              "owner_null_check": [
+                                "Succeeded"
                               ]
                             },
+                            "type": "Compose"
+                          },
+                          "is_orphan_check": {
+                            "description": "@items('Apply_to_each_chatbot')?['admin_pvaisorphaned']",
+                            "inputs": "@items('Apply_to_each_chatbot')?['admin_pvaisorphaned']",
+                            "runAfter": {
+                              "prod_envt_check": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Compose"
+                          },
+                          "is_service_principle_check": {
+                            "description": "@items('Apply_to_each_chatbot')?['admin_pvaowner/admin_userisserviceprinciple']",
+                            "inputs": "@items('Apply_to_each_chatbot')?['admin_pvaowner/admin_userisserviceprinciple']",
+                            "runAfter": {
+                              "is_orphan_check": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Compose"
+                          },
+                          "owner_null_check": {
+                            "description": "@items('Apply_to_each_chatbot')?['_admin_pvaowner_value']",
+                            "inputs": "@items('Apply_to_each_chatbot')?['_admin_pvaowner_value']",
+                            "runAfter": {
+                              "is_service_principle_check": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Compose"
+                          },
+                          "prod_envt_check": {
+                            "description": "@{parameters('ProductionEnvironment')}",
+                            "inputs": "@parameters('ProductionEnvironment')",
                             "runAfter": {
                               "Get_Assignee_for_Bots": [
                                 "Succeeded"
                               ]
                             },
-                            "type": "If"
+                            "type": "Compose"
                           }
                         },
                         "foreach": "@outputs('List_chatbots')?['body/value']",
@@ -747,12 +1072,17 @@
                           },
                           "parameters": {
                             "$expand": "admin_PVAOwner($select=admin_userisserviceprinciple)",
-                            "$filter": "admin_PVAOwner/admin_displayname ne 'SYSTEM' and admin_pvadeleted ne true and admin_PVAEnvironment/admin_displayname ne '@{items('Apply_to_each_envt')?['admin_environmentid']}'",
-                            "$select": "admin_pvadisplayname,admin_makerrequirementbusinessimpact,admin_makerrequirementbusinessjustification,admin_makersubmittedrequirements,admin_mitigationplanprovided,admin_pvanumberlaunches,admin_pvaisorphaned, admin_pvaenvironmentdisplayname",
+                            "$filter": "admin_PVAOwner/admin_displayname ne 'SYSTEM' and admin_pvadeleted ne true and _admin_pvaenvironment_value eq '@{items('Apply_to_each_envt')?['admin_environmentid']}'",
+                            "$select": "admin_pvadisplayname,admin_makerrequirementbusinessimpact,admin_makerrequirementbusinessjustification,admin_makersubmittedrequirements,admin_mitigationplanprovided,admin_pvanumberlaunches,admin_pvaisorphaned, admin_pvaenvironmentdisplayname, admin_makerrequirementaccessmanagement, admin_makerrequirementdependencies, admin_pvaid, admin_chatbotdescription, admin_adminrequirementriskassessmentstate, _admin_pvaowner_value",
                             "entityName": "admin_pvas"
                           }
                         },
                         "runAfter": {},
+                        "runtimeConfiguration": {
+                          "paginationPolicy": {
+                            "minimumItemCount": 100000
+                          }
+                        },
                         "type": "OpenApiConnection"
                       }
                     },
@@ -793,6 +1123,91 @@
           },
           "type": "Foreach"
         },
+        "Initialize_NumberChatbotLaunches": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "NumberChatbotLaunches",
+                "type": "integer",
+                "value": "@parameters('Compliance – Chatbots – Number Launches')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_NumberLaunchesLast30Days": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_NumberDaysSincePublished": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "NumberDaysSincePublished",
+                "type": "integer",
+                "value": "@parameters('Compliance – Apps – Number Days Since Published')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_NumberGroupsShared": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_NumberGroupsShared": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "NumberGroupsShared",
+                "type": "integer",
+                "value": "@parameters('Compliance – Apps – Number Groups Shared')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_NumberUsersShared": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_NumberLaunchesLast30Days": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "NumberLaunchesLast30Days",
+                "type": "integer",
+                "value": "@parameters('Compliance – Apps – Number Launches Last 30 Days')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_NumberDaysSincePublished": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_NumberUsersShared": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "NumberUsersShared",
+                "type": "integer",
+                "value": "@parameters('Compliance Apps - Number Users Shared')"
+              }
+            ]
+          },
+          "runAfter": {
+            "Initialize_varAssignee": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
         "Initialize_varAssignee": {
           "inputs": {
             "variables": [
@@ -820,9 +1235,14 @@
             }
           },
           "runAfter": {
-            "Initialize_varAssignee": [
+            "Initialize_NumberChatbotLaunches": [
               "Succeeded"
             ]
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
           },
           "type": "OpenApiConnection"
         }
@@ -845,6 +1265,46 @@
             "schemaName": "admin_AdminMail"
           },
           "type": "String"
+        },
+        "Compliance Apps - Number Users Shared": {
+          "defaultValue": 20,
+          "metadata": {
+            "description": "If the app is shared with this many or more users, ask for business justification",
+            "schemaName": "admin_ComplianceAppsNumberUsersShared"
+          },
+          "type": "Int"
+        },
+        "Compliance – Apps – Number Days Since Published": {
+          "defaultValue": 60,
+          "metadata": {
+            "description": "If an app is broadly shared and was last published this many days ago or older, then they are asked to publish to stay compliant",
+            "schemaName": "admin_ComplianceAppsNumberDaysSincePublished"
+          },
+          "type": "Int"
+        },
+        "Compliance – Apps – Number Groups Shared": {
+          "defaultValue": 1,
+          "metadata": {
+            "description": "If the app is shared with this many or more groups, ask for business justification",
+            "schemaName": "admin_ComplianceAppsNumberGroupsShared"
+          },
+          "type": "Int"
+        },
+        "Compliance – Apps – Number Launches Last 30 Days": {
+          "defaultValue": 30,
+          "metadata": {
+            "description": "If the app was launched at least this many times in the last 30, ask for business justification",
+            "schemaName": "admin_ComplianceAppsNumberLaunchesLast30Days"
+          },
+          "type": "Int"
+        },
+        "Compliance – Chatbots – Number Launches": {
+          "defaultValue": 50,
+          "metadata": {
+            "description": "If the chatbot is launched this many or more times, ask for business justification",
+            "schemaName": "admin_ComplianceChatbotsNumberLaunches"
+          },
+          "type": "Int"
         },
         "Developer Compliance Center URL": {
           "defaultValue": "https://web.yammer.com/main/groups/eyJfdHlwZSI6Ikdyb3VwIiwiaWQiOiI1MDMzNjIyIn0/new",
