@@ -5,10 +5,17 @@
     OnHidden: |-
         =Clear(appUserCollection);UpdateContext({showPopUp:false, showLoader:false, emailUsers:false, confirmDeletion:false});Set(canvasApp, Blank());
     OnVisible: |-
-        =UpdateContext({showPopUp:false, showLoader:true});
+        =UpdateContext({showPopUp:false, showLoader:true, showRepublish:false, showNewOwner:false});
+        UpdateContext({NewDescription: galApps.Selected.'App Description', NewOwner: "", NewOwnerError: false});
         If(vSelectedApp.'App Type' = 'PowerApps Type'.Canvas,
-            Set(canvasApp, PowerAppsforAppMakers.GetApp(vSelectedApp.App));
-            ClearCollect(appUserCollection, PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedApp.App).value.properties);
+            Set(canvasApp, PowerAppsforAppMakers.GetApp(vSelectedApp.App)); //remove?
+        
+            ClearCollect(appUserCollection, 
+            AddColumns( PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedApp.App).value.properties, 
+            "Picture", If(properties.principal.type = "User" && Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                Office365Users.UserPhotoV2(properties.principal.id), 
+            properties.principal.type <> "Tenant", Contact, Org)));
+        
             ClearCollect(emailAppUserCollection, PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedApp.App).value.properties)
         );
         UpdateContext({showLoader:false});
@@ -30,7 +37,7 @@
         TabIndex: =0
         Width: =1920
         X: =
-        ZIndex: =5
+        ZIndex: =4
 
     btnSubmitAppForm As button:
         BorderColor: =RGBA(0, 0, 0, 0)
@@ -45,7 +52,25 @@
         HoverBorderColor: =RGBA(0, 0, 0, 0)
         HoverColor: =RGBA(255, 255, 255, 1)
         HoverFill: =RGBA(135, 100, 184, 1)
-        OnSelect: =SubmitForm(formSupportDetails); Set(vSelectedApp, formSupportDetails.LastSubmit); ResetForm(formSupportDetails);
+        OnSelect: |-
+            =//submit data
+            SubmitForm(formSupportDetails); Set(vSelectedApp, formSupportDetails.LastSubmit); ResetForm(formSupportDetails);
+            
+            //check if all requirements met
+            If(And(!IsBlank(vSelectedApp.'App Description'), !IsBlank(vSelectedApp.'Maker Requirement - Business Justification'), !IsBlank(vSelectedApp.'Maker Requirement - Access Management'), !IsBlank(vSelectedApp.'Maker Requirement - Dependencies'), !IsBlank(vSelectedApp.'Maker Requirement - Business Impact'), !IsBlank(vSelectedApp.'Maker Requirement - Data Classification'), vSelectedApp.'Mitigation Plan Provided'='Mitigation Plan Provided (PowerApps Apps)'.Yes), 
+            
+            //if so, ensure a BPF is started
+            If(CountRows(Filter('PowerApps App Approval BPF', Admin_App.App=vSelectedApp.App))=0, Patch('PowerApps App Approval BPF', Defaults('PowerApps App Approval BPF'), 
+            {Name: "Audit for " & vSelectedApp.'App Display Name',
+             'Active Stage Started On': Now(),
+             Admin_App: vSelectedApp}));
+            
+            //and change state to submitted and recollect the app
+            UpdateIf('PowerApps Apps', App=vSelectedApp.App, {'Admin Requirement - Risk Assessment State': 'Risk Assessment State Choice'.Submitted});
+            RemoveIf(myApps, App=vSelectedApp.App);
+            Collect(myApps, LookUp('PowerApps Apps', App=vSelectedApp.App));
+            Set(vSelectedApp, LookUp(myApps, App=vSelectedApp.App));
+            )
         PaddingBottom: =10
         PaddingLeft: =10
         PaddingRight: =10
@@ -60,16 +85,16 @@
         Size: =14
         Text: ="Submit"
         Width: =187
-        X: =1593
-        Y: =973
-        ZIndex: =10
+        X: =1550
+        Y: =850
+        ZIndex: =6
 
     galAppOptions As gallery.galleryHorizontal:
         BorderColor: =RGBA(166, 166, 166, 1)
         DisabledBorderColor: =galAppOptions.BorderColor
         DisabledFill: =galAppOptions.Fill
         Fill: =scrHome.Fill
-        Height: =54
+        Height: =60
         HoverBorderColor: =galAppOptions.BorderColor
         HoverFill: =galAppOptions.Fill
         Items: |-
@@ -115,15 +140,25 @@
                 icon:Icon.Trash,
                 xicon:-120,
                 visible: galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
+            },
+            {
+                id:6,
+                label:"Assign New Owner",
+                xlabel:55,
+                icon:Icon.AddUser,
+                xicon:-120,
+                visible: galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
             }/**/)
         LoadingSpinnerColor: =galAppOptions.BorderColor
         PressedBorderColor: =galAppOptions.BorderColor
         PressedFill: =galAppOptions.Fill
-        TemplateSize: =304
+        TemplatePadding: =0
+        TemplateSize: =If(galApps.Selected.'App Type' = 'PowerApps Type'.Canvas, (Parent.Width/7)-1, 260)
         Width: =App.Width
-        ZIndex: =30
+        ZIndex: =14
 
         lblOption As label:
+            Align: =Left
             BorderColor: =RGBA(0, 0, 0, 0)
             BorderStyle: =BorderStyle.None
             BorderThickness: =2
@@ -145,7 +180,7 @@
             Size: =16
             Text: =ThisItem.label
             Visible: =ThisItem.visible
-            Width: =239
+            Width: =190
             X: =64
             Y: =5
             ZIndex: =1
@@ -173,13 +208,7 @@
                     1,
                     Launch(theAppMakerURL &  "environments/" & vSelectedApp.'App Environment ID' & "/apps/" & vSelectedApp.App & "/details"),
                     2,
-                    PowerAppsforAppMakers.PublishApp(vSelectedApp.App);
-                    
-                        Patch(
-                            'PowerApps Apps',
-                            vSelectedApp,
-                            {'App Published': Now()}
-                        ),
+                    UpdateContext({showPopUp: true, showRepublish: true}),
                     3,
                     Launch(theAppPlayerURL & "play/" & vSelectedApp.App & "?tenatID=" & EnvVarTenantID),
                     4,
@@ -196,6 +225,17 @@
                             confirmDeletion: true
                         }
                     )
+                    ,
+                    6,
+                    UpdateContext(
+                        {
+                            showPopUp: true,
+                            showNewOwner: true,
+                            NewOwner: "",
+                            NewOwnerError: false
+                        }
+                    );
+                    Reset(txtInput_3)
                 )
             PressedBorderColor: =RGBA(0, 0, 0, 0)
             PressedColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
@@ -221,6 +261,52 @@
         Width: =1920
         ZIndex: =32
 
+    imgArchive_1 As image:
+        BorderColor: =RGBA(0, 0, 0, 0)
+        BorderStyle: =BorderStyle.None
+        BorderThickness: =2
+        DisabledBorderColor: =RGBA(0, 0, 0, 0)
+        DisabledFill: =RGBA(0, 0, 0, 0)
+        FocusedBorderThickness: =4
+        Height: =40
+        HoverBorderColor: =RGBA(0, 0, 0, 0)
+        HoverFill: =RGBA(0, 0, 0, 0)
+        Image: |-
+            ="data:image/svg+xml,"
+            & EncodeUrl("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2048 2048' width='24' height='24'>
+              <path d='M2048 128v640h-128v1152H128V768H0V128h2048zm-256 1664V768H256v1024h1536zm128-1152V256H128v384h1792zm-512 512H640v-128h768v128z' />
+            </svg>")
+        OnSelect: =Select(lblArchive)
+        PressedBorderColor: =RGBA(0, 0, 0, 0)
+        PressedFill: =RGBA(0, 0, 0, 0)
+        Tooltip: ="Flagged for archiving"
+        Visible: =CountRows(Filter(myArchivalTasks, 'App Name' = Text(vSelectedApp.App))) > 0
+        Width: =40
+        X: =96
+        Y: =631
+        ZIndex: =34
+
+    lblArchive As label:
+        BorderColor: =RGBA(0, 0, 0, 0)
+        BorderStyle: =BorderStyle.None
+        BorderThickness: =2
+        Color: =RGBA(51, 51, 51, 1)
+        DisabledBorderColor: =RGBA(0, 0, 0, 0)
+        DisabledColor: =RGBA(166, 166, 166, 1)
+        FocusedBorderThickness: =4
+        Font: =Font.'Segoe UI'
+        OnSelect: =If(IsBlank(theArchivalCleanupAppURL), false, Launch(theArchivalCleanupAppURL))
+        Size: =13
+        Text: |-
+            =If(IsBlank(theArchivalCleanupAppURL), 
+                 "This app has been flagged for archiving. Please check your Archive Approval tasks.",
+                 "This app has been flagged for archiving. Select here to see all your Archive Approval tasks.")
+        Visible: =CountRows(Filter(myArchivalTasks, 'App Name' = Text(vSelectedApp.App))) > 0
+        Width: =772
+        X: =160
+        Y: =631
+        ZIndex: =35
+
     grpComplianceCheck As group:
         Height: =5
         Width: =5
@@ -238,25 +324,31 @@
             Items: |-
                 =Table({
                     Title: "Submitted Support Details",
-                    Status: If(vSelectedApp.'Maker Submitted Requirements' <> 'Maker Submitted Requirements (PowerApps Apps)'.'1', Orange, LimeGreen)
+                    Tooltip: "Has the admin requested you fill out details? Red = need data, Yellow = Submitted, Green = Complete, Gray = Not Requested",
+                    Visible: true,
+                    Status: If(vSelectedApp.'Admin Requirement - Risk Assessment State' = 'Risk Assessment State Choice'.Requested, FireBrick, If(vSelectedApp.'Admin Requirement - Risk Assessment State' = 'Risk Assessment State Choice'.Submitted, Gold,  If(vSelectedApp.'Admin Requirement - Risk Assessment State' = 'Risk Assessment State Choice'.Complete, LimeGreen, LightGray)))
                 },
                 {
                     Title: "Filled out app description",
-                    Status: If(IsBlank(vSelectedApp.'App Description'), Orange, LimeGreen)
+                    Tooltip: "Has the description been filed out?",
+                    Visible: true,
+                    Status: If(IsBlank(vSelectedApp.'App Description'), FireBrick, LimeGreen)
                 },
                 {
-                    Title:"Published within 60 days",
-                    Status: If( DateDiff(vSelectedApp.'App Published',Today(),Days) > 60, Orange, LimeGreen) 
+                    Title:"Published within " & needPublishedFreqDays & " days",
+                    Tooltip: "Has the app been puslished within the last " & needPublishedFreqDays * " days?",
+                    Visible: galResourceType_1.Selected.label<>"Model Driven Apps",
+                    Status: If( DateDiff(vSelectedApp.'App Published',Today(),Days) > Value(needPublishedFreqDays), FireBrick, LimeGreen) 
                 })
             Layout: =Layout.Vertical
             LoadingSpinnerColor: =galAppCompliance.BorderColor
             PressedBorderColor: =galAppCompliance.BorderColor
             PressedFill: =galAppCompliance.Fill
             TemplateSize: =37
-            Width: =279
-            X: =653
+            Width: =277
+            X: =654
             Y: =184
-            ZIndex: =11
+            ZIndex: =7
 
             lblComplianceChkTitle As label:
                 BorderColor: =RGBA(0, 0, 0, 0)
@@ -279,6 +371,8 @@
                 PressedFill: =RGBA(0, 0, 0, 0)
                 Size: =11
                 Text: =ThisItem.Title
+                Tooltip: =ThisItem.Tooltip
+                Visible: =ThisItem.Visible
                 Width: =246
                 X: =32
                 ZIndex: =1
@@ -293,6 +387,8 @@
                 HoverFill: =icnTrafficLight.Fill
                 OnSelect: =Select(Parent)
                 PressedFill: =icnTrafficLight.Fill
+                Tooltip: =ThisItem.Tooltip
+                Visible: =ThisItem.Visible
                 Width: =15
                 Y: =7
                 ZIndex: =2
@@ -321,7 +417,7 @@
             Width: =208
             X: =653
             Y: =130
-            ZIndex: =12
+            ZIndex: =8
 
         recComplianceChkSeperator As rectangle:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -335,7 +431,7 @@
             Width: =279
             X: =653
             Y: =172
-            ZIndex: =15
+            ZIndex: =9
 
     grpSupportDetails As group:
         Height: =5
@@ -347,7 +443,7 @@
         formSupportDetails As form:
             BorderColor: =RGBA(166, 166, 166, 1)
             DataSource: ='PowerApps Apps'
-            Height: =860
+            Height: =741
             Item: =vSelectedApp
             NumberOfColumns: =2
             OnSuccess: =Notify("Your Support Details Form has been saved successfully.", Success)
@@ -472,7 +568,7 @@
                     BorderColor: =RGBA(0, 0, 0, 0)
                     BorderStyle: =BorderStyle.None
                     BorderThickness: =2
-                    Color: =RGBA(51, 51, 51, 1)
+                    Color: =RGBA(255, 0, 0, 1)
                     DisabledBorderColor: =RGBA(0, 0, 0, 0)
                     DisabledColor: =RGBA(166, 166, 166, 1)
                     FocusedBorderColor: =StarVisible14.BorderColor
@@ -489,7 +585,7 @@
                     PressedFill: =StarVisible14.Fill
                     Size: =13
                     Text: ="*"
-                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                    Visible: =false
                     Width: =30
                     Wrap: =false
                     Y: =DataCardKey15.Y
@@ -1353,7 +1449,7 @@
                 DisplayMode: =Parent.DisplayMode
                 DisplayName: ="Attachments"
                 Fill: =RGBA(0, 0, 0, 0)
-                Height: =293
+                Height: =150
                 Required: =false
                 Update: =DataCardValue19.Attachments
                 Width: =388
@@ -1403,7 +1499,7 @@
                     FocusedBorderColor: =DataCardValue19.BorderColor
                     FocusedBorderThickness: =4
                     Font: =Font.'Segoe UI'
-                    Height: =208
+                    Height: =125
                     HoverBorderColor: =ColorFade(DataCardValue19.BorderColor, 15%)
                     HoverColor: =RGBA(51, 51, 51, 1)
                     HoverFill: =RGBA(212, 212, 212, 1)
@@ -1533,48 +1629,6 @@
             Y: =172
             ZIndex: =3
 
-    imgArchive_1 As image:
-        BorderColor: =RGBA(0, 0, 0, 0)
-        BorderStyle: =BorderStyle.None
-        BorderThickness: =2
-        DisabledBorderColor: =RGBA(0, 0, 0, 0)
-        DisabledFill: =RGBA(0, 0, 0, 0)
-        FocusedBorderThickness: =4
-        Height: =40
-        HoverBorderColor: =RGBA(0, 0, 0, 0)
-        HoverFill: =RGBA(0, 0, 0, 0)
-        Image: |-
-            ="data:image/svg+xml,"
-            & EncodeUrl("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2048 2048' width='24' height='24'>
-              <path d='M2048 128v640h-128v1152H128V768H0V128h2048zm-256 1664V768H256v1024h1536zm128-1152V256H128v384h1792zm-512 512H640v-128h768v128z' />
-            </svg>")
-        OnSelect: =
-        PressedBorderColor: =RGBA(0, 0, 0, 0)
-        PressedFill: =RGBA(0, 0, 0, 0)
-        Tooltip: ="Flagged for archiving"
-        Visible: =CountRows(Filter(myArchivalTasks, 'App Name' = Text(vSelectedApp.App))) > 0
-        Width: =40
-        X: =96
-        Y: =568
-        ZIndex: =42
-
-    lblArchive As label:
-        BorderColor: =RGBA(0, 0, 0, 0)
-        BorderStyle: =BorderStyle.None
-        BorderThickness: =2
-        Color: =RGBA(51, 51, 51, 1)
-        DisabledBorderColor: =RGBA(0, 0, 0, 0)
-        DisabledColor: =RGBA(166, 166, 166, 1)
-        FocusedBorderThickness: =4
-        Font: =Font.'Segoe UI'
-        Size: =13
-        Text: ="This app has been flagged for archiving. Please check your Archive Approval tasks."
-        Visible: =CountRows(Filter(myArchivalTasks, 'App Name' = Text(vSelectedApp.App))) > 0
-        Width: =772
-        X: =160
-        Y: =568
-        ZIndex: =43
-
     grpPermissions As group:
         Height: =5
         Width: =5
@@ -1586,23 +1640,25 @@
             BorderColor: =RGBA(166, 166, 166, 1)
             DisabledBorderColor: =galAppRoles.BorderColor
             DisabledFill: =galAppRoles.Fill
-            Height: =389
+            Height: =323
             HoverBorderColor: =galAppRoles.BorderColor
             HoverFill: =galAppRoles.Fill
             Items: |-
-                =AddColumns(appUserCollection, "Picture", If(properties.principal.type = "User" && Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                =/*AddColumns(appUserCollection, "Picture", If(properties.principal.type = "User" && Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
                         Office365Users.UserPhotoV2(properties.principal.id), 
-                    properties.principal.type <> "Tenant", Contact, Org))
+                    properties.principal.type <> "Tenant", Contact, Org)) */
+                    appUserCollection
             Layout: =Layout.Vertical
             LoadingSpinnerColor: =galAppRoles.BorderColor
             PressedBorderColor: =galAppRoles.BorderColor
             PressedFill: =galAppRoles.Fill
             TemplatePadding: =0
             TemplateSize: =78
+            Visible: =galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
             Width: =843
             X: =99
-            Y: =691
-            ZIndex: =9
+            Y: =745
+            ZIndex: =5
 
             imgUserPhoto As image:
                 BorderColor: =RGBA(255, 255, 255, 1)
@@ -1736,6 +1792,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
+            Height: =33
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0,0,0,1.00)
             HoverFill: =RGBA(0, 0, 0, 0)
@@ -1745,10 +1802,11 @@
             PressedFill: =RGBA(0, 0, 0, 0)
             Size: =12
             Text: ="PERMISSIONS ("&CountRows(galAppRoles.AllItems)&")"
+            Visible: =galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
             Width: =233
             X: =99
-            Y: =650
-            ZIndex: =16
+            Y: =723
+            ZIndex: =10
 
         recRoleSeperator As rectangle:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1759,10 +1817,11 @@
             HoverFill: =recRoleSeperator.Fill
             OnSelect: =
             PressedFill: =recRoleSeperator.Fill
+            Visible: =galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
             Width: =840
             X: =99
-            Y: =691
-            ZIndex: =17
+            Y: =757
+            ZIndex: =11
 
         lblRoleName As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1775,6 +1834,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
+            Height: =33
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0,0,0,1.00)
             HoverFill: =RGBA(0, 0, 0, 0)
@@ -1784,10 +1844,11 @@
             PressedFill: =RGBA(0, 0, 0, 0)
             Size: =12
             Text: ="ROLE"
+            Visible: =galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
             Width: =104
             X: =624
-            Y: =650
-            ZIndex: =18
+            Y: =723
+            ZIndex: =12
 
         lblRoleType As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1800,6 +1861,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
+            Height: =33
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0,0,0,1.00)
             HoverFill: =RGBA(0, 0, 0, 0)
@@ -1809,10 +1871,11 @@
             PressedFill: =RGBA(0, 0, 0, 0)
             Size: =12
             Text: ="TYPE"
+            Visible: =galApps.Selected.'App Type' = 'PowerApps Type'.Canvas
             Width: =104
             X: =847
-            Y: =650
-            ZIndex: =19
+            Y: =723
+            ZIndex: =13
 
     grpAppDetails As group:
         Height: =5
@@ -1831,7 +1894,7 @@
             FocusedBorderColor: =lblDescriptionValue.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =69
+            Height: =123
             HoverBorderColor: =lblDescriptionValue.BorderColor
             HoverColor: =lblDescriptionValue.Color
             HoverFill: =lblDescriptionValue.Fill
@@ -1845,8 +1908,8 @@
             VerticalAlign: =VerticalAlign.Top
             Width: =843
             X: =96
-            Y: =473
-            ZIndex: =4
+            Y: =467
+            ZIndex: =15
 
         imgAppIconBig As image:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1862,7 +1925,7 @@
                 Value(Last(Split(Substitute(Substitute(vSelectedApp.'Icon Background Color', "rgba(", ""), ")", ""), ", ").Result).Result)),RGBA(250,250,250,1))
             FocusedBorderColor: =imgAppIconBig.BorderColor
             FocusedBorderThickness: =4
-            Height: =56
+            Height: =55
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverFill: =imgAppIconBig.Fill
             Image: =vSelectedApp.'App Icon Uri'
@@ -1871,8 +1934,8 @@
             PressedFill: =imgAppIconBig.Fill
             Width: =61
             X: =99
-            Y: =160
-            ZIndex: =6
+            Y: =159
+            ZIndex: =17
 
         lblAppDetails As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1885,6 +1948,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
+            Height: =39
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0,0,0,1.00)
             HoverFill: =RGBA(0, 0, 0, 0)
@@ -1896,8 +1960,8 @@
             Text: ="DETAILS"
             Width: =233
             X: =99
-            Y: =228
-            ZIndex: =13
+            Y: =226
+            ZIndex: =19
 
         lblAppOverview As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1910,6 +1974,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Bold
+            Height: =39
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0,0,0,1.00)
             HoverFill: =RGBA(0, 0, 0, 0)
@@ -1922,7 +1987,7 @@
             Width: =266
             X: =97
             Y: =101
-            ZIndex: =14
+            ZIndex: =20
 
         lblPublishedValue As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -1934,7 +1999,6 @@
             FocusedBorderColor: =lblPublishedValue.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =41
             HoverBorderColor: =lblPublishedValue.BorderColor
             HoverColor: =lblPublishedValue.Color
             HoverFill: =lblPublishedValue.Fill
@@ -1944,10 +2008,11 @@
             PressedFill: =lblPublishedValue.Fill
             Size: =13
             Text: =DateDiff(vSelectedApp.'App Published',Today(),Days)+0 & " days"
+            Visible: =galResourceType_1.Selected.label<>"Model Driven Apps"
             Width: =164
-            X: =542
-            Y: =391
-            ZIndex: =20
+            X: =778
+            Y: =386
+            ZIndex: =21
 
         lblModifiedValue As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -1959,7 +2024,6 @@
             FocusedBorderColor: =lblModifiedValue.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =41
             HoverBorderColor: =lblModifiedValue.BorderColor
             HoverColor: =lblModifiedValue.Color
             HoverFill: =lblModifiedValue.Fill
@@ -1971,8 +2035,8 @@
             Text: =Text(vSelectedApp.'App Modified On',"[$-en-US]mmmm dd, yyyy")
             Width: =400
             X: =99
-            Y: =391
-            ZIndex: =21
+            Y: =386
+            ZIndex: =22
 
         lblAppDisplayName As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -1983,7 +2047,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
-            Height: =42
+            Height: =41
             HoverBorderColor: =lblAppDisplayName.BorderColor
             HoverColor: =lblAppDisplayName.Color
             HoverFill: =lblAppDisplayName.Fill
@@ -1995,8 +2059,8 @@
             Text: =vSelectedApp.'App Display Name'
             Width: =418
             X: =180
-            Y: =160
-            ZIndex: =22
+            Y: =159
+            ZIndex: =23
 
         lblModified As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2008,7 +2072,7 @@
             FocusedBorderColor: =lblModified.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =35
+            Height: =34
             HoverBorderColor: =lblModified.BorderColor
             HoverColor: =lblModified.Color
             HoverFill: =lblModified.Fill
@@ -2019,8 +2083,8 @@
             Size: =10
             Text: ="Modified"
             X: =99
-            Y: =356
-            ZIndex: =23
+            Y: =352
+            ZIndex: =24
 
         lblPublished As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2032,7 +2096,7 @@
             FocusedBorderColor: =lblPublished.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =35
+            Height: =34
             HoverBorderColor: =lblPublished.BorderColor
             HoverColor: =lblPublished.Color
             HoverFill: =lblPublished.Fill
@@ -2042,10 +2106,11 @@
             PressedFill: =lblPublished.Fill
             Size: =10
             Text: ="Last published"
+            Visible: =galResourceType_1.Selected.label<>"Model Driven Apps"
             Width: =121
-            X: =542
-            Y: =356
-            ZIndex: =24
+            X: =778
+            Y: =352
+            ZIndex: =25
 
         lblCreatedValue As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -2057,7 +2122,6 @@
             FocusedBorderColor: =lblCreatedValue.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =41
             HoverBorderColor: =lblCreatedValue.BorderColor
             HoverColor: =lblCreatedValue.Color
             HoverFill: =lblCreatedValue.Fill
@@ -2069,8 +2133,8 @@
             Text: =Text(vSelectedApp.'App Created On',"[$-en-US]mmmm dd, yyyy")
             Width: =400
             X: =99
-            Y: =304
-            ZIndex: =25
+            Y: =301
+            ZIndex: =26
 
         lblCreated As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2082,7 +2146,7 @@
             FocusedBorderColor: =lblCreated.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =35
+            Height: =34
             HoverBorderColor: =lblCreated.BorderColor
             HoverColor: =lblCreated.Color
             HoverFill: =lblCreated.Fill
@@ -2093,8 +2157,8 @@
             Size: =10
             Text: ="Created"
             X: =99
-            Y: =269
-            ZIndex: =26
+            Y: =266
+            ZIndex: =27
 
         lblDescription As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2106,7 +2170,7 @@
             FocusedBorderColor: =lblDescription.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =35
+            Height: =34
             HoverBorderColor: =lblDescription.BorderColor
             HoverColor: =lblDescription.Color
             HoverFill: =lblDescription.Fill
@@ -2118,8 +2182,8 @@
             Text: ="Description"
             Width: =316
             X: =99
-            Y: =435
-            ZIndex: =27
+            Y: =430
+            ZIndex: =28
 
         lblAppTypeValue As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -2131,7 +2195,6 @@
             FocusedBorderColor: =lblAppTypeValue.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =41
             HoverBorderColor: =lblAppTypeValue.BorderColor
             HoverColor: =lblAppTypeValue.Color
             HoverFill: =lblAppTypeValue.Fill
@@ -2141,10 +2204,10 @@
             PressedFill: =lblAppTypeValue.Fill
             Size: =13
             Text: =vSelectedApp.'App Type'
-            Width: =164
-            X: =778
-            Y: =391
-            ZIndex: =28
+            Width: =170
+            X: =542
+            Y: =386
+            ZIndex: =29
 
         lblAppType As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2156,7 +2219,7 @@
             FocusedBorderColor: =lblAppType.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            Height: =35
+            Height: =34
             HoverBorderColor: =lblAppType.BorderColor
             HoverColor: =lblAppType.Color
             HoverFill: =lblAppType.Fill
@@ -2167,9 +2230,9 @@
             Size: =10
             Text: ="App Type"
             Width: =121
-            X: =778
-            Y: =356
-            ZIndex: =29
+            X: =542
+            Y: =352
+            ZIndex: =30
 
         lblEnvironmentName As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -2180,7 +2243,7 @@
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
-            Height: =42
+            Height: =41
             HoverBorderColor: =lblEnvironmentName.BorderColor
             HoverColor: =lblEnvironmentName.Color
             HoverFill: =lblEnvironmentName.Fill
@@ -2193,8 +2256,306 @@
             Text: =vSelectedApp.'App Environment Display Name'
             Width: =418
             X: =180
-            Y: =191
+            Y: =190
             ZIndex: =31
+
+    grpDescription As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =52
+
+        lblNoDescriptionNote As label:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            Color: =RGBA(246, 88, 16, 1)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            FocusedBorderColor: =lblNoDescriptionNote.BorderColor
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            FontWeight: =Normal
+            Height: =94
+            OnSelect: =
+            PaddingBottom: =0
+            PaddingLeft: =0
+            PaddingRight: =20
+            PaddingTop: =0
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =RGBA(0,0,0,1.00)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Text: |-
+                =If(galResourceType_1.Selected.label="Model Driven Apps",
+                "To Add Description:
+                Got to this app > Edit > Settings > Add Description > Save and Publish.
+                Then you will need to wait for the inventory to update next day to see it here", 
+                "To Add Description:
+                Got to this app > Edit > File > Settings > Add Description > Save and Publish.
+                Then return here and hit this button to get the description here")
+            VerticalAlign: =VerticalAlign.Top
+            Visible: =IsBlank(vSelectedApp.'App Description')
+            Width: =792
+            X: =140
+            Y: =477
+            ZIndex: =16
+
+        icnNoDescription As icon.Warning:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            Color: =RGBA(246, 88, 16, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            DisabledColor: =RGBA(220, 220, 220, 1)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            FocusedBorderColor: =icnNoDescription.BorderColor
+            FocusedBorderThickness: =4
+            Height: =37
+            HoverBorderColor: =Self.BorderColor
+            HoverColor: =Self.Color
+            Icon: =Icon.Warning
+            OnSelect: =
+            PaddingBottom: =2
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =2
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Visible: =IsBlank(vSelectedApp.'App Description')
+            Width: =41
+            X: =99
+            Y: =475
+            ZIndex: =18
+
+        GetDescription As button:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Fill: =RGBA(172, 62, 11, 1)
+            FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Semibold
+            Height: =42
+            HoverBorderColor: =Self.BorderColor
+            HoverFill: =Self.Fill
+            OnSelect: |-
+                =//get the description from the product
+                UpdateContext({NewDescription: PowerAppsforAppMakers.GetApp(vSelectedApp.App).properties.description});
+                
+                
+                //if not Blank, update collection, inventory, and current selection
+                If(!IsBlank(NewDescription), 
+                    UpdateIf(myApps, App=vSelectedApp.App, {'App Description': NewDescription});
+                    UpdateIf('PowerApps Apps', App=vSelectedApp.App, {'App Description': NewDescription});
+                    Set(vSelectedApp, LookUp(myApps, App=vSelectedApp.App));
+                    )
+            PressedBorderColor: =ColorFade(RGBA(135, 100, 184, 1), -50%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(RGBA(135, 100, 184, 1), -30%)
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Size: =15
+            Text: ="Done"
+            Visible: =IsBlank(vSelectedApp.'App Description') && galResourceType_1.Selected.label<>"Model Driven Apps"
+            Width: =114
+            X: =764
+            Y: =537
+            ZIndex: =33
+
+    grpPublish As group:
+        Height: =5
+        Width: =5
+        X: =20
+        Y: =20
+        ZIndex: =57
+
+        rectDialog_2 As rectangle:
+            BorderColor: =RGBA(230, 230, 230, 1)
+            BorderThickness: =2
+            DisabledFill: =RGBA(255, 255, 255, 1)
+            Fill: =RGBA(255, 255, 255, 1)
+            FocusedBorderColor: =rectDialog_2.BorderColor
+            FocusedBorderThickness: =4
+            Height: =280
+            HoverFill: =RGBA(255, 255, 255, 1)
+            PressedFill: =RGBA(255, 255, 255, 1)
+            Visible: =showPopUp && showRepublish
+            Width: =874
+            X: =543
+            Y: =420
+            ZIndex: =51
+
+        lblDialogTitle_2 As label:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            Color: =RGBA(116, 116, 116, 1)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            FocusedBorderColor: =lblDialogTitle_2.BorderColor
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            FontWeight: =Semibold
+            Height: =14
+            HoverBorderColor: =lblDialogTitle_2.BorderColor
+            HoverColor: =lblDialogTitle_2.Color
+            HoverFill: =lblDialogTitle_2.Fill
+            PaddingLeft: =0
+            PressedBorderColor: =lblDialogTitle_2.BorderColor
+            PressedColor: =lblDialogTitle_2.Color
+            PressedFill: =lblDialogTitle_2.Fill
+            Size: =11
+            Text: ="HOW TO"
+            Visible: =showPopUp && showRepublish
+            Width: =161
+            X: =591
+            Y: =471
+            ZIndex: =52
+
+        icnExitDialog_2 As icon.Cancel:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            DisabledColor: =RGBA(220, 220, 220, 1)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            FocusedBorderColor: =icnExitDialog_2.BorderColor
+            FocusedBorderThickness: =4
+            Height: =41
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(55, 14, 64, 1)
+            HoverFill: =RGBA(0, 0, 0, 0)
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext(
+                        {
+                            showPopUp: false,
+                            showRepublish: false
+                        })
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =5
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Visible: =showPopUp && showRepublish
+            Width: =44
+            X: =1358
+            Y: =430
+            ZIndex: =53
+
+        lblDialog_2 As label:
+            Align: =Left
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            FocusedBorderColor: =lblDialog_2.BorderColor
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            FontWeight: =Normal
+            Height: =91
+            HoverBorderColor: =lblDialog_2.BorderColor
+            HoverColor: =lblDialog_2.Color
+            HoverFill: =lblDialog_2.Fill
+            PaddingLeft: =0
+            PressedBorderColor: =lblDialog_2.BorderColor
+            PressedColor: =lblDialog_2.Color
+            PressedFill: =lblDialog_2.Fill
+            Size: =16
+            Text: |-
+                ="Have you tested the app in current builds of the Power Platform? 
+                If so hit Publish below to mark complete, if not please go test."
+            VerticalAlign: =VerticalAlign.Top
+            Visible: =showPopUp && showRepublish
+            Width: =741
+            X: =591
+            Y: =501
+            ZIndex: =54
+
+        btnConfirmDialog_2 As button:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Fill: =RGBA(135, 100, 184, 1)
+            FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+            Font: =Font.'Segoe UI'
+            FontWeight: =Semibold
+            Height: =41
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =RGBA(135, 100, 184, 1)
+            OnSelect: |-
+                =//republish the app
+                PowerAppsforAppMakers.PublishApp(vSelectedApp.App);
+                //update inventory
+                UpdateIf('PowerApps Apps', App=vSelectedApp.App, {'App Published': Now(), 'Admin Requirement - Republish State':'Risk Assessment State Choice'.Complete});
+                //update collection
+                UpdateIf(myApps, App=vSelectedApp.App, {'App Published': Now(), 'Admin Requirement - Republish State':'Risk Assessment State Choice'.Complete});
+                //update current selection
+                Set(vSelectedApp, LookUp(myApps, App=vSelectedApp.App));
+                //close dialog
+                UpdateContext({showPopUp: false, showRepublish: false});
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(RGBA(135, 100, 184, 1), -50%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(btnConfirmDialog_2.Fill, -30%)
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Size: =14
+            Text: ="Publish"
+            Visible: =showPopUp && showRepublish
+            Width: =173
+            X: =1207
+            Y: =623
+            ZIndex: =55
+
+        btnCancelDialog_2 As button:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Fill: =RGBA(67, 50, 92, 1)
+            FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+            Font: =Font.'Segoe UI'
+            FontWeight: =Semibold
+            Height: =41
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =RGBA(67, 50, 92, 1)
+            OnSelect: |-
+                =UpdateContext(
+                        {
+                            showPopUp: false,
+                            showRepublish: false
+                        })
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(RGBA(135, 100, 184, 1), -50%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(btnCancelDialog_2.Fill, -30%)
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Size: =14
+            Text: ="Cancel"
+            Visible: =showPopUp && showRepublish
+            Width: =173
+            X: =1018
+            Y: =623
+            ZIndex: =56
 
     grpDelete As group:
         Height: =5
@@ -2217,7 +2578,7 @@
             Width: =874
             X: =523
             Y: =400
-            ZIndex: =44
+            ZIndex: =45
 
         lblDialogTitle As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2244,7 +2605,7 @@
             Width: =161
             X: =571
             Y: =451
-            ZIndex: =45
+            ZIndex: =46
 
         icnExitDialog As icon.Cancel:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2270,7 +2631,7 @@
             Width: =44
             X: =1338
             Y: =410
-            ZIndex: =46
+            ZIndex: =47
 
         lblDialog As label:
             Align: =Left
@@ -2299,7 +2660,7 @@
             Width: =741
             X: =571
             Y: =481
-            ZIndex: =47
+            ZIndex: =48
 
         btnConfirmDialog As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2340,7 +2701,7 @@
             Width: =173
             X: =1187
             Y: =603
-            ZIndex: =48
+            ZIndex: =49
 
         btnCancelDialog As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2373,74 +2734,7 @@
             Width: =173
             X: =998
             Y: =603
-            ZIndex: =49
-
-    grpDescription As group:
-        Height: =5
-        Width: =5
-        X: =40
-        Y: =40
-        ZIndex: =62
-
-        lblNoDescriptionNote As label:
-            BorderColor: =RGBA(0, 0, 0, 0)
-            BorderStyle: =BorderStyle.None
-            BorderThickness: =2
-            Color: =RGBA(153, 153, 153, 1)
-            DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            FocusedBorderColor: =lblNoDescriptionNote.BorderColor
-            FocusedBorderThickness: =4
-            Font: =Font.'Segoe UI'
-            FontWeight: =Normal
-            Height: =51
-            HoverBorderColor: =RGBA(0, 0, 0, 0)
-            HoverColor: =RGBA(153, 153, 153, 1)
-            HoverFill: =RGBA(0, 0, 0, 0)
-            OnSelect: =
-            PaddingBottom: =0
-            PaddingLeft: =0
-            PaddingRight: =20
-            PaddingTop: =0
-            PressedBorderColor: =RGBA(0, 0, 0, 0)
-            PressedColor: =RGBA(0,0,0,1.00)
-            PressedFill: =RGBA(0, 0, 0, 0)
-            Size: =11
-            Text: |-
-                ="To Add Description: Go to the App Settings > Edit the App > Settings > Add Description > Save and Publish."
-            VerticalAlign: =VerticalAlign.Top
-            Visible: =IsBlank(galApps.Selected.'App Description')
-            Width: =801
-            X: =156
-            Y: =512
-            ZIndex: =7
-
-        icnNoDescription As icon.Warning:
-            BorderColor: =RGBA(0, 0, 0, 0)
-            Color: =RGBA(246, 88, 16, 1)
-            DisabledBorderColor: =RGBA(166, 166, 166, 1)
-            DisabledColor: =RGBA(220, 220, 220, 1)
-            DisabledFill: =RGBA(0, 0, 0, 0)
-            FocusedBorderColor: =icnNoDescription.BorderColor
-            FocusedBorderThickness: =4
-            Height: =20
-            HoverBorderColor: =RGBA(0, 0, 0, 0)
-            HoverColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
-            HoverFill: =RGBA(0, 0, 0, 0)
-            Icon: =Icon.Warning
-            OnSelect: =
-            PaddingBottom: =2
-            PaddingLeft: =10
-            PaddingRight: =10
-            PaddingTop: =2
-            PressedBorderColor: =RGBA(0, 0, 0, 0)
-            PressedColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
-            PressedFill: =RGBA(0, 0, 0, 0)
-            Visible: =IsBlank(galApps.Selected.'App Description')
-            Width: =41
-            X: =99
-            Y: =475
-            ZIndex: =8
+            ZIndex: =50
 
     grpEmail As group:
         Height: =5
@@ -2463,7 +2757,7 @@
             Width: =1011
             X: =455
             Y: =169
-            ZIndex: =33
+            ZIndex: =36
 
         lblEmailTitle As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2489,8 +2783,8 @@
             Visible: =showPopUp && emailUsers
             Width: =234
             X: =513
-            Y: =335
-            ZIndex: =34
+            Y: =371
+            ZIndex: =37
 
         lblSendToTitle As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2512,11 +2806,11 @@
             PressedFill: =lblSendToTitle.Fill
             Size: =11
             Text: ="SEND TO"
-            Visible: =false//showPopUp && emailUsers
+            Visible: =showPopUp && emailUsers
             Width: =186
             X: =514
-            Y: =217
-            ZIndex: =35
+            Y: =181
+            ZIndex: =38
 
         "galEmailUsers As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -2526,19 +2820,19 @@
             Height: =58
             HoverBorderColor: =galEmailUsers.BorderColor
             HoverFill: =galEmailUsers.Fill
-            Items: =Filter(emailAppUserCollection, properties.roleName <> "Owner" && properties.principal.type <> "Tenant")
+            Items: =Filter(emailAppUserCollection, properties.principal.type <> "Tenant")
             Layout: =Layout.Vertical
             LoadingSpinnerColor: =galEmailUsers.BorderColor
             PressedBorderColor: =galEmailUsers.BorderColor
             PressedFill: =galEmailUsers.Fill
             TemplatePadding: =0
             TemplateSize: =34
-            Visible: =false//showPopUp && emailUsers
+            Visible: =showPopUp && emailUsers
             Width: =885
             WrapCount: =2
-            X: =514
-            Y: =246
-            ZIndex: =36
+            X: =512
+            Y: =224
+            ZIndex: =39
 
             lblSend As label:
                 BorderColor: =RGBA(0, 0, 0, 0)
@@ -2587,8 +2881,8 @@
             Visible: =showPopUp && emailUsers
             Width: =234
             X: =513
-            Y: =227
-            ZIndex: =37
+            Y: =281
+            ZIndex: =40
 
         inpMessageSubject As text:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -2618,8 +2912,8 @@
             Visible: =showPopUp && emailUsers
             Width: =887
             X: =513
-            Y: =262
-            ZIndex: =38
+            Y: =316
+            ZIndex: =41
 
         rteEmailBody As richTextEditor:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -2629,8 +2923,8 @@
             Visible: =showPopUp && emailUsers
             Width: =884
             X: =513
-            Y: =372
-            ZIndex: =39
+            Y: =417
+            ZIndex: =42
 
         btnSendEmail As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2666,8 +2960,8 @@
             Visible: =rteEmailBody.Visible
             Width: =173
             X: =1227
-            Y: =682
-            ZIndex: =40
+            Y: =709
+            ZIndex: =43
 
         btnCancelEmail As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -2700,6 +2994,234 @@
             Visible: =rteEmailBody.Visible
             Width: =173
             X: =1029
-            Y: =682
-            ZIndex: =41
+            Y: =709
+            ZIndex: =44
+
+    grpNewOwner As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =64
+
+        rectDialog_3 As rectangle:
+            BorderColor: =RGBA(230, 230, 230, 1)
+            BorderThickness: =2
+            DisabledFill: =RGBA(255, 255, 255, 1)
+            Fill: =RGBA(255, 255, 255, 1)
+            FocusedBorderColor: =rectDialog_3.BorderColor
+            FocusedBorderThickness: =4
+            Height: =280
+            HoverFill: =RGBA(255, 255, 255, 1)
+            PressedFill: =RGBA(255, 255, 255, 1)
+            Visible: =showPopUp && showNewOwner
+            Width: =874
+            X: =563
+            Y: =440
+            ZIndex: =57
+
+        lblDialogTitle_3 As label:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            Color: =RGBA(116, 116, 116, 1)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            FocusedBorderColor: =lblDialogTitle_3.BorderColor
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            FontWeight: =Semibold
+            Height: =14
+            HoverBorderColor: =lblDialogTitle_3.BorderColor
+            HoverColor: =lblDialogTitle_3.Color
+            HoverFill: =lblDialogTitle_3.Fill
+            PaddingLeft: =0
+            PressedBorderColor: =lblDialogTitle_3.BorderColor
+            PressedColor: =lblDialogTitle_3.Color
+            PressedFill: =lblDialogTitle_3.Fill
+            Size: =11
+            Text: ="CHANGE OWNER"
+            Visible: =showPopUp && showNewOwner
+            Width: =161
+            X: =611
+            Y: =491
+            ZIndex: =58
+
+        icnExitDialog_3 As icon.Cancel:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            DisabledColor: =RGBA(220, 220, 220, 1)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            FocusedBorderColor: =icnExitDialog_3.BorderColor
+            FocusedBorderThickness: =4
+            Height: =41
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(55, 14, 64, 1)
+            HoverFill: =RGBA(0, 0, 0, 0)
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showPopUp:false, showNewOwner: false})
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =5
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Visible: =showPopUp && showNewOwner
+            Width: =44
+            X: =1378
+            Y: =450
+            ZIndex: =59
+
+        lblDialog_3 As label:
+            Align: =Left
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            FocusedBorderColor: =lblDialog_3.BorderColor
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            FontWeight: =Normal
+            Height: =39
+            HoverBorderColor: =lblDialog_3.BorderColor
+            HoverColor: =lblDialog_3.Color
+            HoverFill: =lblDialog_3.Fill
+            PaddingLeft: =0
+            PressedBorderColor: =lblDialog_3.BorderColor
+            PressedColor: =lblDialog_3.Color
+            PressedFill: =lblDialog_3.Fill
+            Size: =16
+            Text: =If(NewOwnerError, "Failed, may be invalid email", "Enter email address of new owner.")
+            VerticalAlign: =VerticalAlign.Top
+            Visible: =showPopUp && showNewOwner
+            Width: =741
+            X: =611
+            Y: =521
+            ZIndex: =60
+
+        btnConfirmDialog_3 As button:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Fill: =RGBA(135, 100, 184, 1)
+            FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+            Font: =Font.'Segoe UI'
+            FontWeight: =Semibold
+            Height: =41
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =RGBA(135, 100, 184, 1)
+            OnSelect: |-
+                =//get new owner guid
+                UpdateContext({NewOwner: IfError(Office365Users.UserProfileV2(txtInput_3.Text).id, "")});
+                
+                //if blank set to error
+                If(IsBlank(NewOwner), UpdateContext({NewOwnerError: true}),
+                
+                //else set new owner and update roles on backend
+                UpdateContext({NewOwnerError: false});
+                UpdateContext({NewOwnerError: 
+                     If('HELPER-ObjectOperationsGov'.Run(NewOwner, vSelectedApp.App, vSelectedApp.'App Environment'.Name, "assign", "app").thereturnstring ="fail", true, false)});
+                
+                //if it worked
+                If(!NewOwnerError,
+                //re-collect the app
+                RemoveIf(myApps, App=vSelectedApp.App);
+                Collect(myApps, LookUp('PowerApps Apps', App=vSelectedApp.App));
+                
+                //update this pages view of ownership
+                ClearCollect(appUserCollection, 
+                    AddColumns( PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedApp.App).value.properties, 
+                    "Picture", If(properties.principal.type = "User" && Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                        Office365Users.UserPhotoV2(properties.principal.id), 
+                    properties.principal.type <> "Tenant", Contact, Org)));
+                ClearCollect(emailAppUserCollection, PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedApp.App).value.properties);
+                
+                //and close the dialog
+                UpdateContext({showPopUp:false, showNewOwner: false})
+                ));
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(RGBA(135, 100, 184, 1), -50%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(btnConfirmDialog_3.Fill, -30%)
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Size: =14
+            Text: ="Assign"
+            Visible: =showPopUp && showNewOwner
+            Width: =173
+            X: =1227
+            Y: =643
+            ZIndex: =61
+
+        btnCancelDialog_3 As button:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Fill: =RGBA(67, 50, 92, 1)
+            FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+            Font: =Font.'Segoe UI'
+            FontWeight: =Semibold
+            Height: =41
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =RGBA(67, 50, 92, 1)
+            OnSelect: =Select(icnExitDialog_3)
+            PaddingBottom: =10
+            PaddingLeft: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(RGBA(135, 100, 184, 1), -50%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(btnCancelDialog_3.Fill, -30%)
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Size: =14
+            Text: ="Cancel"
+            Visible: =showPopUp && showNewOwner
+            Width: =173
+            X: =1038
+            Y: =643
+            ZIndex: =62
+
+        txtInput_3 As text:
+            BorderColor: =RGBA(166, 166, 166, 1)
+            BorderThickness: =2
+            Color: =RGBA(51, 51, 51, 1)
+            Default: =""
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            Height: =60
+            HintText: ="newowner@email.com"
+            HoverBorderColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
+            HoverColor: =RGBA(51, 51, 51, 1)
+            HoverFill: =RGBA(255, 255, 255, 1)
+            PressedBorderColor: =RGBA(135, 100, 184, 1)
+            PressedColor: =RGBA(51, 51, 51, 1)
+            PressedFill: =RGBA(255, 255, 255, 1)
+            RadiusBottomLeft: =0
+            RadiusBottomRight: =0
+            RadiusTopLeft: =0
+            RadiusTopRight: =0
+            Size: =13
+            Visible: =showNewOwner
+            Width: =786
+            X: =611
+            Y: =563
+            ZIndex: =63
 

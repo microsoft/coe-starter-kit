@@ -33,7 +33,32 @@ BotDetailScreen As screen:
         HoverBorderColor: =RGBA(0, 0, 0, 0)
         HoverColor: =RGBA(255, 255, 255, 1)
         HoverFill: =RGBA(135, 100, 184, 1)
-        OnSelect: =SubmitForm(formSupportDetails_2); ResetForm(formSupportDetails_2);
+        OnSelect: |-
+            =//submit data
+            SubmitForm(formSupportDetails_2); Set(vSelectedBot, formSupportDetails_2.LastSubmit); ResetForm(formSupportDetails_2);
+            
+            //check if all requirements met
+            If(And(
+              !IsBlank(vSelectedBot.'Chatbot Description'), 
+              !IsBlank(vSelectedBot.'Maker Requirement - Business Justification'), 
+              !IsBlank(vSelectedBot.'Maker Requirement - Access Management'), 
+              !IsBlank(vSelectedBot.'Maker Requirement - Dependencies'), 
+              !IsBlank(vSelectedBot.'Maker Requirement - Business Impact'), 
+              vSelectedBot.'Mitigation Plan Provided'='Mitigation Plan Provided (PVAS)'.Yes), 
+            
+            //if so, ensure a BPF is started
+            If(CountRows(Filter('Chatbot Approval BPF', Admin_Pva.PVA=vSelectedBot.PVA))=0, Patch('Chatbot Approval BPF', Defaults('Chatbot Approval BPF'), 
+             {Name: "Audit for " & vSelectedBot.'Chatbot Display Name',
+             'Active Stage Started On': Now(),
+             Admin_Pva: vSelectedBot}));
+            
+            //and change state to submitted and recollect the app
+            UpdateIf(PVAS, PVA=vSelectedBot.PVA, {'Admin Requirement - Risk Assessment State': 'Risk Assessment State Choice'.Submitted});
+            RemoveIf(myBots, PVA=vSelectedBot.PVA);
+            Collect(myBots, LookUp(PVAS, PVA=vSelectedBot.PVA));
+            Set(vSelectedBot, LookUp(myBots, PVA=vSelectedBot.PVA))
+            
+            )
         PaddingBottom: =10
         PaddingLeft: =10
         PaddingRight: =10
@@ -48,8 +73,8 @@ BotDetailScreen As screen:
         Size: =14
         Text: ="Submit"
         Width: =187
-        X: =1593
-        Y: =973
+        X: =1550
+        Y: =900
         ZIndex: =7
 
     galBotOptions As gallery.galleryHorizontal:
@@ -446,15 +471,19 @@ BotDetailScreen As screen:
             Items: |-
                 =Table({
                     Title: "Submitted Support Details",
-                    Status: If(vSelectedBot.'Maker Submitted Requirements' <> 'Maker Submitted Requirements (PVAS)'.'1', Orange, LimeGreen)
+                    Tooltip: "Has the admin requested you fill out details? Red = need data, Yellow = Submitted, Green = Complete, Gray = Not Requested",
+                    Status: If(vSelectedBot.'Admin Requirement - Risk Assessment State' = 'Risk Assessment State Choice'.Requested, FireBrick, If(vSelectedBot.'Admin Requirement - Risk Assessment State' = 'Risk Assessment State Choice'.Submitted, Gold, If(vSelectedBot.'Admin Requirement - Risk Assessment State' = 'Risk Assessment State Choice'.Complete, LimeGreen, LightGray)))
+                
                 },
                 {
-                    Title: "Filled out app description",
-                    Status: If(IsBlank(vSelectedBot.'Chatbot Description'), Orange, LimeGreen)
+                    Title: "Filled out bot description",
+                    Tooltip: "Have you filled out the description?",
+                    Status: If(IsBlank(vSelectedBot.'Chatbot Description'), FireBrick, LimeGreen)
                 },
                 {
                     Title:"Chatbot is not suspended",
-                    Status: If(vSelectedBot.'Chatbot State' = "Suspended",Orange, LimeGreen) 
+                    Tooltip: "Is the chatbot suspended?",
+                    Status: If(vSelectedBot.'Chatbot State' = "Suspended", FireBrick, LimeGreen) 
                 })
             Layout: =Layout.Vertical
             LoadingSpinnerColor: =galAppCompliance_2.BorderColor
@@ -487,6 +516,7 @@ BotDetailScreen As screen:
                 PressedFill: =RGBA(0, 0, 0, 0)
                 Size: =11
                 Text: =ThisItem.Title
+                Tooltip: =ThisItem.Tooltip
                 Width: =246
                 X: =23
                 ZIndex: =1
@@ -501,6 +531,7 @@ BotDetailScreen As screen:
                 HoverFill: =icnTrafficLight_2.Fill
                 OnSelect: =Select(Parent)
                 PressedFill: =icnTrafficLight_2.Fill
+                Tooltip: =ThisItem.Tooltip
                 Width: =15
                 Y: =7
                 ZIndex: =2
@@ -1308,6 +1339,7 @@ BotDetailScreen As screen:
                     DisplayMode: =Parent.DisplayMode
                     FocusedBorderThickness: =4
                     Font: =Font.'Segoe UI'
+                    Height: =125
                     HoverColor: =RGBA(51, 51, 51, 1)
                     HoverFill: =RGBA(212, 212, 212, 1)
                     IsInDataCard: =true
