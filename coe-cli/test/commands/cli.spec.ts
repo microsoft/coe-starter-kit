@@ -18,7 +18,7 @@ describe('Add', () => {
         args.name = "Sample"
     
         // Act
-        jest.setTimeout(20000);
+        jest.setTimeout(30000);
         await command.add(args)
 
         // Assert
