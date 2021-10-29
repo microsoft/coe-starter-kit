@@ -4,16 +4,15 @@ import { mock } from 'jest-mock-extended';
 import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
 import winston from 'winston';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
-import { CommandLineHelper } from '../../src/common/cli';
-import * as readline from 'readline';
+
             
 describe('Import', () => {
     test('Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new PowerPlatformCommand(logger);
-        command.getUrl = (url: string) => { return Promise.resolve('{"value":[]}') }
-        command.getBinaryUrl = (url: string) => {
+        command.getUrl = (_url: string) => { return Promise.resolve('{"value":[]}') }
+        command.getBinaryUrl = (_url: string) => {
             return Promise.resolve(Buffer.from(''))
         }
 
@@ -35,14 +34,14 @@ describe('API Import', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new PowerPlatformCommand(logger);
-        command.getUrl = (url: string) => { return Promise.resolve('{"value":[]}') }
-        command.getBinaryUrl = (url: string) => {
+        command.getUrl = (_url: string) => { return Promise.resolve('{"value":[]}') }
+        command.getBinaryUrl = (_url: string) => {
             return Promise.resolve(Buffer.from(''))
         }
         let mockAxios = mock<AxiosStatic>();
         let mockCli = mock<CommandLineHelper>()
         let readline : any = {
-            question: (query: string, callback: (answer: string) => void) => {
+            question: (_query: string, callback: (answer: string) => void) => {
                 // Respond dont want to create connection
                 callback('n')
             }
@@ -52,11 +51,11 @@ describe('API Import', () => {
         command.cli = mockCli
 
         command.readline = readline
-        command.outputText = (text: string) => {}
+        command.outputText = (_text: string) => {}
 
         mockCli.validateAzCliReady.mockResolvedValue(true)
 
-        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+        mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
             response = mockResponse(url, '/solutions', { value: [] })
             if (response != null ) {
@@ -88,7 +87,9 @@ describe('API Import', () => {
                 return response
             }
 
-            response = mockResponse(url, '/connections', { value: [] })
+            response = mockResponse(url, '/connections', { value: [
+
+            ] })
             if (response != null ) {
                 return response
             }
@@ -118,8 +119,8 @@ describe('API Import', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new PowerPlatformCommand(logger);
-        command.getUrl = (url: string) => { return Promise.resolve('{"value":[]}') }
-        command.getBinaryUrl = (url: string) => {
+        command.getUrl = (_url: string) => { return Promise.resolve('{"value":[]}') }
+        command.getBinaryUrl = (_url: string) => {
             return Promise.resolve(Buffer.from(''))
         }
         let mockAxios = mock<AxiosStatic>();
@@ -135,7 +136,7 @@ describe('API Import', () => {
             clientSecret: "VALUE"
         })
 
-        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+        mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
             response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
             if (response != null ) {
@@ -179,7 +180,30 @@ describe('API Import', () => {
                 return response
             }
 
+            if ( url.indexOf('/solutioncomponentdefinitions') > 0 ) {
+                response = mockResponse(url, '/solutioncomponentdefinitions', { value: [{
+                    "solutioncomponenttype": 10049
+                }] })
+                return response
+            }
+
+            if ( url.indexOf('/solutioncomponents') > 0 ) {
+                response = mockResponse(url, '/solutioncomponents', { value: [{
+                    "objectid": '7f6187bb-2586-4e5d-b195-2396533999fc'
+                }] })
+                return response
+            }
+
+            if ( url.indexOf('/connectionreferences') > 0 ) {
+                response = mockResponse(url, '/connectionreferences', { value: [{
+                    connectionid: 'ABC',
+                    connectorid: '/shared_test'
+                }] })
+                return response
+            } 
+
             response = mockResponse(url, '/connections', { value: [{
+                name: 'ABC',
                 properties: {
                     createdBy: {
                         id: 'A123'
@@ -222,8 +246,7 @@ describe('API Import', () => {
             return mockResponse(url, '', {})
         })
 
-        mockAxios.patch.mockImplementation((url: string, config: AxiosRequestConfig) => {
-            console.log(url)
+        mockAxios.patch.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response = mockResponse(url, '/apis/CONNECTION1', {
                 status: 'Updated'
             })
@@ -238,6 +261,13 @@ describe('API Import', () => {
         args.endpoint = "prod"
         args.setupPermissions = false
 
+        command.readline = {
+            question: (question: string, callback: any) => {
+                callback('y')
+            },
+            close: () => {}
+        }
+
         // Act
         
         await command.importSolution(args)
@@ -247,11 +277,13 @@ describe('API Import', () => {
     })
 
     test('Solution found - New Connection', async () => {
+
         // Arrange
         let logger = mock<winston.Logger>()
+        
         var command = new PowerPlatformCommand(logger);
-        command.getUrl = (url: string) => { return Promise.resolve('{"value":[]}') }
-        command.getBinaryUrl = (url: string) => {
+        command.getUrl = (_url: string) => { return Promise.resolve('{"value":[]}') }
+        command.getBinaryUrl = (_url: string) => {
             return Promise.resolve(Buffer.from(''))
         }
         let mockAxios = mock<AxiosStatic>();
@@ -267,7 +299,18 @@ describe('API Import', () => {
             clientSecret: "VALUE"
         })
 
-        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+        let readline : any = {
+            question: (_query: string, callback: (answer: string) => void) => {
+                // Respond want to create connection
+                callback('y')
+            },
+            close: () => {}
+        }
+        command.readline = readline
+
+        let connectionReferencesCount = 0
+
+        mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response : Promise<AxiosResponse<any>> = null
             response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
             if (response != null ) {
@@ -279,6 +322,48 @@ describe('API Import', () => {
                 linkedEnvironmentMetadata: { domainName: "test" }
             }}] })
             if (response != null ) {
+                return response
+            }
+
+            if ( url.indexOf('/solutioncomponentdefinitions') > 0 ) {
+                response = mockResponse(url, '/solutioncomponentdefinitions', { value: [{
+                    "solutioncomponenttype": 10049
+                }] })
+                return response
+            }
+
+            if ( url.indexOf('/solutioncomponents') > 0 ) {
+                response = mockResponse(url, '/solutioncomponents', { value: [{
+                    "objectid": '7f6187bb-2586-4e5d-b195-2396533999fc'
+                }] })
+                return response
+            }
+
+            if ( url.indexOf('/connectionreferences') > 0 && connectionReferencesCount == 0 ) {
+                response = mockResponse(url, '/connectionreferences', { value: [{
+                    connectionid: null,
+                    connectorid: '/shared_test',
+                     properties: {
+                        createdBy: {
+                            id: "U123"
+                        }
+                    }
+                }] })
+                connectionReferencesCount++
+                return response
+            } 
+
+            if ( url.indexOf('/connectionreferences') > 0 && connectionReferencesCount > 0 ) {
+                response = mockResponse(url, '/connectionreferences', { value: [{
+                    connectionid: 'ABC',
+                    connectorid: '/shared_test',
+                    properties: {
+                        createdBy: {
+                            id: "U123"
+                        }
+                    }
+                }] })
+                connectionReferencesCount++
                 return response
             }
 
@@ -307,10 +392,11 @@ describe('API Import', () => {
 
             response = mockResponse(url, '/connections', { value: [{
                 properties: {
+                    name: 'ABC',
                     createdBy: {
                         id: 'A123'
                     },
-                    apiId: 'http://text.crm.dynamics.com/apis/shared_commondataservice'
+                    apiId: 'http://text.crm.dynamics.com/apis/shared_test'
                 }
             }] })
 
@@ -348,8 +434,7 @@ describe('API Import', () => {
             return mockResponse(url, '', {})
         })
 
-        mockAxios.patch.mockImplementation((url: string, config: AxiosRequestConfig) => {
-            console.log(url)
+        mockAxios.patch.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response = mockResponse(url, '/apis/CONNECTION1', {
                 status: 'Updated'
             })
@@ -455,7 +540,7 @@ describe('Share', () => {
 
         args.endpoint = "prod"
 
-        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+        mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response = {}
             if (url.indexOf('api/data/v9.0/msdyn_solutioncomponentsummaries') > 0) {
                 response = [
@@ -490,7 +575,7 @@ describe('Share', () => {
         command.getAxios = () => mockAxios
         command.createAADCommand = () => mockAADcommand
 
-        mockAxios.get.mockImplementation((url: string, config: AxiosRequestConfig) => {
+        mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
             let response = {}
             if (url.indexOf('api/data/v9.0/msdyn_solutioncomponentsummaries') > 0) {
                 response = [
