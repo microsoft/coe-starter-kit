@@ -10,6 +10,15 @@
         },
         "runtimeSource": "embedded"
       },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
       "shared_powerappsforadmins": {
         "api": {
           "name": "shared_powerappsforadmins"
@@ -74,7 +83,7 @@
           "cases": {
             "Case_assign": {
               "actions": {
-                "Mark_app_owner_in_CoE": {
+                "Get_app_old_owner": {
                   "inputs": {
                     "authentication": {
                       "type": "Raw",
@@ -83,12 +92,11 @@
                     "host": {
                       "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
                       "connectionName": "shared_commondataserviceforapps",
-                      "operationId": "UpdateRecord"
+                      "operationId": "GetItem"
                     },
                     "parameters": {
+                      "$select": "_admin_appowner_value",
                       "entityName": "admin_apps",
-                      "item/admin_AppOwner@odata.bind": "admin_makers(@{triggerBody()['text']})",
-                      "item/cr5d5_appisorphaned": "no",
                       "recordId": "@triggerBody()['text_1']"
                     },
                     "retryPolicy": {
@@ -97,12 +105,488 @@
                       "type": "exponential"
                     }
                   },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "If_set_new_owner,_update_inventory": {
+                  "actions": {
+                    "Ensure_New_Owner_is_in_Maker_and_User_tables": {
+                      "actions": {
+                        "Add_to_Maker_Table_if_not_yet_present": {
+                          "actions": {
+                            "Add_a_new_maker": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "CreateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "item/admin_city": "@outputs('Get_new_Maker')?['body/city']",
+                                  "item/admin_company": "@outputs('Get_new_Maker')?['body/companyName']",
+                                  "item/admin_country": "@outputs('Get_new_Maker')?['body/country']",
+                                  "item/admin_department": "@outputs('Get_new_Maker')?['body/department']",
+                                  "item/admin_displayname": "@outputs('Get_new_Maker')?['body/displayName']",
+                                  "item/admin_jobtitle": "@outputs('Get_new_Maker')?['body/jobTitle']",
+                                  "item/admin_makerid": "@triggerBody()['text']",
+                                  "item/admin_office": "@outputs('Get_new_Maker')?['body/officeLocation']",
+                                  "item/admin_userisserviceprinciple": false,
+                                  "item/admin_userprincipalname": "@outputs('Get_new_Maker')?['body/userPrincipalName']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Get_new_Maker": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Get_new_Maker": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                  "connectionName": "shared_office365users",
+                                  "operationId": "UserProfile_V2"
+                                },
+                                "parameters": {
+                                  "id": "@triggerBody()['text']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@length(outputs('List_new_owner_from_Maker_Table')?['body/value'])",
+                              0
+                            ]
+                          },
+                          "runAfter": {
+                            "List_new_owner_from_Maker_Table": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "Add_to_User_Table_if_not_yet_present": {
+                          "actions": {
+                            "Add_a_new_user": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "CreateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_powerplatformusers",
+                                  "item/admin_company": "@outputs('Get_new_User')?['body/companyName']",
+                                  "item/admin_department": "@outputs('Get_new_User')?['body/department']",
+                                  "item/admin_displayname": "@outputs('Get_new_User')?['body/displayName']",
+                                  "item/admin_groupsize": 1,
+                                  "item/admin_powerplatformuserid": "@triggerBody()['text']",
+                                  "item/admin_type": "User",
+                                  "item/admin_userprincipalname": "@outputs('Get_new_User')?['body/userPrincipalName']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {
+                                "Get_new_User": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "OpenApiConnection"
+                            },
+                            "Get_new_User": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                                  "connectionName": "shared_office365users",
+                                  "operationId": "UserProfile_V2"
+                                },
+                                "parameters": {
+                                  "id": "@triggerBody()['text']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@length(outputs('List_new_owner_from_User_Table')?['body/value'])",
+                              0
+                            ]
+                          },
+                          "runAfter": {
+                            "List_new_owner_from_User_Table": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "If"
+                        },
+                        "List_new_owner_from_Maker_Table": {
+                          "inputs": {
+                            "authentication": {
+                              "type": "Raw",
+                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "ListRecords"
+                            },
+                            "parameters": {
+                              "$filter": "admin_makerid eq @{triggerBody()['text']}",
+                              "$select": "admin_makerid",
+                              "entityName": "admin_makers"
+                            }
+                          },
+                          "runAfter": {},
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        },
+                        "List_new_owner_from_User_Table": {
+                          "inputs": {
+                            "authentication": {
+                              "type": "Raw",
+                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                            },
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "ListRecords"
+                            },
+                            "parameters": {
+                              "$filter": "admin_powerplatformuserid eq @{triggerBody()['text']}",
+                              "$select": "admin_powerplatformuserid",
+                              "entityName": "admin_powerplatformusers"
+                            }
+                          },
+                          "runAfter": {
+                            "Add_to_Maker_Table_if_not_yet_present": [
+                              "Succeeded"
+                            ]
+                          },
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          },
+                          "type": "OpenApiConnection"
+                        }
+                      },
+                      "runAfter": {},
+                      "type": "Scope"
+                    },
+                    "List_Role_for_new_owner": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "_admin_app_value eq @{triggerBody()['text_1']} and _admin_powerplatformuser_value eq @{triggerBody()['text']}",
+                          "$select": "admin_powerplatformuserroleid",
+                          "entityName": "admin_powerplatformuserroles"
+                        }
+                      },
+                      "runAfter": {
+                        "Update_or_Insert_Old_Owner_Role": [
+                          "Succeeded"
+                        ]
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "List_Role_for_old_owner": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "_admin_app_value eq @{triggerBody()['text_1']} and _admin_powerplatformuser_value eq @{outputs('Get_app_old_owner')?['body/_admin_appowner_value']}",
+                          "$select": "admin_powerplatformuserroleid",
+                          "entityName": "admin_powerplatformuserroles"
+                        }
+                      },
+                      "runAfter": {
+                        "Mark_app_owner_in_CoE": [
+                          "Succeeded"
+                        ]
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Mark_app_owner_in_CoE": {
+                      "inputs": {
+                        "authentication": {
+                          "type": "Raw",
+                          "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_apps",
+                          "item/admin_AppOwner@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                          "item/cr5d5_appisorphaned": "no",
+                          "recordId": "@triggerBody()['text_1']"
+                        },
+                        "retryPolicy": {
+                          "count": 10,
+                          "interval": "PT10S",
+                          "type": "exponential"
+                        }
+                      },
+                      "runAfter": {
+                        "Ensure_New_Owner_is_in_Maker_and_User_tables": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Update_or_Insert_New_Owner_Role": {
+                      "actions": {
+                        "Mark_it_Owner": {
+                          "actions": {
+                            "Mark_new_owner_as_Owner": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_powerplatformuserroles",
+                                  "item/admin_App@odata.bind": "admin_apps(@{triggerBody()['text_1']})",
+                                  "item/admin_resourcetype": "App",
+                                  "item/admin_rolename": "Owner",
+                                  "recordId": "@items('Mark_it_Owner')?['admin_powerplatformuserroleid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_Role_for_new_owner')?['body/value']",
+                          "runAfter": {},
+                          "type": "Foreach"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Add_owner_as_owner_role": {
+                            "inputs": {
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "CreateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_powerplatformuserroles",
+                                "item/admin_App@odata.bind": "admin_apps(@{triggerBody()['text_1']})",
+                                "item/admin_PowerPlatformUser@odata.bind": "admin_powerplatformusers(@{triggerBody()['text']})",
+                                "item/admin_name": "@concat(triggerBody()['text'], triggerBody()['text_1'])",
+                                "item/admin_resourcetype": "App",
+                                "item/admin_resourceuserlink": "@concat(triggerBody()['text'], triggerBody()['text_1'])",
+                                "item/admin_rolename": "Owner"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(outputs('List_Role_for_new_owner')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "runAfter": {
+                        "List_Role_for_new_owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    },
+                    "Update_or_Insert_Old_Owner_Role": {
+                      "actions": {
+                        "Mark_it_Editor": {
+                          "actions": {
+                            "Mark_old_owner_as_Editor": {
+                              "inputs": {
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_powerplatformuserroles",
+                                  "item/admin_App@odata.bind": "admin_apps(@{triggerBody()['text_1']})",
+                                  "item/admin_resourcetype": "App",
+                                  "item/admin_rolename": "CanEdit",
+                                  "recordId": "@items('Mark_it_Editor')?['admin_powerplatformuserroleid']"
+                                },
+                                "retryPolicy": {
+                                  "count": 10,
+                                  "interval": "PT10S",
+                                  "type": "exponential"
+                                }
+                              },
+                              "runAfter": {},
+                              "type": "OpenApiConnection"
+                            }
+                          },
+                          "foreach": "@outputs('List_Role_for_old_owner')?['body/value']",
+                          "runAfter": {},
+                          "type": "Foreach"
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Add_old_owner_as_editor_role": {
+                            "inputs": {
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "CreateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_powerplatformuserroles",
+                                "item/admin_App@odata.bind": "admin_apps(@{triggerBody()['text_1']})",
+                                "item/admin_PowerPlatformUser@odata.bind": "admin_powerplatformusers(@{triggerBody()['text']})",
+                                "item/admin_name": "@concat(outputs('Get_app_old_owner')?['body/_admin_appowner_value'], triggerBody()['text_1'])",
+                                "item/admin_resourcetype": "App",
+                                "item/admin_resourceuserlink": "@concat(outputs('Get_app_old_owner')?['body/_admin_appowner_value'], triggerBody()['text_1'])",
+                                "item/admin_rolename": "CanEdit"
+                              },
+                              "retryPolicy": {
+                                "count": 10,
+                                "interval": "PT10S",
+                                "type": "exponential"
+                              }
+                            },
+                            "runAfter": {},
+                            "type": "OpenApiConnection"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(outputs('List_Role_for_old_owner')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "runAfter": {
+                        "List_Role_for_old_owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('ReturnValue')",
+                      "pass"
+                    ]
+                  },
                   "runAfter": {
-                    "Set_ReturnValue_to_fail_if_failed_-_assign": [
+                    "Set_ReturnValue_to_fail_if_fail_-_assign": [
+                      "Succeeded",
                       "Skipped"
                     ]
                   },
-                  "type": "OpenApiConnection"
+                  "type": "If"
                 },
                 "Set_App_Owner": {
                   "inputs": {
@@ -129,10 +613,14 @@
                       "type": "exponential"
                     }
                   },
-                  "runAfter": {},
+                  "runAfter": {
+                    "Get_app_old_owner": [
+                      "Succeeded"
+                    ]
+                  },
                   "type": "OpenApiConnection"
                 },
-                "Set_ReturnValue_to_fail_if_failed_-_assign": {
+                "Set_ReturnValue_to_fail_if_fail_-_assign": {
                   "inputs": {
                     "name": "ReturnValue",
                     "value": "fail"
@@ -275,7 +763,7 @@
                     "assign",
                     "delete"
                   ],
-                  "title": "Input 3",
+                  "title": "action",
                   "type": "string",
                   "x-ms-content-hint": "TEXT",
                   "x-ms-dynamically-added": true
