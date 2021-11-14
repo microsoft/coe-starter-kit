@@ -168,7 +168,7 @@ class CoeCliCommands {
             renderer: new TerminalRenderer()
         });
 
-        this.outputText(marked(text))
+        this.outputText(marked.marked(text))
     }
 
     AddALMAcceleratorForAdvancedMakerCommands(program: commander.Command) {
@@ -878,7 +878,7 @@ class CoeCliCommands {
             this.logger?.debug("Markdown help file found")
             let markdown = await this.readFile(markdownFile, 'utf-8')
 
-            const tokens = marked.lexer(markdown);
+            const tokens = marked.Lexer.lex(markdown);
             let inCommand = false
             let commandDepth: number
 

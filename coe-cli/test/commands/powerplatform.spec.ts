@@ -1,10 +1,10 @@
 "use strict";
 import { PowerPlatformImportSolutionArguments, PowerPlatformCommand, Solution, Component, ComponentPermissions } from '../../src/commands/powerplatform';
 import { mock } from 'jest-mock-extended';
-import { AxiosRequestConfig, AxiosStatic, AxiosResponse } from 'axios';
+import { AxiosRequestConfig, AxiosStatic, AxiosResponse, AxiosResponseHeaders } from 'axios';
 import winston from 'winston';
 import { AADAppSecret, AADCommand } from '../../src/commands/aad';
-
+import { CommandLineHelper } from '../../src/common/cli';
             
 describe('Import', () => {
     test('Default', async () => {
@@ -633,7 +633,7 @@ function mockResponse(url:string, contains: string, data: any) : Promise<AxiosRe
                     data: data,
                     status: 200,
                     statusText: "OK",
-                    headers: [],
+                    headers: null,
                     config: {}
                 };
         return Promise.resolve(response)
