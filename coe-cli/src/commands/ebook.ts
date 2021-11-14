@@ -48,7 +48,7 @@ class EbookCommand {
             tocLevels.push(0)
         }
 
-        marked.use({
+        marked.marked.use({
             pedantic: false,
             gfm: true,
             breaks: false,
@@ -87,14 +87,14 @@ class EbookCommand {
 
             let file = path.normalize(path.join(docsPath, lines[i]))
             let md = await this.readFile(file, 'utf-8')
-            let tokens = marked.lexer(md)
+            let tokens = marked.Lexer.lex(md)
             let fileid = lines[i].replace(/\//g, '-').replace(".md", '')
 
             this.logger?.debug(`Importing ${file}`)
 
             fileReferences[fileid] = []
     
-            marked.walkTokens(tokens, (token) => {
+            marked.marked.walkTokens(tokens, (token) => {
                 
                 if ( token.type == "image" ) {
                     if ( !path.isAbsolute(token.href) && !token.href.startsWith('http') ) {
@@ -150,7 +150,7 @@ class EbookCommand {
                         return
                     }
                     if ( !path.isAbsolute(token.href) && !token.href.startsWith('http') ) {
-                        let href = (<any>marked.lexer(token.raw.replace(/\\/g,'/'))[0]).tokens[0].href
+                        let href = (<any>marked.Lexer.lex(token.raw.replace(/\\/g,'/'))[0]).tokens[0].href
                         let relativePath = slash(path.normalize(path.join(path.dirname(file), href)))
                         
                         let offset = "./"

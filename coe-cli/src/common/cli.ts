@@ -1,4 +1,4 @@
-import { exec, execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
+import { exec } from 'child_process';
 import * as winston from 'winston';
 import { Prompt } from './prompt';
 
