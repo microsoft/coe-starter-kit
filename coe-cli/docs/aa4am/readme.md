@@ -1,6 +1,6 @@
 # ALM Accelerator for Advanced Makers
 
-The [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) (AA4AM) 
+The [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/CenterofExcellenceALMAccelerator) (AA4AM) 
 command allows you to manage common Application Lifecycle Management (ALM) tasks for Advanced Makers to install, setup and administration of Power Platform Solutions. 
 
 - [Quick Start](#quick-start) - Guides you through the process of a [demo tenant install](./scenarios/tenant-deployments.md#demonstration-deployment)
@@ -32,7 +32,7 @@ coe aa4am install -f quickstart.json
 
    If you are deploying to your enterprise refer to [Enterprise Deployment](./scenarios/tenant-deployments.md#enterprise-deployment) for further information.
 
-1. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
+1. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
 
 1. Have Advanced Makers create [development environments](./development-environments.md) then Add Advanced Makers to Azure DevOps and share the Canvas Application
 
@@ -59,7 +59,7 @@ coe aa4am maker add \
 
 ## Understand the Concepts
 
-Not sure what AA4AM is and how it can help? The main GitHub project [README](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/README.md) provides further context and examples of usage.
+Not sure what AA4AM is and how it can help? The main GitHub project [README](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/README.md) provides further context and examples of usage.
 
 ### Getting Started
 
@@ -95,9 +95,9 @@ Notes:
 
 ### Read Next
 
-- [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/ALMAcceleratorForAdvancedMakers) - Overview for AA4AM
+- [ALM Accelerator for Advanced Makers](https://github.com/microsoft/coe-starter-kit/tree/main/CenterofExcellenceALMAccelerator) - Overview for AA4AM
 - Manual Setup - Understand the key steps that the CLI is automating
-  - [Foundational Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#foundational-setup) - Foundational Setup for Manual steps automated by the CLI install command
-  - [Development Project Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#development-project-setup) - Documents the Manual steps that are automated by the CLI install command
-  - [Solution Setup](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#solution-setup) - Documents the manual steps to setup Azure DevOps that are performed by the CLI install command
-  - [Importing Solution](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#importing-the-solution-and-configuring-the-app) - Documents the manual steps to import the managed solution that are performed by the CLI install command
+  - [Foundational Setup](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/SETUPGUIDE.md#foundational-setup) - Foundational Setup for Manual steps automated by the CLI install command
+  - [Development Project Setup](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/SETUPGUIDE.md#development-project-setup) - Documents the Manual steps that are automated by the CLI install command
+  - [Solution Setup](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/SETUPGUIDE.md#solution-setup) - Documents the manual steps to setup Azure DevOps that are performed by the CLI install command
+  - [Importing Solution](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/SETUPGUIDE.md#importing-the-solution-and-configuring-the-app) - Documents the manual steps to import the managed solution that are performed by the CLI install command
