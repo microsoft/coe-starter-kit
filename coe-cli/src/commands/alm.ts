@@ -152,8 +152,8 @@ class ALMCommand {
 
     let github = this.createGitHubCommand();
     let gitHubArguments = new GitHubReleaseArguments();
-    gitHubArguments.type = 'aa4am'
-    gitHubArguments.asset = 'ALMAcceleratorForMakers'
+    gitHubArguments.type = 'alm'
+    gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
     importArgs.sourceLocation = await github.getRelease(gitHubArguments)
     importArgs.importMethod = args.importMethod
     importArgs.endpoint = args.endpoint
