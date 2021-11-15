@@ -42,6 +42,7 @@ class CoeCliCommands {
         if (typeof logger === "undefined") {
             this.logger = logger
         }
+        
         this.createLoginCommand = () => new LoginCommand(this.logger)
         this.createALMCommand = () => new ALMCommand(this.logger)
         this.createDevOpsCommand = () => new DevOpsCommand(this.logger)
