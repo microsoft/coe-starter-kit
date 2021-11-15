@@ -1,12 +1,12 @@
 ## Maturity Model
 
-The [Power CAT adoption maturity model](https://powerapps.microsoft.com/en-us/blog/power-cat-adoption-maturity-model-repeatable-patterns-for-successful-power-platform-adoption/) provides a set of levels and capabilities that can be used to evaluate usage of the Application Lifecycle Management (ALM) and how the ALM Accelerator for Advanced Makers (AA4AM) can assist.
+The [Power CAT adoption maturity model](https://powerapps.microsoft.com/en-us/blog/power-cat-adoption-maturity-model-repeatable-patterns-for-successful-power-platform-adoption/) provides a set of levels and capabilities that can be used to evaluate usage of the Application Lifecycle Management (ALM) and how the ALM Accelerator can assist.
 
 ### Quick Start
 
 ![Decision Tree](./decision-tree.png)
 
-AA4AM is a good match if you can check to see if the following apply:
+ALM is a good match if you can check to see if the following apply:
 
 - What is the impact of the solution?
    - Are the applications classified as Critical or High [Business Impact](#business-impact)?
@@ -22,7 +22,7 @@ AA4AM is a good match if you can check to see if the following apply:
   - Do you use Azure DevOps or can you integrate with Azure DevOps for Source Control and Build Pipelines?
   - Do you have license prerequisites in place?
     - Do you have Basic or above Azure DevOps licenses for Makers?
-    - Per App or Per User Power Apps licenses to access the AA4AM Maker Solution?
+    - Per App or Per User Power Apps licenses to access the ALM Maker Solution?
 - Are you looking to move to [Level 300 - Defined](#level-300-defined) or beyond
 - Administration
     - Do you have Environment Strategy in place?
@@ -43,7 +43,7 @@ AA4AM is a good match if you can check to see if the following apply:
   - Who is supporting the application / solution?
   - Do you have formal support team to manage issues for the solution?
 
-Where some gaps exist then a set of proactive training and or workshops can help grow the maturity of people, process and technology to assist them in moving toward Advanced Maker integration inside your organization.
+Where some gaps exist then a set of proactive training and or workshops can help grow the maturity of people, process and technology to assist them in moving toward Maker integration inside your organization.
 
 ### Understand the Concepts
 
@@ -224,13 +224,13 @@ Leading questions to consider
 
 #### Nurture and Citizen Makers
 
-- Do you have a [Training and Upskilling](https://docs.microsoft.com/power-platform/guidance/adoption/training-strategy) program for your makers to help them learn key concepts to grow your pool of Advanced Makers?
+- Do you have a [Training and Upskilling](https://docs.microsoft.com/power-platform/guidance/adoption/training-strategy) program for your makers to help them learn key concepts to grow your pool of Makers?
 - Do you have an Internal [Champions](https://docs.microsoft.com/en-us/power-platform/guidance/adoption/champions) Community established?
 - Do you have the [CoE Starter Kit – Nurture](https://docs.microsoft.com/power-platform/guidance/coe/nurture-components) module adopted?
-- Do you have show and Tell sessions to demonstrate Advanced Maker Concepts?
+- Do you have show and Tell sessions to demonstrate Maker Concepts?
 - Do you have an adoption campaign to demonstrate how fusion development processes work?
 - Do you have a career path options for makers?
-- Have you built a community of mentors to share Advanced Maker concepts and best practices?
+- Have you built a community of mentors to share Maker concepts and best practices?
 - Do you have a Common development strategy and goals for Citizen and Professional developers?
 
 #### Automation

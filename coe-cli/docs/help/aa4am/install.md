@@ -1,17 +1,17 @@
-## AA4AM Install Help
+## ALM Install Help
 
-The ALM Accelerator for Advanced Makers (AA4AM) install command allows components to be installed 
+The ALM Accelerator install command allows components to be installed.
 
 ### Examples
 
 ```bash
-coe aa4am install -f install.json
+coe alm install -f install.json
 ```
 
 To generate an install file you can use the [generate install](./generate/install) command
 
 ```bash
-coe aa4am generate install -o install.json
+coe alm generate install -o install.json
 ```
 
 ### Parameters
@@ -27,7 +27,7 @@ Read more https://github.com/winstonjs/winston#logging-levels
 The install configuration parameters file. Example command to generate install configuration file
 
 ```bash
-coe aa4am generate install -o istall.json
+coe alm generate install -o install.json
 ```
 
 ##### -c, --components
@@ -51,7 +51,7 @@ For **aad** or **environment** install the AAD application will be assigned as t
 
 ##### -g, --group
 
-The Azure Active Directory Group name that will be used to grant access to Advanced makers in Azure DevOps and the Power Platform.
+The Azure Active Directory Group name that will be used to grant access to makers in Azure DevOps and the Power Platform.
 
 The group will be created if it does not exists if component **aad** or **all** is selected.
 
@@ -88,7 +88,7 @@ The default value is **pipelines**
 
 ##### -e, --environments
 
-The Power Platform environment where the ALM Accelerator for Advanced Maker solution will be installed. You can enter either the
+The Power Platform environment where the ALM Accelerator for Maker solution will be installed. You can enter either the
 
 1. Organization name e.g. contoso-dev1234. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-dev1234.crm.dynamics.com
@@ -142,7 +142,7 @@ Further reading:
 
 ##### -m, --importMethod
 
-The method to import the managed ALM Accelerator for Advanced Makers into Power Platform environment.
+The method to import the managed ALM Accelerator for Makers into Power Platform environment.
 
 - **api** - The default option that uses the Power Platform APIs to import the solution and fix Dataverse and custom connectors
 

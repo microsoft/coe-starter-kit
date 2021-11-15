@@ -2,20 +2,20 @@
 
 ### Description
 
-Generate configuration file to add an Advanced Maker to an installed the ALM Accelerator for Advanced Makers (AA4AM)
+Generate configuration file to add an Maker to an installed the ALM Accelerator
 
 ### Examples
 
 Example command line
 
 ```bash
-coe aa4am generate maker add -o user.json
+coe alm generate maker add -o user.json
 ```
 
 To use the generated configuration file
 
 ```bash
-coe aa4am maker add \
+coe alm maker add \
     -f user.json
 ```
 

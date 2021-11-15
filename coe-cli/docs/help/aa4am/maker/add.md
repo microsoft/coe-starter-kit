@@ -1,13 +1,13 @@
-## ALM Accelerate for Advanced Makers Add
+## ALM Accelerate for Makers Add
 
 ### Description
 
-Add an Advanced Maker to Azure DevOps and share the canvas application with the user
+Add an Maker to Azure DevOps and share the canvas application with the user
 
 ### Example
 
 ```bash
-coe aa4am maker add \
+coe alm maker add \
     -f user.json
 ```
 
@@ -15,7 +15,7 @@ coe aa4am maker add \
 
 #### -f, --file
 
-The install configuration parameters file from. Refer to the [coe aa4am generate maker](../generate/maker/add.md) for more information.
+The install configuration parameters file from. Refer to the [coe alm generate maker](../generate/maker/add.md) for more information.
 
 #### -o, --devOpsOrganization
 
@@ -36,7 +36,7 @@ The User Principal Name (UPN) of the maker e.g. alan-s\@contoso.com
 
 #### -e, --environment
 
-The Power Platform development environment for the Advanced Makers. You can enter either the
+The Power Platform development environment for the Makers. You can enter either the
 
 1. Organization name e.g. contoso-alans-dev. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-alans-dev.crm.dynamics.com
@@ -45,13 +45,13 @@ You can visit https://aka.ms/ppac to list environments that you have access to.
 
 #### -g, --group
 
-The Azure Active Directory (AAD) Makers group created during install. This user group will allow the Advanced Maker to access the Variable Group required to run Azure DevOps pipelines and share access to the Advanced Maker administration application.
+The Azure Active Directory (AAD) Makers group created during install. This user group will allow the Maker to access the Variable Group required to run Azure DevOps pipelines and share access to the Maker administration application.
 
 Note the user running this command must be the creator or owner of the AAD group. The [Add or remove group owners in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/active-directory-accessmanagement-managing-group-owners) provides more information.
 
 #### --aad <name>
 
-The Azure Active Directory service principal application created during install. The user will be used to create the service connection to a advanced maker development environment.
+The Azure Active Directory service principal application created during install. The user will be used to create the service connection to a maker development environment.
 
 Note the user running this command must be the creator or owner of the AAD application. The [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal) provides more information.
 

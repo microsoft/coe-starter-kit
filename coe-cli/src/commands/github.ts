@@ -28,10 +28,10 @@ class GitHubCommand {
           });
 
         switch ( args.type ) {
-            case 'aa4am': {
-                let aa4amRelease = results.data.filter((r: any) => r.name.indexOf('Advanced Makers') >= 0);
-                if (aa4amRelease.length > 0) {
-                    let asset = aa4amRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
+            case 'alm': {
+                let almRelease = results.data.filter((r: any) => r.name.indexOf('Advanced Makers') >= 0);
+                if (almRelease.length > 0) {
+                    let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
                     if (asset.length > 0) {
                         return asset[0].browser_download_url
                     } 

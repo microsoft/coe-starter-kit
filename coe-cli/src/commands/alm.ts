@@ -13,9 +13,9 @@ import * as winston from 'winston';
 import { Environment } from '../common/enviroment'
 
 /**
- * ALM Accelereator for Advanced Makers commands
+ * ALM Accelereator for Makers commands
  */
-class AA4AMCommand {
+class ALMCommand {
   createLoginCommand: () => LoginCommand
   createDynamicsWebApi: (config:DynamicsWebApi.Config) => DynamicsWebApi
   createAADCommand: () => AADCommand
@@ -67,10 +67,10 @@ class AA4AMCommand {
   }
 
   /**
-   * Install the components required to run the ALM Accelerator for Advanced Makers
-   * @param args {AA4AMInstallArguments} - The install parameters
+   * Install the components required to run the ALM Accelerator for Makers
+   * @param args {ALMInstallArguments} - The install parameters
    */
-  async install(args: AA4AMInstallArguments) : Promise<void> { 
+  async install(args: ALMInstallArguments) : Promise<void> { 
     args.accessTokens = await this.getAccessTokens(args)
 
     if (args.components?.filter(a => a == "all" || a == "aad").length > 0) {
@@ -91,7 +91,7 @@ class AA4AMCommand {
    * @param args 
    * @returns 
    */
-  async installAADApplication(args: AA4AMInstallArguments) : Promise<void> {
+  async installAADApplication(args: ALMInstallArguments) : Promise<void> {
     let aad = this.createAADCommand()
 
     this.logger?.info("Install AAD application")
@@ -109,7 +109,7 @@ class AA4AMCommand {
     aad.installAADGroup(install)
   }
 
-  async installDevOpsComponents(args: AA4AMInstallArguments) : Promise<void> {
+  async installDevOpsComponents(args: ALMInstallArguments) : Promise<void> {
     this.logger?.info("Install DevOps Components")
 
     let command = this.createDevOpsCommand();
@@ -132,10 +132,10 @@ class AA4AMCommand {
   }
 
   /**
-   * Import the latest version of the ALM Accelerator For Advanced Makers managed solution
+   * Import the latest version of the ALM Accelerator For Makers managed solution
    * @param args 
    */
-  async installPowerPlatformComponents(args: AA4AMInstallArguments) : Promise<void> {
+  async installPowerPlatformComponents(args: ALMInstallArguments) : Promise<void> {
     this.logger?.info("Install PowerPlatform Components")
 
     let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
@@ -153,7 +153,7 @@ class AA4AMCommand {
     let github = this.createGitHubCommand();
     let gitHubArguments = new GitHubReleaseArguments();
     gitHubArguments.type = 'aa4am'
-    gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
+    gitHubArguments.asset = 'ALMAcceleratorForMakers'
     importArgs.sourceLocation = await github.getRelease(gitHubArguments)
     importArgs.importMethod = args.importMethod
     importArgs.endpoint = args.endpoint
@@ -172,7 +172,7 @@ class AA4AMCommand {
     }
 
     for ( var i = 0; i < environments.length; i++ ) {
-      let userArgs = new AA4AMUserArguments()
+      let userArgs = new ALMUserArguments()
       userArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
       userArgs.environment = environments[i]
       userArgs.settings = args.settings
@@ -190,7 +190,7 @@ class AA4AMCommand {
    * Add maker to Azure DevOps with service connection and maker user AAD group
    * @param args 
    */
-  async addMaker(args: AA4AMMakerAddArguments) : Promise<void> {
+  async addMaker(args: ALMMakerAddArguments) : Promise<void> {
     
     let devOps = this.createDevOpsCommand()
     let install = new DevOpsInstallArguments()
@@ -204,7 +204,7 @@ class AA4AMCommand {
     install.endpoint = args.endpoint
     install.environment = args.environment
 
-    await devOps.createAdvancedMakersServiceConnections(install, null, false)
+    await devOps.createMakersServiceConnections(install, null, false)
 
     let aad = this.createAADCommand()
     aad.addUserToGroup(args.user, args.azureActiveDirectoryMakersGroup)
@@ -213,11 +213,11 @@ class AA4AMCommand {
   /**
    * Add Application user to Power Platform Dataverse environment 
    *
-   * @param args {AA4AMBranchArguments} - User request
+   * @param args {ALMBranchArguments} - User request
    * @return - async outcome
    *
    */
-   async addUser(args: AA4AMUserArguments) : Promise<void> {    
+   async addUser(args: ALMUserArguments) : Promise<void> {    
       let accessTokens = await this.getAccessTokens(args)
 
       let id = args.id
@@ -325,11 +325,11 @@ class AA4AMCommand {
   /**
    * Login and Branch an Azure DevOps repository 
    *
-   * @param args {AA4AMBranchArguments} - The branch request
+   * @param args {ALMBranchArguments} - The branch request
    * @return - async outcome
    *
    */
-  async branch(args: AA4AMBranchArguments) : Promise<void> {
+  async branch(args: ALMBranchArguments) : Promise<void> {
     let tokens = await this.getAccessTokens(args)
 
     this.logger?.info("Setup branch")
@@ -386,9 +386,9 @@ class AA4AMCommand {
 }
 
 /**
- * ALM Accelerator for Advanced Makers User Arguments
+ * ALM Accelerator for Makers User Arguments
  */
- class AA4AMInstallArguments {
+ class ALMInstallArguments {
   constructor() {
      this.environments = {}
      this.endpoint = "prod"
@@ -474,9 +474,9 @@ class AA4AMCommand {
 }
 
 /**
- * ALM Accelerator for Advanced Makers User Arguments
+ * ALM Accelerator for Makers User Arguments
  */
-class AA4AMUserArguments {
+class ALMUserArguments {
   constructor() {
     this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
     this.settings = {}
@@ -519,9 +519,9 @@ class AA4AMUserArguments {
 }
 
 /**
- * ALM Accelerator for Advanced Makers Add Arguments
+ * ALM Accelerator for Makers Add Arguments
  */
- class AA4AMMakerAddArguments {
+ class ALMMakerAddArguments {
   constructor() {
     this.settings = {}
   }
@@ -568,9 +568,9 @@ class AA4AMUserArguments {
 }
 
 /**
- * ALM Accelerator for Advanced Makers Branch Arguments
+ * ALM Accelerator for Makers Branch Arguments
  */
-class AA4AMBranchArguments {
+class ALMBranchArguments {
   constructor() {
     this.clientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
     this.settings = {}
@@ -592,17 +592,17 @@ class AA4AMBranchArguments {
   organizationName: string
 
   /**
-   * The Azure DevOps project name that AA4AM installed ot
+   * The Azure DevOps project name that ALM installed ot
    */
   projectName: string
 
   /**
-   * The Azure repo name that AA4AM installed to
+   * The Azure repo name that ALM installed to
    */
   repositoryName: string;
 
    /**
-   * The Azure repo name that contains AA4AM pipeline templates
+   * The Azure repo name that contains ALM pipeline templates
    */
   pipelineRepository: string
 
@@ -628,9 +628,9 @@ class AA4AMBranchArguments {
 }
 
 export { 
-  AA4AMBranchArguments,
-  AA4AMInstallArguments,
-  AA4AMUserArguments,
-  AA4AMMakerAddArguments,
-  AA4AMCommand
+  ALMBranchArguments,
+  ALMInstallArguments,
+  ALMUserArguments,
+  ALMMakerAddArguments,
+  ALMCommand
 };

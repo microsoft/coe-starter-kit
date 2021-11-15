@@ -1,8 +1,8 @@
 ## Key Concepts
 
-As you deploy and use the AA4AM CLI it is important to understand the following key concepts that the CLI is automating.
+As you deploy and use the ALM command line interface (CLI) it is important to understand the following key concepts that the CLI is automating.
 
-### Azure Active Directory 
+### Azure Active Directory
 
 #### Azure Active Directory Application
 
@@ -72,7 +72,7 @@ The install performs the following key steps:
 
 #### Branch Automation
 
-The [coe aa4am branch](./maker-setup.md#create-solution-branch) command performs the following steps
+The [coe alm branch](./maker-setup.md#create-solution-branch) command performs the following steps
 
 1. Create a new branch to store the Solution
 
@@ -82,11 +82,11 @@ The [coe aa4am branch](./maker-setup.md#create-solution-branch) command performs
 
 #### Other Concepts
 
-In addition to install automation the following concepts are also assumed for Advanced Makers
+In addition to install automation the following concepts are also assumed for Makers
 
 1. A git [branching strategy](./branching-and-merging.md)
 
-  - The AA4AM assumes a branch per solution
+  - The ALM components assumes a branch per solution
 
   - Changes merged back into main branch can be promoted to production environment
 
@@ -98,7 +98,7 @@ In addition to install automation the following concepts are also assumed for Ad
 
 The CoE CLI provides the following key steps.
 
-1. Import Managed solution into environment to allow Advanced Makers to Manage git import, create branches, pull requests and updates to test and production.
+1. Import Managed solution into environment to allow Makers to Manage git import, create branches, pull requests and updates to test and production.
 
 2. Fix Custom Connectors used to connect to Azure DevOps
 

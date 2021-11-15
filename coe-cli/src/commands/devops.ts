@@ -69,7 +69,7 @@ class DevOpsCommand {
 
     /**
      * 
-     * @param args Install components required to run AA4AM using Azure CLI commands
+     * @param args Install components required to run ALM using Azure CLI commands
      * @returns 
      */
     async install(args: DevOpsInstallArguments): Promise<void> {
@@ -96,13 +96,13 @@ class DevOpsCommand {
         let repo = await this.importPipelineRepository(args, connection)
 
         if (repo !== null) {
-            await this.createAdvancedMakersBuildPipelines(args, connection, repo)
+            await this.createMakersBuildPipelines(args, connection, repo)
 
             let securityContext = await this.setupSecurity(args, connection)
     
-            await this.createAdvancedMakersBuildVariables(args, connection, securityContext)
+            await this.createMakersBuildVariables(args, connection, securityContext)
     
-            await this.createAdvancedMakersServiceConnections(args, connection)    
+            await this.createMakersServiceConnections(args, connection)    
         }
     }
 
@@ -138,12 +138,12 @@ class DevOpsCommand {
         let groupJson = await query.readBody()
         let groups = JSON.parse(groupJson)
 
-        let groupMatch = groups.value.filter((g: GraphGroup) => g.displayName == "ALM Accelerator for Advanced Makers")
+        let groupMatch = groups.value.filter((g: GraphGroup) => g.displayName == "ALM Accelerator for Makers")
         let almGroup: GraphGroup;
         if (groupMatch.length == 0) {
             let newGroup = {
-                "displayName": "ALM Accelerator for Advanced Makers",
-                "description": "Members of this group will be able to access resources required for operation of the ALM Accelerator for Advanced Makers",
+                "displayName": "ALM Accelerator for Makers",
+                "description": "Members of this group will be able to access resources required for operation of the ALM Accelerator for Makers",
                 "storageKey": "",
                 "crossProject": false,
                 "descriptor": "",
@@ -163,7 +163,7 @@ class DevOpsCommand {
         let makerAADGroup = await this.getSecurityAADUserGroup(client, context.securityUrl, args.azureActiveDirectoryMakersGroup, almGroup.descriptor)
 
         if (makerAADGroup != null) {
-            this.logger?.debug(`Getting members for ALM Accelerator for Advanced Makers (${almGroup.originId})`)
+            this.logger?.debug(`Getting members for ALM Accelerator for Makers (${almGroup.originId})`)
 
             let members = await this.getGroupMembers(client, context.securityUrl, almGroup.descriptor)
 
@@ -375,12 +375,12 @@ class DevOpsCommand {
     }
 
     /**
-     * Create Build pipelines required by the ALM Accelerator for Advanced Makers (AA4AM)
-     * @param args The installation paramaters
+     * Create Build pipelines required by the ALM Accelerator
+     * @param args The installation parameters
      * @param connection The authenticated connection
      * @param repo The pipeline repo to a create builds for
      */
-    async createAdvancedMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository): Promise<void> {
+    async createMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository): Promise<void> {
         connection = await this.createConnectionIfExists(args, connection)
 
         if (repo == null) {
@@ -431,7 +431,7 @@ class DevOpsCommand {
         }
     }
 
-    async createAdvancedMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) {
+    async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) {
         connection = await this.createConnectionIfExists(args, connection)
 
         let taskApi = await connection.getTaskAgentApi()
@@ -451,7 +451,7 @@ class DevOpsCommand {
             aadArgs.accessTokens = args.accessTokens
             aadArgs.endpoint = args.endpoint
 
-            let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-AA4AM")
+            let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-ALM")
 
             if (!aadArgs.createSecret) {
                 this.logger?.warn('Client secret not added for variable group alm-accelerator-variable-group it wil need to be added manually')
@@ -471,7 +471,7 @@ class DevOpsCommand {
                     }
                 }]
             paramemeters.name = variableGroupName
-            paramemeters.description = 'ALM Accelerator for Advanced Makers'
+            paramemeters.description = 'ALM Accelerator for Makers'
 
             paramemeters.variables = {
                 "CdsBaseConnectionString": <VariableValue>{
@@ -528,7 +528,7 @@ class DevOpsCommand {
 
     }
 
-    async createAdvancedMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi, setupEnvironmentConnections: boolean = true) {
+    async createMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi, setupEnvironmentConnections: boolean = true) {
         connection = await this.createConnectionIfExists(args, connection)
 
         let endpoints = await this.getServiceConnections(args, connection)

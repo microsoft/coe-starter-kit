@@ -1,8 +1,8 @@
 ## Admin Install
 
-To complete the initial steps of an AA4AM deployment you will need to complete the administrative tasks. Once this is done Advanced Makers can create and register development environments.
+To complete the initial steps of an ALM deployment you will need to complete the administrative tasks. Once this is done Makers can create and register development environments.
 
-![ALM Accelerator for Advanced Makers Install Overview](../images/aa4am-install-overview.png)
+![ALM Accelerator Install Overview](../images/alm-install-overview.png)
 
 It is assumed that the Admin Install will be run by a single user that has Power Platform Global Administrator, DevOps Administrator rights and Azure Active directory Administrator rights.
 
@@ -21,10 +21,10 @@ C. CoE CLI installed
 1. Create install configuration file and review the generated JSON file and confirm the settings before you start the install process
 
 ```bash
-coe aa4am generate install -o test.json
+coe alm generate install -o test.json
 ```
 
-More information on the [coe aa4am generate install](../help/aa4am/generate/install.md) command
+More information on the [coe alm generate install](../help/alm/generate/install.md) command
 
 Which will generate a file similar to
 
@@ -37,7 +37,7 @@ Which will generate a file similar to
     "all"
   ],
   "aad": "ALMAcceleratorServicePrincipal",
-  "group": "ALMAcceleratorForAdvancedMakers",
+  "group": "ALMAcceleratorForMakers",
   "devOpsOrganization": "https://dev.azure.com/dev1234",
   "project": "alm-sandbox",
   "repository": "pipelines",
@@ -63,12 +63,12 @@ Which will generate a file similar to
 2. Review the JSON and install using the following command
 
 ```bash
-coe aa4am install -f test.json
+coe alm install -f test.json
 ```
 
-More information on the [coe aa4am install](../help/aa4am/install.md) command
+More information on the [coe alm install](../help/alm/install.md) command
 
-3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForAdvancedMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
+3. [Update permissions for the project build service](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForMakers/SETUPGUIDE.md#update-permissions-for-the-project-build-service) to enable build pipelines to interact with Git Repositories
 
 ### Read Next
 

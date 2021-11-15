@@ -30,7 +30,7 @@ describe('Related Tests', () => {
     
         // Act
         
-        args.type = "aa4am"
+        args.type = "alm"
         args.asset = 'Test1'
         await command.getRelease(args)
 

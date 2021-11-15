@@ -1,5 +1,5 @@
 "use strict";
-import { AA4AMBranchArguments, AA4AMCommand, AA4AMInstallArguments, AA4AMMakerAddArguments, AA4AMUserArguments } from '../../src/commands/aa4am';
+import { ALMBranchArguments, ALMCommand, ALMInstallArguments, ALMMakerAddArguments, ALMUserArguments } from '../../src/commands/alm';
 import { LoginCommand } from '../../src/commands/login';
 import { DevOpsCommand } from '../../src/commands/devops';
 import { mock } from 'jest-mock-extended';
@@ -14,13 +14,13 @@ describe('Install - AAD', () => {
     test('No command', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
         let mockLogin = mock<LoginCommand>()
 
         command.createLoginCommand = () => mockLogin
 
                 // Act
-        let args = new AA4AMInstallArguments();
+        let args = new ALMInstallArguments();
         await command.install(args)
 
         // Assert
@@ -30,7 +30,7 @@ describe('Install - AAD', () => {
     test('Called', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
 
         const mockedLoginCommand = mock<LoginCommand>();
         command.createLoginCommand = () => mockedLoginCommand
@@ -39,7 +39,7 @@ describe('Install - AAD', () => {
 
         mockedLoginCommand.azureLogin.mockResolvedValue({})
 
-        let args = new AA4AMInstallArguments();
+        let args = new ALMInstallArguments();
         args.components = [ 'aad' ]
         args.subscription = 'A1'
         args.azureActiveDirectoryServicePrincipal = 'P1'
@@ -58,7 +58,7 @@ describe('Install - DevOps', () => {
     test('Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
 
         const mockedLoginCommand = mock<LoginCommand>();
         const mockedDevOpsCommand= mock<DevOpsCommand>();
@@ -69,7 +69,7 @@ describe('Install - DevOps', () => {
         mockedLoginCommand.azureLogin.mockResolvedValue({})
 
         // Act
-        let args = new AA4AMInstallArguments();
+        let args = new ALMInstallArguments();
         args.components = ['devops']
         await command.install(args)
 
@@ -83,7 +83,7 @@ describe('Install - Enviroment', () => {
     test('Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
         let addCommand = mock<AADCommand>()
         let mockLogin = mock<LoginCommand>()
 
@@ -107,7 +107,7 @@ describe('Install - Enviroment', () => {
         mockAxios.post.mockResolvedValue({})
 
         // Act
-        let args = new AA4AMInstallArguments();
+        let args = new ALMInstallArguments();
         args.components = ['environment']
         args.environment = "1"
         args.accessTokens = {
@@ -126,7 +126,7 @@ describe('Add User', () => {
     test('Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
 
         const mockedLoginCommand= mock<LoginCommand>();
         const mockedDynamicsWebApi= mock<DynamicsWebApi>();
@@ -157,7 +157,7 @@ describe('Add User', () => {
         mockedDynamicsWebApi.associate.mockReturnValue(Promise.resolve())
         
         // Act
-        let args = new AA4AMUserArguments();
+        let args = new ALMUserArguments();
         args.id = "123"
         await command.addUser(args)
 
@@ -178,14 +178,14 @@ describe('Maker Add', () => {
         let mockDevOps = mock<DevOpsCommand>()
         let mockLogin = mock<LoginCommand>()
         
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
         command.createAADCommand = () => mockAADCommand
         command.createDevOpsCommand = () => mockDevOps
         command.createLoginCommand = () => mockLogin
 
         mockLogin.azureLogin.mockResolvedValue({})
 
-        let args = new AA4AMMakerAddArguments();
+        let args = new ALMMakerAddArguments();
         args.azureActiveDirectoryMakersGroup = "G1"
         args.azureActiveDirectoryServicePrincipal = "P1"
         args.endpoint = "prod"
@@ -199,16 +199,16 @@ describe('Maker Add', () => {
         await command.addMaker(args)
 
         // Assert
-        expect(mockDevOps.createAdvancedMakersServiceConnections).toBeCalledTimes(1)
+        expect(mockDevOps.createMakersServiceConnections).toBeCalledTimes(1)
 
         expect(mockLogin.azureLogin).toBeCalledTimes(1)
 
-        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe(args.azureActiveDirectoryServicePrincipal)
-        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].endpoint).toBe(args.endpoint)
-        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].organizationName).toBe(args.organizationName)
-        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].projectName).toBe(args.project)
-        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].createSecretIfNoExist).toBe(true)
-        expect(mockDevOps.createAdvancedMakersServiceConnections.mock.calls[0][0].environment).toBe(args.environment)
+        expect(mockDevOps.createMakersServiceConnections.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe(args.azureActiveDirectoryServicePrincipal)
+        expect(mockDevOps.createMakersServiceConnections.mock.calls[0][0].endpoint).toBe(args.endpoint)
+        expect(mockDevOps.createMakersServiceConnections.mock.calls[0][0].organizationName).toBe(args.organizationName)
+        expect(mockDevOps.createMakersServiceConnections.mock.calls[0][0].projectName).toBe(args.project)
+        expect(mockDevOps.createMakersServiceConnections.mock.calls[0][0].createSecretIfNoExist).toBe(true)
+        expect(mockDevOps.createMakersServiceConnections.mock.calls[0][0].environment).toBe(args.environment)
         
         expect(mockAADCommand.addUserToGroup).toBeCalledTimes(1) 
         expect(mockAADCommand.addUserToGroup.mock.calls[0][0]).toBe("U1")       
@@ -220,7 +220,7 @@ describe('Branch', () => {
     test('Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
-        var command = new AA4AMCommand(logger);
+        var command = new ALMCommand(logger);
 
         const mockedLoginCommand= mock<LoginCommand>();
         const mockedDevOpsCommand= mock<DevOpsCommand>();
@@ -234,7 +234,7 @@ describe('Branch', () => {
         mockedDevOpsCommand.branch.mockReturnValue(Promise.resolve())
     
         // Act
-        let args = new AA4AMBranchArguments();
+        let args = new ALMBranchArguments();
         await command.branch(args)
 
         // Assert

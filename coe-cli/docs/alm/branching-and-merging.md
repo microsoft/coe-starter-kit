@@ -1,6 +1,6 @@
 ## Branching and Merging
 
-Understanding of [Branching and Merging](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops), [Pull Request](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops#review-and-merge-code-with-pull-requests) and [Build Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/key-pipelines-concepts?view=azure-devops) are important concepts that are combined together with fusion development teams of Advanced Makers, Professional Developers and Operations teams will need to understand. The ALM Accelerator for Advanced Makers (AA4AM) builds on these concepts to allow Power Platform solutions to be managed.
+Understanding of [Branching and Merging](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops), [Pull Request](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops#review-and-merge-code-with-pull-requests) and [Build Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/key-pipelines-concepts?view=azure-devops) are important concepts that are combined together with fusion development teams of Makers, Professional Developers and Operations teams will need to understand. The ALM Accelerator  builds on these concepts to allow Power Platform solutions to be managed.
 
 ### Example
 
@@ -10,14 +10,14 @@ The example below illustrates two parts of the organization the HR and Finance t
 
 #### HR Team
 
-The HR team manages one Azure DevOps git repository that stores each solution as a folder within the repository. This approach allows Advanced Makers in the HR team to see and collaborate on HR related solutions.
+The HR team manages one Azure DevOps git repository that stores each solution as a folder within the repository. This approach allows Makers in the HR team to see and collaborate on HR related solutions.
 
 ##### Steps
 
 1. Create a new Azure DevOps Project and from the main branch for a new solution branch named Onboarding.
 
 ```bash
-coe aa4am branch \
+coe alm branch \
     -o https://dev.azure.com/contoso \
     -p HR \
     -r HR-Solutions \
@@ -25,15 +25,15 @@ coe aa4am branch \
     -s validation=https://contoso-hr-validation.crm.dynamics.com,test=https://contoso-hr-test.crm.dynamics.com,https://contoso-hr.crm.dynamics.com
 ```
 
-More information on the [coe aa4am branch](../help/aa4am/branch.md) command
+More information on the [coe alm branch](../help/alm/branch.md) command
 
 2. After this command is run a default branch with Azure DevOps pipelines has been created in the repository
 
-3. The Advanced Maker **Alan Steiener** creates an unmanaged Solution named **Onboarding** in his development environment
+3. The Maker **Alan Steiener** creates an unmanaged Solution named **Onboarding** in his development environment
 
-4. Using the AA4AM Administration application Alan Created a new feature branch and **Push changes to Git**
+4. Using the ALM Administration application Alan Created a new feature branch and **Push changes to Git**
 
-5. Once the initial set of features is complete **Create Pull Request** using the AA4AM Administration application. The validation build pipeline is executed. The Pull Request is approved and then the feature branch is committed to the solution branch
+5. Once the initial set of features is complete **Create Pull Request** using the ALM Administration application. The validation build pipeline is executed. The Pull Request is approved and then the feature branch is committed to the solution branch
 
 6. The merged commit can trigger a Continuous Deployment to the test environment
 
@@ -54,12 +54,12 @@ This Azure DevOps project could be in:
 
 ##### Steps
 
-Karen as the Advanced Maker in the finance team follows a similar process to what Alan did inside the HR team.
+Karen as the Maker in the finance team follows a similar process to what Alan did inside the HR team.
 
 1. **Karen** creates a new Azure DevOps solution branch for the Expense application.
 
 ```bash
-coe aa4am branch \
+coe alm branch \
     -o https://dev.azure.com/contoso \
     -p Finance \
     -r Finance-Solutions \
@@ -67,15 +67,15 @@ coe aa4am branch \
     -s validation=https://contoso-fin-validation.crm.dynamics.com,test=https://contoso-fin-test.crm.dynamics.com,https://contoso-fin.crm.dynamics.com
 ```
 
-More information on the [coe aa4am branch](../help/aa4am/branch.md) command
+More information on the [coe alm branch](../help/alm/branch.md) command
 
 2. After this command is run a default branch with Azure DevOps pipelines has been created in the repository
 
 3. **Karen Berg** creates an unmanaged Solution named **Expense** in her development environment
 
-4. Using the AA4AM Administration application Karen creates a new feature branch with the ID of the work item that has been assigned **385** and **Push changes to Git**
+4. Using the ALM Administration application Karen creates a new feature branch with the ID of the work item that has been assigned **385** and **Push changes to Git**
 
-5. Once the initial set of features is complete **Create Pull Request** using the AA4AM Administration application. The validation build pipeline is executed. The Pull Request is approved and then the feature branch is committed to the solution branch
+5. Once the initial set of features is complete **Create Pull Request** using the ALM Administration application. The validation build pipeline is executed. The Pull Request is approved and then the feature branch is committed to the solution branch
 
 6. The merged commit can trigger a Continuous Deployment to the test environment
 

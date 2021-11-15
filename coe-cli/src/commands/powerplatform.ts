@@ -7,7 +7,7 @@ import { AADAppInstallArguments, AADCommand } from './aad';
 import * as winston from 'winston';
 import { Environment } from '../common/enviroment';
 import * as urlModule from 'url';
-import { AA4AMCommand, AA4AMUserArguments } from './aa4am';
+import { ALMCommand, ALMUserArguments } from './alm';
 import * as readline from 'readline';
 import { ReadLineManagement } from '../common/readLineManagement'
 
@@ -24,7 +24,7 @@ class PowerPlatformCommand {
     writeFile: (name: string, data: Buffer) => Promise<void>
     cli: CommandLineHelper
     createAADCommand: () => AADCommand
-    createAA4AMCommand: () => AA4AMCommand
+    createALMCommand: () => ALMCommand
     logger: winston.Logger
     readline: any
     outputText: (text: string) => void
@@ -51,7 +51,7 @@ class PowerPlatformCommand {
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.cli = new CommandLineHelper
         this.createAADCommand = () => { return new AADCommand(this.logger) }
-        this.createAA4AMCommand = () => { return new AA4AMCommand(this.logger) }
+        this.createALMCommand = () => { return new ALMCommand(this.logger) }
         this.readline = defaultReadline
         this.outputText = (text: string) => console.log(text)
     }
@@ -114,7 +114,7 @@ class PowerPlatformCommand {
  */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
         let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
-        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorForMakers%27`, args.accessToken)
 
         if (solutions.value.length == 0) {
             let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
@@ -137,7 +137,7 @@ class PowerPlatformCommand {
             })
             
             // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
-            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorForMakers%27`, args.accessToken)
         } else {
             this.logger?.info('Solution already exists')
         }
@@ -627,13 +627,13 @@ class PowerPlatformCommand {
             }
         }
 
-        let aa4am = this.createAA4AMCommand()
-        let aa4amArgs = new AA4AMUserArguments()
+        let alm = this.createALMCommand()
+        let almArgs = new ALMUserArguments()
 
         for (var i = 0; i < environments.length; i++) {
-            aa4amArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
-            aa4amArgs.environment = environments[i]
-            await aa4am.addUser(aa4amArgs)
+            almArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            almArgs.environment = environments[i]
+            await alm.addUser(almArgs)
         }
     }
 
