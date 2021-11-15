@@ -114,7 +114,10 @@ class PowerPlatformCommand {
  */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
         let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
-        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorForMakers%27`, args.accessToken)
+
+        let almSolutionName = 'ALMAcceleratorForAdvancedMakers'
+
+        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}s%27`, args.accessToken)
 
         if (solutions.value.length == 0) {
             let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
@@ -135,9 +138,11 @@ class PowerPlatformCommand {
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
+
+            let almSolutionName = 'ALMAcceleratorForAdvancedMakers'
             
             // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
-            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorForMakers%27`, args.accessToken)
+            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
         } else {
             this.logger?.info('Solution already exists')
         }
