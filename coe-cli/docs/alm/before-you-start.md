@@ -1,6 +1,6 @@
 ## Before You Start
 
-Before you start an install of AA4AM ensure that you have the following in place
+Before you start an install of ALM ensure that you have the following in place
 
 ### CoE Command Line
 
@@ -10,7 +10,7 @@ Install the CoE CLI [locally](../install.md#local-install) or via a [docker imag
 
 Environment | Description
 ----------- | -------------
-Developer | Development environments that each Advanced Maker will use to create and manage source controlled solutions
+Developer | Development environments that each Maker will use to create and manage source controlled solutions
 ALM Environment | Environment with Dataverse enabled. Will be used to deploy managed solution.
 ALM Environment - Dataverse Connection | See [Maker Environment Dataverse](#maker-environment-dataverse) below to create the Dataverse Connection
 Validation | Environment used to validate builds before merging into a solution branch              |
@@ -19,7 +19,7 @@ Production | Production Environment for managed solutions                       
 
 Notes:
 
-1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Advanced Makers
+1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Makers
    1) Visit https://docs.microsoft.com/en-us/partner-center/mpn-demos for more information
    2) Go to https://demos.microsoft.com to request a new environment
    3) Select My Environments
@@ -37,7 +37,7 @@ In the maker environment you will need a Dataverse connection to be created by t
 This can be done using the following steps
 1. Go to https://make.powerapps.com/
 
-1. Select your maker environment that you will deploy the ALM Accelerator for Advanced Makers into
+1. Select your maker environment that you will deploy the ALM Accelerator for Makers into
 
 1. Navigate to Data -> Connections
 
@@ -57,14 +57,14 @@ Global Administrator or Privileged Role Administrator|Grant tenant-wide admin co
 
 ### Azure DevOps
 
-The following must be installed before the CoE CLI AA4AM install can begin
+The following must be installed before the CoE CLI ALM install can begin
 
 Component | Description
 --------- | ----------
 Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
 Project | An Azure DevOps project to integrate with. This guide uses the name **alm-sandbox** as the project name
 
-The following will be setup or used as part of the install and follow on [coe aa4am branch](../help/aa4am/branch.md)
+The following will be setup or used as part of the install and follow on [coe alm branch](../help/alm/branch.md)
 
 Component | Description
 --------- | ----------

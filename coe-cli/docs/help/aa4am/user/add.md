@@ -1,4 +1,4 @@
-## ALM Accelerate for Advanced Makers User Add
+## ALM Accelerate for Makers User Add
 
 ### Description
 
@@ -7,7 +7,7 @@ Add the Azure Active Directory User as a System administrator in a Power Platfor
 ### Example
 
 ```bash
-coe aa4am user add \
+coe alm user add \
   -e https://contoso-alans-dev.crm.dynamics.com
 ```
 
@@ -24,7 +24,7 @@ You can visit https://aka.ms/ppac to list environments that you have access to.
 
 #### --aad <name>
 
-The Azure Active Directory service principal application created during install. The user will be used to create the service connection to an advanced maker development environment.
+The Azure Active Directory service principal application created during install. The user will be used to create the service connection to an maker development environment.
 
 Note the user running this command must be the creator or owner of the AAD application. The [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal) provides more information.
 

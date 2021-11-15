@@ -1,7 +1,7 @@
 "use strict";
 import commander, { Command, Option } from 'commander';
 import { LoginCommand } from './login';
-import { AA4AMBranchArguments, AA4AMInstallArguments, AA4AMUserArguments, AA4AMCommand, AA4AMMakerAddArguments } from './aa4am';
+import { ALMBranchArguments, ALMInstallArguments, ALMUserArguments, ALMCommand, ALMMakerAddArguments } from './alm';
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
 import { RunArguments, RunCommand } from './run';
 import { CLIArguments, CLICommand } from './cli';
@@ -25,7 +25,7 @@ interface TextParseFunction {
  */
 class CoeCliCommands {
     createLoginCommand: () => LoginCommand
-    createAA4AMCommand: () => AA4AMCommand
+    createALMCommand: () => ALMCommand
     createDevOpsCommand: () => DevOpsCommand
     createRunCommand: () => RunCommand
     createCliCommand: () => CLICommand
@@ -43,7 +43,7 @@ class CoeCliCommands {
             this.logger = logger
         }
         this.createLoginCommand = () => new LoginCommand(this.logger)
-        this.createAA4AMCommand = () => new AA4AMCommand(this.logger)
+        this.createALMCommand = () => new ALMCommand(this.logger)
         this.createDevOpsCommand = () => new DevOpsCommand(this.logger)
         this.createRunCommand = () => new RunCommand(this.logger)
         this.createCliCommand = () => new CLICommand(this.logger)
@@ -75,7 +75,7 @@ class CoeCliCommands {
         program.version('0.0.1');
 
         this.AddHelpCommands(program)
-        this.AddALMAcceleratorForAdvancedMakerCommands(program);
+        this.AddALMAcceleratorForMakerCommands(program);
         this.AddRunCommand(program);
         this.AddCliCommand(program);
         this.AddEbookCommand(program);
@@ -114,44 +114,44 @@ class CoeCliCommands {
 
         this.addHelpAction(help, 'help/readme.md')
         
-        var aa4am = help.command('aa4am')
-            .description("ALM Accelerator for Advanced Makers Help")
+        var alm = help.command('alm')
+            .description("ALM Accelerator for Makers Help")
 
-        this.addHelpAction(aa4am, "help/aa4am/readme.md")
+        this.addHelpAction(alm, "help/alm/readme.md")
 
-        let aa4amGenerate = aa4am.command('generate')
-        .description("AA4AM Generate Help")
+        let almGenerate = alm.command('generate')
+        .description("ALM Generate Help")
 
-        this.addHelpAction(aa4amGenerate,
-            "help/aa4am/generate/readme.md")
+        this.addHelpAction(almGenerate,
+            "help/alm/generate/readme.md")
 
-        this.addHelpAction(aa4amGenerate.command('install').description("AA4AM install help"),
-                "help/aa4am/generate/install.md")
+        this.addHelpAction(almGenerate.command('install').description("ALM install help"),
+                "help/alm/generate/install.md")
 
-        let helpGenerateMaker = aa4amGenerate.command('maker')
+        let helpGenerateMaker = almGenerate.command('maker')
 
-        this.addHelpAction(helpGenerateMaker.command('add').description("AA4AM Generate Maker Add help"),
-                "help/aa4am/generate/maker/add.md")
+        this.addHelpAction(helpGenerateMaker.command('add').description("ALM Generate Maker Add help"),
+                "help/alm/generate/maker/add.md")
 
-        this.addHelpAction(aa4am.command('install')
-                .description("AA4AM Install Help"),
-                "help/aa4am/install.md")
+        this.addHelpAction(alm.command('install')
+                .description("ALM Install Help"),
+                "help/alm/install.md")
 
-        this.addHelpAction(aa4am.command('branch')
-                .description("AA4AM Branch Help"),
-                "help/aa4am/branch.md")
+        this.addHelpAction(alm.command('branch')
+                .description("ALM Branch Help"),
+                "help/alm/branch.md")
 
-        let connection = aa4am.command('connection')
+        let connection = alm.command('connection')
 
         this.addHelpAction(connection.command('add')
-            .description("AA4AM Connection Add Help"),
-            "help/aa4am/connection/add.md")
+            .description("ALM Connection Add Help"),
+            "help/alm/connection/add.md")
 
-        let user = aa4am.command('user')
+        let user = alm.command('user')
 
         this.addHelpAction(user.command('add')
-            .description("AA4AM User Add Help"),
-            "help/aa4am/user/add.md")
+            .description("ALM User Add Help"),
+            "help/alm/user/add.md")
     }
 
     addHelpAction(command: commander.Command, filename: string) {
@@ -171,9 +171,9 @@ class CoeCliCommands {
         this.outputText(marked.marked(text))
     }
 
-    AddALMAcceleratorForAdvancedMakerCommands(program: commander.Command) {
-        var aa4am = program.command('aa4am')
-        .description('ALM Accelerator For Advanced Makers');
+    AddALMAcceleratorForMakerCommands(program: commander.Command) {
+        var alm = program.command('alm')
+        .description('ALM Accelerator For Makers');
 
         let componentOption = new Option('-c, --components <component>', 'The component(s) to install').default(["all"]).choices(['all', 'aad', 'devops', 'environment']);
         componentOption.variadic = true
@@ -206,17 +206,17 @@ class CoeCliCommands {
                     'GER',
                     'CHE']);
 
-        aa4am.command('create')
+        alm.command('create')
             .description('Create key services')
             .addOption(this._logOption)
             .addOption(createTypeOption)
             .action((options:any) => {
                 this.setupLogger(options)
-                let command = this.createAA4AMCommand()
+                let command = this.createALMCommand()
                 command.create(options.type);
             });
 
-        let generate = aa4am.command('generate')
+        let generate = alm.command('generate')
         
         generate.command('install')
             .option('-o, --output <name>', 'The output file to generate')
@@ -263,7 +263,7 @@ class CoeCliCommands {
                 }
 
                 this.logger?.debug("Prompting for values")
-                let results = await this.promptForValues(aa4am, 'install', ["devOpsOrganization", "environments"], ["file"], parse, 'help/aa4am/install.md')
+                let results = await this.promptForValues(alm, 'install', ["devOpsOrganization", "environments"], ["file"], parse, 'help/alm/install.md')
 
                 if (typeof results.settings === "string") {
                     results.settings = this.parseSettings(results.settings)
@@ -283,9 +283,9 @@ class CoeCliCommands {
 
                 if (typeof options.output === "string") {
                     if ( options.includeSchema === "true") {
-                        results["$schema"] = "./aa4am.schema.json"
-                        let schemaFile =  path.join(__dirname, '..', '..', '..', 'config', 'aa4am.schema.json')
-                        this.writeFile(path.join(path.dirname(options.output), "aa4am.schema.json" ), await this.readFile(schemaFile, { encoding: 'utf-8' }))
+                        results["$schema"] = "./alm.schema.json"
+                        let schemaFile =  path.join(__dirname, '..', '..', '..', 'config', 'alm.schema.json')
+                        this.writeFile(path.join(path.dirname(options.output), "alm.schema.json" ), await this.readFile(schemaFile, { encoding: 'utf-8' }))
                     }
                     this.writeFile(options.output, JSON.stringify(results, null, 2))
                     
@@ -319,7 +319,7 @@ class CoeCliCommands {
                     }
 
                     this.logger?.debug("Prompting for values")
-                    let results = await this.promptForValues(maker, 'add', [], ["file"], parse, 'help/aa4am/maker/add.md')
+                    let results = await this.promptForValues(maker, 'add', [], ["file"], parse, 'help/alm/maker/add.md')
 
                     if (typeof results.settings === "string") {
                         results.settings = this.parseSettings(results.settings)
@@ -347,13 +347,13 @@ class CoeCliCommands {
         settingsOption.defaultValue = "createSecret=true"
         settingsOption.optional = true
     
-        let install = aa4am.command('install')
-            .description('Initialize a new ALM Accelerators for Makers instance')
+        let install = alm.command('install')
+            .description('Initialize a new ALM Accelerator instance')
             .option('-f, --file <name>', 'The install configuration parameters file')
             .addOption(this._logOption)
             .addOption(componentOption)
             .option('-a, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
-            .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForAdvancedMakers')
+            .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForMakers')
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
             .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
             .option('-r, --repository <name>', 'The Azure DevOps solution repository. Will be created if not exists', "alm-sandbox")
@@ -368,9 +368,9 @@ class CoeCliCommands {
                 this.setupLogger(options)
                 this.logger?.info("Install start")
 
-                let command = this.createAA4AMCommand()
+                let command = this.createALMCommand()
 
-                let args = new AA4AMInstallArguments()
+                let args = new ALMInstallArguments()
                 let settings: { [id: string] : string } = {}
                 if (options.file?.length > 0) {
                     this.logger?.info("Loading configuration")
@@ -441,7 +441,7 @@ class CoeCliCommands {
             }
         }
 
-        let fix = aa4am.command('fix')
+        let fix = alm.command('fix')
             .description('Attempt to fix install components')
                    
         fix.command('build')
@@ -463,12 +463,12 @@ class CoeCliCommands {
                 args.accessTokens = await login.azureLogin(["499b84ac-1321-427f-aa17-267ca6975798"])
                 args.endpoint = options.endpoint
 
-                await command.createAdvancedMakersBuildPipelines(args, null, null)
+                await command.createMakersBuildPipelines(args, null, null)
 
                 this.logger?.info("Build end")
             })
 
-        let connection = aa4am.command('connection')
+        let connection = alm.command('connection')
             .description('Manage connections')
         
         connection.command("add")
@@ -501,7 +501,7 @@ class CoeCliCommands {
                 args.user = options.user
                                                        
                 try {
-                    await command.createAdvancedMakersServiceConnections(args, null, false)
+                    await command.createMakersServiceConnections(args, null, false)
                 } catch (err) {
                     this.logger?.error(err)
                 }
@@ -509,16 +509,16 @@ class CoeCliCommands {
                 this.logger?.info("Add end")
             })
 
-        let maker = aa4am.command('maker')
-            .description('Manage Advanced makers')
+        let maker = alm.command('maker')
+            .description('Manage makers')
 
         maker.command("add")
             .option('-f, --file <name>', 'The install configuration parameters file from')
             .option('-o, --devOpsOrganization <name>', 'The Azure DevOps organization')
             .option('-p, --project <name>', 'The Azure DevOps project to add to', 'alm-sandbox')
-            .option('-u, --user <name>', 'The user to add as a advanced maker')
+            .option('-u, --user <name>', 'The user to add as a maker')
             .option('-e, --environment <organization>', 'The development environment to create the create service connection to for user')
-            .option('-g, --group <name>', 'The azure active directory makers group to add user to.', 'ALMAcceleratorForAdvancedMakers')
+            .option('-g, --group <name>', 'The azure active directory makers group to add user to.', 'ALMAcceleratorForMakers')
             .option('--aad <name>', 'The Azure Active Directory application to create service connection with', 'ALMAcceleratorServicePrincipal')
             .addOption(installEndpoint)
             .option('-s, --settings <namevalues>', 'Optional settings')
@@ -526,7 +526,7 @@ class CoeCliCommands {
                 this.setupLogger(options)
                 this.logger?.info("Add start")
 
-                let args = new AA4AMMakerAddArguments()
+                let args = new ALMMakerAddArguments()
 
                 if ( typeof options.file === "string" && options.file?.length > 0 ) {
                     this.logger?.info("Loading configuration")
@@ -553,14 +553,14 @@ class CoeCliCommands {
                     return Promise.resolve()
                 }
 
-                let command = this.createAA4AMCommand()
+                let command = this.createALMCommand()
                 await command.addMaker(args)
 
                 this.logger?.info("Add end")
             });
             
        
-        let user = aa4am.command('user')
+        let user = alm.command('user')
             .description('Create Admin user in Dataverse Environment')
         
         user.command("add")
@@ -573,8 +573,8 @@ class CoeCliCommands {
             .action(async (options: any) => {
                 this.setupLogger(options)
                 this.logger?.info("Add start")
-                let command = this.createAA4AMCommand()
-                let args = new AA4AMUserArguments();
+                let command = this.createALMCommand()
+                let args = new ALMUserArguments();
                 args.command = options.command
                 args.id = options.id
                 if (typeof options.aad !== "undefined") {
@@ -588,7 +588,7 @@ class CoeCliCommands {
                 this.logger?.info("Add end")
             });
 
-        aa4am.command('branch')
+        alm.command('branch')
             .description('Create a new Application Branch')
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .requiredOption('-p, --project <name>', 'The Azure DevOps name')
@@ -602,7 +602,7 @@ class CoeCliCommands {
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 this.logger?.info("Branch start")
-                let args = new AA4AMBranchArguments();
+                let args = new ALMBranchArguments();
                 args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
                 args.pipelineRepository = options.pipelineRepository
@@ -612,13 +612,13 @@ class CoeCliCommands {
                 args.destinationBranch = options.destination
                 args.settings = this.parseSettings(options.settings)
 
-                let command = this.createAA4AMCommand()
+                let command = this.createALMCommand()
                 await command.branch(args)
 
                 this.logger?.info("Branch end")
             });
 
-        return aa4am;
+        return alm;
     }
 
     AddRunCommand(program: commander.Command) {

@@ -13,13 +13,13 @@ For each set of major commands, this guide is organized in the following tracks 
 The following quick start guides exist
 
 - [Install CoE CLI](./install.md) - Install the CoE CLI to your local environment or as a docker container
-- [ALM Accelerator for Advanced Makers Quick Start](./aa4am/readme.md#quick-start) - Install a demonstration environment or an enterprise deployment with Azure Active Directory, Azure DevOps and Power Platform Administration permissions
+- [ALM Accelerator for CoE Starter Kit Quick Start](./alm/readme.md#quick-start) - Install a demonstration environment or an enterprise deployment with Azure Active Directory, Azure DevOps and Power Platform Administration permissions
 
 ## Explain the Concepts
 
 ![Why CoE CLI](./images/cli-why.png)
 
-The CoE CLI has been designed to provide a set of commands that meet the needs of different [personas](./aa4am/personas.md) across the organization. It can be used to automate the process of installing CoE CLI components covering Azure, Azure DevOps and the Power Platform. 
+The CoE CLI has been designed to provide a set of commands that meet the needs of different [personas](./alm/personas.md) across the organization. It can be used to automate the process of installing CoE CLI components covering Azure, Azure DevOps and the Power Platform.
 
 ![CLI Unified](./images/cli-unified-process.png)
 
@@ -40,7 +40,7 @@ As you consider an enterprise deployment the following sections outline the key 
 
 1. [Install CoE CLI](./install.md) - How to install the CoE CLI using local host computer or via a docker container.
 
-2. [ALM Accelerator for Advanced Makers](./aa4am/readme.md) - Use CLI commands to setup and configure an environment for Advanced Makers to enable them to achieve more within your organization. 
+2. [ALM Accelerator for CoE Starter Kit](./alm/readme.md) - Use CLI commands to setup and configure an environment for Makers to enable them to achieve more within your organization.
 
 ### Getting Started
 
@@ -54,16 +54,16 @@ Authentication for tasks is managed using the Azure CLI. Using standard az cli c
 
 ```bash
 az login
-coe aa4am install -c aad
+coe alm install -c aad
 az logout
 ```
 
 ### Getting Help
 
-You can get short descriptions of any command by adding **--help** to the command line. To get more detailed help you can use the help command. For example to get help on the ALM Accelerator for Advanced Makers use the following command
+You can get short descriptions of any command by adding **--help** to the command line. To get more detailed help you can use the help command. For example to get help on the ALM Accelerator for Makers use the following command
 
-```
-coe help aa4am install
+```bash
+coe help alm install
 ```
 
 Read more in [help](./help/readme.md) pages for detailed description for each command.

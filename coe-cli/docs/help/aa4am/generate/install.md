@@ -2,20 +2,20 @@
 
 ### Description
 
-Generate install configuration file for installation of the ALM Accelerator for Advanced Makers (AA4AM)
+Generate install configuration file for installation of the ALM Accelerator
 
 ### Examples
 
 Example command line
 
 ```bash
-coe aa4am generate install -o install.json
+coe alm generate install -o install.json
 ```
 
 To use the generated install file
 
 ```bash
-coe aa4am install -f install.json
+coe alm install -f install.json
 ```
 
 Read more on [install command](../install.md)

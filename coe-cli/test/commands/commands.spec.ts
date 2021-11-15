@@ -1,7 +1,7 @@
 "use strict";
 import { CoeCliCommands, TextParseFunction } from '../../src/commands/commands'
 import { LoginCommand } from '../../src/commands/login'
-import { AA4AMCommand } from '../../src/commands/aa4am'
+import { ALMCommand } from '../../src/commands/alm'
 import { RunCommand } from '../../src/commands/run'
 import { CLICommand } from '../../src/commands/cli'
 import { mock } from 'jest-mock-extended';
@@ -12,7 +12,7 @@ import { Command, Option } from 'commander';
 import { OpenMode, PathLike } from 'fs';
 import { FileHandle } from 'fs/promises';
 
-describe('AA4AM', () => {
+describe('ALM', () => {
 
     test('Install aad', async () => {
         // Arrange
@@ -20,20 +20,20 @@ describe('AA4AM', () => {
         var commands = new CoeCliCommands(logger);
         commands.outputText = (text:string) => {}
 
-        let mockAA4AMCommand = mock<AA4AMCommand>(); 
-        commands.createAA4AMCommand = () => mockAA4AMCommand;
+        let mockALMCommand = mock<ALMCommand>(); 
+        commands.createALMCommand = () => mockALMCommand;
 
-        mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
+        mockALMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-c', 'aad', '--subscription=123'])
+        await commands.execute(['node', 'commands.spec', 'alm', 'install', '-c', 'aad', '--subscription=123'])
 
         // Assert
-        expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(JSON.stringify(mockAA4AMCommand.install.mock.calls[0][0].components)).toBe(JSON.stringify(['aad']))
+        expect(mockALMCommand.install).toHaveBeenCalled()
+        expect(JSON.stringify(mockALMCommand.install.mock.calls[0][0].components)).toBe(JSON.stringify(['aad']))
 
-        expect(mockAA4AMCommand.install.mock.calls[0][0].subscription).toBe("123")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe("ALMAcceleratorServicePrincipal")
+        expect(mockALMCommand.install.mock.calls[0][0].subscription).toBe("123")
+        expect(mockALMCommand.install.mock.calls[0][0].azureActiveDirectoryServicePrincipal).toBe("ALMAcceleratorServicePrincipal")
     })
 
     test('User', async () => {
@@ -42,19 +42,19 @@ describe('AA4AM', () => {
         var commands = new CoeCliCommands(logger);
         commands.outputText = (text:string) => {}
 
-        let mockAA4AMCommand = mock<AA4AMCommand>(); 
-        commands.createAA4AMCommand = () => mockAA4AMCommand;
+        let mockALMCommand = mock<ALMCommand>(); 
+        commands.createALMCommand = () => mockALMCommand;
 
-        mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
+        mockALMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'user', 'add', '-e', 'E1', '-i', '123'])
+        await commands.execute(['node', 'commands.spec', 'alm', 'user', 'add', '-e', 'E1', '-i', '123'])
 
         // Assert
-        expect(mockAA4AMCommand.addUser).toHaveBeenCalled()
-        expect(mockAA4AMCommand.addUser.mock.calls[0][0].environment).toBe('E1')
-        expect(mockAA4AMCommand.addUser.mock.calls[0][0].id).toBe('123')
-        expect(mockAA4AMCommand.addUser.mock.calls[0][0].role).toBe('System Administrator')
+        expect(mockALMCommand.addUser).toHaveBeenCalled()
+        expect(mockALMCommand.addUser.mock.calls[0][0].environment).toBe('E1')
+        expect(mockALMCommand.addUser.mock.calls[0][0].id).toBe('123')
+        expect(mockALMCommand.addUser.mock.calls[0][0].role).toBe('System Administrator')
     })
 
     test('Install', async () => {
@@ -63,22 +63,22 @@ describe('AA4AM', () => {
         var commands = new CoeCliCommands(logger);
         commands.outputText = (text:string) => {}
 
-        let mockAA4AMCommand = mock<AA4AMCommand>(); 
-        commands.createAA4AMCommand = () => mockAA4AMCommand;
+        let mockALMCommand = mock<ALMCommand>(); 
+        commands.createALMCommand = () => mockALMCommand;
 
-        mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
+        mockALMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', '--environments', 'crm-org', "-r", "repo1"])
+        await commands.execute(['node', 'commands.spec', 'alm', 'install', '--subscription', '123', '-o', 'testorg', '-p', 'alm-sandbox', '--environments', 'crm-org', "-r", "repo1"])
 
         // Assert
-        expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(mockAA4AMCommand.install.mock.calls[0][0].subscription).toBe("123")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].repository).toBe("repo1")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
+        expect(mockALMCommand.install).toHaveBeenCalled()
+        expect(mockALMCommand.install.mock.calls[0][0].subscription).toBe("123")
+        expect(mockALMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
+        expect(mockALMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
+        expect(mockALMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
+        expect(mockALMCommand.install.mock.calls[0][0].repository).toBe("repo1")
+        expect(mockALMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
     })
 
     test('Install - File', async () => {
@@ -95,21 +95,21 @@ describe('AA4AM', () => {
         });
         commands.outputText = (text:string) => {}
 
-        let mockAA4AMCommand = mock<AA4AMCommand>(); 
-        commands.createAA4AMCommand = () => mockAA4AMCommand;
+        let mockALMCommand = mock<ALMCommand>(); 
+        commands.createALMCommand = () => mockALMCommand;
 
-        mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
+        mockALMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '-f', 'test.json'])
+        await commands.execute(['node', 'commands.spec', 'alm', 'install', '-f', 'test.json'])
 
         // Assert
-        expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].repository).toBe("repo1")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
+        expect(mockALMCommand.install).toHaveBeenCalled()
+        expect(mockALMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
+        expect(mockALMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
+        expect(mockALMCommand.install.mock.calls[0][0].environment).toBe("crm-org")
+        expect(mockALMCommand.install.mock.calls[0][0].repository).toBe("repo1")
+        expect(mockALMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
     })
 
     test('Install - Multi Environment', async () => {
@@ -118,24 +118,24 @@ describe('AA4AM', () => {
         var commands = new CoeCliCommands(logger);
         commands.outputText = (text:string) => {}
 
-        let mockAA4AMCommand = mock<AA4AMCommand>(); 
-        commands.createAA4AMCommand = () => mockAA4AMCommand;
+        let mockALMCommand = mock<ALMCommand>(); 
+        commands.createALMCommand = () => mockALMCommand;
 
-        mockAA4AMCommand.install.mockReturnValue(Promise.resolve())
+        mockALMCommand.install.mockReturnValue(Promise.resolve())
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'install', '--subscription=123', '-o', 'testorg', '-p', 'alm-sandbox', "-r", "repo1", "-e", "validation=test1,test=test2"])
+        await commands.execute(['node', 'commands.spec', 'alm', 'install', '--subscription=123', '-o', 'testorg', '-p', 'alm-sandbox', "-r", "repo1", "-e", "validation=test1,test=test2"])
 
         // Assert
-        expect(mockAA4AMCommand.install).toHaveBeenCalled()
-        expect(mockAA4AMCommand.install.mock.calls[0][0].subscription).toBe("123")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].environment).toBe("")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].repository).toBe("repo1")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].environments["validation"]).toBe("test1")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].environments["test"]).toBe("test2")
-        expect(mockAA4AMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
+        expect(mockALMCommand.install).toHaveBeenCalled()
+        expect(mockALMCommand.install.mock.calls[0][0].subscription).toBe("123")
+        expect(mockALMCommand.install.mock.calls[0][0].organizationName).toBe("testorg")
+        expect(mockALMCommand.install.mock.calls[0][0].project).toBe("alm-sandbox")
+        expect(mockALMCommand.install.mock.calls[0][0].environment).toBe("")
+        expect(mockALMCommand.install.mock.calls[0][0].repository).toBe("repo1")
+        expect(mockALMCommand.install.mock.calls[0][0].environments["validation"]).toBe("test1")
+        expect(mockALMCommand.install.mock.calls[0][0].environments["test"]).toBe("test2")
+        expect(mockALMCommand.install.mock.calls[0][0].createSecretIfNoExist).toBe(true)
     })
 
     test('Add Connection', async () => {
@@ -150,14 +150,14 @@ describe('AA4AM', () => {
         commands.createDevOpsCommand = () => mockDevOpsCommand;
 
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'connection', 'add', '-e', 'E1', '-o', 'O1', '-p', 'P1'])
+        await commands.execute(['node', 'commands.spec', 'alm', 'connection', 'add', '-e', 'E1', '-o', 'O1', '-p', 'P1'])
 
         // Assert
         expect(mockLoginCommand.azureLogin).toHaveBeenCalled()
-        expect(mockDevOpsCommand.createAdvancedMakersServiceConnections).toHaveBeenCalled()
-        expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].environment).toBe("E1")
-        expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].organizationName).toBe("O1")
-        expect(mockDevOpsCommand.createAdvancedMakersServiceConnections.mock.calls[0][0].projectName).toBe("P1")
+        expect(mockDevOpsCommand.createMakersServiceConnections).toHaveBeenCalled()
+        expect(mockDevOpsCommand.createMakersServiceConnections.mock.calls[0][0].environment).toBe("E1")
+        expect(mockDevOpsCommand.createMakersServiceConnections.mock.calls[0][0].organizationName).toBe("O1")
+        expect(mockDevOpsCommand.createMakersServiceConnections.mock.calls[0][0].projectName).toBe("P1")
     })
 })
 
@@ -534,20 +534,20 @@ describe('Help', () => {
         await expectFile(['node', 'commands.spec', 'help'], 'help\\readme.md')
     })
 
-    test('aa4am', async () => {
-        await expectFile(['node', 'commands.spec', 'help', 'aa4am'], 'help\\aa4am\\readme.md')
+    test('alm', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'alm'], 'help\\alm\\readme.md')
     })
 
-    test('aa4am genenerate', async () => {
-        await expectFile(['node', 'commands.spec', 'help', 'aa4am', 'generate'], 'help\\aa4am\\generate\\readme.md')
+    test('alm genenerate', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'alm', 'generate'], 'help\\alm\\generate\\readme.md')
     })
     
-    test('aa4am genenerate install', async () => {
-        await expectFile(['node', 'commands.spec', 'help', 'aa4am', 'generate', 'install'], 'help\\aa4am\\generate\\install.md')
+    test('alm genenerate install', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'alm', 'generate', 'install'], 'help\\alm\\generate\\install.md')
     })
 
-    test('aa4am install', async () => {
-        await expectFile(['node', 'commands.spec', 'help', 'aa4am', 'install'], 'help\\aa4am\\install.md')
+    test('alm install', async () => {
+        await expectFile(['node', 'commands.spec', 'help', 'alm', 'install'], 'help\\alm\\install.md')
     })
 });
 
@@ -557,16 +557,16 @@ describe('Branch', () => {
         let logger = mock<winston.Logger>()
         var commands = new CoeCliCommands(logger);
         commands.outputText = (text:string) => {}
-        let mockAA4AMCommand = mock<AA4AMCommand>(); 
+        let mockALMCommand = mock<ALMCommand>(); 
 
-        commands.createAA4AMCommand = () => mockAA4AMCommand
-        mockAA4AMCommand.branch.mockResolvedValue()
+        commands.createALMCommand = () => mockALMCommand
+        mockALMCommand.branch.mockResolvedValue()
         
         // Act
-        await commands.execute(['node', 'commands.spec', 'aa4am', 'branch', '-o', 'https://dev.azure.com/contoso', '-p', 'alm-sandbox', '--pipelineRepository', 'templates', '-d', 'NewSolution1'])
+        await commands.execute(['node', 'commands.spec', 'alm', 'branch', '-o', 'https://dev.azure.com/contoso', '-p', 'alm-sandbox', '--pipelineRepository', 'templates', '-d', 'NewSolution1'])
 
         // Assert
-        expect(mockAA4AMCommand.branch).toHaveBeenCalled()
+        expect(mockALMCommand.branch).toHaveBeenCalled()
     })
 });
 

@@ -7,7 +7,7 @@ The generate command allows you to create JSON files for the install command usi
 #### Install
 
 ```
-coe help aa4am generate install
+coe help alm generate install
 ```
 
 Help for [generate install](./install.md)
@@ -15,7 +15,7 @@ Help for [generate install](./install.md)
 #### Maker Add
 
 ```
-coe help aa4am generate maker add
+coe help alm generate maker add
 ```
 
 Help for [generate maker add](./maker/add.md)

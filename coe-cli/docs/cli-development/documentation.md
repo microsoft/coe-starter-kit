@@ -19,8 +19,8 @@ For decision trees the diagrams are generated via [mermaid](https://mermaid-js.g
 
 Example diagrams:
 
-- [Maturity](../aa4am/maturity/maturity.mmd)
-- [AA4AM Decision Tree](../aa4am/maturity/decision-tree.mmd)
+- [Maturity](../alm/maturity/maturity.mmd)
+- [ALM Decision Tree](../alm/maturity/decision-tree.mmd)
 
 #### Diagram Styles
 
@@ -100,10 +100,10 @@ npm run diagrams
 Add new help pages to [help](../help) that provides detailed information on the command an options. Help can be accessed using the help command which will display the associated help markdown file in the browser
 
 ```bash
-coe help aa4am
+coe help alm
 ```
 
-The command above will display the contents of [help/aa4am/readme.md](../help/aa4am/readme.md)
+The command above will display the contents of [help/alm/readme.md](../help/alm/readme.md)
 
 ### Recording Command Line
 

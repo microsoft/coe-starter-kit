@@ -181,7 +181,7 @@ describe('Install Build', () => {
         mockBuildApi.getDefinitions.mockResolvedValue([])
         
         // Act
-        await command.createAdvancedMakersBuildPipelines(args, mockDevOpsWebApi, repo)
+        await command.createMakersBuildPipelines(args, mockDevOpsWebApi, repo)
 
         // Assert
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
@@ -668,7 +668,7 @@ describe('Build Variables', () => {
         }
         
         // Act
-        await command.createAdvancedMakersBuildVariables(args, mockDevOpsWebApi, securityContext)
+        await command.createMakersBuildVariables(args, mockDevOpsWebApi, securityContext)
 
         // Assert
         expect(mockAADCommand.addSecret).toBeCalledTimes(1)
@@ -772,7 +772,7 @@ describe('Service Connections', () => {
         mockAADCommand.addSecret.mockResolvedValue(<AADAppSecret> {})
 
         // Act
-        await command.createAdvancedMakersServiceConnections(args, mockDevOpsWebApi, false)
+        await command.createMakersServiceConnections(args, mockDevOpsWebApi, false)
 
         // Assert
         expect(mockAADCommand.addSecret).toBeCalledTimes(1)

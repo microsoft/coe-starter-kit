@@ -8,7 +8,7 @@ import { Environment } from '../common/enviroment';
 import { Prompt } from '../common/prompt';
 
 /**
- * ALM Accelereator for Advanced Makers commands
+ * ALM Accelereator for Makers commands
  */
 class AADCommand {
   
@@ -55,7 +55,7 @@ class AADCommand {
         let group : string = this.getAADGroup(args)
         if ( group === null) {
             this.logger?.info(`Creating ${args.azureActiveDirectoryMakersGroup} group`)
-            let createJson = this.runCommand(`az ad group create --display-name "${args.azureActiveDirectoryMakersGroup}" --description "Application Lifecycle Management Accelerator for Advanced Makers" --mail-nickname="null"`, false)
+            let createJson = this.runCommand(`az ad group create --display-name "${args.azureActiveDirectoryMakersGroup}" --description "Application Lifecycle Management Accelerator for Makers" --mail-nickname="null"`, false)
             group = JSON.parse(createJson).objectId
         } else {
             this.logger?.info(`Group ${args.azureActiveDirectoryMakersGroup} exists`)
