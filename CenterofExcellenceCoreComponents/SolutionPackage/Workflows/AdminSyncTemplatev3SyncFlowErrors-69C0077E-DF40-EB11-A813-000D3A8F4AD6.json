@@ -10,12 +10,12 @@
         },
         "runtimeSource": "embedded"
       },
-      "shared_office365_1": {
+      "shared_commondataserviceforapps_1": {
         "api": {
-          "name": "shared_office365"
+          "name": "shared_commondataserviceforapps"
         },
         "connection": {
-          "connectionReferenceLogicalName": "admin_CoECoreO365Outlook"
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
         },
         "runtimeSource": "embedded"
       }
@@ -27,6 +27,9 @@
           "actions": {
             "Compose_HTML_Table": {
               "inputs": "@replace(replace(replace(body('Create_HTML_table'), '&lt;', '<'), '&gt;', '>'), '&quot;', '\"')",
+              "metadata": {
+                "operationMetadataId": "8e98b32a-22ee-4cfa-b4f8-c86d93165f76"
+              },
               "runAfter": {
                 "Create_HTML_table": [
                   "Succeeded"
@@ -52,6 +55,9 @@
                 ],
                 "format": "HTML",
                 "from": "@body('Filter_array')"
+              },
+              "metadata": {
+                "operationMetadataId": "21df5dca-8c74-4356-83ea-6479d20b371a"
               },
               "runAfter": {
                 "Filter_array": [
@@ -80,11 +86,17 @@
                       "type": "exponential"
                     }
                   },
+                  "metadata": {
+                    "operationMetadataId": "e2936b5c-8ec9-4e8e-9ac0-1b81c2b03e5d"
+                  },
                   "runAfter": {},
                   "type": "OpenApiConnection"
                 }
               },
               "foreach": "@body('Filter_week_old')",
+              "metadata": {
+                "operationMetadataId": "b631641a-bcf7-46cc-abf0-eca5025fb595"
+              },
               "runAfter": {
                 "Filter_week_old": [
                   "Succeeded"
@@ -97,6 +109,9 @@
                 "from": "@outputs('List_Sync_Flow_Errors')?['body/value']",
                 "where": "@greater(item()?['createdon'], body('Get_yesterday'))"
               },
+              "metadata": {
+                "operationMetadataId": "1f89028b-54ab-4ad3-805a-d51445405c96"
+              },
               "runAfter": {},
               "type": "Query"
             },
@@ -104,6 +119,9 @@
               "inputs": {
                 "from": "@outputs('List_Sync_Flow_Errors')?['body/value']",
                 "where": "@less(item()?['createdon'], body('Get_7_days_past'))"
+              },
+              "metadata": {
+                "operationMetadataId": "7496d976-df01-4912-82ad-422a2c6e82b1"
               },
               "runAfter": {
                 "If_table_is_not_empty,_send_mail": [
@@ -114,22 +132,111 @@
             },
             "If_table_is_not_empty,_send_mail": {
               "actions": {
-                "Send_an_email_(V2)": {
-                  "inputs": {
-                    "authentication": "@parameters('$authentication')",
-                    "host": {
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                      "connectionName": "shared_office365_1",
-                      "operationId": "SendEmailV2"
+                "Get_Row_-_Send_Sync_Flows_to_Admin": {
+                  "actions": {
+                    "Get_a_row_by_ID": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "GetItem"
+                        },
+                        "parameters": {
+                          "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject",
+                          "entityName": "admin_customizedemails",
+                          "recordId": "@variables('emailGUID')"
+                        }
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                      },
+                      "runAfter": {
+                        "Set_emailGUID_to_localized_row": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
                     },
-                    "parameters": {
-                      "emailMessage/Body": "<p>@{variables('css')}<br>\n</p>\n<p>Some of the Sync Flows in the CoE Starter Kit have failed. See below and navigate to the Flow Instance URL to find out more details:<br>\n<br>\n@{outputs('Compose_HTML_Table')}<br>\n</p>",
-                      "emailMessage/Subject": "Admin | Sync Flow Errors",
-                      "emailMessage/To": "@variables('adminMail')"
+                    "List_emails_for_preferred_language": {
+                      "inputs": {
+                        "authentication": "@parameters('$authentication')",
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')}'",
+                          "$select": "admin_customizedemailid",
+                          "entityName": "admin_customizedemails"
+                        }
+                      },
+                      "metadata": {
+                        "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                      },
+                      "runAfter": {
+                        "emailGUID_to_en-US": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection"
+                    },
+                    "Set_emailGUID_to_localized_row": {
+                      "description": "if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']),0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))",
+                      "inputs": {
+                        "name": "emailGUID",
+                        "value": "@{if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']),0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))}"
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
+                      },
+                      "runAfter": {
+                        "List_emails_for_preferred_language": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "SetVariable"
+                    },
+                    "emailGUID_to_en-US": {
+                      "inputs": "432db868-c53d-ec11-8c63-00224829720b",
+                      "metadata": {
+                        "operationMetadataId": "3c46d691-0f2a-4c36-9611-c2c7de1ec33d"
+                      },
+                      "runAfter": {},
+                      "type": "Compose"
                     }
                   },
+                  "metadata": {
+                    "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
+                  },
                   "runAfter": {},
-                  "type": "OpenApiConnection"
+                  "type": "Scope"
+                },
+                "Send_Sync_Flows_to_Admin": {
+                  "description": "432db868-c53d-ec11-8c63-00224829720b",
+                  "inputs": {
+                    "body": {
+                      "email": "@variables('adminMail')",
+                      "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                      "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                      "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])",
+                      "text": "@outputs('Get_a_row_by_ID')?['body/admin_subject']",
+                      "text_1": "@{outputs('Get_a_row_by_ID')?['body/admin_body']}\n@{outputs('Compose_HTML_Table')}"
+                    },
+                    "host": {
+                      "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "acaf353e-cf00-46d1-b457-eac85c38f49e"
+                  },
+                  "runAfter": {
+                    "Get_Row_-_Send_Sync_Flows_to_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Workflow"
                 }
               },
               "expression": {
@@ -137,6 +244,9 @@
                   "@length(body('Filter_array'))",
                   0
                 ]
+              },
+              "metadata": {
+                "operationMetadataId": "3743c910-64da-400d-88d8-0ce555bb9eef"
               },
               "runAfter": {
                 "Compose_HTML_Table": [
@@ -152,6 +262,9 @@
               0
             ]
           },
+          "metadata": {
+            "operationMetadataId": "ef4b54a0-859b-4e8d-bfcc-8fdd87555820"
+          },
           "runAfter": {
             "List_Sync_Flow_Errors": [
               "Succeeded"
@@ -165,6 +278,9 @@
             "timeUnit": "Day"
           },
           "kind": "GetPastTime",
+          "metadata": {
+            "operationMetadataId": "7f1514d7-141c-47ba-8769-f5375c7a95a7"
+          },
           "runAfter": {
             "Get_yesterday": [
               "Succeeded"
@@ -178,8 +294,11 @@
             "timeUnit": "Day"
           },
           "kind": "GetPastTime",
+          "metadata": {
+            "operationMetadataId": "4494142e-5296-4c9a-8d2e-290a77d91844"
+          },
           "runAfter": {
-            "Initialize_Style_for_HTML_eMail": [
+            "Initialize_emailGUID": [
               "Succeeded"
             ]
           },
@@ -196,6 +315,9 @@
               }
             ]
           },
+          "metadata": {
+            "operationMetadataId": "0c74415a-8e2b-4e32-aa16-39819d484a0b"
+          },
           "runAfter": {},
           "type": "InitializeVariable"
         },
@@ -210,8 +332,30 @@
               }
             ]
           },
+          "metadata": {
+            "operationMetadataId": "03445452-ca60-4a59-8389-f1a4edc6aff9"
+          },
           "runAfter": {
             "Initialize_Admin_eMail_variable": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Initialize_emailGUID": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "emailGUID",
+                "type": "string"
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "dad8eca6-7937-47c0-aa57-f2d48dd1c5a2"
+          },
+          "runAfter": {
+            "Initialize_Style_for_HTML_eMail": [
               "Succeeded"
             ]
           },
@@ -235,6 +379,9 @@
               "interval": "PT10S",
               "type": "exponential"
             }
+          },
+          "metadata": {
+            "operationMetadataId": "72c605dd-6337-4137-bc5a-14408e2e9bf4"
           },
           "runAfter": {
             "Get_7_days_past": [
@@ -262,10 +409,21 @@
             "schemaName": "admin_AdminMail"
           },
           "type": "String"
+        },
+        "Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)": {
+          "defaultValue": "fr-FR",
+          "metadata": {
+            "description": "The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US",
+            "schemaName": "admin_AdmineMailPreferredLanguage"
+          },
+          "type": "String"
         }
       },
       "triggers": {
         "Recurrence": {
+          "metadata": {
+            "operationMetadataId": "e3ca2390-a934-4783-9503-30091fc03021"
+          },
           "recurrence": {
             "frequency": "Day",
             "interval": 1
