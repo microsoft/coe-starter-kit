@@ -19,7 +19,7 @@ describe('Install - AAD', () => {
 
         command.createLoginCommand = () => mockLogin
 
-                // Act
+        // Act
         let args = new ALMInstallArguments();
         await command.install(args)
 
@@ -79,7 +79,7 @@ describe('Install - DevOps', () => {
     })
 })
 
-describe('Install - Enviroment', () => {
+describe('Install - Environment', () => {
     test('Default', async () => {
         // Arrange
         let logger = mock<winston.Logger>()

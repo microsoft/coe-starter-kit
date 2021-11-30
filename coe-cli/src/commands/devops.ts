@@ -124,7 +124,7 @@ class DevOpsCommand {
 
         this.logger?.debug(`Getting descriptor for project ${project[0].id}`)
 
-        // https://docs.microsoft.com/en-us/rest/api/azure/devops/graph/Descriptors/Get?view=azure-devops-rest-6.0
+        // https://docs.microsoft.com/rest/api/azure/devops/graph/Descriptors/Get?view=azure-devops-rest-6.0
         context.projectDescriptor = await this.getSecurityDescriptor(client, context.securityUrl, project[0].id)
 
         let headers = <IHeaders>{};
@@ -133,7 +133,7 @@ class DevOpsCommand {
         this.logger?.debug(`Getting groups for project ${args.projectName} (${context.projectDescriptor})`)
 
         // Get groups for the project
-        // https://docs.microsoft.com/en-us/rest/api/azure/devops/graph/groups/list?view=azure-devops-rest-6.0
+        // https://docs.microsoft.com/rest/api/azure/devops/graph/groups/list?view=azure-devops-rest-6.0
         let query = await client.get(`${context.securityUrl}_apis/Graph/Groups?scopeDescriptor=${context.projectDescriptor}&api-version=6.0-preview.1`)
         let groupJson = await query.readBody()
         let groups = JSON.parse(groupJson)
@@ -281,7 +281,7 @@ class DevOpsCommand {
     }
 
     async getGroupMembers(client: httpm.HttpClient, url: string, id: string): Promise<MembershipResponse> {
-        // https://docs.microsoft.com/en-us/rest/api/azure/devops/graph/memberships/list?view=azure-devops-rest-6.0
+        // https://docs.microsoft.com/rest/api/azure/devops/graph/memberships/list?view=azure-devops-rest-6.0
         let results = await client.get(`${url}_apis/graph/Memberships/${id}?direction=Down&api-version=6.0-preview.1`)
         let resultsJson = await results.readBody()
         return JSON.parse(resultsJson)
@@ -624,7 +624,7 @@ class DevOpsCommand {
 
                 let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
-                // https://docs.microsoft.com/en-us/rest/api/azure/devops/serviceendpoint/endpoints/create?view=azure-devops-rest-6.0
+                // https://docs.microsoft.com/rest/api/azure/devops/serviceendpoint/endpoints/create?view=azure-devops-rest-6.0
                 let create = await webClient.post(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
 
                 let serviceConnection: any
@@ -687,7 +687,7 @@ class DevOpsCommand {
                     "userId": userId
                 }]
 
-                //https://docs.microsoft.com/en-us/rest/api/azure/devops/securityroles/roleassignments/set%20role%20assignments?view=azure-devops-rest-6.1
+                //https://docs.microsoft.com/rest/api/azure/devops/securityroles/roleassignments/set%20role%20assignments?view=azure-devops-rest-6.1
                 this.logger?.info(`Assigning user ${args.user} to service connection ${endpoint.url}`)
                 let update = await webClient.put(`${devOpsOrgUrl}_apis/securityroles/scopes/distributedtask.serviceendpointrole/roleassignments/resources/${project.id}_${endpoint.id}?api-version=6.1-preview.1`, JSON.stringify(newRole), headers)
 
@@ -708,7 +708,7 @@ class DevOpsCommand {
     async getUserId(devOpsOrgUrl: string, user: string, connection: azdev.WebApi) {
         let client = this.getHttpClient(connection)
 
-        // https://docs.microsoft.com/en-us/rest/api/azure/devops/ims/identities/read%20identities?view=azure-devops-rest-6.0#by-email
+        // https://docs.microsoft.com/rest/api/azure/devops/ims/identities/read%20identities?view=azure-devops-rest-6.0#by-email
         let query = await client.get(`${devOpsOrgUrl.replace("https://dev", "https://vssps.dev")}_apis/identities?searchFilter=General&filterValue=${user}&queryMembership=None&api-version=6.0`)
         let identityJson = await query.readBody()
         let users = JSON.parse(identityJson)

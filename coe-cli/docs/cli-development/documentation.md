@@ -121,7 +121,7 @@ This process will work cross platform and any of the following options could be 
 
    ii) Docker images with a Unix shell
 
-   iii) [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10) on Windows
+   iii) [Windows Subsystem for Linux](https://docs.microsoft.com/windows/wsl/install-win10) on Windows
 
 
 B. Record the session to a cast file

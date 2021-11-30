@@ -1,6 +1,6 @@
 ## Maturity Model
 
-The [Power CAT adoption maturity model](https://powerapps.microsoft.com/en-us/blog/power-cat-adoption-maturity-model-repeatable-patterns-for-successful-power-platform-adoption/) provides a set of levels and capabilities that can be used to evaluate usage of the Application Lifecycle Management (ALM) and how the ALM Accelerator can assist.
+The [Power CAT adoption maturity model](https://powerapps.microsoft.com/blog/power-cat-adoption-maturity-model-repeatable-patterns-for-successful-power-platform-adoption/) provides a set of levels and capabilities that can be used to evaluate usage of the Application Lifecycle Management (ALM) and how the ALM Accelerator can assist.
 
 ### Quick Start
 
@@ -30,15 +30,15 @@ ALM is a good match if you can check to see if the following apply:
       - Do you have a process to create Development / Test and Production Environments?
       - Is the process automated to request environments?
 - Are Source control concepts understood?
-  - Is [Branching and Merging](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops) understood?
-  - Are [Pull Request](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops#review-and-merge-code-with-pull-requests) used to review and merge changes?
-  - Are [Build Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/key-pipelines-concepts?view=azure-devops) used to integrate and deploy between Validation and Test, Production environments?
-- Are [Fusion development](https://docs.microsoft.com/en-us/learn/paths/transform-business-applications-with-fusion-development/) teams engaged to include Low code and Pro code teams?
+  - Is [Branching and Merging](https://docs.microsoft.com/azure/devops/repos/git/git-branching-guidance?view=azure-devops) understood?
+  - Are [Pull Request](https://docs.microsoft.com/azure/devops/repos/git/git-branching-guidance?view=azure-devops#review-and-merge-code-with-pull-requests) used to review and merge changes?
+  - Are [Build Pipelines](https://docs.microsoft.com/azure/devops/pipelines/get-started/key-pipelines-concepts?view=azure-devops) used to integrate and deploy between Validation and Test, Production environments?
+- Are [Fusion development](https://docs.microsoft.com/learn/paths/transform-business-applications-with-fusion-development/) teams engaged to include Low code and Pro code teams?
   - Are your professional development teams familiar with [Branching and Merging](../branching-and-merging.md) strategies and able to assist makers?
   - Do your Pro Code and Operations teams manage DevOps pipelines?
   - Are you Pro code team creating components in JavaScript?
   - Are you integrating with OpenAPI enabled Web APIs?
-  - Are you using or planning to creating [plugins](https://docs.microsoft.com/en-us/powerapps/developer/data-platform/plug-ins) to extend business process in Dataverse?
+  - Are you using or planning to creating [plugins](https://docs.microsoft.com/powerapps/developer/data-platform/plug-ins) to extend business process in Dataverse?
 - Support
   - Who is supporting the application / solution?
   - Do you have formal support team to manage issues for the solution?
@@ -225,7 +225,7 @@ Leading questions to consider
 #### Nurture and Citizen Makers
 
 - Do you have a [Training and Upskilling](https://docs.microsoft.com/power-platform/guidance/adoption/training-strategy) program for your makers to help them learn key concepts to grow your pool of Makers?
-- Do you have an Internal [Champions](https://docs.microsoft.com/en-us/power-platform/guidance/adoption/champions) Community established?
+- Do you have an Internal [Champions](https://docs.microsoft.com/power-platform/guidance/adoption/champions) Community established?
 - Do you have the [CoE Starter Kit – Nurture](https://docs.microsoft.com/power-platform/guidance/coe/nurture-components) module adopted?
 - Do you have show and Tell sessions to demonstrate Maker Concepts?
 - Do you have an adoption campaign to demonstrate how fusion development processes work?

@@ -26,7 +26,7 @@ You can visit https://aka.ms/ppac to list environments that you have access to.
 
 The Azure Active Directory service principal application created during install. The user will be used to create the service connection to an maker development environment.
 
-Note the user running this command must be the creator or owner of the AAD application. The [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal) provides more information.
+Note the user running this command must be the creator or owner of the AAD application. The [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/manage-apps/assign-user-or-group-access-portal) provides more information.
 
 #### -r, --role
 
@@ -40,5 +40,5 @@ The region that environments are deployed to. This setting will be used if a ful
 
 Further reading:
 
-- [Regions overview](https://docs.microsoft.com/en-us/power-platform/admin/regions-overview)
-- [Region List](https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions)
+- [Regions overview](https://docs.microsoft.com/power-platform/admin/regions-overview)
+- [Region List](https://docs.microsoft.com/power-platform/admin/new-datacenter-regions)

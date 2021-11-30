@@ -23,7 +23,7 @@ export abstract class Environment {
     public static getEnvironmentUrl(name: string, settings?: { [id: string] : string }): string {
         let environmentUrl : url.URL = null
         let defaultDomain = '.crm.dynamics.com'
-        // https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+        // https://docs.microsoft.com/power-platform/admin/new-datacenter-regions
 
         let region = ''
         if (typeof settings !== "undefined" && typeof settings["region"] === "string") {

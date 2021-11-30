@@ -20,7 +20,7 @@ Production | Production Environment for managed solutions                       
 Notes:
 
 1. As a Microsoft Partner you can request access to demo tenants to test ALM Accelerators for Makers
-   1) Visit https://docs.microsoft.com/en-us/partner-center/mpn-demos for more information
+   1) Visit https://docs.microsoft.com/partner-center/mpn-demos for more information
    2) Go to https://demos.microsoft.com to request a new environment
    3) Select My Environments
    4) Select Create Tenant
@@ -53,7 +53,7 @@ Ensure the user you run with has the following permissions
 
 Component | Description
 --------- | ----------
-Global Administrator or Privileged Role Administrator|Grant tenant-wide admin consent to an application [Read More](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/grant-admin-consent)
+Global Administrator or Privileged Role Administrator|Grant tenant-wide admin consent to an application [Read More](https://docs.microsoft.com/azure/active-directory/manage-apps/grant-admin-consent)
 
 ### Azure DevOps
 
@@ -61,7 +61,7 @@ The following must be installed before the CoE CLI ALM install can begin
 
 Component | Description
 --------- | ----------
-Organization | Review [Add Organization Users](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
+Organization | Review [Add Organization Users](https://docs.microsoft.com/azure/devops/organizations/accounts/add-organization-users?view=azure-devops) to create Azure DevOps organization and add users 
 Project | An Azure DevOps project to integrate with. This guide uses the name **alm-sandbox** as the project name
 
 The following will be setup or used as part of the install and follow on [coe alm branch](../help/alm/branch.md)
@@ -73,7 +73,7 @@ Repository | Ensure the git repository has been initialized with an initial comm
 
 Notes:
 1. If installing using demo tenant you can request a trial Azure DevOps environment
-   - https://azure.microsoft.com/en-us/services/devops/
+   - https://azure.microsoft.com/services/devops/
 
    - Create Organization
 

@@ -57,36 +57,6 @@ class PowerPlatformCommand {
     }
 
     /**
-     * Add an Azure Active Directoiry user as administrator
-     * Read more https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp
-     * @param appId The application id to be added as administrator
-     * @param args The additional arguments required to complete install 
-     * @returns Promise
-     */
-    async addAdminUser(appId: string, args: PowerPlatformAdminSetupArguments) : Promise<void> {
-        let bapUrl = this.mapEndpoint("bap", args.endpoint)
-        let apiVersion = "2020-06-01"
-        let authService = Environment.getAuthenticationUrl(bapUrl)
-        let accessToken = args.accessTokens[authService]
-        let results: AxiosResponse<any>
-        try{
-            // Reference
-            // Source: Microsoft.PowerApps.Administration.PowerShell
-            results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${appId}?api-version=${apiVersion}`, {}, {
-                headers: {
-                    "Authorization": `Bearer ${accessToken}`,
-                    "Content-Type": "application/json"
-                }
-            })
-            this.logger?.info("Added Admin Application for Azure Application")
-        } catch (err) {
-            this.logger?.info("Error adding Admin Application for Azure Application")
-            this.logger?.error(err.response.data.error)
-            return Promise.reject(err)
-        }
-    }
-
-    /**
      * Import Solution action
      * @param args 
      * @returns 
@@ -115,12 +85,18 @@ class PowerPlatformCommand {
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
         let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        let almSolutionName = 'ALMAcceleratorForAdvancedMakers'
+        let almSolutionName = 'CenterofExcellenceALMAccelerator'
 
-        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}s%27`, args.accessToken)
+        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
 
         if (solutions.value.length == 0) {
-            let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
+            let base64CustomizationFile : string = ""
+            if ( args.sourceLocation.startsWith("http"))
+            {
+                base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
+            } else {
+                base64CustomizationFile = (await fs.promises.readFile(args.sourceLocation, { encoding: 'base64' }))
+            }
 
             let importData = {
                 "OverwriteUnmanagedCustomizations": true,
@@ -131,20 +107,20 @@ class PowerPlatformCommand {
             };
 
             this.logger?.info('Importing managed solution')
-            // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
+            // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
             await this.getAxios().post(`${environmentUrl}api/data/v9.0/ImportSolution`, importData, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${args.accessToken}`
                 }
             })
-
-            let almSolutionName = 'ALMAcceleratorForAdvancedMakers'
             
-            // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
+            // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
             solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
         } else {
             this.logger?.info('Solution already exists')
+
+            // TODO: Check if new version is an upgrade
         }
 
         if (!await this.cli.validateAzCliReady(args)) {
@@ -395,7 +371,7 @@ class PowerPlatformCommand {
         let results: AxiosResponse<any>
         try {
             // Reference
-            // https://docs.microsoft.com/en-us/power-platform/admin/list-environments
+            // https://docs.microsoft.com/power-platform/admin/list-environments
             results = await this.getAxios().get<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=${apiVersion}`, {
                 headers: {
                     "Authorization": `Bearer ${accessToken}`,
@@ -673,7 +649,7 @@ class PowerPlatformCommand {
         let aadGroupId = command.getAADGroup(args)
 
         this.logger?.debug("Searching for solution components")
-        // https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/entities/msdyn_solutioncomponentsummary?view=op-9-1
+        // https://docs.microsoft.com/dynamics365/customerengagement/on-premises/developer/entities/msdyn_solutioncomponentsummary?view=op-9-1
         let componentQuery = await this.getAxios().get(`${environmentUrl}api/data/v9.0/msdyn_solutioncomponentsummaries?%24filter=(msdyn_solutionid%20eq%20${solution.solutionid})&api-version=9.1`, config)
 
         let components = <Component[]>componentQuery.data.value

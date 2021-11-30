@@ -61,7 +61,7 @@ class ALMCommand {
       }
       case "devops": {
           this.logger?.info("You can start with 'Start Free' and login with your organization account")
-          this.logger?.info("https://azure.microsoft.com/en-us/services/devops/")
+          this.logger?.info("https://azure.microsoft.com/services/devops/")
       }
     }
   }
@@ -132,7 +132,7 @@ class ALMCommand {
   }
 
   /**
-   * Import the latest version of the ALM Accelerator For Makers managed solution
+   * Import the latest version of the ALM Accelerator For Power Platform managed solution
    * @param args 
    */
   async installPowerPlatformComponents(args: ALMInstallArguments) : Promise<void> {
@@ -150,11 +150,16 @@ class ALMCommand {
     importArgs.createSecret = args.createSecretIfNoExist
     importArgs.settings = args.settings
 
-    let github = this.createGitHubCommand();
-    let gitHubArguments = new GitHubReleaseArguments();
-    gitHubArguments.type = 'alm'
-    gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
-    importArgs.sourceLocation = await github.getRelease(gitHubArguments)
+    if ( args.settings["installFile"]?.length > 0  ) {
+      importArgs.sourceLocation = args.settings["installFile"]
+    } else {
+      let github = this.createGitHubCommand();
+      let gitHubArguments = new GitHubReleaseArguments();
+      gitHubArguments.type = 'alm'
+      gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
+      importArgs.sourceLocation = await github.getRelease(gitHubArguments)
+    }
+    
     importArgs.importMethod = args.importMethod
     importArgs.endpoint = args.endpoint
     importArgs.accessTokens = args.accessTokens
@@ -180,10 +185,6 @@ class ALMCommand {
     }
 
     await command.importSolution(importArgs)
-
-    let aadCommand = this.createAADCommand()
-    let aadId = aadCommand.getAADApplication(args)
-    await command.addAdminUser(aadId, args)
   }
 
   /**
@@ -458,7 +459,7 @@ class ALMCommand {
   createSecretIfNoExist: boolean
 
    /**
-    * Audiance scoped access tokens
+    * Audience scoped access tokens
     */
    accessTokens: { [id: string] : string }
 

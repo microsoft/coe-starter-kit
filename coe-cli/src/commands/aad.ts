@@ -295,7 +295,7 @@ class AADCommand {
                 let match = accounts.filter((a: any) => (a.id == args.subscription || a.name == args.subscription) && (a.isDefault));
                 if (match.length != 1) {
                     this.logger?.info(`${args.subscription} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
-                    this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
+                    this.logger?.info('Read more https://docs.microsoft.com/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
                     return Promise.resolve(true)

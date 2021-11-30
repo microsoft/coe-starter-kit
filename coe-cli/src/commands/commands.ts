@@ -247,6 +247,7 @@ class CoeCliCommands {
                 settings.option("--test", "Test Environment Name", "yourenvironment-test");     
                 settings.option("--prod", "Production Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
+                settings.option("--installFile", "The name of the ALM Accelerator managed solution file to import")
                 settings.addOption(regionOptions)
 
                 parse["environments"] = { parse: (text) => {
@@ -278,7 +279,7 @@ class CoeCliCommands {
                     if (typeof results.settings === "undefined") {
                         results.settings = {}
                     }
-                    // Set default region https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+                    // Set default region https://docs.microsoft.com/power-platform/admin/new-datacenter-regions
                     results.settings.region = "NAM"
                 }
 
@@ -330,7 +331,7 @@ class CoeCliCommands {
                         if (typeof results.settings === "undefined") {
                             results.settings = {}
                         }
-                        // Set default region https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+                        // Set default region https://docs.microsoft.com/power-platform/admin/new-datacenter-regions
                         results.settings.region = "NAM"
                     }
 

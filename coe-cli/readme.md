@@ -26,7 +26,7 @@ To run the application you will require local install of the following or Docker
 
 1. Azure CLI Required for user authentication and Azure Active Directory Integration
 
-   a. https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+   a. https://docs.microsoft.com/cli/azure/install-azure-cli
 
 ## Installation
 

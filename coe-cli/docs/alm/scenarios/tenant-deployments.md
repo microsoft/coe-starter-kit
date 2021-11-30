@@ -200,4 +200,4 @@ To support multi tenant deployments the Azure Active Directory application will 
 
 Further reading
 
-1. [Tenancy in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/develop/single-and-multi-tenant-apps)
+1. [Tenancy in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/develop/single-and-multi-tenant-apps)
