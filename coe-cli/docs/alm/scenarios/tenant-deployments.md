@@ -167,8 +167,7 @@ coe alm install -f install.json
 }
 ```
 
-
-3. Manual install using the [Create An App Registration in your AAD environment](https://github.com/microsoft/coe-starter-kit/blob/main/ALMAcceleratorForMakers/SETUPGUIDE.md#create-an-app-registration-in-your-aad-environment)
+3. Manual install using the [Create An App Registration in your AAD environment](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceALMAccelerator/SETUPGUIDE.md#create-an-app-registration-in-your-aad-environment)
 
 ### Multi Tenant Deployment
 
