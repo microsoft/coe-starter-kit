@@ -1,6 +1,6 @@
 ## Branching and Merging
 
-Understanding of [Branching and Merging](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops), [Pull Request](https://docs.microsoft.com/en-us/azure/devops/repos/git/git-branching-guidance?view=azure-devops#review-and-merge-code-with-pull-requests) and [Build Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/key-pipelines-concepts?view=azure-devops) are important concepts that are combined together with fusion development teams of Makers, Professional Developers and Operations teams will need to understand. The ALM Accelerator  builds on these concepts to allow Power Platform solutions to be managed.
+Understanding of [Branching and Merging](https://docs.microsoft.com/azure/devops/repos/git/git-branching-guidance?view=azure-devops), [Pull Request](https://docs.microsoft.com/azure/devops/repos/git/git-branching-guidance?view=azure-devops#review-and-merge-code-with-pull-requests) and [Build Pipelines](https://docs.microsoft.com/azure/devops/pipelines/get-started/key-pipelines-concepts?view=azure-devops) are important concepts that are combined together with fusion development teams of Makers, Professional Developers and Operations teams will need to understand. The ALM Accelerator  builds on these concepts to allow Power Platform solutions to be managed.
 
 ### Example
 
@@ -43,9 +43,10 @@ More information on the [coe alm branch](../help/alm/branch.md) command
 
 #### Finance
 
-The Finance team maintains a separate Azure DevOps project for Finance related solutions. 
+The Finance team maintains a separate Azure DevOps project for Finance related solutions.
 
 This Azure DevOps project could be in:
+
 - The same Azure DevOps project with a different repository from the HR team (e.g. Different HR-Solutions and Fin-Solutions repositories)
 
 - A separate Azure DevOps project and repository. This would allow different Role based security rights for the project
@@ -69,19 +70,19 @@ coe alm branch \
 
 More information on the [coe alm branch](../help/alm/branch.md) command
 
-2. After this command is run a default branch with Azure DevOps pipelines has been created in the repository
+1. After this command is run a default branch with Azure DevOps pipelines has been created in the repository
 
-3. **Karen Berg** creates an unmanaged Solution named **Expense** in her development environment
+1. **Karen Berg** creates an unmanaged Solution named **Expense** in her development environment
 
-4. Using the ALM Administration application Karen creates a new feature branch with the ID of the work item that has been assigned **385** and **Push changes to Git**
+1. Using the ALM Administration application Karen creates a new feature branch with the ID of the work item that has been assigned **385** and **Push changes to Git**
 
-5. Once the initial set of features is complete **Create Pull Request** using the ALM Administration application. The validation build pipeline is executed. The Pull Request is approved and then the feature branch is committed to the solution branch
+1. Once the initial set of features is complete **Create Pull Request** using the ALM Administration application. The validation build pipeline is executed. The Pull Request is approved and then the feature branch is committed to the solution branch
 
-6. The merged commit can trigger a Continuous Deployment to the test environment
+1. The merged commit can trigger a Continuous Deployment to the test environment
 
-7. When the set of features are ready for a production deployment a Pull Request can be made to merge changes into the main branch
+1. When the set of features are ready for a production deployment a Pull Request can be made to merge changes into the main branch
 
-8. The build and deployment pipelines can be configured to package the solution to the production environment
+1. The build and deployment pipelines can be configured to package the solution to the production environment
 
 Steps 9 through 14 repeat the process of 3-8 to contribute a new feature to the solution.
 

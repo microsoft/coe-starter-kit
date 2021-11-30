@@ -45,7 +45,7 @@ You can visit https://aka.ms/ppac to list environments that you have access to.
 
 The Azure Active Directory service principal application created during install. The user will be used to create the service connection to an maker development environment.
 
-Note the user running this command must be the creator or owner of the AAD application. The [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal) provides more information.
+Note the user running this command must be the creator or owner of the AAD application. The [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/manage-apps/assign-user-or-group-access-portal) provides more information.
 
 ####  -u, --user
 
@@ -65,9 +65,9 @@ The Power Platform Administration environment to interact with. The default valu
 - **tip2** - Testing environment for Microsoft internal use
 
 Read More
-- [Microsoft Power Apps US Government](https://docs.microsoft.com/en-us/power-platform/admin/powerapps-us-government)
-- [Power Apps operated by 21Vianet and Power Automate operated by 21Vianet](https://docs.microsoft.com/en-us/power-platform/admin/business-applications-availability-china)
-- [Power Apps Preview Program](https://docs.microsoft.com/en-us/power-platform/admin/preview-environments)
+- [Microsoft Power Apps US Government](https://docs.microsoft.com/power-platform/admin/powerapps-us-government)
+- [Power Apps operated by 21Vianet and Power Automate operated by 21Vianet](https://docs.microsoft.com/power-platform/admin/business-applications-availability-china)
+- [Power Apps Preview Program](https://docs.microsoft.com/power-platform/admin/preview-environments)
 - [What is a CDS endpoint](https://powerusers.microsoft.com/t5/Building-Power-Apps/What-is-a-CDS-Endpoint/m-p/44969#M18758)
 
 #### --settings
@@ -78,7 +78,7 @@ Determine if secrets should be created and assigned to resources that require Se
 
 Default value is **true**.
 
-Read more on [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
+Read more on [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
 
 ##### --region
 
@@ -86,5 +86,5 @@ The region that environments are deployed to. This setting will be used if a ful
 
 Further reading:
 
-- [Regions overview](https://docs.microsoft.com/en-us/power-platform/admin/regions-overview)
-- [Region List](https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions)
+- [Regions overview](https://docs.microsoft.com/power-platform/admin/regions-overview)
+- [Region List](https://docs.microsoft.com/power-platform/admin/new-datacenter-regions)
