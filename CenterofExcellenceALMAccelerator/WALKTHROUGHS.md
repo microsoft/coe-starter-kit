@@ -1,12 +1,5 @@
 # ALM Accelerator for Power Platform Walkthroughs (Preview)
-Below you'll find walkthroughs of three different personas using the ALM Accelerator for Power Platform.
+Below you'll find videos content for the ALM Accelerator for Power Platform.
 
-
-## ALM Accelerator for Power Platform New Maker
-[![ALM Accelerator for Power Platform New Maker](http://img.youtube.com/vi/-P3uSUTdsSY/0.jpg)](http://www.youtube.com/watch?v=-P3uSUTdsSY "ALM Accelerator for Power Platform New Maker Overview Video")
-
-## ALM Accelerator for Power Platform Advanced Maker
-[![ALM Accelerator for Power Platform Advanced Maker](http://img.youtube.com/vi/-P3uSUTdsSY/0.jpg)](http://www.youtube.com/watch?v=-P3uSUTdsSY "ALM Accelerator for Power Platform Advanced Maker Overview Video")
-
-## ALM Accelerator for Power Platform Administrator
-[![ALM Accelerator for Power Platform Administrator](http://img.youtube.com/vi/-P3uSUTdsSY/0.jpg)](http://www.youtube.com/watch?v=-P3uSUTdsSY "ALM Accelerator for Power Platform Administrator Overview Video")
+## ALM Accelerator for Power Platform - Power CAT Live
+[![ALM Accelerator for Power Platform New Maker](http://img.youtube.com/vi/daK6LuR9Uuk/0.jpg)](https://www.youtube.com/watch?v=daK6LuR9Uuk "ALM Accelerator for Power Platform on Power CAT Live")
