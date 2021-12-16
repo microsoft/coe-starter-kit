@@ -11,7 +11,7 @@ import * as readline from 'readline';
 import * as fs from 'fs';
 const path = require('path')
 import { FileHandle } from 'fs/promises';
-import { Environment } from '../common/enviroment';
+import { Environment } from '../common/environment';
 import * as marked from 'marked'
 import { ReadLineManagement } from '../common/readLineManagement'
 

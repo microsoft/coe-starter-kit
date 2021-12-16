@@ -4,7 +4,7 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import * as winston from 'winston';
 import { PowerPlatformCommand } from './powerplatform';
 import axios, { AxiosResponse, AxiosStatic } from 'axios';
-import { Environment } from '../common/enviroment';
+import { Environment } from '../common/environment';
 import { Prompt } from '../common/prompt';
 
 /**

@@ -24,7 +24,7 @@ import { EndpointAuthorization, ServiceEndpoint, TaskAgentPool, VariableGroupPar
 import { ProjectReference, VariableGroupProjectReference, VariableValue } from "azure-devops-node-api/interfaces/ReleaseInterfaces";
 
 import * as winston from 'winston';
-import { Environment } from "../common/enviroment";
+import { Environment } from "../common/environment";
 import { Prompt } from "../common/prompt";
 import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionManagementInterfaces";
 

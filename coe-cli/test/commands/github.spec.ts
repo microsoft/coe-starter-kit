@@ -9,7 +9,7 @@ describe('Related Tests', () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new GitHubCommand(logger);
-        command.createOctoKitRespos = () => {
+        command.createOctoKitRepos = (auth: string) => {
             return {
                 listReleases: (releaseArgs: any): any => {
                     return {
@@ -32,8 +32,26 @@ describe('Related Tests', () => {
         
         args.type = "alm"
         args.asset = 'Test1'
+        args.settings = {}
         await command.getRelease(args)
 
         // Assert
+    })
+
+    test('Access Token', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new GitHubCommand(logger)
+        let args = new GitHubReleaseArguments();
+    
+        // Act
+        
+        args.type = "alm"
+        args.asset = 'Test1'
+        args.settings = { "pat": "123" } 
+        let result = command.getAccessToken(args)
+
+        // Assert
+        expect(result).toBe(`Basic ${Buffer.from(args.settings.pat, "utf-8").toString("base64")}`)
     })
 });
