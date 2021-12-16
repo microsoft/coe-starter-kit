@@ -107,13 +107,101 @@ describe('API Import', () => {
         args.environment = "test"
         args.endpoint = "prod"
         args.setupPermissions = false
+        args.sourceLocation = "https://www.github.com/foo"
 
         // Act
         
         await command.importSolution(args)
 
         // Assert
-    })   
+    })
+    
+    test('Default - No solution found with Auth', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new PowerPlatformCommand(logger);
+        command.getUrl = (_url: string) => { return Promise.resolve('{"value":[]}') }
+        command.getBinaryUrl = (_url: string) => {
+            return Promise.resolve(Buffer.from(''))
+        }
+        let mockAxios = mock<AxiosStatic>();
+        let mockCli = mock<CommandLineHelper>()
+        let readline : any = {
+            question: (_query: string, callback: (answer: string) => void) => {
+                // Respond dont want to create connection
+                callback('n')
+            }
+        }
+        
+        command.getAxios = () => mockAxios
+        command.cli = mockCli
+
+        command.readline = readline
+        command.outputText = (_text: string) => {}
+
+        mockCli.validateAzCliReady.mockResolvedValue(true)
+
+        mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
+            let response : Promise<AxiosResponse<any>> = null
+            response = mockResponse(url, '/solutions', { value: [] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/environments?', { value: [ { properties: {
+                namne: 'ENV1',
+                linkedEnvironmentMetadata: { domainName: "test", name: "ABC" }
+            }}] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/connectors', { value: [] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/WhoAmI', { UserId: "U123" })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/systemusers', { value: [
+                { azureactivedirectoryobjectid: "A123"}
+            ] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/connections', { value: [
+
+            ] })
+            if (response != null ) {
+                return response
+            }
+
+            response = mockResponse(url, '/workflows', { value: [] })
+            if (response != null ) {
+                return response
+            }
+
+            return mockResponse(url, '', { })
+        } )
+
+        let args = new PowerPlatformImportSolutionArguments();
+        args.importMethod = 'api'
+        args.environment = "test"
+        args.endpoint = "prod"
+        args.setupPermissions = false
+        args.sourceLocation = "https://www.github.com/foo"
+        args.authorization = "Basic ABC"
+
+        // Act
+        
+        await command.importSolution(args)
+
+        // Assert
+    })
 
     test('Solution found', async () => {
         // Arrange

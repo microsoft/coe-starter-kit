@@ -5,7 +5,7 @@ import fs from 'fs'
 import { CommandLineHelper } from '../common/cli'
 import { AADAppInstallArguments, AADCommand } from './aad';
 import * as winston from 'winston';
-import { Environment } from '../common/enviroment';
+import { Environment } from '../common/environment';
 import * as urlModule from 'url';
 import { ALMCommand, ALMUserArguments } from './alm';
 import * as readline from 'readline';
@@ -16,8 +16,8 @@ import { ReadLineManagement } from '../common/readLineManagement'
  */
 class PowerPlatformCommand {
 
-    getBinaryUrl: (url: string) => Promise<Buffer>
-    getUrl: (url: string) => Promise<string>
+    getBinaryUrl: (url: string, authorization: string) => Promise<Buffer>
+    getUrl: (url: string, authorization: string) => Promise<string>
     getSecureJson: (url: string, accessToken: string) => Promise<any>
     getAxios: () => AxiosStatic
     deleteIfExists: (name: string) => Promise<void>
@@ -33,10 +33,26 @@ class PowerPlatformCommand {
         this.logger = logger
 
         this.getAxios = () => axios
-        this.getBinaryUrl = async (url: string) => {
-            return Buffer.from((await this.getAxios().get(url, { responseType: 'arraybuffer' })).data, 'binary')
+        this.getBinaryUrl = async (url: string, authorization : string = null) => {
+            let headers : {
+                [id: string]: string;
+            } = { 
+                responseType: 'arraybuffer'
+            }
+            if ( authorization != null && authorization?.length > 0 ) {
+                headers["Authorization"] = authorization
+            }
+            return Buffer.from((await this.getAxios().get(url, headers)).data, 'binary')
         }
-        this.getUrl = async (url: string) => (await this.getAxios().get<string>(url)).data
+        this.getUrl = async (url: string, authorization : string = null) => {
+            let headers : {
+                [id: string]: string;
+            } = {            }
+            if ( authorization != null) {
+                headers["Authorization"] = authorization
+            }
+            return (await this.getAxios().get<string>(url, headers)).data
+        }
         this.getSecureJson = async (url: string, token: string) => (await this.getAxios().get<any>(url, {
             headers: {
                 'Authorization': 'Bearer ' + token,
@@ -91,9 +107,9 @@ class PowerPlatformCommand {
 
         if (solutions.value.length == 0) {
             let base64CustomizationFile : string = ""
-            if ( args.sourceLocation.startsWith("http"))
+            if ( args.sourceLocation?.startsWith("http"))
             {
-                base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
+                base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation, args.authorization)).toString('base64')
             } else {
                 base64CustomizationFile = (await fs.promises.readFile(args.sourceLocation, { encoding: 'base64' }))
             }
@@ -147,7 +163,7 @@ class PowerPlatformCommand {
     }
 
     private async importViaBrowser(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
+        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation, args.authorization))
 
         await this.deleteIfExists('release.zip')
         await this.writeFile('release.zip', base64CustomizationFile)
@@ -161,7 +177,7 @@ class PowerPlatformCommand {
     }
 
     private async importViaPacCli(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
+        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation, args.authorization))
 
         await this.deleteIfExists('release.zip')
         await this.writeFile('release.zip', base64CustomizationFile)
@@ -1001,6 +1017,11 @@ class PowerPlatformImportSolutionArguments {
      * The source location to retrieve the unmanaged solution from
      */
     sourceLocation: string
+
+    /**
+     * The optional authorization header for the source location
+     */
+    authorization: string
 
     /**
      * Import method

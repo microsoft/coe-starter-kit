@@ -10,10 +10,10 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import { GitHubCommand, GitHubReleaseArguments } from './github';
 import axios, { AxiosStatic } from 'axios';
 import * as winston from 'winston';
-import { Environment } from '../common/enviroment'
+import { Environment } from '../common/environment'
 
 /**
- * ALM Accelereator for Makers commands
+ * ALM Accelerator for Makers commands
  */
 class ALMCommand {
   createLoginCommand: () => LoginCommand
@@ -157,7 +157,9 @@ class ALMCommand {
       let gitHubArguments = new GitHubReleaseArguments();
       gitHubArguments.type = 'alm'
       gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
+      gitHubArguments.settings = args.settings
       importArgs.sourceLocation = await github.getRelease(gitHubArguments)
+      importArgs.authorization = github.getAccessToken(gitHubArguments)
     }
     
     importArgs.importMethod = args.importMethod

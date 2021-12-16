@@ -1,17 +1,25 @@
 "use strict";
 const { Octokit } = require("@octokit/rest")
+import { Config } from '../common/config';
 import * as winston from 'winston';
 
 /**
  * Github commands
  */
 class GitHubCommand {
-    createOctoKitRespos: () => any
+    createOctoKitRepos: (auth: string) => any
     logger: winston.Logger
+    config: { [id: string]: any; } = {}
 
     constructor(logger: winston.Logger) {
         this.logger = logger
-        this.createOctoKitRespos = () => new Octokit().rest.repos
+        this.createOctoKitRepos = (auth: string) => {
+            if ( auth?.length > 0 ) {
+                return new Octokit({ auth: auth }).rest.repos
+            }
+            return new Octokit().rest.repos
+        }
+        this.config = Config.data
     }
 
     /**
@@ -20,7 +28,7 @@ class GitHubCommand {
      * @returns 
      */
     async getRelease(args: GitHubReleaseArguments) : Promise<string> {        
-        let octokitRepo = this.createOctoKitRespos()
+        let octokitRepo = this.createOctoKitRepos(this.config["pat"])
 
         let results = await octokitRepo.listReleases({
             owner:'microsoft',
@@ -42,6 +50,15 @@ class GitHubCommand {
 
         throw Error(`Type ${args.type} not supported`)
     }
+
+    public getAccessToken(args: GitHubReleaseArguments) : string {
+        if ( args.settings["pat"]?.length > 0 ) {
+            let buff =  Buffer.from(args.settings["pat"], 'utf-8');
+            let base64data = buff.toString('base64');
+            return `Basic ${base64data}`
+        }
+        return ""
+    }
 }
 
 /**
@@ -57,6 +74,13 @@ class GitHubCommand {
      * The asset to retreive
      */
     asset: string
+
+    /*
+    Optional settings
+    */
+    settings: {
+        [id: string]: string;
+    }
 }
 
 
