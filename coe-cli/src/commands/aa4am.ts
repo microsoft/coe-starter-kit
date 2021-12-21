@@ -330,13 +330,12 @@ class AA4AMCommand {
    *
    */
   async branch(args: AA4AMBranchArguments) : Promise<void> {
-    let tokens = await this.getAccessTokens(args)
-
     this.logger?.info("Setup branch")
     this.logger?.verbose(JSON.stringify(args))
 
     let branchArgs = new DevOpsBranchArguments();
     if (args.accessToken.length == 0) {
+        let tokens = await this.getAccessTokens(args)
         branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
     }
     else {
