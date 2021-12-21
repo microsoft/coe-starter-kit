@@ -10,6 +10,7 @@ class GitHubCommand {
     createOctoKitRepos: (auth: string) => any
     logger: winston.Logger
     config: { [id: string]: any; } = {}
+    octokitRequest: (request: any) => Promise<any>
 
     constructor(logger: winston.Logger) {
         this.logger = logger
@@ -20,6 +21,10 @@ class GitHubCommand {
             return new Octokit().rest.repos
         }
         this.config = Config.data
+        this.octokitRequest = async (request: any) => {
+            let octokit = new Octokit()
+            return await octokit.request(request)
+        }
     }
 
     /**
@@ -30,32 +35,57 @@ class GitHubCommand {
     async getRelease(args: GitHubReleaseArguments) : Promise<string> {        
         let octokitRepo = this.createOctoKitRepos(this.config["pat"])
 
-        let results = await octokitRepo.listReleases({
-            owner:'microsoft',
-            repo:'coe-starter-kit'
-          });
-
-        switch ( args.type ) {
-            case 'alm': {
-                let almRelease = results.data.filter((r: any) => r.name.indexOf('Advanced Makers') >= 0);
-                if (almRelease.length > 0) {
-                    let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
-                    if (asset.length > 0) {
-                        return asset[0].browser_download_url
-                    } 
-                    throw Error("Release not found")
-                }                
+        try {
+            let results = await octokitRepo.listReleases({
+                owner:'microsoft',
+                repo:'coe-starter-kit'
+            });
+    
+            switch ( args.type ) {
+                case 'alm': {
+                    let almRelease = results.data.filter((r: any) => r.name.indexOf('Advanced Makers') >= 0);    
+                    if ( args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
+                        almRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
+                        if (almRelease.length > 0) {
+                            let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
+                            if (asset.length > 0) {
+                                let download = await this.octokitRequest({
+                                    url: '/repos/{owner}/{repo}/releases/assets/{asset_id}',
+                                    headers: {
+                                        authorization: `token ${this.config["pat"]}`,
+                                        accept: 'application/octet-stream'
+                                    },
+                                    owner: 'microsoft',
+                                    repo: 'coe-starter-kit',
+                                    asset_id: asset[0].id,
+                                    
+                                  })
+                                const buffer = Buffer.from(download.data);
+                                return 'base64:' + buffer.toString('base64');
+                            } 
+                            throw Error("Release not found")
+                        }    
+                    }
+                    if (almRelease.length > 0) {
+                        let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
+                        if (asset.length > 0) {
+                            return asset[0].browser_download_url
+                        } 
+                        throw Error("Release not found")
+                    }                
+                }
             }
+    
+            throw Error(`Type ${args.type} not supported`)
+        } catch (ex) {
+            this.logger.error(ex)
         }
-
-        throw Error(`Type ${args.type} not supported`)
+        
     }
 
     public getAccessToken(args: GitHubReleaseArguments) : string {
-        if ( args.settings["pat"]?.length > 0 ) {
-            let buff =  Buffer.from(args.settings["pat"], 'utf-8');
-            let base64data = buff.toString('base64');
-            return `Basic ${base64data}`
+        if ( Config.data["pat"]?.length > 0 ) {
+            return `token ${Config.data["pat"]}`
         }
         return ""
     }

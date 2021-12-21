@@ -10,6 +10,7 @@ import * as urlModule from 'url';
 import { ALMCommand, ALMUserArguments } from './alm';
 import * as readline from 'readline';
 import { ReadLineManagement } from '../common/readLineManagement'
+import { Config } from '../common/config';
 
 /**
  * Powerplatform commands
@@ -28,6 +29,7 @@ class PowerPlatformCommand {
     logger: winston.Logger
     readline: any
     outputText: (text: string) => void
+    config: { [id: string]: any; } = {}
 
     constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null) {
         this.logger = logger
@@ -41,6 +43,7 @@ class PowerPlatformCommand {
             }
             if ( authorization != null && authorization?.length > 0 ) {
                 headers["Authorization"] = authorization
+                headers["Accept"] = "application/octet-stream"
             }
             return Buffer.from((await this.getAxios().get(url, headers)).data, 'binary')
         }
@@ -70,6 +73,7 @@ class PowerPlatformCommand {
         this.createALMCommand = () => { return new ALMCommand(this.logger) }
         this.readline = defaultReadline
         this.outputText = (text: string) => console.log(text)
+        this.config = Config.data
     }
 
     /**
@@ -94,71 +98,75 @@ class PowerPlatformCommand {
         }
     }
 
-    /**
+ /**
  * Import solution implementation using REST API
  * @param args 
  */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+        try {
+            let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        let almSolutionName = 'CenterofExcellenceALMAccelerator'
-
-        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
-
-        if (solutions.value.length == 0) {
-            let base64CustomizationFile : string = ""
-            if ( args.sourceLocation?.startsWith("http"))
-            {
-                base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation, args.authorization)).toString('base64')
-            } else {
-                base64CustomizationFile = (await fs.promises.readFile(args.sourceLocation, { encoding: 'base64' }))
-            }
-
-            let importData = {
-                "OverwriteUnmanagedCustomizations": true,
-                "PublishWorkflows": true,
-                "CustomizationFile": `${base64CustomizationFile}`,
-                "ImportJobId": uuidv4(),
-                "HoldingSolution": false
-            };
-
-            this.logger?.info('Importing managed solution')
-            // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
-            await this.getAxios().post(`${environmentUrl}api/data/v9.0/ImportSolution`, importData, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${args.accessToken}`
+            let almSolutionName = 'CenterofExcellenceALMAccelerator'
+    
+            let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
+    
+            if (solutions.value.length == 0 || this.config.upgrade == true) {
+                let base64CustomizationFile : string = ""
+                if ( args.sourceLocation?.startsWith("base64:"))
+                {
+                    base64CustomizationFile = args.sourceLocation.substring(7)
+                } else {
+                    base64CustomizationFile = (await fs.promises.readFile(args.sourceLocation, { encoding: 'base64' }))
                 }
-            })
-            
-            // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
-            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
-        } else {
-            this.logger?.info('Solution already exists')
-
-            // TODO: Check if new version is an upgrade
-        }
-
-        if (!await this.cli.validateAzCliReady(args)) {
-            return Promise.resolve()
-        }
-
-        let environment = await this.getEnvironment(args)
-
-        if (environment != null) {
-            let solution: Solution = solutions.value[0]
-
-            await this.fixCustomConnectors(environment.name, args)
-
-            await this.fixConnectionReferences(environment.name, solutions, args)
-
-            await this.fixFlows(solutions, args)
-
-            await this.addApplicationUsersToEnvironments(args)
-
-            if (args.setupPermissions) {
-                await this.shareMakerApplication(solution, environment.name, args)
+    
+                let importData = {
+                    "OverwriteUnmanagedCustomizations": true,
+                    "PublishWorkflows": true,
+                    "CustomizationFile": `${base64CustomizationFile}`,
+                    "ImportJobId": uuidv4(),
+                    "HoldingSolution": false
+                };
+    
+                this.logger?.info('Importing managed solution')
+                // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
+                await this.getAxios().post(`${environmentUrl}api/data/v9.0/ImportSolution`, importData, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${args.accessToken}`
+                    }
+                })
+                
+                // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
+                solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
+            } else {
+                this.logger?.info('Solution already exists')
+    
+                // TODO: Check if new version is an upgrade
             }
+    
+            if (!await this.cli.validateAzCliReady(args)) {
+                return Promise.resolve()
+            }
+    
+            let environment = await this.getEnvironment(args)
+    
+            if (environment != null) {
+                let solution: Solution = solutions.value[0]
+    
+                await this.fixCustomConnectors(environment.name, args)
+    
+                await this.fixConnectionReferences(environment.name, solutions, args)
+    
+                await this.fixFlows(solutions, args)
+    
+                await this.addApplicationUsersToEnvironments(args)
+    
+                if (args.setupPermissions) {
+                    await this.shareMakerApplication(solution, environment.name, args)
+                }
+            }    
+        } catch (ex) {
+            this.logger.error(ex)
         }
     }
 
