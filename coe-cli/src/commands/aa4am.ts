@@ -340,7 +340,7 @@ class AA4AMCommand {
         branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
     }
     else {
-        this.logger?.info("Using supplied access token")
+        this.logger?.info("Using supplied access token: " + args.accessToken)
         branchArgs.accessToken = args.accessToken;
     }
     branchArgs.organizationName = args.organizationName;
