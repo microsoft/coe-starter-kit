@@ -193,8 +193,8 @@ describe('API Import', () => {
         args.environment = "test"
         args.endpoint = "prod"
         args.setupPermissions = false
-        args.sourceLocation = "https://www.github.com/foo"
-        args.authorization = "Basic ABC"
+        args.sourceLocation = "base64:12345=="
+        args.authorization = "token ABC"
 
         // Act
         

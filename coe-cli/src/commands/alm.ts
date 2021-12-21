@@ -11,6 +11,7 @@ import { GitHubCommand, GitHubReleaseArguments } from './github';
 import axios, { AxiosStatic } from 'axios';
 import * as winston from 'winston';
 import { Environment } from '../common/environment'
+import { Config } from '../common/config';
 
 /**
  * ALM Accelerator for Makers commands
@@ -150,13 +151,16 @@ class ALMCommand {
     importArgs.createSecret = args.createSecretIfNoExist
     importArgs.settings = args.settings
 
-    if ( args.settings["installFile"]?.length > 0  ) {
+    importArgs.sourceLocation = args.settings["installFile"]?.length > 0 ? args.settings["installFile"] : ''
+    if ( args.settings["installFile"]?.length > 0 && !args.settings["installFile"].startsWith("https://") ) {
       importArgs.sourceLocation = args.settings["installFile"]
-    } else {
+    }
+
+    if (importArgs.sourceLocation == '' || args.settings["installFile"].startsWith("https://")) {
       let github = this.createGitHubCommand();
       let gitHubArguments = new GitHubReleaseArguments();
       gitHubArguments.type = 'alm'
-      gitHubArguments.asset = 'ALMAcceleratorForAdvancedMakers'
+      gitHubArguments.asset = 'CenterofExcellenceALMAccelerator'
       gitHubArguments.settings = args.settings
       importArgs.sourceLocation = await github.getRelease(gitHubArguments)
       importArgs.authorization = github.getAccessToken(gitHubArguments)
@@ -235,12 +239,12 @@ class ALMCommand {
         id = await aad.getAADApplication(aadArgs)
       }
 
-      let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
+      let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-      this.logger?.verbose(`Checking user ${args.azureActiveDirectoryServicePrincipal} exists in ${enviromentUrl}`)
+      this.logger?.verbose(`Checking user ${args.azureActiveDirectoryServicePrincipal} exists in ${environmentUrl}`)
       var dynamicsWebApi = this.createDynamicsWebApi({
-        webApiUrl: `${enviromentUrl}api/data/v9.1/`,
-        onTokenRefresh: (dynamicsWebApiCallback) => dynamicsWebApiCallback(accessTokens[enviromentUrl])
+        webApiUrl: `${environmentUrl}api/data/v9.1/`,
+        onTokenRefresh: (dynamicsWebApiCallback) => dynamicsWebApiCallback(accessTokens[environmentUrl])
       });
 
       let businessUnitId = ''
@@ -276,9 +280,9 @@ class ALMCommand {
           this.logger?.debug(`Creating application user in ${args.environment}`)
           let user = { "applicationid": id, "businessunitid@odata.bind": `/businessunits(${businessUnitId})`}
           this.logger?.info('Creating system user')
-          await this.getAxios().post(`${enviromentUrl}api/data/v9.1/systemusers`, user, {
+          await this.getAxios().post(`${environmentUrl}api/data/v9.1/systemusers`, user, {
             headers: {
-              "Authorization": `Bearer ${accessTokens[enviromentUrl]}`,
+              "Authorization": `Bearer ${accessTokens[environmentUrl]}`,
               "Content-Type": "application/json"
             }
           })

@@ -13,11 +13,13 @@ export class Config {
         }
     
         if ( Object.keys(Config.data).length == 0) {
-            Config.data = JSON.parse(fs.readFileSync(path.join(__dirname, "../../config/config.json"), "utf-8"))
+            let configFile = path.resolve(path.join(__dirname, "..", "..", "..", "config", "config.json"))
+            Config.data = JSON.parse(fs.readFileSync(configFile, "utf-8"))
         }
         
-        if (fs.existsSync(path.join(__dirname, "../../config/config.dev.json"))) {
-          let devConfig = JSON.parse(fs.readFileSync(path.join(__dirname, "../../config/config.dev.json"), "utf-8"))
+        let configDevFile = path.resolve(path.join(__dirname, "..", "..", "..", "config", "config.dev.json"))
+        if (fs.existsSync(configDevFile)) {
+          let devConfig = JSON.parse(fs.readFileSync(configDevFile, "utf-8"))
           let devKeys = Object.keys(devConfig)
           for (let i = 0; i < devKeys.length; i++) {
             await this.copyValue(devConfig, Config.data, devKeys[i])
