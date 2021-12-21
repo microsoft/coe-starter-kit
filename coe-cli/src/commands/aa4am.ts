@@ -336,7 +336,12 @@ class AA4AMCommand {
     this.logger?.verbose(JSON.stringify(args))
 
     let branchArgs = new DevOpsBranchArguments();
-    branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
+    if (args.accessToken.length == 0) {
+        branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
+    }
+    else {
+        branchArgs.accessToken = args.accessToken;
+    }
     branchArgs.organizationName = args.organizationName;
     branchArgs.projectName = args.projectName;
     branchArgs.repositoryName = args.repositoryName;
@@ -620,6 +625,11 @@ class AA4AMBranchArguments {
    * The destination branch that will be copied to
    */
   destinationBranch: string
+
+  /**
+   * The destination branch that will be copied to
+   */
+  accessToken: string
 
   /**
     * Optional settings
