@@ -612,7 +612,7 @@ class CoeCliCommands {
                 args.sourceBuildName = options.sourceBuild
                 args.destinationBranch = options.destination
                 args.settings = this.parseSettings(options.settings)
-
+                args.accessToken = options.accessToken
                 let command = this.createAA4AMCommand()
                 await command.branch(args)
 
