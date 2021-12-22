@@ -971,9 +971,7 @@ class DevOpsCommand {
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
-        for (let t = 0; t < defaultAgent?.length; t++) {
-            this.logger?.info("Default Agent Pool: " + defaultAgent[t].id);
-        }
+        this.logger?.info("Agent Pool: " + defaultAgent?.length);
         let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
         this.logger?.info("Default Agent Pool: " + defaultAgentPool.id);
 
