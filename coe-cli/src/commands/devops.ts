@@ -966,7 +966,7 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
         let defaultAgent: TaskAgentPool[] = []
-        defaultAgent = (await taskApi?.getAgentPools());
+        defaultAgent = (await taskApi?.getAgentPools())?.filter(a => a.name == "Default");
 
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
@@ -974,14 +974,6 @@ class DevOpsCommand {
         this.logger?.info("Agent Pool: " + defaultAgent?.length);
         let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
         this.logger?.info("Default Agent Pool: " + defaultAgentPool.id);
-
-        if (typeof args.settings["validation"] === "undefined") {
-            let taskApi = await connection.getTaskAgentApi()
-            let groups = await taskApi?.getVariableGroups(args.projectName, "alm-accelerator-variable-group")
-            if (groups?.length == 1) {
-                args.settings["validation"] = groups[0].variables["ValidationServiceConnection"]?.value
-            }
-        }
 
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, false, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, false, defaultAgentPool);
