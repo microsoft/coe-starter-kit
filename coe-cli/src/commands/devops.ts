@@ -966,7 +966,7 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
         let defaultAgent: TaskAgentPool[] = []
-        defaultAgent = (await taskApi?.getAgentPools())?.filter(a => a.name == "Default");
+        defaultAgent = (await taskApi?.getAgentPools());
 
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
