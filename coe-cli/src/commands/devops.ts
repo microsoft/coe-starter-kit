@@ -971,9 +971,7 @@ class DevOpsCommand {
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
-        this.logger?.info("Agent Pool: " + defaultAgent?.length);
         let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
-        this.logger?.info("Default Agent Pool: " + defaultAgentPool.id);
 
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, false, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, false, defaultAgentPool);
