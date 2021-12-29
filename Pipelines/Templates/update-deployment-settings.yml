@@ -1,9 +1,15 @@
 parameters:
+- name: orgUrl
+  type: string
+- name: project
+  type: string
 - name: repo
   type: string
 - name: serviceConnection
   type: string
 - name: solutionName
+  type: string
+- name: profileId
   type: string
 - name: configurationData
   type: string
@@ -27,6 +33,11 @@ parameters:
   default: 'false'
 
 steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '10.x'
+  displayName: 'Install Node.js'
+
 - powershell: |
     #Generate Deployment Settings
     $deploymentSettingsFilePath = '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\config\deploymentSettings.json'
@@ -36,7 +47,7 @@ steps:
     }
     Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
     $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
-    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "${{parameters.solutionName}}"
+    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "${{parameters.solutionName}}" -Fields solutionid
     if($solutions.Count -gt 0) {
         $solutionId = $solutions.CrmRecords[0].solutionid
 
@@ -237,6 +248,7 @@ steps:
                     $userSetting = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_usersetting -Id $configCriteria.cat_usersettingid -Fields cat_data
                     $newConfigurationData.Add($userSetting)
                 }
+                $deploymentSteps = Get-CrmRecords -conn $settingsConn -EntityLogicalName cat_deploymentstep -FilterAttribute "cat_deploymentprofileid" -FilterOperator "eq" -FilterValue ${{parameters.profileId}} -Fields cat_deploymentenvironmentid,cat_name
             }
             catch
             {
@@ -249,6 +261,38 @@ steps:
             Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+        if($buildDefinitionResponseResults.length -ne $deploymentSteps.Count) {
+            New-Item -ItemType "directory" -Name "../coe-starter-kit-source"
+            cd ../coe-starter-kit-source
+            git clone -b "mochs-coeclibuild" "https://github.com/microsoft/coe-starter-kit.git"
+            cd coe-starter-kit\coe-cli
+            npm install
+            npm run build
+            npm link
+            $environments = ""
+            if($deploymentSteps.Count -gt 0) {
+                foreach($deploymentStep in $deploymentSteps.CrmRecords) {
+                    Write-Host "Environment ID: " + $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id
+                    if(-Not [string]::IsNullOrWhiteSpace($environments)) {
+                        $environments = $environments + ","
+                    }
+                    $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
+                    Write-Host "Deployment Environment Url: " + $environment.cat_url
+
+                    if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
+                        $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
+                    }
+                }
+            }
+            Write-Host "Environments: " + $environments
+            coe aa4am branch -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
+
+            $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
+                Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+            }
+            $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+            cd $(Build.SourcesDirectory)\${{parameters.repo}}
+        }
         #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
         foreach($buildDefinitionResult in $buildDefinitionResponseResults)
         {
