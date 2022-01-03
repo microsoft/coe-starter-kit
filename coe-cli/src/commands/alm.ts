@@ -341,7 +341,7 @@ class ALMCommand {
     this.logger?.verbose(JSON.stringify(args))
 
     let branchArgs = new DevOpsBranchArguments();
-      if (args.accessToken === undefined || args.accessToken.length == 0) {
+    if (args.accessToken === undefined || args.accessToken.length == 0) {
         this.logger?.info("Getting access tokens")
         let tokens = await this.getAccessTokens(args)
         branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
