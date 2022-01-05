@@ -241,4 +241,23 @@ describe('Branch', () => {
         expect(mockedLoginCommand.azureLogin).toHaveBeenCalled()
         expect(mockedDevOpsCommand.branch).toHaveBeenCalled()
     })
+    test('SuppliedTokenForBranch', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new ALMCommand(logger);
+
+        const mockedDevOpsCommand = mock<DevOpsCommand>();
+
+        command.createDevOpsCommand = () => mockedDevOpsCommand
+
+        mockedDevOpsCommand.branch.mockReturnValue(Promise.resolve())
+
+        // Act
+        let args = new ALMBranchArguments();
+        args.accessToken = "ABC"
+        await command.branch(args)
+
+        // Assert
+        expect(mockedDevOpsCommand.branch).toHaveBeenCalled()
+    })
 });

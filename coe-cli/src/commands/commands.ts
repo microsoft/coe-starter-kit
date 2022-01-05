@@ -600,6 +600,7 @@ class CoeCliCommands {
             .option('--source <name>', 'The source branch to copy from')
             .option('--source-build <name>', 'The source build to copy from')
             .option('-s, --settings <namevalues>', 'Optional settings')
+            .option('-a, --accessToken <name>', 'Access Token for Azure DevOps')
             .addOption(this._logOption)
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
@@ -613,7 +614,7 @@ class CoeCliCommands {
                 args.sourceBuildName = options.sourceBuild
                 args.destinationBranch = options.destination
                 args.settings = this.parseSettings(options.settings)
-
+                args.accessToken = options.accessToken
                 let command = this.createALMCommand()
                 await command.branch(args)
 

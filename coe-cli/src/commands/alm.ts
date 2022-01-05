@@ -337,13 +337,19 @@ class ALMCommand {
    *
    */
   async branch(args: ALMBranchArguments) : Promise<void> {
-    let tokens = await this.getAccessTokens(args)
-
     this.logger?.info("Setup branch")
     this.logger?.verbose(JSON.stringify(args))
 
     let branchArgs = new DevOpsBranchArguments();
-    branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
+    if (args.accessToken === undefined || args.accessToken.length == 0) {
+        this.logger?.info("Getting access tokens")
+        let tokens = await this.getAccessTokens(args)
+        branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
+    }
+    else {
+        this.logger?.info("Using supplied access token")
+        branchArgs.accessToken = args.accessToken;
+    }
     branchArgs.organizationName = args.organizationName;
     branchArgs.projectName = args.projectName;
     branchArgs.repositoryName = args.repositoryName;
@@ -627,6 +633,11 @@ class ALMBranchArguments {
    * The destination branch that will be copied to
    */
   destinationBranch: string
+
+  /**
+   * The destination branch that will be copied to
+   */
+  accessToken: string
 
   /**
     * Optional settings
