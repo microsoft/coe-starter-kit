@@ -7,8 +7,13 @@ To get started with the ALM Accelerator For Advanced Makers you can use the CoE 
 
 ## Upgrade Instructions
 If you are upgrading to the latest release you will need to perform the following steps.
-- Import the latest AA4PP Solution https://github.com/microsoft/coe-starter-kit/releases/download/ALMAcceleratorForAdvancedMakers-January2022/
+
+- Delete the existing ALM Accelerator for Advanced Makers solution. We've changed the internal name of the ALM Accelerator Solution in this release. As a result you will need to delete the existing solution, which will cause your App Settings to reset. The history of previous commits and deployments in the app will be lost, but the history will remain in Azure DevOps.
+
+- Import the latest managed AA4PP Solution https://github.com/microsoft/coe-starter-kit/releases/download/ALMAcceleratorForAdvancedMakers-January2022/
 
 - Update your pipeline templates repo with the latest from https://github.com/microsoft/coe-alm-accelerator-templates/archive/refs/tags/ALMAcceleratorForAdvancedMakers-January2022.zip
 
-- Update the Azure DevOps Build Service Permissions to allow the pipelines to create other pipelines
+- Update the Azure DevOps Build Service Permissions to allow the pipelines to create deployment pipelines
+  - NOTE: In the latest release the pipeline, which is executed when a solution is committed to source control, will create the associated deployment pipelines automatically if they don't exist. As a result the pipelines need permissions to access resources in Azure DevOps via the following configuration in Azure DevOps.
+  ![image-20210917083516697](.attachments/RELEASENOTES-202109/image-20210917083516697.png)
