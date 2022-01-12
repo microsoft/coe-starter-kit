@@ -1,9 +1,47 @@
 steps:
-- powershell: |
-    $xrmDataPowerShellVersion = "2.8.12"
-    Install-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $xrmDataPowerShellVersion
-    Write-Host "##vso[task.setvariable variable=XrmDataPowerShellVersion]$xrmDataPowerShellVersion"
-    $powerAppsAdminModuleVersion = "2.0.105"
-    Install-Module Microsoft.PowerApps.Administration.PowerShell -Force -RequiredVersion $powerAppsAdminModuleVersion
-    Write-Host "##vso[task.setvariable variable=PowerAppsAdminModuleVersion]$powerAppsAdminModuleVersion"
-  displayName: 'Install PowerShell Modules'
+  - powershell: |
+      $xrmDataPowerShellVersion = "2.8.12"
+      $powerAppsAdminModuleVersion = "2.0.105"
+  
+      # Installs modules into specified path. 
+      function Install-PowerShellModule {
+        [CmdletBinding()]
+        param(
+            [string][ValidateNotNullOrEmpty()]$RootPath,
+            [string][ValidateNotNullOrEmpty()]$ModuleName,
+            [string][ValidateNotNullOrEmpty()]$ModuleVersion,
+            [string][ValidateNotNullOrEmpty()]$SubPath
+        )
+  
+        Write-Host "Installing PS module $ModuleName - $ModuleVersion ..."
+        $savedModulePath = [IO.Path]::Combine($RootPath, $ModuleName, $ModuleVersion)
+        # MAX_PATH limitation could be lifted by prefixing with: '\\?\', but is not compatible with PowerShell
+        # see: https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#paths
+        # using minified path parts where possible
+        $fixedModulePath = [IO.Path]::Combine($RootPath, $SubPath, $ModuleVersion, $ModuleName)
+  
+        if (!(Test-Path -Path $fixedModulePath)) {
+            Save-Module -Name $ModuleName -Path $RootPath -RequiredVersion $ModuleVersion -Force
+  
+            Write-Verbose "Moving module into $fixedModulePath ..."
+            $moduleItems = Get-ChildItem -Path $savedModulePath
+            New-Item $fixedModulePath -ItemType Directory -Force | Out-Null
+            $moduleItems | Move-Item -Destination $fixedModulePath -Force
+            Remove-Item -Path ([IO.Path]::GetDirectoryName($($savedModulePath))) -Recurse -Force | Out-Null
+        } else {
+            Write-Verbose "Found module already installed, nothing to do."
+        }
+
+        # Set pipeline variable to be used in subsequent tasks when importing module
+        $modulePath = Join-Path ([IO.Path]::GetDirectoryName($($fixedModulePath))) $ModuleName
+        Write-Host "##vso[task.setvariable variable=CoETools_$($ModuleName.Replace('.','_'))]$modulePath"
+      }
+
+      New-Item $powerPlatformToolsPath -ItemType Directory -Force | Out-Null
+  
+      Install-PowerShellModule -RootPath $powerPlatformToolsPath -ModuleName "Microsoft.Xrm.Data.PowerShell" -ModuleVersion $xrmDataPowerShellVersion -SubPath "da"
+      Install-PowerShellModule -RootPath $powerPlatformToolsPath -ModuleName "Microsoft.PowerApps.Administration.PowerShell" -ModuleVersion $powerAppsAdminModuleVersion -SubPath "pa"
+  
+      echo "##vso[task.setvariable variable=PowerAppsAdminModuleVersion]$powerAppsAdminModuleVersion"
+      echo "##vso[task.setvariable variable=XrmDataPowerShellVersion]$xrmDataPowerShellVersion"
+    displayName: 'Install PowerShell Modules'
