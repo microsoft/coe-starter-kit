@@ -9,9 +9,8 @@ Branch includes performance optimizations by leveraging the [Cache DevOps task](
 The Power Platform Build Tools - Tools Installer tasks installed several PowerShell Modules to a PP_BT specific folder on the agent. The tasks checks to see if the modules already exist in the PP_BT folder and skips download of the modules that are available (folder will never be available when running on Azure Hosted Agents). By caching this folder the downloaded PS modules can be restored directly from the cache rather than have to download them.
 The PP_BT Tools Installer task sets several Pipeline Variables that are required for subsequent use of PP_BT tasks so the tasks must always be executed even if there is a cache hit and PS modules are restored.  
 
-The road map for PP_BT will move to leverage pac cli which will make download of the PS modules obsolete. The new PP_BT will be in BETA mid-January. Public Preview/GA is not scheduled yet. Once the new PP_BT tasks are available in a state that we can use in AA4PP we do not need to cache the PP_BT Tools Installer task anymore.
-
 ### Cache task for PP_BT
+
 ```
 - task: Cache@2
   displayName: Cache Build Tools
