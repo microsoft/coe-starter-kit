@@ -33,11 +33,6 @@ parameters:
   default: 'false'
 
 steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '10.x'
-  displayName: 'Install Node.js'
-
 - powershell: |
     #Generate Deployment Settings
     $deploymentSettingsFilePath = '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\config\deploymentSettings.json'
@@ -50,7 +45,6 @@ steps:
     $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "${{parameters.solutionName}}" -Fields solutionid
     if($solutions.Count -gt 0) {
         $solutionId = $solutions.CrmRecords[0].solutionid
-
         $solutionComponentResults =  Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields componenttype, solutioncomponentid, objectid
         $connectionReferences = [System.Collections.ArrayList]@()
         $environmentVariables = [System.Collections.ArrayList]@()
@@ -109,10 +103,12 @@ steps:
                 $connectorId = $connRefResult.connectorid
                 $currentConnectionReferences | Foreach-Object { if($_.LogicalName -eq $connRefName) { $connRef = $_ } }
                 $connnectionConfigVariable = "#{connectionreference." + $connRefName + "}#"
+                $connnectionOwnerConfigVariable = "#{connectionreference.user." + $connRefName + "}#"
                 if($connRef -eq $null) {
-                    $connRef = [PSCustomObject]@{"LogicalName"="$connRefName"; "ConnectionId"="$connnectionConfigVariable"; "ConnectorId"= "$connectorId" }
+                    $connRef = [PSCustomObject]@{"LogicalName"="$connRefName"; "ConnectionId"="$connnectionConfigVariable"; "ConnectorId"= "$connectorId"; "ConnectionOwner"="$connnectionOwnerConfigVariable" }
                 }
                 $cofigurationVariables.Add($connnectionConfigVariable)
+                $cofigurationVariables.Add($connnectionOwnerConfigVariable)
                 $connectionReferences.Add($connRef)
             }
             #Environment Variable Definition
@@ -272,20 +268,17 @@ steps:
             $environments = ""
             if($deploymentSteps.Count -gt 0) {
                 foreach($deploymentStep in $deploymentSteps.CrmRecords) {
-                    Write-Host "Environment ID: " + $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id
                     if(-Not [string]::IsNullOrWhiteSpace($environments)) {
                         $environments = $environments + ","
                     }
                     $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
-                    Write-Host "Deployment Environment Url: " + $environment.cat_url
 
                     if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
                         $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
                     }
                 }
             }
-            Write-Host "Environments: " + $environments
-            coe alm branch -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
+            coe alm branch --pipelineRepository $(Build.Repository.Name) -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
 
             $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
                 Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"

@@ -97,18 +97,26 @@ steps:
                     # Get the connection reference to update
                     $connRefs = Get-CrmRecords -conn $conn -EntityLogicalName connectionreference -FilterAttribute "connectionreferencelogicalname" -FilterOperator "eq" -FilterValue $connectionRefConfig.LogicalName
                     if($connRefs.Count -gt 0) {
-
+                        $systemUserId = ""
                         $connRef = $connRefs.CrmRecords[0]
-
+                        if(-Not [string]::IsNullOrWhiteSpace($connectionRefConfig.ConnectionOwner)) {
+                            $systemUserId = $connectionRefConfig.ConnectionOwner
+                        }
+                        else {
+                            # Get connection as a fallback if owner is not specified in the config. 
+                            $connections = Get-AdminPowerAppConnection -EnvironmentName $environmentName -Filter $connectionRefConfig.ConnectionId
+                            if($connections) {
+                                $systemUserId = $connections[0].CreatedBy.id
+                            }
+                        }
+                        Write-Host "Owner: "$systemUserId
                         # Connection References can only be updated by an identity that has permissions to the connection it references
                         # As of authoring this script, Service Principals (SPN) cannot update connection references
                         # The temporary workaround is to impersonate the user that created the connection
       
-                        # Get connection
-                        $connections = Get-AdminPowerAppConnection -EnvironmentName $environmentName -Filter $connectionRefConfig.ConnectionId
-                        if($connections.Count -gt 0) {
+                        if(-Not [string]::IsNullOrWhiteSpace($systemUserId)) {
                             # Get Dataverse systemuserid for the system user that maps to the aad user guid that created the connection 
-                            $systemusers = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "azureactivedirectoryobjectid" -FilterOperator "eq" -FilterValue $connections[0].CreatedBy.id -Fields systemuserid
+                            $systemusers = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "azureactivedirectoryobjectid" -FilterOperator "eq" -FilterValue $systemUserId
                             if($systemusers.Count -gt 0) {
                                 # Impersonate the Dataverse systemuser that created the connection when updating the connection reference
                                 $impersonationCallerId = $systemusers.CrmRecords[0].systemuserid
