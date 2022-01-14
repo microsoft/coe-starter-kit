@@ -1,6 +1,6 @@
 # Overview
 
-Using the Center of Excellence (CoE) toolkit command line interface (CLI), you can manage your CoE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CoE CLI currently starts with commands for the [ALM Accelerator for Advanced Makers](./docs/aa4am/readme.md) and will add more features over time.
+Using the Center of Excellence (CoE) toolkit command line interface (CLI), you can manage your CoE deployment on any platform. No matter if you are on Windows, macOS or Linux, using Bash, Cmd or PowerShell. The CoE CLI currently starts with commands for the [ALM Accelerator](./docs/alm/readme.md) and will add more features over time.
 
 ![Overview](./docs/images/overview.jpg)
 
@@ -26,7 +26,7 @@ To run the application you will require local install of the following or Docker
 
 1. Azure CLI Required for user authentication and Azure Active Directory Integration
 
-   a. https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+   a. https://docs.microsoft.com/cli/azure/install-azure-cli
 
 ## Installation
 
@@ -57,7 +57,7 @@ Authentication for tasks is managed using the Azure CLI. Using standard az cli c
 
 ```bash
 az login
-coe aa4am install -c add
+coe alm install -c add
 az logout
 ```
 

@@ -5,6 +5,8 @@ import { promisify } from 'util';
 import winston from 'winston';
 import { mock } from 'jest-mock-extended';
 const readFile = promisify(fs.readFile);
+
+jest.setTimeout(50000);
             
 describe('Add', () => {
     test('Default', async () => {
@@ -18,7 +20,7 @@ describe('Add', () => {
         args.name = "Sample"
     
         // Act
-        jest.setTimeout(30000);
+        
         await command.add(args)
 
         // Assert

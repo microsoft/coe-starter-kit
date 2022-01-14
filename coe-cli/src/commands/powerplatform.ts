@@ -5,38 +5,57 @@ import fs from 'fs'
 import { CommandLineHelper } from '../common/cli'
 import { AADAppInstallArguments, AADCommand } from './aad';
 import * as winston from 'winston';
-import { Environment } from '../common/enviroment';
+import { Environment } from '../common/environment';
 import * as urlModule from 'url';
-import { AA4AMCommand, AA4AMUserArguments } from './aa4am';
+import { ALMCommand, ALMUserArguments } from './alm';
 import * as readline from 'readline';
 import { ReadLineManagement } from '../common/readLineManagement'
+import { Config } from '../common/config';
 
 /**
  * Powerplatform commands
  */
 class PowerPlatformCommand {
 
-    getBinaryUrl: (url: string) => Promise<Buffer>
-    getUrl: (url: string) => Promise<string>
+    getBinaryUrl: (url: string, authorization: string) => Promise<Buffer>
+    getUrl: (url: string, authorization: string) => Promise<string>
     getSecureJson: (url: string, accessToken: string) => Promise<any>
     getAxios: () => AxiosStatic
     deleteIfExists: (name: string) => Promise<void>
     writeFile: (name: string, data: Buffer) => Promise<void>
     cli: CommandLineHelper
     createAADCommand: () => AADCommand
-    createAA4AMCommand: () => AA4AMCommand
+    createALMCommand: () => ALMCommand
     logger: winston.Logger
     readline: any
     outputText: (text: string) => void
+    config: { [id: string]: any; } = {}
 
     constructor(logger: winston.Logger, defaultReadline: readline.ReadLine = null) {
         this.logger = logger
 
         this.getAxios = () => axios
-        this.getBinaryUrl = async (url: string) => {
-            return Buffer.from((await this.getAxios().get(url, { responseType: 'arraybuffer' })).data, 'binary')
+        this.getBinaryUrl = async (url: string, authorization : string = null) => {
+            let headers : {
+                [id: string]: string;
+            } = { 
+                responseType: 'arraybuffer'
+            }
+            if ( authorization != null && authorization?.length > 0 ) {
+                headers["Authorization"] = authorization
+                headers["Accept"] = "application/octet-stream"
+            }
+            return Buffer.from((await this.getAxios().get(url, headers)).data, 'binary')
         }
-        this.getUrl = async (url: string) => (await this.getAxios().get<string>(url)).data
+        this.getUrl = async (url: string, authorization : string = null) => {
+            let headers : {
+                [id: string]: string;
+            } = {            }
+            if ( authorization != null) {
+                headers["Authorization"] = authorization
+            }
+            return (await this.getAxios().get<string>(url, headers)).data
+        }
         this.getSecureJson = async (url: string, token: string) => (await this.getAxios().get<any>(url, {
             headers: {
                 'Authorization': 'Bearer ' + token,
@@ -51,39 +70,10 @@ class PowerPlatformCommand {
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.cli = new CommandLineHelper
         this.createAADCommand = () => { return new AADCommand(this.logger) }
-        this.createAA4AMCommand = () => { return new AA4AMCommand(this.logger) }
+        this.createALMCommand = () => { return new ALMCommand(this.logger) }
         this.readline = defaultReadline
         this.outputText = (text: string) => console.log(text)
-    }
-
-    /**
-     * Add an Azure Active Directoiry user as administrator
-     * Read more https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp
-     * @param appId The application id to be added as administrator
-     * @param args The additional arguments required to complete install 
-     * @returns Promise
-     */
-    async addAdminUser(appId: string, args: PowerPlatformAdminSetupArguments) : Promise<void> {
-        let bapUrl = this.mapEndpoint("bap", args.endpoint)
-        let apiVersion = "2020-06-01"
-        let authService = Environment.getAuthenticationUrl(bapUrl)
-        let accessToken = args.accessTokens[authService]
-        let results: AxiosResponse<any>
-        try{
-            // Reference
-            // Source: Microsoft.PowerApps.Administration.PowerShell
-            results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${appId}?api-version=${apiVersion}`, {}, {
-                headers: {
-                    "Authorization": `Bearer ${accessToken}`,
-                    "Content-Type": "application/json"
-                }
-            })
-            this.logger?.info("Added Admin Application for Azure Application")
-        } catch (err) {
-            this.logger?.info("Error adding Admin Application for Azure Application")
-            this.logger?.error(err.response.data.error)
-            return Promise.reject(err)
-        }
+        this.config = Config.data
     }
 
     /**
@@ -108,65 +98,80 @@ class PowerPlatformCommand {
         }
     }
 
-    /**
+ /**
  * Import solution implementation using REST API
  * @param args 
  */
     private async importViaApi(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
-        let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
+        try {
+            let environmentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
 
-        if (solutions.value.length == 0) {
-            let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation)).toString('base64')
-
-            let importData = {
-                "OverwriteUnmanagedCustomizations": true,
-                "PublishWorkflows": true,
-                "CustomizationFile": `${base64CustomizationFile}`,
-                "ImportJobId": uuidv4(),
-                "HoldingSolution": false
-            };
-
-            this.logger?.info('Importing managed solution')
-            // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
-            await this.getAxios().post(`${environmentUrl}api/data/v9.0/ImportSolution`, importData, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${args.accessToken}`
+            let almSolutionName = 'CenterofExcellenceALMAccelerator'
+    
+            let solutions: any = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
+    
+            if (solutions.value.length == 0 || this.config.upgrade == true) {
+                let base64CustomizationFile : string = ""
+                if ( args.sourceLocation?.startsWith("base64:"))
+                {
+                    base64CustomizationFile = args.sourceLocation.substring(7)
+                } else {
+                    base64CustomizationFile = (await fs.promises.readFile(args.sourceLocation, { encoding: 'base64' }))
                 }
-            })
-            
-            // https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
-            solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27ALMAcceleratorforAdvancedMakers%27`, args.accessToken)
-        } else {
-            this.logger?.info('Solution already exists')
-        }
-
-        if (!await this.cli.validateAzCliReady(args)) {
-            return Promise.resolve()
-        }
-
-        let environment = await this.getEnvironment(args)
-
-        if (environment != null) {
-            let solution: Solution = solutions.value[0]
-
-            await this.fixCustomConnectors(environment.name, args)
-
-            await this.fixConnectionReferences(environment.name, solutions, args)
-
-            await this.fixFlows(solutions, args)
-
-            await this.addApplicationUsersToEnvironments(args)
-
-            if (args.setupPermissions) {
-                await this.shareMakerApplication(solution, environment.name, args)
+    
+                let importData = {
+                    "OverwriteUnmanagedCustomizations": true,
+                    "PublishWorkflows": true,
+                    "CustomizationFile": `${base64CustomizationFile}`,
+                    "ImportJobId": uuidv4(),
+                    "HoldingSolution": false
+                };
+    
+                this.logger?.info('Importing managed solution')
+                // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/importsolution?view=dynamics-ce-odata-9
+                await this.getAxios().post(`${environmentUrl}api/data/v9.0/ImportSolution`, importData, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${args.accessToken}`
+                    }
+                })
+                
+                // https://docs.microsoft.com/dynamics365/customer-engagement/web-api/solution?view=dynamics-ce-odata-9
+                solutions = await this.getSecureJson(`${environmentUrl}api/data/v9.0/solutions?$filter=uniquename%20eq%20%27${almSolutionName}%27`, args.accessToken)
+            } else {
+                this.logger?.info('Solution already exists')
+    
+                // TODO: Check if new version is an upgrade
             }
+    
+            if (!await this.cli.validateAzCliReady(args)) {
+                return Promise.resolve()
+            }
+    
+            let environment = await this.getEnvironment(args)
+    
+            if (environment != null) {
+                let solution: Solution = solutions.value[0]
+    
+                await this.fixCustomConnectors(environment.name, args)
+    
+                await this.fixConnectionReferences(environment.name, solutions, args)
+    
+                await this.fixFlows(solutions, args)
+    
+                await this.addApplicationUsersToEnvironments(args)
+    
+                if (args.setupPermissions) {
+                    await this.shareMakerApplication(solution, environment.name, args)
+                }
+            }    
+        } catch (ex) {
+            this.logger.error(ex)
         }
     }
 
     private async importViaBrowser(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
+        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation, args.authorization))
 
         await this.deleteIfExists('release.zip')
         await this.writeFile('release.zip', base64CustomizationFile)
@@ -180,7 +185,7 @@ class PowerPlatformCommand {
     }
 
     private async importViaPacCli(args: PowerPlatformImportSolutionArguments): Promise<void> {
-        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation))
+        let base64CustomizationFile = (await this.getBinaryUrl(args.sourceLocation, args.authorization))
 
         await this.deleteIfExists('release.zip')
         await this.writeFile('release.zip', base64CustomizationFile)
@@ -390,7 +395,7 @@ class PowerPlatformCommand {
         let results: AxiosResponse<any>
         try {
             // Reference
-            // https://docs.microsoft.com/en-us/power-platform/admin/list-environments
+            // https://docs.microsoft.com/power-platform/admin/list-environments
             results = await this.getAxios().get<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=${apiVersion}`, {
                 headers: {
                     "Authorization": `Bearer ${accessToken}`,
@@ -627,13 +632,13 @@ class PowerPlatformCommand {
             }
         }
 
-        let aa4am = this.createAA4AMCommand()
-        let aa4amArgs = new AA4AMUserArguments()
+        let alm = this.createALMCommand()
+        let almArgs = new ALMUserArguments()
 
         for (var i = 0; i < environments.length; i++) {
-            aa4amArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
-            aa4amArgs.environment = environments[i]
-            await aa4am.addUser(aa4amArgs)
+            almArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            almArgs.environment = environments[i]
+            await alm.addUser(almArgs)
         }
     }
 
@@ -668,7 +673,7 @@ class PowerPlatformCommand {
         let aadGroupId = command.getAADGroup(args)
 
         this.logger?.debug("Searching for solution components")
-        // https://docs.microsoft.com/en-us/dynamics365/customerengagement/on-premises/developer/entities/msdyn_solutioncomponentsummary?view=op-9-1
+        // https://docs.microsoft.com/dynamics365/customerengagement/on-premises/developer/entities/msdyn_solutioncomponentsummary?view=op-9-1
         let componentQuery = await this.getAxios().get(`${environmentUrl}api/data/v9.0/msdyn_solutioncomponentsummaries?%24filter=(msdyn_solutionid%20eq%20${solution.solutionid})&api-version=9.1`, config)
 
         let components = <Component[]>componentQuery.data.value
@@ -1020,6 +1025,11 @@ class PowerPlatformImportSolutionArguments {
      * The source location to retrieve the unmanaged solution from
      */
     sourceLocation: string
+
+    /**
+     * The optional authorization header for the source location
+     */
+    authorization: string
 
     /**
      * Import method

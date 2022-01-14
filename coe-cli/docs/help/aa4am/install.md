@@ -1,17 +1,17 @@
-## AA4AM Install Help
+## ALM Install Help
 
-The ALM Accelerator for Advanced Makers (AA4AM) install command allows components to be installed 
+The ALM Accelerator install command allows components to be installed.
 
 ### Examples
 
 ```bash
-coe aa4am install -f install.json
+coe alm install -f install.json
 ```
 
 To generate an install file you can use the [generate install](./generate/install) command
 
 ```bash
-coe aa4am generate install -o install.json
+coe alm generate install -o install.json
 ```
 
 ### Parameters
@@ -27,7 +27,7 @@ Read more https://github.com/winstonjs/winston#logging-levels
 The install configuration parameters file. Example command to generate install configuration file
 
 ```bash
-coe aa4am generate install -o istall.json
+coe alm generate install -o install.json
 ```
 
 ##### -c, --components
@@ -43,7 +43,7 @@ The component(s) to install
 
 The Azure Active Directory Application name that will be used as Service Principal to connect from Azure DevOps via Service Connectors to Power Platform Environments.
 
-The application will be created if it does not exists if component **aad** or **all** is selected. Requires Azure Active Directory permissions. [Read More](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal)
+The application will be created if it does not exists if component **aad** or **all** is selected. Requires Azure Active Directory permissions. [Read More](https://docs.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal)
 
 For **aad** or **devops** install the AAD application will be assigned as the identity to for the service connection.
 
@@ -51,7 +51,7 @@ For **aad** or **environment** install the AAD application will be assigned as t
 
 ##### -g, --group
 
-The Azure Active Directory Group name that will be used to grant access to Advanced makers in Azure DevOps and the Power Platform.
+The Azure Active Directory Group name that will be used to grant access to makers in Azure DevOps and the Power Platform.
 
 The group will be created if it does not exists if component **aad** or **all** is selected.
 
@@ -88,7 +88,7 @@ The default value is **pipelines**
 
 ##### -e, --environments
 
-The Power Platform environment where the ALM Accelerator for Advanced Maker solution will be installed. You can enter either the
+The Power Platform environment where the ALM Accelerator for Maker solution will be installed. You can enter either the
 
 1. Organization name e.g. contoso-dev1234. The **region** parameter will be used to create the full qualified domain name
 2. The fully qualified domain name with regional deployment e.g. http://contoso-dev1234.crm.dynamics.com
@@ -129,7 +129,7 @@ Determine if secrets should be created and assigned to resources that require Se
 
 Default value is **true**.
 
-Read more on [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/en-us/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
+Read more on [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
 
 ###### --region
 
@@ -137,18 +137,18 @@ The region that environments are deployed to. This setting will be used if a ful
 
 Further reading:
 
-- [Regions overview](https://docs.microsoft.com/en-us/power-platform/admin/regions-overview)
-- [Region List](https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions)
+- [Regions overview](https://docs.microsoft.com/power-platform/admin/regions-overview)
+- [Region List](https://docs.microsoft.com/power-platform/admin/new-datacenter-regions)
 
 ##### -m, --importMethod
 
-The method to import the managed ALM Accelerator for Advanced Makers into Power Platform environment.
+The method to import the managed ALM Accelerator for Makers into Power Platform environment.
 
 - **api** - The default option that uses the Power Platform APIs to import the solution and fix Dataverse and custom connectors
 
 - **browser** - Indicates that a manual install will be done. The CoE CLI will download the latest release from GitHub for you to manually install.
 
-- **pac** - Install using the Power Platform CLI. See https://docs.microsoft.com/en-us/powerapps/developer/data-platform/powerapps-cli#solution for the **pac solution import** and install requirements
+- **pac** - Install using the Power Platform CLI. See https://docs.microsoft.com/powerapps/developer/data-platform/powerapps-cli#solution for the **pac solution import** and install requirements
 
 ##### --endpoint
 
@@ -164,10 +164,14 @@ The Power Platform Administration environment to interact with. The default valu
 - **tip2** - Testing environment for Microsoft internal use
 
 Read More
-- [Microsoft Power Apps US Government](https://docs.microsoft.com/en-us/power-platform/admin/powerapps-us-government)
-- [Power Apps operated by 21Vianet and Power Automate operated by 21Vianet](https://docs.microsoft.com/en-us/power-platform/admin/business-applications-availability-china)
-- [Power Apps Preview Program](https://docs.microsoft.com/en-us/power-platform/admin/preview-environments)
+- [Microsoft Power Apps US Government](https://docs.microsoft.com/power-platform/admin/powerapps-us-government)
+- [Power Apps operated by 21Vianet and Power Automate operated by 21Vianet](https://docs.microsoft.com/power-platform/admin/business-applications-availability-china)
+- [Power Apps Preview Program](https://docs.microsoft.com/power-platform/admin/preview-environments)
 - [What is a CDS endpoint](https://powerusers.microsoft.com/t5/Building-Power-Apps/What-is-a-CDS-Endpoint/m-p/44969#M18758)
+
+##### --installFile
+
+The name of the ALM Accelerator for Power Platform managed solution export file to import during install
 
 ##### --subscription
 
@@ -175,4 +179,4 @@ The name of the Azure Active Directory that should be selected. This value is op
 
 If your user account has access to multiple subscriptions this parameter allows you to specify which Azure subscription and tenant should be selected.
 
-The Azure CLI [az account set](https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az-account-set) can be used to set the active subscription.
+The Azure CLI [az account set](https://docs.microsoft.com/cli/azure/account?view=azure-cli-latest#az-account-set) can be used to set the active subscription.
