@@ -40,7 +40,7 @@ steps:
   path: 'PipelineUtils'
   displayName: 'Checkout Pipeline Branch'
 
-# Checkout our Branch
+# Checkout our GitHub Branch
 - checkout: SourceRepo
   displayName: 'Checkout Source Branch'
 
@@ -58,3 +58,26 @@ steps:
     solutionName: $(SolutionName)
     userName: $(UserName)    
     configurationData: $(Data)
+
+# Checkout our Azure DevOps Branch
+- checkout: git://$(Project)/$(Repo)@$(Branch)
+  path: 'DevopsSource'
+  displayName: 'Checkout Source Branch'
+  condition: and(succeeded(), ne(variables.BranchToCreate, ''), ne(variables.BranchToCreate, variables.SolutionName)) # If an empty value is passed for the BranchToCreate variable, then skip this task
+
+# If the BranchToCreate variable *does not* contain an empty string, then
+# create a branch based on BranchToCreate variable value and checkout that branch.
+- script: |
+   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" fetch --all
+   git checkout -t origin/$(Branch)
+   git checkout -b $(BranchToCreate) $(Branch)
+  displayName: 'Create New Azure DevOps Git Branch: $(BranchToCreate)'
+  workingDirectory: $(Pipeline.Workspace)\DevopsSource
+  condition: and(succeeded(), ne(variables.BranchToCreate, ''), ne(variables.BranchToCreate, variables.SolutionName)) # If an empty value is passed for the BranchToCreate variable, then skip this task
+
+  # If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
+- script: |
+   git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push $(BranchToCreate)
+  workingDirectory: $(Pipeline.Workspace)\DevopsSource
+  displayName: 'Push to Azure DevOps $(BranchToCreate) Remote Branch'
+  condition: and(succeeded(), ne(variables.BranchToCreate, ''), ne(variables.BranchToCreate, variables.SolutionName)) # If an empty value is not passed for the BranchToCreate variable, then run this task

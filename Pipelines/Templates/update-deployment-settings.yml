@@ -1,9 +1,15 @@
 parameters:
+- name: orgUrl
+  type: string
+- name: project
+  type: string
 - name: repo
   type: string
 - name: serviceConnection
   type: string
 - name: solutionName
+  type: string
+- name: profileId
   type: string
 - name: configurationData
   type: string
@@ -36,10 +42,9 @@ steps:
     }
     Import-Module Microsoft.Xrm.Data.PowerShell -Force -RequiredVersion $(XrmDataPowerShellVersion) -ArgumentList @{ NonInteractive = $true }
     $conn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
-    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "${{parameters.solutionName}}"
+    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "${{parameters.solutionName}}" -Fields solutionid
     if($solutions.Count -gt 0) {
         $solutionId = $solutions.CrmRecords[0].solutionid
-
         $solutionComponentResults =  Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields componenttype, solutioncomponentid, objectid
         $connectionReferences = [System.Collections.ArrayList]@()
         $environmentVariables = [System.Collections.ArrayList]@()
@@ -73,7 +78,7 @@ steps:
         $currentFlows = $currentCustomConfiguration.SolutionComponentOwnershipConfiguration
         $currentFlowActivations = $currentCustomConfiguration.ActivateFlowConfiguration
         $currentGroupTeams = $currentCustomConfiguration.AadGroupTeamConfiguration
-
+    
         $solutionComponentDefinitionsResults =  Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponentdefinition -FilterAttribute "primaryentityname" -FilterOperator "eq" -FilterValue "connectionreference" -Fields objecttypecode
         #There is an extra '.' character being introduced in specific locales. The regex replace on the objecttypecode below is to remove it.
         #Convert it back to a integer to fix an issue with a comma appearing when converting to a string
@@ -98,10 +103,12 @@ steps:
                 $connectorId = $connRefResult.connectorid
                 $currentConnectionReferences | Foreach-Object { if($_.LogicalName -eq $connRefName) { $connRef = $_ } }
                 $connnectionConfigVariable = "#{connectionreference." + $connRefName + "}#"
+                $connnectionOwnerConfigVariable = "#{connectionreference.user." + $connRefName + "}#"
                 if($connRef -eq $null) {
-                    $connRef = [PSCustomObject]@{"LogicalName"="$connRefName"; "ConnectionId"="$connnectionConfigVariable"; "ConnectorId"= "$connectorId" }
+                    $connRef = [PSCustomObject]@{"LogicalName"="$connRefName"; "ConnectionId"="$connnectionConfigVariable"; "ConnectorId"= "$connectorId"; "ConnectionOwner"="$connnectionOwnerConfigVariable" }
                 }
                 $cofigurationVariables.Add($connnectionConfigVariable)
+                $cofigurationVariables.Add($connnectionOwnerConfigVariable)
                 $connectionReferences.Add($connRef)
             }
             #Environment Variable Definition
@@ -237,6 +244,7 @@ steps:
                     $userSetting = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_usersetting -Id $configCriteria.cat_usersettingid -Fields cat_data
                     $newConfigurationData.Add($userSetting)
                 }
+                $deploymentSteps = Get-CrmRecords -conn $settingsConn -EntityLogicalName cat_deploymentstep -FilterAttribute "cat_deploymentprofileid" -FilterOperator "eq" -FilterValue ${{parameters.profileId}} -Fields cat_deploymentenvironmentid,cat_name
             }
             catch
             {
@@ -249,6 +257,35 @@ steps:
             Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+        if($buildDefinitionResponseResults.length -ne $deploymentSteps.Count) {
+            New-Item -ItemType "directory" -Name "../coe-starter-kit-source"
+            cd ../coe-starter-kit-source
+            git clone -b "main" "https://github.com/microsoft/coe-starter-kit.git"
+            cd coe-starter-kit\coe-cli
+            npm install
+            npm run build
+            npm link
+            $environments = ""
+            if($deploymentSteps.Count -gt 0) {
+                foreach($deploymentStep in $deploymentSteps.CrmRecords) {
+                    if(-Not [string]::IsNullOrWhiteSpace($environments)) {
+                        $environments = $environments + ","
+                    }
+                    $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
+
+                    if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
+                        $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
+                    }
+                }
+            }
+            coe alm branch --pipelineRepository $(Build.Repository.Name) -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
+
+            $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
+                Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+            }
+            $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+            cd $(Build.SourcesDirectory)\${{parameters.repo}}
+        }
         #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
         foreach($buildDefinitionResult in $buildDefinitionResponseResults)
         {
