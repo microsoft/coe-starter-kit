@@ -1,5 +1,5 @@
 "use strict";
-import { Environment } from '../../src/common/enviroment';
+import { Environment } from '../../src/common/environment';
 
 
 describe('Url', () => {

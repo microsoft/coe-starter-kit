@@ -4,11 +4,11 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import * as winston from 'winston';
 import { PowerPlatformCommand } from './powerplatform';
 import axios, { AxiosResponse, AxiosStatic } from 'axios';
-import { Environment } from '../common/enviroment';
+import { Environment } from '../common/environment';
 import { Prompt } from '../common/prompt';
 
 /**
- * ALM Accelereator for Advanced Makers commands
+ * ALM Accelereator for Makers commands
  */
 class AADCommand {
   
@@ -55,7 +55,7 @@ class AADCommand {
         let group : string = this.getAADGroup(args)
         if ( group === null) {
             this.logger?.info(`Creating ${args.azureActiveDirectoryMakersGroup} group`)
-            let createJson = this.runCommand(`az ad group create --display-name "${args.azureActiveDirectoryMakersGroup}" --description "Application Lifecycle Management Accelerator for Advanced Makers" --mail-nickname="null"`, false)
+            let createJson = this.runCommand(`az ad group create --display-name "${args.azureActiveDirectoryMakersGroup}" --description "Application Lifecycle Management Accelerator for Makers" --mail-nickname="null"`, false)
             group = JSON.parse(createJson).objectId
         } else {
             this.logger?.info(`Group ${args.azureActiveDirectoryMakersGroup} exists`)
@@ -295,7 +295,7 @@ class AADCommand {
                 let match = accounts.filter((a: any) => (a.id == args.subscription || a.name == args.subscription) && (a.isDefault));
                 if (match.length != 1) {
                     this.logger?.info(`${args.subscription} is not the default account. Check you have run az login and have selected the correct default account using az account set --subscription`)
-                    this.logger?.info('Read more https://docs.microsoft.com/en-us/cli/azure/account?view=azure-cli-latest#az_account_set')
+                    this.logger?.info('Read more https://docs.microsoft.com/cli/azure/account?view=azure-cli-latest#az_account_set')
                     return Promise.resolve(false)
                 } else {
                     return Promise.resolve(true)

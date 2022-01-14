@@ -1,8 +1,12 @@
-const walkSync = require("walk-sync");
-const { execSync } = require("child_process");
-const path = require("path");
-const fs = require("fs");
-const paths = walkSync(__dirname, {globs: ["**/*.mmd"]});
+import walkSync from "walk-sync";
+import { execSync } from "child_process";
+import path from  "path";
+import fs from "fs";
+import { URL } from 'url';
+const __dirname = new URL('.', import.meta.url).pathname.substr(1);
+
+console.log(__dirname)
+const paths = walkSync(__dirname, {globs: ["**/*.mmd"]})
 
 let mmdc = path.normalize(path.join(__dirname, '../node_modules/.bin/mmdc'))
 

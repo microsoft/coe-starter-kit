@@ -30,7 +30,7 @@ To run the CoE CLI application you will require the following
 
 2. Azure CLI (version 2.24.0 or greater) is required for user authentication and Azure Active Directory Integration
 
-   a. https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+   a. https://docs.microsoft.com/cli/azure/install-azure-cli
 
 ### Checking Prerequisites
 
@@ -71,7 +71,7 @@ npm link
 NOTE:
 1. On Windows you may need to add %APPDATA%\npm to your PATH environment variable to access the coe command
 
-2. Install Azure CLI. Follow install instructions for your operating system at https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+2. Install Azure CLI. Follow install instructions for your operating system at https://docs.microsoft.com/cli/azure/install-azure-cli
 
 ## Docker Install
 

@@ -2,14 +2,14 @@ import url, { URL } from 'url';
 
 export abstract class Environment {         
     
-    public static getEnvironments(enviroments: any, settings?: { [id: string] : string }):  { [id: string] : string } {
-        if ( typeof enviroments === "object"){
-            return enviroments
+    public static getEnvironments(environments: any, settings?: { [id: string] : string }):  { [id: string] : string } {
+        if ( typeof environments === "object"){
+            return environments
         }
 
-        if ( typeof enviroments === "string"){
+        if ( typeof environments === "string"){
             let results :{ [id: string] : string } = {}
-            let parts = enviroments.split(",")
+            let parts = environments.split(",")
             for (let i = 0; i < parts.length; i++ ) {
                 results[i.toString()] = this.getEnvironmentUrl(parts[i], settings)
             }
@@ -23,7 +23,7 @@ export abstract class Environment {
     public static getEnvironmentUrl(name: string, settings?: { [id: string] : string }): string {
         let environmentUrl : url.URL = null
         let defaultDomain = '.crm.dynamics.com'
-        // https://docs.microsoft.com/en-us/power-platform/admin/new-datacenter-regions
+        // https://docs.microsoft.com/power-platform/admin/new-datacenter-regions
 
         let region = ''
         if (typeof settings !== "undefined" && typeof settings["region"] === "string") {

@@ -8,13 +8,13 @@ You can use the **--help** command line argument to discover  help for each comm
 
 ### Examples
 
-To get help for ALM Accelerator for Advanced Makers (AA4AM)
+To get help for ALM Accelerator for CoE Starter Kit
 
 ```bash
-coe help aa4am
+coe help alm
 ```
 
-Read more on [ALM Accelerator for Advanced Makers Help](./aa4am/readme.md)
+Read more on [ALM Accelerator for CoE Starter Kit](./alm/readme.md)
 
 ### Contribution
 
