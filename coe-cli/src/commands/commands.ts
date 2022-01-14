@@ -5,7 +5,6 @@ import { ALMBranchArguments, ALMInstallArguments, ALMUserArguments, ALMCommand, 
 import { DevOpsInstallArguments, DevOpsCommand } from './devops';
 import { RunArguments, RunCommand } from './run';
 import { CLIArguments, CLICommand } from './cli';
-import { EbookArguments, EbookCommand } from './ebook';
 import * as winston from 'winston';
 import * as readline from 'readline';
 import * as fs from 'fs';
@@ -29,7 +28,6 @@ class CoeCliCommands {
     createDevOpsCommand: () => DevOpsCommand
     createRunCommand: () => RunCommand
     createCliCommand: () => CLICommand
-    createEBookCommand: () => EbookCommand
     logger: winston.Logger
     readline: readline.ReadLine
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
@@ -48,7 +46,6 @@ class CoeCliCommands {
         this.createDevOpsCommand = () => new DevOpsCommand(this.logger)
         this.createRunCommand = () => new RunCommand(this.logger)
         this.createCliCommand = () => new CLICommand(this.logger)
-        this.createEBookCommand = () => new EbookCommand(this.logger)
         this.readline = defaultReadline
         
         if (defaultFs == null) {
@@ -79,7 +76,6 @@ class CoeCliCommands {
         this.AddALMAcceleratorForMakerCommands(program);
         this.AddRunCommand(program);
         this.AddCliCommand(program);
-        this.AddEbookCommand(program);
        
         await program
             .parseAsync(argv);
@@ -169,7 +165,7 @@ class CoeCliCommands {
             renderer: new TerminalRenderer()
         });
 
-        this.outputText(marked.marked(text))
+        this.outputText(marked(text))
     }
 
     AddALMAcceleratorForMakerCommands(program: commander.Command) {
@@ -657,29 +653,6 @@ class CoeCliCommands {
                 let command = this.createCliCommand();
                 await command.add(args)
             });
-    }
-
-    AddEbookCommand(program: commander.Command) {
-        let ebook = program.command('ebook')
-            .description('Manage the cli e-book')
-
-        ebook.command("generate")
-            .description('Generate e-book')
-            .option('-d, --docs <docs path>', 'The documents folder name', 'docs')
-            .option('-t, --tocLevel <elevl>', 'The toc level to generate', '3')
-            .option('-h, --html <htmlfile>', 'The html file to create in docs folder', 'Power Platform CoE Toolkit Command Line Interface.html')
-            .option('-r, --repo <name>', 'The repository where the docs are located', 'https://github.com/microsoft/coe-starter-kit/tree/main/coe-cli/docs')
-            .addOption(this._logOption)
-            .action(async (options: any) : Promise<void> => {
-                this.setupLogger(options)
-                let command = this.createEBookCommand()
-                let args = new EbookArguments()
-                args.docsPath = options.docs
-                args.htmlFile = options.html
-                args.repoPath = options.repo
-                args.tocLevel = Number.parseInt(options.tocLevel)
-                await command.create(args)
-            })
     }
 
     parseSettings(setting: string) : { [id: string] : string } {
