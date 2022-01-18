@@ -1,5 +1,3 @@
 ## Sample Local Install
 
-The following captures the results of a sample local install
-
-![Local Install](./install-local.svg)
+This doc can now be found on [Microsoft Docs](https://docs.microsoft.com/power-platform/guidance/coe/cli/sample-local-install)

@@ -1,5 +1,3 @@
 ## Sample Docker Install
 
-The following captures the results of a sample docker install on Linux
-
-![Docker Install](./install-docker.svg)
+This doc can now be found on [Microsoft Docs](https://docs.microsoft.com/power-platform/guidance/coe/cli/sample-docker-install)
