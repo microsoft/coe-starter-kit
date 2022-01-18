@@ -1,6 +1,6 @@
 ## DevOps Deployment Model
 
-![DevOps Scenarios](../../images/alm-devops-deployment-model.png)
+![DevOps Scenarios](../../images/aa4am-devops-deployment-model.png)
 
 ### Factors to Consider
 
@@ -20,15 +20,15 @@ As you plan your DevOps deployment model the following factors may help you deci
 
 In this scenario the following is assumed:
 
-- Single Power Platform Maker Deployment with Shared Power Platform Environments for the Maker Canvas Application, Validation, Test and Production Environments
+- Single Power Platform Advanced Maker Deployment with Shared Power Platform Environments for the Advanced Maker Canvas Application, Validation, Test and Production Environments
 
-- Single Shared Azure DevOps where all Makers collaborate on Solutions.
+- Single Shared Azure DevOps where all Advanced Makers collaborate on Solutions.
 
 ### Power Platform 1 to Many DevOps
 
 In this scenario the following is assumed:
 
-- Single Power Platform Maker Deployment with Shared Power Platform Environments for the Maker Canvas Application, Validation, Test and Production Environments
+- Single Power Platform Advanced Maker Deployment with Shared Power Platform Environments for the Advanced Maker Canvas Application, Validation, Test and Production Environments
 
 - Multiple Azure DevOps for different teams or Business Units.
 
@@ -38,11 +38,11 @@ In this scenario the following is assumed:
 
 ### Multiple Power Platform Environments and DevOps
 
-This scenario is not a recommended deployment model as is requires the deployment and management of multiple ALM deployments withing the organization.
+This scenario is not a recommended deployment model as is requires the deployment and management of multiple AA4AM deployments withing the organization.
 
 In this scenario the following is assumed:
 
-- Multiple Power Platform Maker Deployment with Shared Power Platform Environments for the Maker Canvas Application, Validation, Test and Production Environments
+- Multiple Power Platform Advanced Maker Deployment with Shared Power Platform Environments for the Advanced Maker Canvas Application, Validation, Test and Production Environments
 
 - Multiple Azure DevOps for different teams or Business Units
 
