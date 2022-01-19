@@ -679,7 +679,7 @@ class PowerPlatformCommand {
         let components = <Component[]>componentQuery.data.value
         this.logger?.verbose(components)
 
-        let makeCanvasApp = "ALM Accelerator for Advanced Makers"
+        let makeCanvasApp = "ALM Accelerator for Power Platform"
         let componentMatch = components.filter((c: Component) => { return c.msdyn_displayname == makeCanvasApp })
 
         if (componentMatch.length == 1) {
