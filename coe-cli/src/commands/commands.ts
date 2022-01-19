@@ -165,7 +165,7 @@ class CoeCliCommands {
             renderer: new TerminalRenderer()
         });
 
-        this.outputText(marked(text))
+        this.outputText(marked.marked(text))
     }
 
     AddALMAcceleratorForMakerCommands(program: commander.Command) {
