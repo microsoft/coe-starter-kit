@@ -668,7 +668,7 @@ describe('Share', () => {
             if (url.indexOf('api/data/v9.0/msdyn_solutioncomponentsummaries') > 0) {
                 response = [
                     <Component> {
-                        msdyn_displayname: "ALM Accelerator for Advanced Makers",
+                        msdyn_displayname: "ALM Accelerator for Power Platform",
                         msdyn_objectid: "C1"
                     }
                 ]
