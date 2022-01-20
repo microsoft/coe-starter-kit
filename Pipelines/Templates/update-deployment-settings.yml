@@ -256,7 +256,7 @@ steps:
             Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
-        if($buildDefinitionResponseResults.length -ne $deploymentSteps.Count) {
+        if($buildDefinitionResponseResults.length -lt $deploymentSteps.Count) {
             New-Item -ItemType "directory" -Name "../coe-starter-kit-source"
             cd ../coe-starter-kit-source
             git clone -b "main" "https://github.com/microsoft/coe-starter-kit.git"
@@ -265,19 +265,17 @@ steps:
             npm run build
             npm link
             $environments = ""
-            if($deploymentSteps.Count -gt 0) {
-                foreach($deploymentStep in $deploymentSteps.CrmRecords) {
-                    if(-Not [string]::IsNullOrWhiteSpace($environments)) {
-                        $environments = $environments + ","
-                    }
-                    $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
-
-                    if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
-                        $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
-                    }
+            foreach($deploymentStep in $deploymentSteps.CrmRecords) {
+                if(-Not [string]::IsNullOrWhiteSpace($environments)) {
+                    $environments = $environments + ","
                 }
-                coe alm branch --pipelineRepository $(Build.Repository.Name) -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
+                $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
+
+                if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
+                    $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
+                }
             }
+            coe alm branch --pipelineRepository $(Build.Repository.Name) -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
 
             $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
                 Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
