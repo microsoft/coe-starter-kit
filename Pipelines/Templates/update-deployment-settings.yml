@@ -80,15 +80,14 @@ steps:
         $currentGroupTeams = $currentCustomConfiguration.AadGroupTeamConfiguration
     
         $solutionComponentDefinitionsResults =  Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponentdefinition -FilterAttribute "primaryentityname" -FilterOperator "eq" -FilterValue "connectionreference" -Fields objecttypecode
-        #There is an extra '.' character being introduced in specific locales. The regex replace on the objecttypecode below is to remove it.
-        #Convert it back to a integer to fix an issue with a comma appearing when converting to a string
-        $connectionReferenceTypeCode = [int] ($solutionComponentDefinitionsResults.CrmRecords[0].objecttypecode -replace '\.','')
+        #There are extra characters being introduced in specific locales. The regex replace on the objecttypecode below is to remove it.
+        $connectionReferenceTypeCode = [int] ($solutionComponentDefinitionsResults.CrmRecords[0].objecttypecode -replace '\D','')
     
         foreach($solutioncomponent in $solutionComponentResults.CrmRecords)
         {
             #Connection Reference
-            #There is an extra '.' character being introduced in specific locales. The regex replace on the objecttypecode below is to remove it.
-            $solutioncomponentType = [int] ($solutioncomponent.componenttype_Property.Value.Value -replace '\.','')
+            #There are extra characters being introduced in specific locales for the componenttype. The regex replace on the componenttype below is to remove it.
+            $solutioncomponentType = [int] ($solutioncomponent.componenttype_Property.Value.Value -replace '\D','')
             if(($solutioncomponentType -eq $connectionReferenceTypeCode) -and ('${{parameters.generateConnectionReferences}}' -ne 'false')) {
                 # "ConnectionReferences": [
                 # {
@@ -257,7 +256,7 @@ steps:
             Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
-        if($buildDefinitionResponseResults.length -ne $deploymentSteps.Count) {
+        if($buildDefinitionResponseResults.length -lt $deploymentSteps.Count) {
             New-Item -ItemType "directory" -Name "../coe-starter-kit-source"
             cd ../coe-starter-kit-source
             git clone -b "main" "https://github.com/microsoft/coe-starter-kit.git"
@@ -266,24 +265,25 @@ steps:
             npm run build
             npm link
             $environments = ""
-            if($deploymentSteps.Count -gt 0) {
-                foreach($deploymentStep in $deploymentSteps.CrmRecords) {
-                    if(-Not [string]::IsNullOrWhiteSpace($environments)) {
-                        $environments = $environments + ","
-                    }
-                    $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
+            foreach($deploymentStep in $deploymentSteps.CrmRecords) {
+                if(-Not [string]::IsNullOrWhiteSpace($environments)) {
+                    $environments = $environments + ","
+                }
+                $environment = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_deploymentenvironment -Id $deploymentStep.cat_deploymentenvironmentid_Property.Value.Id -Fields cat_url
 
-                    if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
-                        $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
-                    }
+                if(-Not [string]::IsNullOrWhiteSpace($environment.cat_url) -and -Not [string]::IsNullOrWhiteSpace($deploymentStep.cat_name)) {
+                    $environments = $environments + $deploymentStep.cat_name.ToLower() + "=" + $environment.cat_url
                 }
             }
-            coe alm branch --pipelineRepository $(Build.Repository.Name) -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
-
-            $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
-                Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+            if(-Not [string]::IsNullOrWhiteSpace($environments)) {
+                coe alm branch --pipelineRepository $(Build.Repository.Name) -o ${{parameters.orgUrl}} -p ${{parameters.project}} -r ${{parameters.repo}} -d ${{parameters.solutionName}} -a $env:SYSTEM_ACCESSTOKEN -s $environments
+            
+                $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
+                    Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+                }
+                $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
             }
-            $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+
             cd $(Build.SourcesDirectory)\${{parameters.repo}}
         }
         #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
@@ -337,8 +337,6 @@ steps:
             $headers.Add("Authorization", "Bearer $env:SYSTEM_ACCESSTOKEN")
             $headers.Add("Content-Type", "application/json")
             $body = ConvertTo-Json -Depth 10 $buildDefinitionResult
-            #remove tab charcters from the body
-            $body = $body -replace "\\t", ""            
             Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null
         }
     }
