@@ -171,7 +171,23 @@ Read More
 
 ##### --installFile
 
-The name of the ALM Accelerator for Power Platform managed solution export file to import during install
+The relative or path to the solution zip file of the ALM Accelerator for Power Platform managed solution export zip file to import during install.
+
+If not specified the install process will attempt to download the latest release version from [https://github.com/microsoft/coe-starter-kit/releases/](https://github.com/microsoft/coe-starter-kit/releases/).
+
+For example for the [January 2022 release](https://github.com/microsoft/coe-starter-kit/releases/tag/CenterofExcellenceALMAccelerator-January2022) this would be in the Assets section and download [CenterofExcellenceALMAccelerator_1.0.20220114.1_managed.zip](https://github.com/microsoft/coe-starter-kit/releases/download/CenterofExcellenceALMAccelerator-January2022/CenterofExcellenceALMAccelerator_1.0.20220114.1_managed.zip)
+
+NOTE: If you are running via [Docker image](https://docs.microsoft.com/power-platform/guidance/coe/cli/install#docker-install) this will need to be location inside the docker image. For example if you downloaded the release to your Downloads folder in Windows
+
+```pwsh
+docker run -it --rm -v $env:HOMEDRIVE$env:HOMEPATH/Downloads:/downloads coe-cli
+```
+
+Once the docker image starts you could then use the generate command to create an install.json file and reference docker path when prompted for installPath with /downloads/CenterofExcellenceALMAccelerator_1.0.20220114.1_managed.zip
+
+```bash
+coe alm generate install -o install.json
+```
 
 ##### --subscription
 
