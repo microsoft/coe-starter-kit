@@ -171,7 +171,7 @@ Read More
 
 ##### --installFile
 
-The name of the ALM Accelerator for Power Platform managed solution export zip file to import during install.
+The relative or path to the solution zip file of the ALM Accelerator for Power Platform managed solution export zip file to import during install.
 
 If not specified the install process will attempt to download the latest release version from [https://github.com/microsoft/coe-starter-kit/releases/](https://github.com/microsoft/coe-starter-kit/releases/).
 
