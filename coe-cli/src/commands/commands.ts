@@ -247,7 +247,7 @@ class CoeCliCommands {
                 settings.option("--test", "Test Environment Name", "yourenvironment-test");     
                 settings.option("--prod", "Production Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
-                settings.option("--installFile", "The name of the ALM Accelerator managed solution file to import")
+                settings.option("--installFile", "The name of the ALM Accelerator managed solution file to import (Default: Download from latest GitHub release)")
                 settings.addOption(regionOptions)
 
                 parse["environments"] = { parse: (text) => {
