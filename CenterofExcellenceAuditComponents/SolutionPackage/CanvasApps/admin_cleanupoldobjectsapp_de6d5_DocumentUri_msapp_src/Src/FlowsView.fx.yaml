@@ -1,10 +1,11 @@
 FlowsView As screen:
     OnVisible: |-
-        =//Get first Seleted App
-        Set(SelectedFlow, First(theFlows));
+        =//Get first Seleted Flow
+        UpdateContext({FilterNumber: 1});
+        Select(AppList_1, 1, AppName_1);
         Set(WorkingWithApp, false);
-        UpdateContext({FlowApprovedComment: LookUp(theFlowsApprovedForDeletes, Name=Text(SelectedFlow.Flow)).'Approval Comment'});
-        UpdateContext({FlowRejectedComment: LookUp(theFlowsRejectedForDeletes, Name=Text(SelectedFlow.Flow)).'Approval Comment'});
+        UpdateContext({FlowApprovedComment: LookUp(theFlowsApprovedForDeletes, Name=Text(SelectedFlow.theGUID)).'Approval Comment'});
+        UpdateContext({FlowRejectedComment: LookUp(theFlowsRejectedForDeletes, Name=Text(SelectedFlow.theGUID)).'Approval Comment'});
         UpdateContext({SelectedFlowComment: If(!IsBlank(FlowApprovedComment), FlowApprovedComment, If(!IsBlank(FlowRejectedComment), FlowRejectedComment, ""))});
         
         //Set visiable variables
@@ -12,17 +13,23 @@ FlowsView As screen:
         UpdateContext({ShowSendReject: false});
         UpdateContext({ShowSendApprove: false});
         UpdateContext({ShowBurgerMenu: false});
-        UpdateContext({FlowsToShow: CountRows(theFlows)>0});
+        UpdateContext({ShowFilterMenu: false});
+        UpdateContext({FlowsToShow: CountRows(AppList_1.AllItems)>0});
         UpdateContext({ShowLoading: false});
 
     AppList_1 As gallery.galleryVertical:
         Height: =664
-        Items: =theFlows
+        Items: |-
+            =//1 = All
+            //2 = Requested
+            //3 = Approved
+            //4 = Rejected
+            Filter(theFlows, If(FilterNumber=1, !IsBlank(theGUID), If(FilterNumber=2, !IsBlank(requestsIgnoredSince) && !approvedForDelete && !rejectedForDelete, If(FilterNumber=3, approvedForDelete = true, If(FilterNumber=4, rejectedForDelete = true)))))
         Layout: =Layout.Vertical
         OnSelect: |-
             =Set(SelectedFlow, ThisItem);
-            UpdateContext({FlowApprovedComment: LookUp(theFlowsApprovedForDeletes, admin_name=Text(SelectedFlow.Flow)).admin_approvalcomment});
-            UpdateContext({FlowRejectedComment: LookUp(theFlowsRejectedForDeletes, admin_name=Text(SelectedFlow.Flow)).admin_approvalcomment});
+            UpdateContext({FlowApprovedComment: LookUp(theFlowsApprovedForDeletes, admin_name=Text(SelectedFlow.theGUID)).admin_approvalcomment});
+            UpdateContext({FlowRejectedComment: LookUp(theFlowsRejectedForDeletes, admin_name=Text(SelectedFlow.theGUID)).admin_approvalcomment});
             UpdateContext({SelectedFlowComment: If(!IsBlank(FlowApprovedComment), FlowApprovedComment, If(!IsBlank(FlowRejectedComment), FlowRejectedComment, ""))});
         TemplateFill: =If(ThisItem.IsSelected, RGBA(112, 39, 117, .05))
         TemplateSize: =56
@@ -36,7 +43,7 @@ FlowsView As screen:
             Fill: =If(ThisItem.approvedForDelete || ThisItem.rejectedForDelete, RGBA(204,255,179, .2), RGBA(0,0,0,0))
             Height: =Parent.TemplateHeight
             OnSelect: =Select(Parent)
-            Text: =Text(ThisItem.'Flow Archive Request Ignored Since', ShortDate)
+            Text: =ThisItem.requestsIgnoredSince 
             Width: =125
             X: =AppInfo_1.X+AppInfo_1.Width
             ZIndex: =1
@@ -46,7 +53,7 @@ FlowsView As screen:
             Fill: =If(ThisItem.approvedForDelete || ThisItem.rejectedForDelete, RGBA(204,255,179, .2), RGBA(0,0,0,0))
             Height: =Parent.TemplateHeight
             OnSelect: =Select(Parent)
-            Text: =If(ThisItem.approvedForDelete, "Approved for Delete", If(ThisItem.rejectedForDelete, "Rejected for Delete", "No Response"))
+            Text: =If(ThisItem.approvedForDelete, "Approved for Delete", If(ThisItem.rejectedForDelete, "Rejected for Delete", If(IsBlank(ThisItem.requestsIgnoredSince), "Not Requested", "No Response")))
             Width: =165
             X: =AppName_1.X+AppName_1.Width
             ZIndex: =2
@@ -55,7 +62,7 @@ FlowsView As screen:
             Color: =AppEnvtName_1.Color
             Height: =Parent.TemplateHeight
             OnSelect: =Select(Parent)
-            Text: =ThisItem.'Display Name'
+            Text: =ThisItem.flowDisplayName
             Width: =Parent.Width/3
             X: =AppEnvtName_1.X+AppEnvtName_1.Width
             ZIndex: =3
@@ -64,7 +71,7 @@ FlowsView As screen:
             Color: =Black
             Height: =Parent.TemplateHeight
             OnSelect: =Select(Parent)
-            Text: =ThisItem.'Flow Environment'.'Display Name'
+            Text: =ThisItem.envDisplayName
             Width: =Parent.Width/3
             ZIndex: =4
 
@@ -220,12 +227,12 @@ FlowsView As screen:
                 //update data on backend
                 Set(CurrentArchiveItem, Patch('Archive Approvals', First(SortByColumns(Filter('Archive Approvals', Name=Text(SelectedFlow.theGUID)), "createdon", Descending)), {'Approval Response': "Approve", 'Approval Comment':VerifySendApprovalInput_1.Text, 'Approval Response Date': Now()}));
                 UpdateIf(Flows, Flow=SelectedFlow.theGUID, {'Flow Archive Request Ignored Since': Blank()});
-                UpdateIf(theFlows, Flow=SelectedFlow.theGUID, {'Flow Archive Request Ignored Since': Blank()});
+                UpdateIf(theFlows, theGUID=SelectedFlow.theGUID, {requestsIgnoredSince: Blank()});
                 Remove('Archive Approvals', Filter('Archive Approvals', 'Archive Approval ' <> CurrentArchiveItem.'Archive Approval ' &&  Name=Text(SelectedFlow.theGUID)));
                 Refresh('Archive Approvals');
                 
                 //update collections
-                UpdateIf(theFlows, Flow=SelectedFlow.theGUID, {rejectedForDelete: false, approvedForDelete: true, requestsIgnoredSince: Blank()});
+                UpdateIf(theFlows, theGUID=SelectedFlow.theGUID, {rejectedForDelete: false, approvedForDelete: true, requestsIgnoredSince: Blank()});
                 RemoveIf(theFlowsRejectedForDeletes, Name=Text(SelectedFlow.theGUID));
                 If(CountRows(Filter(theFlowsApprovedForDeletes, Name=Text(SelectedFlow.theGUID)))<1, Collect(theFlowsApprovedForDeletes, CurrentArchiveItem));
                 UpdateContext({SelectedFlowComment: VerifySendApprovalInput_1.Text});
@@ -340,12 +347,12 @@ FlowsView As screen:
                 //update data on backend
                 Set(CurrentArchiveItem, Patch('Archive Approvals', First(SortByColumns(Filter('Archive Approvals', Name=Text(SelectedFlow.theGUID)), "createdon", Descending)), {'Approval Response': "Reject", 'Approval Comment':VerifySendRejectInput_1.Text, 'Approval Response Date': Now()}));
                 UpdateIf(Flows, Flow=SelectedFlow.theGUID, {'Flow Archive Request Ignored Since': Blank()});
-                UpdateIf(theFlows, Flow=SelectedFlow.theGUID, {'Flow Archive Request Ignored Since': Blank()});
+                UpdateIf(theFlows, theGUID=SelectedFlow.theGUID, {requestsIgnoredSince: Blank()});
                 Remove('Archive Approvals', Filter('Archive Approvals', 'Archive Approval ' <> CurrentArchiveItem.'Archive Approval ' &&  Name=Text(SelectedFlow.theGUID)));
                 Refresh('Archive Approvals');
                 
-                //pdate collections
-                UpdateIf(theFlows, Flow=SelectedFlow.theGUID, {rejectedForDelete: true, approvedForDelete: false, requestsIgnoredSince: Blank()});
+                //update collections
+                UpdateIf(theFlows, theGUID=SelectedFlow.theGUID, {rejectedForDelete: true, approvedForDelete: false, requestsIgnoredSince: Blank()});
                 RemoveIf(theFlowsApprovedForDeletes, Name=Text(SelectedFlow.theGUID));
                 If(CountRows(Filter(theFlowsRejectedForDeletes, Name=Text(SelectedFlow.theGUID)))<1, Collect(theFlowsRejectedForDeletes, CurrentArchiveItem));
                 UpdateContext({SelectedFlowComment: VerifySendRejectInput_1.Text});
@@ -402,7 +409,7 @@ FlowsView As screen:
         Align: =Center
         Color: =RGBA(112, 39, 117, 1)
         Height: =If(Self.Visible, 60, 0)
-        Text: ="No Apps to Display"
+        Text: ="No Flows to Display"
         Visible: =!FlowsToShow
         Width: =If(Self.Visible, Parent.Width, 0)
         Y: =If(Self.Visible, Parent.Height/2-Self.Height, 0)
@@ -548,7 +555,7 @@ FlowsView As screen:
         FlowIgnoredDateResult As label:
             Align: =Center
             Height: =50
-            Text: =Text(SelectedFlow.'Flow Archive Request Ignored Since', ShortDate)
+            Text: =SelectedFlow.requestsIgnoredSince
             Visible: =FlowsToShow
             Width: =FlowLastModified.Width
             X: =FlowLastModifiedResult.X
@@ -568,7 +575,7 @@ FlowsView As screen:
         FlowStateResult As label:
             Align: =Center
             Height: =50
-            Text: =If(IsBlank(SelectedFlow.'Flow State'), "unknown", SelectedFlow.'Flow State')
+            Text: =If(IsBlank(SelectedFlow.flowState), "unknown", SelectedFlow.flowState)
             Visible: =FlowsToShow
             Width: =FlowLastModified.Width
             X: =FlowLastModifiedResult.X
@@ -588,7 +595,7 @@ FlowsView As screen:
         FlowLastModifiedResult As label:
             Align: =Center
             Height: =50
-            Text: =If(IsBlank(SelectedFlow.'Flow Modified On'), "unknown", Text(SelectedFlow.'Flow Modified On', ShortDate))
+            Text: =If(IsBlank(SelectedFlow.lastModified), "unknown", SelectedFlow.lastModified)
             Visible: =FlowsToShow
             Width: =FlowLastModified.Width
             X: =FlowLastModified.X+FlowLastModified.Width
@@ -631,10 +638,101 @@ FlowsView As screen:
         AppNameAgain_1 As label:
             FontWeight: =Bold
             Height: =60 
-            Text: =SelectedFlow.'Display Name'
+            Text: =SelectedFlow.flowDisplayName
             Visible: =FlowsToShow
             Width: =(Parent.Width/3)*3/4
             X: =AppList_1.X+AppList_1.Width+10
             Y: =AppList_1.Y
             ZIndex: =14
+
+    FilterButton_1 As icon.Hamburger:
+        Color: =RGBA(255, 255, 255, 1)
+        Height: =AppTitleBar.Height-10
+        Icon: =Icon.FilterFlat
+        OnSelect: |-
+            =UpdateContext({ShowFilterMenu: !ShowFilterMenu})
+        Width: =Self.Height
+        X: =5
+        Y: =5
+        ZIndex: =48
+
+    FilterMenu_1 As group:
+        Height: =5
+        Width: =5
+        X: =20
+        Y: =20
+        ZIndex: =48
+
+        FilterMenuBG_1 As rectangle:
+            Fill: =RGBA(112, 39, 117, 1)
+            Height: =If(Self.Visible, 200, 0)
+            Visible: =ShowFilterMenu
+            Width: =If(Self.Visible, 150, 0)
+            X: =20
+            Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height, 0)
+            ZIndex: =43
+
+        MenuRejected_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            Fill: =If(FilterNumber=4, ColorFade(RGBA(112, 39, 117, 1), .2), RGBA(0, 0, 0, 0))
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: |-
+                =UpdateContext({FilterNumber: 4});
+                UpdateContext({ShowFilterMenu: false, FlowsToShow: CountRows(AppList_1.AllItems)>0 });
+                Select(AppList_1, 1, AppName_1);
+            Text: ="Rejected"
+            Visible: =ShowFilterMenu
+            Width: =FilterMenuBG_1.Width
+            X: =FilterMenuBG_1.X
+            Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*3), 0)
+            ZIndex: =44
+
+        MenuApproved_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            Fill: =If(FilterNumber=3, ColorFade(RGBA(112, 39, 117, 1), .2), RGBA(0, 0, 0, 0))
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: |-
+                =UpdateContext({FilterNumber: 3});
+                UpdateContext({ShowFilterMenu: false, FlowsToShow: CountRows(AppList_1.AllItems)>0 });
+                Select(AppList_1, 1, AppName_1);
+            Text: ="Approved"
+            Visible: =ShowFilterMenu
+            Width: =FilterMenuBG_1.Width
+            X: =FilterMenuBG_1.X
+            Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*2), 0)
+            ZIndex: =45
+
+        MenuRequested_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            Fill: =If(FilterNumber=2, ColorFade(RGBA(112, 39, 117, 1), .2), RGBA(0, 0, 0, 0))
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: |-
+                =UpdateContext({FilterNumber: 2});
+                UpdateContext({ShowFilterMenu: false, FlowsToShow: CountRows(AppList_1.AllItems)>0 });
+                Select(AppList_1, 1, AppName_1);
+            Text: ="Requested"
+            Visible: =ShowFilterMenu
+            Width: =FilterMenuBG_1.Width
+            X: =FilterMenuBG_1.X
+            Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*1), 0)
+            ZIndex: =46
+
+        MenuAll_1 As label:
+            Color: =RGBA(255, 255, 255, 1)
+            Fill: =If(FilterNumber=1, ColorFade(RGBA(112, 39, 117, 1), .2), RGBA(0, 0, 0, 0))
+            FontWeight: =Semibold
+            Height: =If(Self.Visible, 50, 0)
+            OnSelect: |-
+                =UpdateContext({FilterNumber: 1});
+                UpdateContext({ShowFilterMenu: false, FlowsToShow: CountRows(AppList_1.AllItems)>0 });
+                Select(AppList_1, 1, AppName_1);
+            Text: ="All"
+            Visible: =ShowFilterMenu
+            Width: =FilterMenuBG_1.Width
+            X: =FilterMenuBG_1.X
+            Y: =If(Self.Visible, AppBurger.Y+AppBurger.Height+(Self.Height*0), 0)
+            ZIndex: =47
 
