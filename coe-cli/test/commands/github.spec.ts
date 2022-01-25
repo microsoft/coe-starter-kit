@@ -33,7 +33,7 @@ describe('Related Tests', () => {
     
         // Act
         
-        args.type = "alm"
+        args.type = "coe"
         args.asset = 'Test1'
         args.settings = { installFile: "https://github.com/download/something" }
         Config.data["pat"] = "123"
