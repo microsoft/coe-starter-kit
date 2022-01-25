@@ -151,17 +151,15 @@ steps:
 # update all the json files to be pretty-print / formatted so they are easier to read in source control.
 # This also makes it easier to read changes from one commit to another
 - powershell: |
-   Invoke-WebRequest -Uri https://github.com/stedolan/jq/releases/download/jq-1.6/jq-win64.exe -OutFile  jq.exe
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage" -Recurse -Filter *.json | 
    ForEach-Object {
     #skip canvas app folder because canvas team already handles this for canvas unpack
      if(-not $_.FullName.Contains('CanvasApps')) {
        Write-Host $_.FullName
-       $formatted = .\jq.exe . $_.FullName --sort-keys
+       $formatted = jq . $_.FullName --sort-keys
        $formatted | Out-File $_.FullName -Encoding UTF8
      }
    }
-   del jq.exe
    del $(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip
    del $(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip
   displayName: 'Format JSON files'
@@ -184,11 +182,15 @@ steps:
   displayName: 'Verify Environment Variable Current Value Not Exported'
   condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'))
 
+
 - template: update-deployment-settings.yml
   parameters:
+    orgUrl: '$(System.TeamFoundationCollectionUri)'
+    project: '${{parameters.project}}'
     repo: '${{parameters.repo}}'
     serviceConnection: '${{parameters.serviceConnection}}'
     solutionName: '${{parameters.solutionName}}'
+    profileId: '$(EnvironmentName)'
     configurationData: '${{parameters.configurationData}}'
     generateEnvironmentVariables: $(DeploymentSettings.GenerateEnvironmentVariables)
     generateConnectionReferences: $(DeploymentSettings.GenerateConnectionReferences)
@@ -261,14 +263,14 @@ steps:
 - script: |
    git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin ${{parameters.branch}}
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
-  displayName: 'Push to $(Branch) Local Branch'
+  displayName: 'Push to $(Branch) Remote Branch'
   condition: and(eq('${{parameters.gitAccessUrl}}', ''), succeeded(), eq(variables.BranchToCreate, '')) # If an empty value is passed for the BranchToCreate variable, then run this task
 
 # If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
 - script: |
    git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push origin ${{parameters.branchToCreate}}
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
-  displayName: 'Push to ${{parameters.branchToCreate}} Local Branch'
+  displayName: 'Push to ${{parameters.branchToCreate}} Remote Branch'
   condition: and(eq('${{parameters.gitAccessUrl}}', ''), succeeded(), ne(variables.BranchToCreate, '')) # If an empty value is not passed for the BranchToCreate variable, then run this task
 
 # If BranchToCreate variable value is '', then push to the branch specified in the BranchToCreate variable
