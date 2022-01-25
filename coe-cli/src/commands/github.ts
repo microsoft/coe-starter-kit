@@ -2,6 +2,7 @@
 const { Octokit } = require("@octokit/rest")
 import { Config } from '../common/config';
 import * as winston from 'winston';
+import axios from 'axios';
 
 /**
  * Github commands
@@ -41,23 +42,25 @@ class GitHubCommand {
                 repo:'coe-starter-kit'
             });
             switch ( args.type ) {
-                case 'alm': {
-                    let almRelease = results.data.filter((r: any) => r.name.indexOf('ALM Accelerator For Power Platform') >= 0);
+                case 'coe': {
+                    let almRelease = results.data.filter((r: any) => r.name.indexOf('CoE Starter Kit') >= 0);
                     if ( args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
                         almRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
                     }
                     if (almRelease.length > 0) {
                         let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
                         if (asset.length > 0) {
-                            let headers = {
-                                accept: 'application/octet-stream'
-                            }
+                            let headers = null
                             if(this.config["pat"]?.length > 0) {
-                                let headers = {
+                                headers = {
                                     authorization: `token ${this.config["pat"]}`,
                                     accept: 'application/octet-stream'
                                 }
-                            }                            
+                            } else {
+                                headers = {
+                                    accept: 'application/octet-stream'
+                                }
+                            }
                             let download = await this.octokitRequest({
                                 url: '/repos/{owner}/{repo}/releases/assets/{asset_id}',
                                 headers: headers,
@@ -65,6 +68,7 @@ class GitHubCommand {
                                 repo: 'coe-starter-kit',
                                 asset_id: asset[0].id
                             })
+
                             const buffer = Buffer.from(download.data);
                             return 'base64:' + buffer.toString('base64');
                         } 
