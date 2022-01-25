@@ -2,7 +2,6 @@
 const { Octokit } = require("@octokit/rest")
 import { Config } from '../common/config';
 import * as winston from 'winston';
-import axios from 'axios';
 
 /**
  * Github commands
