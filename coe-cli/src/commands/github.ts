@@ -42,12 +42,12 @@ class GitHubCommand {
             });
             switch ( args.type ) {
                 case 'coe': {
-                    let almRelease = results.data.filter((r: any) => r.name.indexOf('CoE Starter Kit') >= 0);
+                    let coeRelease = results.data.filter((r: any) => r.name.indexOf('CoE Starter Kit') >= 0);
                     if ( args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
-                        almRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
+                        coeRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
                     }
-                    if (almRelease.length > 0) {
-                        let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
+                    if (coeRelease.length > 0) {
+                        let asset = coeRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
                         if (asset.length > 0) {
                             let headers = null
                             if(this.config["pat"]?.length > 0) {
