@@ -72,7 +72,10 @@ class ALMCommand {
    * @param args {ALMInstallArguments} - The install parameters
    */
   async install(args: ALMInstallArguments) : Promise<void> { 
+    this.logger.info("Install started")
+
     args.accessTokens = await this.getAccessTokens(args)
+    this.logger.info("Access tokens loaded")
 
     if (args.components?.filter(a => a == "all" || a == "aad").length > 0) {
       await this.installAADApplication(args)
@@ -364,11 +367,14 @@ class ALMCommand {
   }
 
   async getAccessTokens(args: any) : Promise<{ [id: string] : string }>  {
+    this.logger.info( "Start get access tokens")
+
     let login = this.createLoginCommand()   
 
     let scopes = ["499b84ac-1321-427f-aa17-267ca6975798"]
 
     if (args.environment?.length) {
+      this.logger.info( `Get access token for ${args.environment}`)
       let enviromentUrl = Environment.getEnvironmentUrl(args.environment, args.settings)
       scopes.push(enviromentUrl)
       if (typeof args.endpoint === "string") {
