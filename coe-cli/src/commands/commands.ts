@@ -89,12 +89,21 @@ class CoeCliCommands {
         if (typeof this.logger !== "undefined") {
             return;
         }
+
+        let logLevel = "info"
+        if ( args.log === "string" ) {
+            logLevel = args.log
+        }
+        if ( args.log.constructor.name == "Array" && args.log.length > 0 ) {
+            logLevel = args.log[0]
+        }
+
         this.logger = winston.createLogger({
             format: winston.format.combine(
                 winston.format.splat(),
                 winston.format.simple()
             ),
-            transports: [new winston.transports.Console({ level: typeof args.log === "string" ? args.log : 'info' }),
+            transports: [new winston.transports.Console({ level: logLevel }),
                 new winston.transports.File({
                 filename: 'combined.log',
                 level: 'verbose',
@@ -377,6 +386,12 @@ class CoeCliCommands {
                 if (options.file?.length > 0) {
                     this.logger?.info("Loading configuration")
                     let optionsFile = JSON.parse(await this.readFile(options.file, { encoding: 'utf-8' }))
+
+                    if ( typeof optionsFile.log !== "undefined" ) {
+                        this.logger = undefined
+                        this.setupLogger(optionsFile)
+                    }
+
                     if ( Array.isArray(optionsFile.environments) ) {
                         optionsFile.environments = this.parseSettings(optionsFile.environments.join(','))
                         if ( optionsFile.environments.length == 1 ) {
