@@ -125,6 +125,7 @@ class LoginCommand {
                 this.runCommand('az account show', true)
                 validated = true
                 for ( var i = 0; i < scopes.length; i++) {
+                    this.logger.info(`Get access token for scope ${scopes[i]}`)
                     let token = JSON.parse(this.runCommand(`az account get-access-token --resource ${scopes[i]}`, false))
                     results[scopes[i]] = token.accessToken
                 }    
