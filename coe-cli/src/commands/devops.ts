@@ -1002,15 +1002,17 @@ class DevOpsCommand {
             sourceBuild = sourceBuilds.length > 0 ? await client.getDefinition(sourceBuilds[0].project?.name, sourceBuilds[0].id) : null
             if (sourceBuild != null) {
                 sourceBuild.repository = repo
-                if (destinationBuild != null) {
+                if (destinationBuild != null && destinationBuild.variables != null) {
                     let destinationKeys = Object.keys(destinationBuild.variables)
-                    let sourceKeys = Object.keys(sourceBuild.variables)
-                    if (destinationKeys.length == 0 && sourceKeys.length > 0) {
-                        destinationBuild.variables = sourceBuild.variables
+                    if(sourceBuild.variables != null) {
+                        let sourceKeys = Object.keys(sourceBuild.variables)
+                        if (destinationKeys.length == 0 && sourceKeys.length > 0) {
+                            destinationBuild.variables = sourceBuild.variables
 
-                        this.logger?.debug(util.format("Updating %s environment variables", destinationBuildName))
-                        await client.updateDefinition(destinationBuild, destinationBuild.project.name, destinationBuild.id)
-                        return;
+                            this.logger?.debug(util.format("Updating %s environment variables", destinationBuildName))
+                            await client.updateDefinition(destinationBuild, destinationBuild.project.name, destinationBuild.id)
+                            return;
+                        }
                     }
                 }
             }
