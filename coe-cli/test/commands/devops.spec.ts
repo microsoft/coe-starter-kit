@@ -279,29 +279,21 @@ describe('Branch', () => {
         
         let mockRepo = mock<GitInterfaces.GitRepository>()
         let mockSourceRef = mock<GitInterfaces.GitRef>()
-
         let mockSourceBuildRef = mock<BuildDefinitionReference>();
-
         command.createWebApi = (org: string, handler: IRequestHandler) => mockDevOpsWebApi;
         command.getUrl = (url: string) => Promise.resolve('123')
-
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
-
         mockCoreApi.getProject.mockResolvedValue(mockProject)
-
         mockGitApi.getRepositories.mockResolvedValue([mockRepo])
         mockGitApi.getRefs.mockResolvedValue([mockSourceRef])
-
         mockBuildApi.getDefinitions.mockResolvedValue([])
-
         mockProject.name = 'alm-sandbox'
         mockRepo.name = 'RePo1'
         mockRepo.defaultBranch = 'refs/heads/main'
         mockSourceRef.name = 'refs/heads/main'
-
         mockTaskAgentApi.getVariableGroups.mockResolvedValue([<BuildInterfaces.VariableGroup>{
             variables: {
                 "ValidationServiceConnection": <BuildDefinitionVariable>{
@@ -309,7 +301,6 @@ describe('Branch', () => {
                 }
             }
         }])
-
         let args = new DevOpsBranchArguments();
         args.accessToken = "FOO"
         args.organizationName = "org"
@@ -319,24 +310,21 @@ describe('Branch', () => {
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
-
         // Act
         await command.branch(args)
-
         // Assert
         expect(mockDevOpsWebApi.getCoreApi).toHaveBeenCalled()
         expect(mockCoreApi.getProject).toHaveBeenCalled()
         expect(mockGitApi.createPush).toHaveBeenCalled()
-        
+
     })
 
-    test('Clone existing source build with existing destination - validation', async () => {
+    test('Clone existing source build - validation', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockBuildApi = mock<IBuildApi>();
-
         let args = new DevOpsBranchArguments();
         args.accessToken = "FOO"
         args.organizationName = "org"
@@ -346,16 +334,10 @@ describe('Branch', () => {
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
-
         let project = <CoreInterfaces.TeamProject>{}
         project.name = 'test'
-
         let sourceValidationBuildDefinition = <BuildDefinitionReference>{}
         sourceValidationBuildDefinition.name = "deploy-validation-TestSolution"
-        sourceValidationBuildDefinition.id = 1
-        sourceValidationBuildDefinition.project = <CoreInterfaces.TeamProjectReference>{}
-        sourceValidationBuildDefinition.project.name = 'Test Project'
-
         let sourceValidationBuild = <BuildDefinition>{}
         sourceValidationBuild.project = <CoreInterfaces.TeamProjectReference>{}
         sourceValidationBuild.project.name = 'Test Project'
@@ -364,44 +346,19 @@ describe('Branch', () => {
         sourceValidationBuild.variables = {
             Foo: variable
         }
-        
         sourceValidationBuild.repository = <BuildRepository>{}
         sourceValidationBuild.repository.defaultBranch = 'main'
-        sourceValidationBuild.id = 1
-        //Destination pipeline      
-        let destinationValidationBuildDefinition = <BuildDefinitionReference>{}
-        destinationValidationBuildDefinition.name = "deploy-validation-NewSolution"
-        destinationValidationBuildDefinition.project = <CoreInterfaces.TeamProjectReference>{}
-        destinationValidationBuildDefinition.project.name = 'Test Project'
-        destinationValidationBuildDefinition.id = 2
-
-        let destinationValidationBuild = <BuildDefinition>{}
-        destinationValidationBuild.project = <CoreInterfaces.TeamProjectReference>{}
-        destinationValidationBuild.project.name = 'Test Project'
-        destinationValidationBuild.repository = <BuildRepository>{}
-        destinationValidationBuild.repository.defaultBranch = 'test'
-        destinationValidationBuild.id = 2
-        destinationValidationBuild.variables = {
-        }
         
-        mockBuildApi.getDefinitions.mockResolvedValue([sourceValidationBuildDefinition, destinationValidationBuildDefinition])
-
-        mockBuildApi.getDefinition.mockImplementation((projectName: string, id: number) => 
-            (id == 2) ? 
-            Promise.resolve(destinationValidationBuild) : 
-            Promise.resolve(sourceValidationBuild))
-
+        mockBuildApi.getDefinitions.mockResolvedValue([sourceValidationBuildDefinition])
+        mockBuildApi.getDefinition.mockResolvedValue(sourceValidationBuild)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
-
         let repo = <GitRepository>{}
         
         // Act
         await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
 
         // Assert
-        expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(1)
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
     })
 
     test('Clone existing source build - validation', async () => {
@@ -497,8 +454,6 @@ describe('Branch', () => {
 
         // Assert
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
-        expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(0)
     })
 
 
@@ -534,7 +489,6 @@ describe('Branch', () => {
             Foo: variable
         }
         sourceValidationBuild.repository = <BuildRepository>{}
-        sourceValidationBuild.repository.name = "Test"
         sourceValidationBuild.repository.defaultBranch = 'main'
         sourceValidationBuild.queue = <BuildInterfaces.AgentPoolQueue>{}
         sourceValidationBuild.queue.name = "Test Pool"
@@ -560,7 +514,6 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[0][0].name).toBe("deploy-validation-NewSolution")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[0][0].process).yamlFilename).toBe("/NewSolution/deploy-validation-NewSolution.yml")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].path).toBe("/NewSolution")
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
         expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.defaultBranch).toBe("NewSolution")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.Foo.value).toBe("123")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].queue.name).toBe("Test Pool")
