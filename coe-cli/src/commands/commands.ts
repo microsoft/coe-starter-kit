@@ -94,7 +94,7 @@ class CoeCliCommands {
         if ( args.log === "string" ) {
             logLevel = args.log
         }
-        if ( args.log.constructor.name == "Array" && args.log.length > 0 ) {
+        if ( Array.isArray(args.log) && args.log.length > 0 ) {
             logLevel = args.log[0]
         }
 
