@@ -264,7 +264,7 @@ describe('Branch', () => {
         expect(mockCoreApi.getProject).toHaveBeenCalled()
     })
 
-    test('Create new branch if project exists and source build exists - Case Insentive', async () => {
+    test('Create new branch if project exists and source build exists - Case Insensitive', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
@@ -330,6 +330,80 @@ describe('Branch', () => {
         
     })
 
+    test('Clone existing source build with existing destination - validation', async () => {
+        // Arrange
+        let logger = mock<winston.Logger>()
+        var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
+        let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockBuildApi = mock<IBuildApi>();
+
+        let args = new DevOpsBranchArguments();
+        args.accessToken = "FOO"
+        args.organizationName = "org"
+        args.projectName = "P1"
+        args.repositoryName = "repo1"
+        args.pipelineRepository = "templates"        
+        args.sourceBranch = "main"  
+        args.sourceBuildName = "TestSolution"
+        args.destinationBranch = "NewSolution"  
+
+        let project = <CoreInterfaces.TeamProject>{}
+        project.name = 'test'
+
+        let sourceValidationBuildDefinition = <BuildDefinitionReference>{}
+        sourceValidationBuildDefinition.name = "deploy-validation-TestSolution"
+        sourceValidationBuildDefinition.id = 1
+        sourceValidationBuildDefinition.project = <CoreInterfaces.TeamProjectReference>{}
+        sourceValidationBuildDefinition.project.name = 'Test Project'
+
+        let sourceValidationBuild = <BuildDefinition>{}
+        sourceValidationBuild.project = <CoreInterfaces.TeamProjectReference>{}
+        sourceValidationBuild.project.name = 'Test Project'
+        let variable = <BuildDefinitionVariable>{}
+        variable.value = '123'
+        sourceValidationBuild.variables = {
+            Foo: variable
+        }
+        
+        sourceValidationBuild.repository = <BuildRepository>{}
+        sourceValidationBuild.repository.defaultBranch = 'main'
+        sourceValidationBuild.id = 1
+        //Destination pipeline      
+        let destinationValidationBuildDefinition = <BuildDefinitionReference>{}
+        destinationValidationBuildDefinition.name = "deploy-validation-NewSolution"
+        destinationValidationBuildDefinition.project = <CoreInterfaces.TeamProjectReference>{}
+        destinationValidationBuildDefinition.project.name = 'Test Project'
+        destinationValidationBuildDefinition.id = 2
+
+        let destinationValidationBuild = <BuildDefinition>{}
+        destinationValidationBuild.project = <CoreInterfaces.TeamProjectReference>{}
+        destinationValidationBuild.project.name = 'Test Project'
+        destinationValidationBuild.repository = <BuildRepository>{}
+        destinationValidationBuild.repository.defaultBranch = 'test'
+        destinationValidationBuild.id = 2
+        destinationValidationBuild.variables = {
+        }
+        
+        mockBuildApi.getDefinitions.mockResolvedValue([sourceValidationBuildDefinition, destinationValidationBuildDefinition])
+
+        mockBuildApi.getDefinition.mockImplementation((projectName: string, id: number) => 
+            (id == 2) ? 
+            Promise.resolve(destinationValidationBuild) : 
+            Promise.resolve(sourceValidationBuild))
+
+        mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
+
+        let repo = <GitRepository>{}
+        
+        // Act
+        await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
+
+        // Assert
+        expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(1)
+        expect(mockBuildApi.createDefinition).toHaveBeenCalled()
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
+    })
+
     test('Clone existing source build - validation', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
@@ -374,7 +448,9 @@ describe('Branch', () => {
         await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
 
         // Assert
+        expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(0)
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
     })
 
     test('Clone existing source build - match validation', async () => {
@@ -421,6 +497,8 @@ describe('Branch', () => {
 
         // Assert
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
+        expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(0)
     })
 
 
@@ -456,6 +534,7 @@ describe('Branch', () => {
             Foo: variable
         }
         sourceValidationBuild.repository = <BuildRepository>{}
+        sourceValidationBuild.repository.name = "Test"
         sourceValidationBuild.repository.defaultBranch = 'main'
         sourceValidationBuild.queue = <BuildInterfaces.AgentPoolQueue>{}
         sourceValidationBuild.queue.name = "Test Pool"
@@ -481,6 +560,7 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[0][0].name).toBe("deploy-validation-NewSolution")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[0][0].process).yamlFilename).toBe("/NewSolution/deploy-validation-NewSolution.yml")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].path).toBe("/NewSolution")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
         expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.defaultBranch).toBe("NewSolution")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.Foo.value).toBe("123")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].queue.name).toBe("Test Pool")
