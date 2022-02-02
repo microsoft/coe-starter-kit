@@ -162,8 +162,14 @@ class ALMCommand {
     if (importArgs.sourceLocation == '' || args.settings["installFile"].startsWith("https://")) {
       let github = this.createGitHubCommand();
       let gitHubArguments = new GitHubReleaseArguments();
-      gitHubArguments.type = 'alm'
+      gitHubArguments.type = 'coe'
       gitHubArguments.asset = 'CenterofExcellenceALMAccelerator'
+      if ( typeof args.settings['installSource'] === "string" && args.settings['installSource'].length > 0 ) {
+        gitHubArguments.type = args.settings['installSource'] 
+      }
+      if ( typeof args.settings['installAsset'] === "string" && args.settings['installAsset'].length > 0 ) {
+        gitHubArguments.asset = args.settings['installAsset'] 
+      }
       gitHubArguments.settings = args.settings
       importArgs.sourceLocation = await github.getRelease(gitHubArguments)
       importArgs.authorization = github.getAccessToken(gitHubArguments)

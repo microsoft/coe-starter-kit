@@ -981,34 +981,40 @@ class DevOpsCommand {
             }
         }
 
-        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, false, defaultAgentPool);
-        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, false, defaultAgentPool);
-        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, false, defaultAgentPool);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentPool);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentPool);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, defaultAgentPool);
     }
 
-    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, template: string, createInBranch: string, required: boolean, defaultPool: TaskAgentPool): Promise<void> {
+    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, template: string, createInBranch: string, defaultPool: TaskAgentPool): Promise<void> {
 
         let source = args.sourceBuildName
         let destination = args.destinationBranch
 
         var destinationBuildName = util.format("deploy-%s-%s", template, destination);
         var destinationBuilds = pipelines.filter(p => p.name == destinationBuildName);
-
-        var sourceBuildName = util.format("deploy-%s-%s", template, source);
-        var sourceBuilds = pipelines.filter(p => p.name == sourceBuildName);
-
         let destinationBuild = destinationBuilds.length > 0 ? await client.getDefinition(destinationBuilds[0].project.name, destinationBuilds[0].id) : null
-        let sourceBuild = sourceBuilds.length > 0 ? await client.getDefinition(sourceBuilds[0].project?.name, sourceBuilds[0].id) : null
+        let sourceBuild = null
+        if (typeof (source) != "undefined" && (source.length != 0)) {
+            var sourceBuildName = util.format("deploy-%s-%s", template, source);
+            var sourceBuilds = pipelines.filter(p => p.name == sourceBuildName);
 
-        if (destinationBuild != null && sourceBuild != null) {
-            let destinationKeys = Object.keys(destinationBuild.variables)
-            let sourceKeys = Object.keys(sourceBuild.variables)
-            if (destinationKeys.length == 0 && sourceKeys.length > 0) {
-                destinationBuild.variables = sourceBuild.variables
+            sourceBuild = sourceBuilds.length > 0 ? await client.getDefinition(sourceBuilds[0].project?.name, sourceBuilds[0].id) : null
+            if (sourceBuild != null) {
+                sourceBuild.repository = repo
+                if (destinationBuild != null && destinationBuild.variables != null) {
+                    let destinationKeys = Object.keys(destinationBuild.variables)
+                    if(sourceBuild.variables != null) {
+                        let sourceKeys = Object.keys(sourceBuild.variables)
+                        if (destinationKeys.length == 0 && sourceKeys.length > 0) {
+                            destinationBuild.variables = sourceBuild.variables
 
-                this.logger?.debug(util.format("Updating %s environment variables", destinationBuildName))
-                await client.updateDefinition(destinationBuild, destinationBuild.project.name, destinationBuild.id)
-                return;
+                            this.logger?.debug(util.format("Updating %s environment variables", destinationBuildName))
+                            await client.updateDefinition(destinationBuild, destinationBuild.project.name, destinationBuild.id)
+                            return;
+                        }
+                    }
+                }
             }
         }
 
@@ -1018,9 +1024,6 @@ class DevOpsCommand {
 
         let defaultSettings = false
         if (sourceBuild == null) {
-            if (required) {
-                throw Error(util.format("Source build %s not found, but required", sourceBuildName))
-            }
 
             this.logger?.debug(`Source build ${sourceBuildName} not found`)
             let possibles = pipelines.filter(p => p.name?.startsWith(`deploy-${template}`))
