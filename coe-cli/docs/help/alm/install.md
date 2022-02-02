@@ -191,9 +191,9 @@ coe alm generate install -o install.json
 
 ##### --installSource
 
-The GitHub Release name to download the ALM Accelerator from. The default value is **alm**
+The GitHub Release name to download the ALM Accelerator from. The default value is **coe**
 
-From the February 2022 release the default value will be **coe** to install from the CoE Starter Kit release.
+Prior to February 2022 release the default value was **alm** because the assets were released separate from the CoE Starter Kit.
 
 ##### --installAsset
 
