@@ -257,7 +257,7 @@ class CoeCliCommands {
                 settings.option("--prod", "Production Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
                 settings.option("--installFile", "The name of the ALM Accelerator managed solution file to import (Default: Download from latest GitHub release)")
-                settings.option("--installSource", "The optional GitHub install source for ALM Accelerator")
+                settings.option("--installSource", "The optional GitHub install source for ALM Accelerator", "coe")
                 settings.option("--installAsset", "The optional GitHub ALM Accelerator install package name")
                 settings.addOption(regionOptions)
 
