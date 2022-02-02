@@ -189,6 +189,16 @@ Once the docker image starts you could then use the generate command to create a
 coe alm generate install -o install.json
 ```
 
+##### --installSource
+
+The GitHub Release name to download the ALM Accelerator from. The default value is **coe**
+
+Prior to February 2022 release the default value was **alm** because the assets were released separate from the CoE Starter Kit.
+
+##### --installAsset
+
+The optional name of the ALM Accelerator install package asset in GitHub to install.
+
 ##### --subscription
 
 The name of the Azure Active Directory that should be selected. This value is optional in the case you only have access to a single Azure Active Tenant.

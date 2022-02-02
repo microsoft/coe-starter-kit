@@ -94,7 +94,7 @@ class CoeCliCommands {
         if ( args.log === "string" ) {
             logLevel = args.log
         }
-        if ( args.log.constructor.name == "Array" && args.log.length > 0 ) {
+        if ( Array.isArray(args.log) && args.log.length > 0 ) {
             logLevel = args.log[0]
         }
 
@@ -257,6 +257,8 @@ class CoeCliCommands {
                 settings.option("--prod", "Production Environment Name", "yourenvironment-prod");     
                 settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
                 settings.option("--installFile", "The name of the ALM Accelerator managed solution file to import (Default: Download from latest GitHub release)")
+                settings.option("--installSource", "The optional GitHub install source for ALM Accelerator", "coe")
+                settings.option("--installAsset", "The optional GitHub ALM Accelerator install package name")
                 settings.addOption(regionOptions)
 
                 parse["environments"] = { parse: (text) => {
@@ -738,7 +740,7 @@ class CoeCliCommands {
 
             this.outputMarkdown(`NOTES:
 1. To accept any default value just press **ENTER**
-2. Unsure of what value is required repond with **?** then press **ENTER**`)
+2. Unsure of what value is required respond with **?** then press **ENTER**`)
             this.outputText('');
             this.outputText(`Please provide your ${name} options`)
             for ( var i = 0; i < options.length ; i++ ) {

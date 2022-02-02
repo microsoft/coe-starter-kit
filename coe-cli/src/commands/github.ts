@@ -40,40 +40,51 @@ class GitHubCommand {
                 owner:'microsoft',
                 repo:'coe-starter-kit'
             });
+            let releaseName = ''
             switch ( args.type ) {
-                case 'alm': {
-                    let almRelease = results.data.filter((r: any) => r.name.indexOf('ALM Accelerator For Power Platform') >= 0);
-                    if ( args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
-                        almRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
-                    }
-                    if (almRelease.length > 0) {
-                        let asset = almRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
-                        if (asset.length > 0) {
-                            let headers = {
-                                accept: 'application/octet-stream'
-                            }
-                            if(this.config["pat"]?.length > 0) {
-                                let headers = {
-                                    authorization: `token ${this.config["pat"]}`,
-                                    accept: 'application/octet-stream'
-                                }
-                            }                            
-                            let download = await this.octokitRequest({
-                                url: '/repos/{owner}/{repo}/releases/assets/{asset_id}',
-                                headers: headers,
-                                owner: 'microsoft',
-                                repo: 'coe-starter-kit',
-                                asset_id: asset[0].id
-                            })
-                            const buffer = Buffer.from(download.data);
-                            return 'base64:' + buffer.toString('base64');
-                        } 
-                        throw Error("Release not found")
-                    }                
+                case 'coe':
+                    releaseName = 'CoE Starter Kit'
+                    break;
+                case 'alm': 
+                    releaseName = 'ALM Accelerator For Power Platform'
+                    break;
+                default: {
+                    // Use the defined release type as the release name
+                    releaseName = args.type
                 }
             }
-    
-            throw Error(`Type ${args.type} not supported`)
+
+            let coeRelease = results.data.filter((r: any) => r.name.indexOf(releaseName) >= 0);
+            if ( args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
+                coeRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
+            }
+            if (coeRelease.length > 0) {
+                let asset = coeRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
+                if (asset.length > 0) {
+                    let headers = null
+                    if(this.config["pat"]?.length > 0) {
+                        headers = {
+                            authorization: `token ${this.config["pat"]}`,
+                            accept: 'application/octet-stream'
+                        }
+                    } else {
+                        headers = {
+                            accept: 'application/octet-stream'
+                        }
+                    }
+                    let download = await this.octokitRequest({
+                        url: '/repos/{owner}/{repo}/releases/assets/{asset_id}',
+                        headers: headers,
+                        owner: 'microsoft',
+                        repo: 'coe-starter-kit',
+                        asset_id: asset[0].id
+                    })
+
+                    const buffer = Buffer.from(download.data);
+                    return 'base64:' + buffer.toString('base64');
+                } 
+                throw Error("Release not found")
+            }                
         } catch (ex) {
             this.logger.error(ex)
         }
