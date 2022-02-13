@@ -165,6 +165,27 @@ steps:
   displayName: 'Format JSON files'
   enabled: true
 
+# TEMPORARY until solution exports new business rules with non-empty GUIDs
+# We need to set empty GUIDs output when a business rule is first exported.  This is to ensure that
+# there aren't noisy diffs when the business rule is subsequently imported and exported.
+- powershell: |
+   # Regex to extract GUID from the end of the filename
+   $reGuid = '(([0-9a-f]){8}-([0-9a-f]){4}-([0-9a-f]){4}-([0-9a-f]){4}-([0-9a-f]){12})\.xaml$'
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\Workflows" -Recurse -File -Filter *.xaml | 
+     Select-String 'XrmWorkflow00000000000000000000000000000000' -List | 
+     Select-Object Path,Filename |
+     ForEach-Object {
+       $fileToFix = $_.Path
+       if ($fileToFix -match $reGuid) {
+         Write-Host "Fixing unset GUIDs in BR" $_.Filename
+         # Use the GUID extracted from the filename to replace the empty GUIDs in the XAML content
+         $guid = 'XrmWorkflow' + $matches[1].ToLower().Replace('-', '')
+         ((Get-Content -path $fileToFix -Raw) -replace 'XrmWorkflow00000000000000000000000000000000', $guid) |
+           Set-Content -NoNewLine -Path $fileToFix
+       }
+     }
+  displayName: 'Fix unset GUIDs in new Business Rules'
+
 - powershell: |
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
    ForEach-Object {
