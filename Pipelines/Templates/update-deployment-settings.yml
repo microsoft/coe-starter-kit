@@ -235,21 +235,16 @@ steps:
         $newConfigurationData = [System.Collections.ArrayList]@()
         if(-Not [string]::IsNullOrWhiteSpace('${{parameters.configurationData}}')) {
             #The configuration data will point to the records in Dataverse that store the JSON to set pipeline variables. Try/Catch for invalid json
-            try
-            {
-                $configCriterias = ConvertFrom-Json '${{parameters.configurationData}}'
-                $settingsConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)$($configCriterias.EnvironmentUrl)"
+            $configCriterias = ConvertFrom-Json '${{parameters.configurationData}}'
+            if($configCriterias.length -gt 0) {
+                $settingsConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)$($configCriterias[0].EnvironmentUrl)"
                 #Add the cat_usersetting records to an array
-                foreach($configCriteria in $configCriterias.UserSettingId) {
+                foreach($configCriteria in $configCriterias[0].UserSettingId) {
                     $userSetting = Get-CrmRecord -conn $settingsConn -EntityLogicalName cat_usersetting -Id $configCriteria.cat_usersettingid -Fields cat_data
                     $newConfigurationData.Add($userSetting)
                 }
-                $deploymentSteps = Get-CrmRecords -conn $settingsConn -EntityLogicalName cat_deploymentstep -FilterAttribute "cat_deploymentprofileid" -FilterOperator "eq" -FilterValue ${{parameters.profileId}} -Fields cat_deploymentenvironmentid,cat_name
             }
-            catch
-            {
-                Write-Host "##vso[task.logissue type=warning]Invalid JSON was supplied for parameter configurationData."
-            }
+            $deploymentSteps = Get-CrmRecords -conn $settingsConn -EntityLogicalName cat_deploymentstep -FilterAttribute "cat_deploymentprofileid" -FilterOperator "eq" -FilterValue ${{parameters.profileId}} -Fields cat_deploymentenvironmentid,cat_name
         }
         #Update / Create Deployment Pipelines
         $buildDefinitionResourceUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/build/definitions?name=deploy-*-${{parameters.solutionName}}&includeAllProperties=true&api-version=6.0"
