@@ -1,5 +1,5 @@
 DeploymentSettingsScreen As screen:
-    OnVisible: |-
+    OnVisible: |
         =If(
             !IsBlank(Param("configsoln")) && !IsBlank(Param("env")) && !IsBlank(Param("profile")) && !IsBlank(Param("step")),
             ClearCollect(
@@ -16,7 +16,6 @@ DeploymentSettingsScreen As screen:
                     name = Param("env")
                 )
             );
-        
             Clear(TempSelectedEnvironmentSolutions);
             Collect(
                 TempSelectedEnvironmentSolutions,
@@ -62,7 +61,6 @@ DeploymentSettingsScreen As screen:
                 SelectedEnvironmentSolutions,
                 TempSelectedEnvironmentSolutions
             );
-            
             Set(
                 SelectedSolutionToConfigure,
                 LookUp(
@@ -135,10 +133,78 @@ DeploymentSettingsScreen As screen:
                 {
                     SelectedDeploymentEnvironment: LookUp(
                         DeploymentEnvironments,
-                        SelectedDeploymentStep.'Deployment Environment'.URL in EnvironmentUrl
+                        LookUp(
+                            'Deployment Environments',
+                            'Deployment Environment' = SelectedDeploymentStep.'Deployment Environment'.'Deployment Environment',
+                            URL
+                        ) in EnvironmentUrl
                     )
                 }
             )
+        );
+        //Load existing values from deployment configuration data
+        UpdateContext({locSharepointFilter: ""});
+        UpdateContext({locAADGroupFilters: ""});
+        UpdateContext({locEnvironmentUserFilters: ""});
+        If(
+            Not IsBlank(SelectedDeploymentEnvironment),
+            UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & SelectedSolutionToConfigure.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
+            UpdateContext(
+                {
+                    locEnvironmentDeploymentSetting: LookUp(
+                        'User Settings',
+                        Name = locSolutionEnvironmentDeploySettingName
+                    )
+                }
+            );
+            If(
+                IsBlank(locEnvironmentDeploymentSetting.Data),
+                UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run("[]")}),
+                UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
+            );
+            UpdateContext(
+                {
+                    locSharepointFilter: Concat(
+                        Filter(
+                            EnvironmentDeploymentSettings,
+                            StartsWith(
+                                Name,
+                                "environmentvariable."
+                            ) And !IsBlankOrError(Value) And !IsBlank(
+                                Find(
+                                    "sharepoint",
+                                    Value
+                                )
+                            )
+                        ),
+                        "site:" & Value,
+                        " OR "
+                    ),
+                    locAADGroupFilters: Concat(
+                        Filter(
+                            EnvironmentDeploymentSettings,
+                            StartsWith(
+                                Name,
+                                "canvasshare.aadGroupId."
+                            ) And !IsBlankOrError(Value)
+                        ),
+                        "id eq '" & Value & "'",
+                        " OR "
+                    ),
+                    locEnvironmentUserFilters: Concat(
+                        Filter(
+                            EnvironmentDeploymentSettings,
+                            StartsWith(
+                                Name,
+                                "owner.ownerEmail."
+                            ) And !IsBlankOrError(Value)
+                        ),
+                        "domainname eq '" & Value & "'",
+                        " OR "
+                    )
+                }
+            );
+            
         );
         Clear(SolutionConnectionReferences);
         Clear(SolutionCanvasApps);
@@ -149,13 +215,16 @@ DeploymentSettingsScreen As screen:
         ClearCollect(
             AADGroups,
             SearchAADGroups.Run(
-                "",
+                locAADGroupFilters,
                 {text: ""}
             ).value
         );
         Collect(
             AADGroups,
-            {displayName: ""}
+            {
+                id: "",
+                displayName: ""
+            }
         );
         ClearCollect(
             AADGroups,
@@ -168,8 +237,8 @@ DeploymentSettingsScreen As screen:
             SharepointSites,
             SearchSharepointSites.Run(
                 {
-                    text: "*",
-                    text_1: ""
+                    text: "",
+                    text_1: locSharepointFilter
                 }
             ).value
         );
@@ -202,7 +271,7 @@ DeploymentSettingsScreen As screen:
                 SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
                 {
                     text_3: "",
-                    text_4: ""
+                    text_4: locEnvironmentUserFilters
                 }
             )
         );
@@ -485,15 +554,22 @@ DeploymentSettingsScreen As screen:
             BorderColor: =ColorFade(icoDeployDialogClose.Fill, -20%)
             Color: =RGBA(255, 255, 255, 1)
             DisabledFill: =ColorFade(icoDeployDialogClose.Fill, -80%)
-            DisplayMode: =If(!showDeploymentSettingsLoader && !showSolutionComponentLoader, DisplayMode.Edit, DisplayMode.View)
             Height: =55
             HoverBorderColor: =ColorFade(icoDeployDialogClose.BorderColor, 20%)
             HoverColor: =ColorFade(icoDeployDialogClose.Color, 20%)
             HoverFill: =ColorFade(icoDeployDialogClose.Fill, 20%)
             Icon: =Icon.Cancel
             OnSelect: |-
-                =UpdateContext({SolutionLoaderText: "Saving..."});
-                Select(btnSaveDeployment);
+                =If(
+                    !showDeploymentSettingsLoader && !showSolutionComponentLoader,
+                    UpdateContext({SolutionLoaderText: "Saving..."});
+                    Select(btnSaveDeployment);
+                    ,
+                    Navigate(
+                        ReturnScreen,
+                        Fade
+                    )
+                )
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -760,7 +836,7 @@ DeploymentSettingsScreen As screen:
                 OnSelect: |
                     =UpdateContext({currentUser: glrFlows.Selected.drpFlowOwnerUsers.Selected});
                     If(
-                        glrFlows.Selected.FilterIcon = Icon.FilterFlat,
+                        glrFlows.Selected.FilterIcon = Icon.FilterFlat Or glrFlows.Selected.FilterIcon = Icon.Search,
                         If(
                             glrFlows.Selected.FilterVisible,
                             ClearCollect(
@@ -781,25 +857,23 @@ DeploymentSettingsScreen As screen:
                                     SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
                                     {
                                         text_3: glrFlows.Selected.txtFilterOwners.Text,
-                                        text_4: Text(currentUser.domainname)
+                                        text_4: ""
                                     }
                                 )
+                            );
+                            UpdateContext(
+                                {
+                                    lclFirstUser: First(
+                                        Sort(
+                                            EnvironmentUsers,
+                                            domainname
+                                        )
+                                    )
+                                }
                             );
                             Collect(
                                 EnvironmentUsers,
                                 {domainname: ""}
-                            );
-                            If(
-                                IsBlankOrError(
-                                    LookUp(
-                                        EnvironmentUsers,
-                                        domainname = currentUser.domainname
-                                    )
-                                ),
-                                Collect(
-                                    EnvironmentUsers,
-                                    currentUser
-                                )
                             );
                             ClearCollect(
                                 EnvironmentUsers,
@@ -809,7 +883,7 @@ DeploymentSettingsScreen As screen:
                                 )
                             );
                             If(
-                                glrFlows.Selected.txtFilterOwners.Text <> "",
+                                IsBlankOrError(lclFirstUser),
                                 Patch(
                                     SolutionFlows,
                                     glrFlows.Selected,
@@ -824,10 +898,10 @@ DeploymentSettingsScreen As screen:
                                     SolutionFlows,
                                     glrFlows.Selected,
                                     {
-                                        FilterIcon: Icon.FilterFlat,
+                                        FilterIcon: Icon.FilterFlatFilled,
                                         EnvironmentUsers: EnvironmentUsers,
                                         FilterVisible: false,
-                                        CurrentValue: currentUser.domainname
+                                        CurrentValue: lclFirstUser.domainname
                                     }
                                 );
                                 Reset(drpFlowOwnerUsers);
@@ -836,6 +910,7 @@ DeploymentSettingsScreen As screen:
                                 SolutionFlows,
                                 glrFlows.Selected,
                                 {
+                                    FilterIcon: Icon.Search,
                                     FilterVisible: true,
                                     CurrentValue: currentUser.domainname
                                 }
@@ -860,7 +935,7 @@ DeploymentSettingsScreen As screen:
                                 SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
                                 {
                                     text_3: glrFlows.Selected.txtFilterOwners.Text,
-                                    text_4: Text(currentUser.domainname)
+                                    text_4: ""
                                 }
                             )
                         );
@@ -902,6 +977,7 @@ DeploymentSettingsScreen As screen:
                 PressedBorderColor: =ColorFade(icoFilterFlows.BorderColor, -20%)
                 PressedColor: =ColorFade(icoFilterFlows.Color, -20%)
                 PressedFill: =ColorFade(icoFilterFlows.Fill, -20%)
+                Tooltip: ="Filter this list"
                 Width: =35
                 X: =1779
                 Y: =15
@@ -1121,15 +1197,30 @@ DeploymentSettingsScreen As screen:
                 HoverColor: =ColorFade(icoFilterSites.Color, 20%)
                 HoverFill: =ColorFade(icoFilterSites.Fill, 20%)
                 Icon: =ThisItem.FilterIcon
-                OnSelect: |
+                OnSelect: |-
                     =UpdateContext({currentSharepointSite: glrEnvironmentVariables.Selected.drpSharepointSites.Selected});
                     If(
-                        glrEnvironmentVariables.Selected.FilterIcon = Icon.FilterFlat,
+                        glrEnvironmentVariables.Selected.FilterIcon = Icon.FilterFlat Or glrEnvironmentVariables.Selected.FilterIcon = Icon.Search,
                         If(
                             glrEnvironmentVariables.Selected.FilterVisible,
                             ClearCollect(
                                 SharepointSites,
-                                SearchSharepointSites.Run({text:"*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*", text_1:currentSharepointSite.webUrl}).value
+                                SearchSharepointSites.Run(
+                                    {
+                                        text: "*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*",
+                                        text_1: ""
+                                    }
+                                ).value
+                            );
+                            UpdateContext(
+                                {
+                                    lclFirstSite: First(
+                                        Sort(
+                                            SharepointSites,
+                                            webUrl
+                                        )
+                                    )
+                                }
                             );
                             Collect(
                                 SharepointSites,
@@ -1143,7 +1234,7 @@ DeploymentSettingsScreen As screen:
                                 )
                             );
                             If(
-                                glrEnvironmentVariables.Selected.txtSearchSites.Text <> "",
+                                IsBlankOrError(lclFirstSite),
                                 Patch(
                                     SolutionEnvironmentVariables,
                                     glrEnvironmentVariables.Selected,
@@ -1158,10 +1249,10 @@ DeploymentSettingsScreen As screen:
                                     SolutionEnvironmentVariables,
                                     glrEnvironmentVariables.Selected,
                                     {
-                                        FilterIcon: Icon.FilterFlat,
+                                        FilterIcon: Icon.FilterFlatFilled,
                                         SharepointSites: SharepointSites,
                                         FilterVisible: false,
-                                        CurrentValue: currentSharepointSite.webUrl
+                                        CurrentValue: lclFirstSite.webUrl
                                     }
                                 );
                                 Reset(drpSharepointSites);
@@ -1170,15 +1261,40 @@ DeploymentSettingsScreen As screen:
                                 SolutionEnvironmentVariables,
                                 glrEnvironmentVariables.Selected,
                                 {
+                                    FilterIcon: Icon.Search,
                                     FilterVisible: true,
                                     CurrentValue: currentSharepointSite.webUrl
                                 }
                             );
+                            ClearCollect(
+                                SharepointLists,
+                                Filter(
+                                    SharepointLists,
+                                    DefinitionId <> ThisItem.environmentvariabledefinitionid
+                                )
+                            );
+                            If(
+                                Not IsBlank(glrEnvironmentVariables.Selected.drpSharepointSites.Selected.id),
+                                Collect(
+                                    SharepointLists,
+                                    AddColumns(
+                                        SearchSharepointLists.Run(glrEnvironmentVariables.Selected.drpSharepointSites.Selected.id).value,
+                                        "DefinitionId",
+                                        glrEnvironmentVariables.Selected.environmentvariabledefinitionid
+                                    )
+                                )
+                            );
+                            txtEnvironmentVariableValue.Text = glrEnvironmentVariables.Selected.drpSharepointSites.Selected.webUrl
                         ),
                         Reset(txtSearchSites);
                         ClearCollect(
                             SharepointSites,
-                            SearchSharepointSites.Run({text:"*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*", text_1:currentSharepointSite.webUrl}).value
+                            SearchSharepointSites.Run(
+                                {
+                                    text: "*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*",
+                                    text_1: currentSharepointSite.webUrl
+                                }
+                            ).value
                         );
                         Collect(
                             SharepointSites,
@@ -1201,11 +1317,30 @@ DeploymentSettingsScreen As screen:
                             }
                         );
                         Reset(drpSharepointSites);
-                        
                     );
+                    ClearCollect(
+                        SharepointLists,
+                        Filter(
+                            SharepointLists,
+                            DefinitionId <> glrEnvironmentVariables.Selected.environmentvariabledefinitionid
+                        )
+                    );
+                    If(
+                        Not IsBlank(glrEnvironmentVariables.Selected.drpSharepointSites.Selected.id),
+                        Collect(
+                            SharepointLists,
+                            AddColumns(
+                                SearchSharepointLists.Run(glrEnvironmentVariables.Selected.drpSharepointSites.Selected.id).value,
+                                "DefinitionId",
+                                glrEnvironmentVariables.Selected.environmentvariabledefinitionid
+                            )
+                        )
+                    );
+                    glrEnvironmentVariables.Selected.txtEnvironmentVariableValue.Text = glrEnvironmentVariables.Selected.drpSharepointSites.Selected.webUrl
                 PressedBorderColor: =ColorFade(icoFilterSites.BorderColor, -20%)
                 PressedColor: =ColorFade(icoFilterSites.Color, -20%)
                 PressedFill: =ColorFade(icoFilterSites.Fill, -20%)
+                Tooltip: ="Filter this list"
                 Visible: =ThisItem.type = 100000004 && ThisItem.parameterkey = "dataset" && ThisItem.apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline"
                 Width: =35
                 X: =1790
@@ -1645,31 +1780,32 @@ DeploymentSettingsScreen As screen:
                 OnSelect: |
                     =UpdateContext({currentGroup: glrCanvasApps.Selected.drpCanvasAppShareGroups.Selected});
                     If(
-                        glrCanvasApps.Selected.FilterIcon = Icon.FilterFlat,
+                        glrCanvasApps.Selected.FilterIcon = Icon.FilterFlat Or glrCanvasApps.Selected.FilterIcon = Icon.Search,
                         If(
                             glrCanvasApps.Selected.FilterVisible,
                             ClearCollect(
                                 AADGroups,
                                 SearchAADGroups.Run(
-                                    currentGroup.id,
+                                    "",
                                     {text: glrCanvasApps.Selected.txtFilterGroups.Text}
                                 ).value
                             );
+                            UpdateContext(
+                                {
+                                    lclFirstAADGroup: First(
+                                        Sort(
+                                            AADGroups,
+                                            displayName
+                                        )
+                                    )
+                                }
+                            );
                             Collect(
                                 AADGroups,
-                                {displayName: ""}
-                            );
-                            If(
-                                IsBlankOrError(
-                                    LookUp(
-                                        AADGroups,
-                                        id = currentGroup.id
-                                    )
-                                ),
-                                Collect(
-                                    AADGroups,
-                                    currentGroup
-                                )
+                                {
+                                    id: "",
+                                    displayName: ""
+                                }
                             );
                             ClearCollect(
                                 AADGroups,
@@ -1679,7 +1815,7 @@ DeploymentSettingsScreen As screen:
                                 )
                             );
                             If(
-                                txtFilterGroups.Text <> "",
+                                IsBlankOrError(lclFirstAADGroup),
                                 Patch(
                                     SolutionCanvasApps,
                                     glrCanvasApps.Selected,
@@ -1694,10 +1830,10 @@ DeploymentSettingsScreen As screen:
                                     SolutionCanvasApps,
                                     glrCanvasApps.Selected,
                                     {
-                                        FilterIcon: Icon.FilterFlat,
+                                        FilterIcon: Icon.FilterFlatFilled,
                                         AADGroups: AADGroups,
                                         FilterVisible: false,
-                                        CurrentValue: currentGroup.id
+                                        CurrentValue: lclFirstAADGroup.id
                                     }
                                 );
                                 Reset(drpCanvasAppShareGroups);
@@ -1706,6 +1842,7 @@ DeploymentSettingsScreen As screen:
                                 SolutionCanvasApps,
                                 glrCanvasApps.Selected,
                                 {
+                                    FilterIcon: Search,
                                     FilterVisible: true,
                                     CurrentValue: currentGroup.id
                                 }
@@ -1715,13 +1852,16 @@ DeploymentSettingsScreen As screen:
                         ClearCollect(
                             AADGroups,
                             SearchAADGroups.Run(
-                                currentGroup.id,
+                                "id eq '" & currentGroup.id & "'",
                                 {text: glrCanvasApps.Selected.txtFilterGroups.Text}
                             ).value
                         );
                         Collect(
                             AADGroups,
-                            {displayName: ""}
+                            {
+                                id: "",
+                                displayName: ""
+                            }
                         );
                         If(
                             IsBlankOrError(
@@ -1752,11 +1892,11 @@ DeploymentSettingsScreen As screen:
                             }
                         );
                         Reset(drpCanvasAppShareGroups);
-                        
                     );
                 PressedBorderColor: =ColorFade(icoFilterGroups.BorderColor, -20%)
                 PressedColor: =ColorFade(icoFilterGroups.Color, -20%)
                 PressedFill: =ColorFade(icoFilterGroups.Fill, -20%)
+                Tooltip: ="Filter this list"
                 Visible: =showSharingSettings
                 Width: =35
                 X: =1515
@@ -1770,7 +1910,9 @@ DeploymentSettingsScreen As screen:
             HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
             OnSelect: |-
                 =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                //Save Deployment Settings
                 Clear(DeploymentSettings);
+                //Save Connection References
                 ForAll(
                     glrConnectionReferences.AllItems,
                     If(
@@ -1817,6 +1959,7 @@ DeploymentSettingsScreen As screen:
                         )
                     )
                 );
+                //Save Envrionment Variables
                 ForAll(
                     glrEnvironmentVariables.AllItems,
                     Collect(
@@ -1837,6 +1980,7 @@ DeploymentSettingsScreen As screen:
                         }
                     )
                 );
+                //Save Canvas App Sharing
                 ForAll(
                     glrCanvasApps.AllItems,
                     Collect(
@@ -1855,6 +1999,7 @@ DeploymentSettingsScreen As screen:
                         }
                     )
                 );
+                //Save Flow Ownership
                 ForAll(
                     glrFlows.AllItems,
                     Collect(
@@ -1871,6 +2016,7 @@ DeploymentSettingsScreen As screen:
                         }
                     )
                 );
+                //Convert settings to json and store in user settings
                 UpdateContext({settingsJsonText: JSON(DeploymentSettings)});
                 UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
                 UpdateContext(
@@ -1885,14 +2031,6 @@ DeploymentSettingsScreen As screen:
                     IsBlank(locEnvironmentDeploymentSetting),// create it if we don't have one
                     Patch(
                         'User Settings',
-                        {
-                            'App User Setting': AppUserSetting,
-                            Name: locSolutionEnvironmentDeploySettingName,
-                            Data: settingsJsonText
-                        }
-                    );
-                    Patch(
-                        AppUserSetting_UserSettings,
                         {
                             'App User Setting': AppUserSetting,
                             Name: locSolutionEnvironmentDeploySettingName,
