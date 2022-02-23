@@ -1,0 +1,239 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365_1": {
+        "api": {
+          "name": "shared_office365"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Outlook"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_powerappsforadmins_1": {
+        "api": {
+          "name": "shared_powerappsforadmins"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovPowerAppsforAdmins"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Condition": {
+          "actions": {
+            "Release_app_from_quarantine": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                  "connectionName": "shared_powerappsforadmins_1",
+                  "operationId": "Set-AppQuarantineState"
+                },
+                "parameters": {
+                  "Content-Type": " application/json",
+                  "api-version": "2021-02-01",
+                  "app": "@triggerOutputs()?['body/admin_appid']",
+                  "body/quarantineStatus": "Unquarantined",
+                  "environment": "@triggerOutputs()?['body/admin_appenvironmentid']"
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "d004a36e-8aab-46bc-8076-a064206296aa"
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            },
+            "Send_an_email_(V2)": {
+              "inputs": {
+                "authentication": "@parameters('$authentication')",
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "connectionName": "shared_office365_1",
+                  "operationId": "SendEmailV2"
+                },
+                "parameters": {
+                  "emailMessage/Body": "@{parameters('eMail Header Style (admin_eMailHeaderStyle)')}@{parameters('eMail Body Start (admin_eMailBodyStart)')}\n<p>Your app has been released from quarantined.</p>\n<p>Your app compliance status has been reviewed, and the app has now been released from quarantine. Users who you've shared your app with can now launch the app again. <br>\n\n<b><u>App Details:</u></b>\n<p><b>Display Name:</b> @{triggerOutputs()?['body/admin_displayname']} </p>\n<p><b>Environment:</b> @{triggerOutputs()?['body/admin_appenvironmentdisplayname']}  </p>\n@{parameters('eMail Body Stop (admin_eMailBodyStop)')}",
+                  "emailMessage/Subject": "Your app has been released from quarantine!",
+                  "emailMessage/To": "@outputs('Get_Maker')?['body/admin_userprincipalname']"
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "cb5b7ba3-af10-4fc4-a757-5395f3b76946"
+              },
+              "runAfter": {
+                "Release_app_from_quarantine": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection"
+            }
+          },
+          "else": {
+            "actions": {
+              "Quarantine_app": {
+                "inputs": {
+                  "authentication": "@parameters('$authentication')",
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                    "connectionName": "shared_powerappsforadmins_1",
+                    "operationId": "Set-AppQuarantineState"
+                  },
+                  "parameters": {
+                    "Content-Type": " application/json",
+                    "api-version": "2021-02-01",
+                    "app": "@triggerOutputs()?['body/admin_appid']",
+                    "body/quarantineStatus": "Quarantined",
+                    "environment": "@triggerOutputs()?['body/admin_appenvironmentid']"
+                  }
+                },
+                "metadata": {
+                  "operationMetadataId": "2ee82f8c-2b16-4dc6-8f90-cd1745e57adb"
+                },
+                "runAfter": {},
+                "type": "OpenApiConnection"
+              },
+              "Send_an_email_(V2)_2": {
+                "inputs": {
+                  "authentication": "@parameters('$authentication')",
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                    "connectionName": "shared_office365_1",
+                    "operationId": "SendEmailV2"
+                  },
+                  "parameters": {
+                    "emailMessage/Body": "@{parameters('eMail Body Stop (admin_eMailBodyStop)')}\n@{parameters('eMail Header Style (admin_eMailHeaderStyle)')} @{parameters('eMail Body Start (admin_eMailBodyStart)')}\n<p>Your app has been quarantined.</p>\n<p>You own an app that's currently not compliant and has been quarantined. This means that your admin needs further details to ensure your app is compliance. <strong>Whilst the app is quarantined, users who you've shared your app with can no longer open it.</strong><br>\nPlease complete the business justification details in the Developer Compliance Center app to document the intended use and your admin will perform a risk assessment to relese the app from quarantine. Note that completing the below information will not automatically release the app form quarantine.<br>\n<br>\n<u><strong>How to become compliant</strong></u><br>\n</p>\n<ol>\n  <li>Follow the link below</li>\n  <li>Add a description to your app.</li>\n  <li>Provide a business justification.</li>\n  <li>Iterate the solution's dependencies.</li>\n  <li>Provide details on the solution's access managment.</li>\n  <li>Select the business impact.</li>\n  <li>Select the data classification.</li>\n  <li>Provide a Mitigation plan in the form of an attachment.</li>\n  <li>Update the 'Mitigation plan provided' toggle to 'Yes'.</li>\n</ol>\n<p><a href=\"@{parameters('Developer Compliance Center URL (admin_DeveloperComplianceCenterURL)')}?appName=@{triggerOutputs()?['body/admin_appidstring']}\">Developer Compliance Center</a><br>\n<br>\n<u><strong>App Details:</strong></u></p>\n<p><strong>Display Name:</strong> @{triggerOutputs()?['body/admin_displayname']}</p>\n<p><strong>Environment:</strong> @{triggerOutputs()?['body/admin_appenvironmentdisplayname']}</p>\n@{parameters('eMail Body Stop (admin_eMailBodyStop)')}",
+                    "emailMessage/Subject": "Your app has been quarantined! ",
+                    "emailMessage/To": "@outputs('Get_Maker')?['body/admin_userprincipalname']"
+                  }
+                },
+                "metadata": {
+                  "operationMetadataId": "33014250-5e0e-4fad-b8a8-e5df01971934"
+                },
+                "runAfter": {
+                  "Quarantine_app": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "OpenApiConnection"
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_quarantineapp']",
+              "@false"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c0997f99-7e0c-4cda-8c99-7d1542f9a35d"
+          },
+          "runAfter": {
+            "Get_Maker": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Get_Maker": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "$select": "admin_userprincipalname",
+              "entityName": "admin_makers",
+              "recordId": "@triggerOutputs()?['body/_admin_appowner_value']"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "573aa05c-58e6-4723-baf4-f16bdd02631a"
+          },
+          "runAfter": {},
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Developer Compliance Center URL (admin_DeveloperComplianceCenterURL)": {
+          "defaultValue": "https://apps.powerapps.com/play/a08e2bb8-f6d7-4c09-8bdb-96a79519f884?tenantId=8a235459-3d2c-415d-8c1e-e2fe133509ad",
+          "metadata": {
+            "description": "Leave blank on Import. URL to Developer Compliance Center Canvas App. ",
+            "schemaName": "admin_DeveloperComplianceCenterURL"
+          },
+          "type": "String"
+        },
+        "eMail Body Start (admin_eMailBodyStart)": {
+          "defaultValue": "<body>     <div id='content'>         <table id='form'>             <tr>                 <td><img id='logo' src='https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Microsoft_logo_%282012%29.svg/1280px-Microsoft_logo_%282012%29.svg.png' width='300px'></td>             </tr>             <tr>                 <td>                     <p id='header'>Power Platform</p>                 </td>             </tr>             <tr id='ribbon'>                 <td>                     <tr>                         <td></td>                     </tr>                     <tr id='message'>                         <td>",
+          "metadata": {
+            "description": "Starter HTML format for eMails",
+            "schemaName": "admin_eMailBodyStart"
+          },
+          "type": "String"
+        },
+        "eMail Body Stop (admin_eMailBodyStop)": {
+          "defaultValue": "</td>                     </tr>         </table>     </div> </body>",
+          "metadata": {
+            "description": "Ending HTML format for eMails",
+            "schemaName": "admin_eMailBodyStop"
+          },
+          "type": "String"
+        },
+        "eMail Header Style (admin_eMailHeaderStyle)": {
+          "defaultValue": "<head>     <style>         body {             background-color: #efefef;             font-family: Segoe UI;             text-align: center;         }          #content {             border: 1px solid #742774;             background-color: #ffffff;             width: 650px;             margin-bottom: 50px;             display: inline-block;         }          #logo {             margin-left: 52px;             margin-top: 40px;             width: 60px;             height: 12px;         }          #header {             font-size: 24px;             margin-left: 50px;             margin-top: 20px;             margin-bottom: 20px;         }          #ribbon {             background-color: #742774;         }          #ribbonContent {             font-size: 20px;             padding-left: 30px;             padding-top: 10px;             padding-bottom: 20px;             color: white;             width: 100%;             padding-right: 10px;         }          #message>td {             font-size: 14px;             padding-left: 60px;             padding-right: 60px;             padding-top: 20px;             padding-bottom: 40px;         }          #footer>td {             font-size: 12px;             background-color: #cfcfcf;             height: 40px;             padding-top: 15px;             padding-left: 40px;             padding-bottom: 20px;         }          #form {             width: 100%;             border-collapse: collapse;         }          #app {             width: 60%;             font-size: 12px;         }          .label {             color: #5f5f5f         }          table {             border-collapse: collapse;             width: 100%;         }          th,         td {             padding: 8px;             text-align: left;             border-bottom: 1px solid #ddd;         }     </style> </head>",
+          "metadata": {
+            "description": "CSS/Style used for eMails",
+            "schemaName": "admin_eMailHeaderStyle"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/entityname": "admin_app",
+              "subscriptionRequest/filteringattributes": "admin_quarantineapp",
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/scope": 4
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "651982b4-e34e-4d94-b63d-e54dad12e910"
+          },
+          "type": "OpenApiConnectionWebhook"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
