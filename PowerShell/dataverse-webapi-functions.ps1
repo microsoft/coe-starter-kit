@@ -7,7 +7,8 @@ function Get-SpnToken ($tenantId, $clientId, $clientSecret, $dataverseHost, $aad
 }
 
 function Get-HostFromUrl ($url) {
-    return $url.Split("https://")[1].Split("/")[0]
+    $options = [System.StringSplitOptions]::RemoveEmptyEntries
+    return $url.Split("://", $options)[1].Split("/")[0]
 }
 
 # Convenient inside of agent

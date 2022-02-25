@@ -27,7 +27,7 @@ function Set-CanvasTestAutomationURLs ($token, $url, $solutionName, $canvasAppsP
                         $testUrls.Add($testUrl)
                         # We need to bypass consent.  Otherwise the test might fail.
                         if ($null -eq $appId) {
-                            $appId = $testUrl.Split("play/")[1].Split("?")[0]
+                            $appId = $testUrl.Replace('play/','|').Replace('?','|').Split('|')[1]
                             Write-Host $appId
                             Set-AdminPowerAppApisToBypassConsent -EnvironmentName $environmentId -AppName $appId
                         }
