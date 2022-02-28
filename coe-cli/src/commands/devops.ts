@@ -973,14 +973,6 @@ class DevOpsCommand {
 
         let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
 
-        if (typeof args.settings["validation"] === "undefined") {
-            let taskApi = await connection.getTaskAgentApi()
-            let groups = await taskApi?.getVariableGroups(args.projectName, "alm-accelerator-variable-group")
-            if (groups?.length == 1) {
-                args.settings["validation"] = groups[0].variables["ValidationServiceConnection"]?.value
-            }
-        }
-
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, defaultAgentPool);
@@ -1023,57 +1015,47 @@ class DevOpsCommand {
         }
 
         let defaultSettings = false
+
         if (sourceBuild == null) {
+            defaultSettings = true
+            this.logger?.debug(`Matching ${template} build not found, will apply default settings`)
+            this.logger?.debug(`Applying default service connection. You will need to update settings with you environment teams`)
+            sourceBuild = <BuildInterfaces.BuildDefinition>{};
+            sourceBuild.repository = <BuildInterfaces.BuildRepository>{}
+            sourceBuild.repository.id = repo.id
+            sourceBuild.repository.name = repo.name
+            sourceBuild.repository.url = repo.url
+            sourceBuild.repository.type = 'TfsGit'
+            let environmentName = ''
+            let seviceConnection = ''
 
-            this.logger?.debug(`Source build ${sourceBuildName} not found`)
-            let possibles = pipelines.filter(p => p.name?.startsWith(`deploy-${template}`))
-            if (possibles.length > 0) {
-                sourceBuildName = possibles[0].name
-                sourceBuild = possibles.length > 0 ? await client.getDefinition(possibles[0].project?.name, possibles[0].id) : null
-                this.logger?.debug(`Selecting ${sourceBuildName} to copy settings from`)
-            }
+            let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
+            let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
+            let prodName = typeof (args.settings["prod"] === "string") ? args.settings["prod"] : "yourenviromenthere-prod"
 
-            if (sourceBuild == null) {
-                defaultSettings = true
-                this.logger?.debug(`Matching ${template} build not found, will apply default settings`)
-                this.logger?.debug(`Applying default service connection. You will need to update settings with you environment teams`)
-                sourceBuild = <BuildInterfaces.BuildDefinition>{};
-                sourceBuild.repository = <BuildInterfaces.BuildRepository>{}
-                sourceBuild.repository.id = repo.id
-                sourceBuild.repository.name = repo.name
-                sourceBuild.repository.url = repo.url
-                sourceBuild.repository.type = 'TfsGit'
-                let environmentName = ''
-                let seviceConnection = ''
-
-                let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
-                let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
-                let prodName = typeof (args.settings["prod"] === "string") ? args.settings["prod"] : "yourenviromenthere-prod"
-
-                switch (template?.toLowerCase()) {
-                    case "validation": {
-                        environmentName = 'Validation'
-                        seviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
-                        break;
-                    }
-                    case "test": {
-                        environmentName = 'Test'
-                        seviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
-                        break;
-                    }
-                    case "prod": {
-                        environmentName = 'Production'
-                        seviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
-                        break;
-                    }
+            switch (template?.toLowerCase()) {
+                case "validation": {
+                    environmentName = 'Validation'
+                    seviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
+                    break;
                 }
-                sourceBuild.variables = {
-                    EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
-                    ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
+                case "test": {
+                    environmentName = 'Test'
+                    seviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
+                    break;
                 }
-                sourceBuild.variables.EnvironmentName.value = environmentName
-                sourceBuild.variables.ServiceConnection.value = seviceConnection
+                case "prod": {
+                    environmentName = 'Production'
+                    seviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
+                    break;
+                }
             }
+            sourceBuild.variables = {
+                EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
+                ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
+            }
+            sourceBuild.variables.EnvironmentName.value = environmentName
+            sourceBuild.variables.ServiceConnection.value = seviceConnection
         }
 
         this.logger?.info(util.format("Creating new pipeline %s", destinationBuildName));
