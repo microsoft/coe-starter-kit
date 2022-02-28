@@ -238,13 +238,6 @@ describe('Branch', () => {
         mockRepo.defaultBranch = 'refs/heads/main'
         mockSourceRef.name = 'refs/heads/main'
 
-        mockTaskAgentApi.getVariableGroups.mockResolvedValue([<BuildInterfaces.VariableGroup>{
-            variables: {
-                "ValidationServiceConnection": <BuildDefinitionVariable>{
-                    value: "123"
-                }
-            }
-        }])
 
         let args = new DevOpsBranchArguments();
         args.accessToken = "FOO"
