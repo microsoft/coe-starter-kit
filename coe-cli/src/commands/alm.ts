@@ -365,6 +365,7 @@ class ALMCommand {
     branchArgs.pipelineRepository = args.pipelineRepository;
     branchArgs.sourceBuildName = args.sourceBuildName;
     branchArgs.destinationBranch = args.destinationBranch;
+    branchArgs.settings = args.settings;
     branchArgs.openDefaultPages = true;
 
     let devopsCommand = this.createDevOpsCommand();
