@@ -432,7 +432,7 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
     })
 
-    test('Clone existing source build - match validation', async () => {
+    test('Create new build without Cloning existing source build', async () => {
         // Arrange
         let logger = mock<winston.Logger>()
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
@@ -447,7 +447,11 @@ describe('Branch', () => {
         args.pipelineRepository = "templates"        
         args.sourceBranch = "main"  
         args.destinationBranch = "NewSolution"  
-
+        let settings : { [id: string] : string } = {}
+        settings["validation"] = "https://foo.validation.com/"
+        settings["test"] = "https://foo.test.com/"
+        settings["prod"] = "https://foo.prod.com/"
+        args.settings = settings
         let project = <CoreInterfaces.TeamProject>{}
         project.name = 'test'
 
@@ -475,6 +479,9 @@ describe('Branch', () => {
         await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
 
         // Assert
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.EnvironmentName.value).toBe("Validation")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.ServiceConnection.value).toBe("https://foo.validation.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.Foo).toBeUndefined()
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
         expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
         expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(0)
