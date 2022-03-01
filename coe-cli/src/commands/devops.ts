@@ -1032,6 +1032,9 @@ class DevOpsCommand {
             let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
             let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
             let prodName = typeof (args.settings["prod"] === "string") ? args.settings["prod"] : "yourenviromenthere-prod"
+            this.logger?.info(util.format("validationName %s", validationName));
+            this.logger?.info(util.format("testName %s", testName));
+            this.logger?.info(util.format("prodName %s", prodName));
 
             switch (template?.toLowerCase()) {
                 case "validation": {
@@ -1050,6 +1053,10 @@ class DevOpsCommand {
                     break;
                 }
             }
+
+            this.logger?.info(util.format("Environment Name %s", environmentName));
+            this.logger?.info(util.format("URL %s", seviceConnection));
+
             sourceBuild.variables = {
                 EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
