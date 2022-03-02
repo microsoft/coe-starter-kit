@@ -199,7 +199,10 @@ class ALMCommand {
       await this.addUser(userArgs)
     }
 
-    await command.importSolution(importArgs)
+      await command.importSolution(importArgs)
+      let aadCommand = this.createAADCommand()
+      let aadId = aadCommand.getAADApplication(args)
+      await command.addAdminUser(aadId, args)
   }
 
   /**
@@ -365,6 +368,7 @@ class ALMCommand {
     branchArgs.pipelineRepository = args.pipelineRepository;
     branchArgs.sourceBuildName = args.sourceBuildName;
     branchArgs.destinationBranch = args.destinationBranch;
+    branchArgs.settings = args.settings;
     branchArgs.openDefaultPages = true;
 
     let devopsCommand = this.createDevOpsCommand();
