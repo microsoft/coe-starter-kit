@@ -77,6 +77,35 @@ class PowerPlatformCommand {
     }
 
     /**
+      * Add an Azure Active Directoiry user as administrator
+      * Read more https://docs.microsoft.com/en-us/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp
+      * @param appId The application id to be added as administrator
+      * @param args The additional arguments required to complete install 
+      * @returns Promise
+      */
+    async addAdminUser(appId: string, args: PowerPlatformAdminSetupArguments): Promise<void> {
+        let bapUrl = this.mapEndpoint("bap", args.endpoint)
+        let apiVersion = "2020-06-01"
+        let authService = Environment.getAuthenticationUrl(bapUrl)
+        let accessToken = args.accessTokens[authService]
+        let results: AxiosResponse<any>
+        try {
+            // Reference
+            // Source: Microsoft.PowerApps.Administration.PowerShell
+            results = await this.getAxios().put<any>(`${bapUrl}providers/Microsoft.BusinessAppPlatform/adminApplications/${appId}?api-version=${apiVersion}`, {}, {
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json"
+                }
+            })
+            this.logger?.info("Added Admin Application for Azure Application")
+        } catch (err) {
+            this.logger?.info("Error adding Admin Application for Azure Application")
+            this.logger?.error(err.response.data.error)
+            return Promise.reject(err)
+        }
+    }
+    /**
      * Import Solution action
      * @param args 
      * @returns 
