@@ -1,0 +1,93 @@
+parameters:
+  - name: serviceConnection
+    type: string
+  - name: aadHost
+    type: string
+    default: login.microsoftonline.com
+  - name: solutionName
+    type: string
+  - name: testAccountUsername
+    type: string
+  - name: testAccountPassword
+    type: string
+  - name: makerPortalUrl
+    type: string
+    default: https://make.powerapps.com
+  - name: loginMethod
+    type: string
+    # default: CloudIdentity
+    # values:
+    #   - CloudIdentity # Uses the default Office 365 Sign-In Service for authentication
+    #   - FederatedIdentity # Uses a Custom Login Action method using AD FS 2.0 or other Security Token Services for authentication. Custom code is required.
+    #   - PassThrough # Federated login scenario where the provided user credential is automatically logged in, requires special agent configurations
+
+steps:
+- powershell: |
+    # only attempt to run tests if a test username was provided as a parameter
+    $runTests = -not ('${{ parameters.testAccountUsername }}'.Contains("TestAutomationUsername"))
+    
+    if ($runTests) {
+      $pipelineUtilsPath = "$(Agent.BuildDirectory)\PipelineUtils"
+      $canvasTestFrameworkPath = "$pipelineUtilsPath\CanvasTestFramework"
+      echo "##vso[task.setvariable variable=CanvasTestFrameworkPath]$canvasTestFrameworkPath"
+
+      # load PowerShell files into memory
+      . "$env:POWERSHELLPATH\dataverse-webapi-functions.ps1"
+      . "$env:POWERSHELLPATH\build-test-automation-urls.ps1"    
+      
+      $solutionName = "${{parameters.solutionName}}"
+      $canvasAppsPath = "$(Agent.TempDirectory)\$env:SOLUTIONNAME\SolutionPackage\CanvasApps"
+      $serviceConnection = "${{parameters.serviceConnection}}"
+
+      $microsoftPowerAppsAdministrationPowerShellModule = $env:CoETools_Microsoft_PowerApps_Administration_PowerShell
+      Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $env:PowerAppsAdminModuleVersion -ArgumentList @{ NonInteractive = $true }
+      Add-PowerAppsAccount -TenantID $env:TenantId -ApplicationId $env:ClientId -ClientSecret "$(ClientSecret)"
+
+      Set-CanvasTestAutomationURLs $env:SPNTOKEN $serviceConnection $solutionName $canvasAppsPath $env:EnvironmentId
+
+      $jsonPath = (Get-Location).Path + "\CanvasTestAutomationURLs.json"
+      echo "##vso[task.setvariable variable=JsonPath]$jsonPath"
+
+      $hasTests = (Get-ChildItem -Filter CanvasTestAutomationURLs.json) -ne $null
+      echo "##vso[task.setvariable variable=RunTests]$hasTests"   
+    }
+    else {
+      echo "##vso[task.setvariable variable=RunTests]$runTests" 
+    }
+
+    $hasTestOverride = -not ('$(TestOverride)'.Contains('TestOverride'))
+    $isPullRequest = "$(Build.Reason)" -eq "PullRequest"
+    $prOrOverride = 'false'
+    if ($hasTestOverride -or $isPullRequest) {
+      $prOrOverride = 'true'
+    }
+    
+    echo "##vso[task.setvariable variable=PrOrOverride]$prOrOverride" 
+  displayName: "Evaluate Running Canvas Tests"
+
+  # TODO: Figure out how to get this running on ubuntu
+- powershell: |
+    # Set agent screen resolution to 1920x1080 to avoid sizing issues with Portal
+    Set-DisplayResolution -Width 1920 -Height 1080 -Force
+
+    # Wait 10 seconds
+    Start-Sleep -s 10
+
+    # Verify Screen Resolution is set to 1920x1080
+    Get-DisplayResolution
+  ignoreLASTEXITCODE: true
+  displayName: "Set Agent Screen Resolution to 1920x1080"
+  condition: and(succeeded(), eq(variables.RunTests, 'true'), eq(variables.PrOrOverride,'true'))
+
+- task: VSTest@2 # Only running chrome tests for now since Power Apps is already cross browser.  These test are for UI / Integration testing.  Can revisit if we discover we need cross browser later.
+  displayName: "Run Power Apps Test Automation Tests via Chrome"
+  condition: and(succeeded(), eq(variables.RunTests, 'true'), eq(variables.PrOrOverride,'true'))
+  inputs:
+    testAssemblyVer2: '$(CanvasTestFrameworkPath)\Microsoft.PowerApps.TestAutomation.Tests.dll'
+    testFiltercriteria: "TestCategory=PowerAppsTestAutomation"
+    uiTests: true
+    runSettingsFile: '$(CanvasTestFrameworkPath)\patestautomation.runsettings'
+    overrideTestrunParameters: '-OnlineUsername ${{ parameters.testAccountUsername }} -OnlinePassword ${{parameters.testAccountPassword}} -BrowserType "Chrome" -OnlineUrl ${{ parameters.makerPortalUrl }} -UsePrivateMode true -TestAutomationURLFilePath "$(JsonPath)" -DriversPath $(ChromeWebDriver) -LoginMethod ${{ parameters.loginMethod }}'
+    testRunTitle: "Run Power Apps Test Automation Tests via Chrome"
+  continueOnError: false
+  
