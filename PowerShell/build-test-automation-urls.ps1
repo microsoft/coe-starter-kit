@@ -13,24 +13,27 @@ function Set-CanvasTestAutomationURLs ($token, $url, $solutionName, $canvasAppsP
             $appName = $app.Name.Replace($filter, "")        
             $appDirectory = $app.Directory.ToString()
             $appSrcDirectory = "$appDirectory\$appName" + "_DocumentUri_msapp_src\Src\Tests"
-            $testFiles = Get-ChildItem $appSrcDirectory
-            $appId = $null
 
-            foreach ($testFile in $testFiles) {
-                $lines = Get-Content $testFile.FullName
+            if(Test-Path $appSrcDirectory) {
+                $testFiles = Get-ChildItem $appSrcDirectory
+                $appId = $null
 
-                foreach ($line in $lines) {                
-                    if ($line.Contains($asTestCase)) {
-                        $pipeDelimeter = "|"
-                        $testCaseId = $line.Replace($asTestCase,$pipeDelimeter).Split($pipeDelimeter)[0].Replace("`"", "").Replace("'", "").Trim()
-                        $testUrl = Get-CanvasAppPlayUrl $token $hostUrl $appName
-                        $testUrl = "$testUrl&__PATestCaseId=$testCaseId&source=testStudioLink"
-                        $testUrls.Add($testUrl)
-                        # We need to bypass consent.  Otherwise the test might fail.
-                        if ($null -eq $appId) {
-                            $appId = $testUrl.Replace('play/',$pipeDelimeter).Replace('?',$pipeDelimeter).Split($pipeDelimeter)[1]                            
-                            Set-AdminPowerAppApisToBypassConsent -EnvironmentName $environmentId -AppName $appId
-                            Write-Host "Bypassed consent for $appId"
+                foreach ($testFile in $testFiles) {
+                    $lines = Get-Content $testFile.FullName
+
+                    foreach ($line in $lines) {                
+                        if ($line.Contains($asTestCase)) {
+                            $pipeDelimeter = "|"
+                            $testCaseId = $line.Replace($asTestCase,$pipeDelimeter).Split($pipeDelimeter)[0].Replace("`"", "").Replace("'", "").Trim()
+                            $testUrl = Get-CanvasAppPlayUrl $token $hostUrl $appName
+                            $testUrl = "$testUrl&__PATestCaseId=$testCaseId&source=testStudioLink"
+                            $testUrls.Add($testUrl)
+                            # We need to bypass consent.  Otherwise the test might fail.
+                            if ($null -eq $appId) {
+                                $appId = $testUrl.Replace('play/',$pipeDelimeter).Replace('?',$pipeDelimeter).Split($pipeDelimeter)[1]                            
+                                Set-AdminPowerAppApisToBypassConsent -EnvironmentName $environmentId -AppName $appId
+                                Write-Host "Bypassed consent for $appId"
+                            }
                         }
                     }
                 }
