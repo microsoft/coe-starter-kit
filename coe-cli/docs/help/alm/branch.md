@@ -1,6 +1,6 @@
 ## ALM Maker Solution
 
-The ALM Accelerator branch command allows Makers to create a branch in the source code repository to store and build a Power Platform solution. To run the branch command the repository that is being branched mys exist and be initialized with an initial commit
+The ALM Accelerator branch command allows Makers to create a branch in the source code repository to store and build a Power Platform solution. To run the branch command the repository that is being branched must exist and be initialized with an initial commit
 
 The process will:
 
