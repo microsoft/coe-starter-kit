@@ -197,6 +197,12 @@ class CoeCliCommands {
         let subscriptionOption = new Option('--subscription <subscription>', 'The Azure Active directory subscription (Optional select azure subscription if access to multiple subscriptions)');
         subscriptionOption.optional = true
 
+        let cloudOptions = new Option("--cloud", "The Azure cloud to deploy to").default(["Public"])
+            .choices(['Public',
+                'USGov',
+                'German',
+                'China']);
+
         let regionOptions = new Option("--region", "The region to deploy to").default(["NAM"])                
                 .choices(['NAM',
                     'DEU',
@@ -260,6 +266,7 @@ class CoeCliCommands {
                 settings.option("--installSource", "The optional GitHub install source for ALM Accelerator", "coe")
                 settings.option("--installAsset", "The optional GitHub ALM Accelerator install package name")
                 settings.addOption(regionOptions)
+                settings.addOption(cloudOptions)
 
                 parse["environments"] = { parse: (text) => {
                     if (text?.length > 0 && text.indexOf('=') < 0) {
@@ -284,6 +291,13 @@ class CoeCliCommands {
 
                 if (typeof results.components === "string") {
                     results.components = results.components.split(',')
+                }
+
+                if (typeof results.settings?.cloud === "undefined") {
+                    if (typeof results.settings === "undefined") {
+                        results.settings = {}
+                    }
+                    results.settings.region = "Public"
                 }
 
                 if (typeof results.settings?.region === "undefined") {
@@ -324,6 +338,7 @@ class CoeCliCommands {
                     const settings = new Command()
                         .command('settings')
                     settings.option("--createSecret", "Create and Assign Secret values for Azure Active Directory Service Principal", "true");     
+                    settings.addOption(cloudOptions)
                     settings.addOption(regionOptions)
 
                     parse["settings"] = {
@@ -336,6 +351,13 @@ class CoeCliCommands {
 
                     if (typeof results.settings === "string") {
                         results.settings = this.parseSettings(results.settings)
+                    }
+
+                    if (typeof results.settings?.cloud === "undefined") {
+                        if (typeof results.settings === "undefined") {
+                            results.settings = {}
+                        }
+                        results.settings.region = "Public"
                     }
 
                     if (typeof results.settings?.region === "undefined") {
