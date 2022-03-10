@@ -454,7 +454,7 @@ class DevOpsCommand {
 
             let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-ALM")
 
-            let aadHost = Environment.getAzureADAuthEndpoint(aadArgs.settings)
+            let aadHost = Environment.getAzureADAuthEndpoint(aadArgs.settings).replace("https://", "")
             if (!aadArgs.createSecret) {
                 this.logger?.warn('Client secret not added for variable group alm-accelerator-variable-group it wil need to be added manually')
             }
