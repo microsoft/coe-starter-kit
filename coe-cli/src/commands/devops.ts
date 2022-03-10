@@ -473,7 +473,7 @@ class DevOpsCommand {
                     }
                 }]
             parameters.name = variableGroupName
-            parameters.description = 'ALM Accelerator for Makers'
+            parameters.description = 'ALM Accelerator for Power Platform'
             
             parameters.variables = {
                 "AADHost": <VariableValue>{
