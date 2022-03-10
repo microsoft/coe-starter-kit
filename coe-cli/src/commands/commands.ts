@@ -297,7 +297,7 @@ class CoeCliCommands {
                     if (typeof results.settings === "undefined") {
                         results.settings = {}
                     }
-                    results.settings.region = "Public"
+                    results.settings.cloud = "Public"
                 }
 
                 if (typeof results.settings?.region === "undefined") {
