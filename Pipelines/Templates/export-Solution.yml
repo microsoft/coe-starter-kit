@@ -124,17 +124,51 @@ steps:
   parameters:
     canvasUnpackVersion: ''
 
-# Use temp exe from PowerShell to unpack source files into a folder
+- powershell: |
+    #Set variable to continue on unpack error for use in the next two steps
+    if('$(ContinueOnCanvasUnpackError)'.Contains("ContinueOnCanvasUnpackError")) {
+        Write-Host "##vso[task.setvariable variable=ContinueOnCanvasUnpackError]false"
+    }
+  displayName: Check for Continue on Canvas Unpack Error
+
+
+# Unpack source files into a folder
 - pwsh: |
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
    ForEach-Object {
-      $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
-      $env:PATH = $env:PATH + ";" + "$(pacPath)"
-      pac canvas unpack --msapp $_.FullName --sources $unpackedPath
-      del $_.FullName
+        $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
+        $env:PATH = $env:PATH + ";" + "$(pacPath)"
+        # Adding a temporary try / catch here to handle unexpected errors in canvas unpack. This is not idea, however, we need to ensure that breaking changes in unpack don't leave the pipelines permanently broken
+        pac canvas unpack --msapp $_.FullName --sources $unpackedPath
+        del $_.FullName
    }
-  displayName: 'unpack msapp files'
+  displayName: 'Unpack msapp files fail on error'
   enabled: true
+  condition: and(succeeded(), ne(variables.ContinueOnCanvasUnpackError, 'true'))
+
+# Unpack source files into a folder
+- pwsh: |
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
+   ForEach-Object {
+        $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
+        $env:PATH = $env:PATH + ";" + "$(pacPath)"
+        # Adding a temporary try / catch here to handle unexpected errors in canvas unpack. This is not idea, however, we need to ensure that breaking changes in unpack don't leave the pipelines permanently broken
+        pac canvas unpack --msapp $_.FullName --sources $unpackedPath
+        if( -not $?)
+        {
+            $msg = $Error[0].Exception.Message
+            Write-Host "##vso[task.logissue type=warning]Failed to unpack $_.FullName. The msapp file will be preserved until this issue is resolved."
+        }
+        else
+        {
+            del $_.FullName
+        }
+   }
+  displayName: 'Unpack msapp files continue on error'
+  enabled: true
+  continueOnError: true
+  condition: and(succeeded(), eq(variables.ContinueOnCanvasUnpackError, 'true'))
+
 
 # TEMPORARY until Solution export supports not exporting custom connector configurations
 # We need to clear out the contents of any *_connectionparameters.json file.  This is to ensure those valuse
