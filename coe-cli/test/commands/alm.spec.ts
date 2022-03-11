@@ -193,7 +193,7 @@ describe('Maker Add', () => {
         args.project = "proj1"
         args.user = "U1"
         args.environment = "E1"
-        args.settings = { 'region': 'NAM' }
+        args.settings = { 'region': 'NAM', 'cloud': 'Public' }
 
         // Act
         await command.addMaker(args)

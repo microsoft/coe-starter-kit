@@ -7,6 +7,7 @@ import { promisify } from 'util';
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import { Prompt } from '../common/prompt';
 import winston from 'winston';
+import { Environment } from '../../src/common/environment';
 
 const readFile = promisify(fs.readFile);
 
@@ -43,7 +44,7 @@ class LoginCommand {
      * @return {Promise} aync outcome
      *
      */
-    async execute(args: LoginArguments) : Promise<AuthenticationResult> {
+    async execute(args: LoginArguments, settings: { [id: string]: string }) : Promise<AuthenticationResult> {
         var config : any = undefined
         
         if (args?.configFile?.length > 0) {
@@ -53,12 +54,13 @@ class LoginCommand {
         }
 
         if ( typeof config === "undefined" ) {
+            let authEndpoint: string = Environment.getAzureADAuthEndpoint(settings);
             let clientId: string = args.clientId
             config = {
                 "authOptions":
                 {
                     "clientId": clientId,
-                    "authority": "https://login.microsoftonline.com/common/"
+                    "authority": authEndpoint + "/common/"
                 },
                 "request":
                 {

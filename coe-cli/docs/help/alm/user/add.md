@@ -34,6 +34,10 @@ The user role to assign. The default value is **System Administrator**
 
 #### --settings
 
+###### --cloud
+
+The Azure cloud your tenant is using. Currently, there are 4 Azure clouds Public, US Gov, Germany and China. The default value is **Public** Azure Public Cloud
+
 ##### --region
 
 The region that environments are deployed to. This setting will be used if a fully qualified domain name is not supplied. The default value is **NAM** North America
