@@ -26,6 +26,7 @@ import exp = require('constants');
 import { RoleAssignment } from 'azure-devops-node-api/interfaces/SecurityRolesInterfaces';
 import { IdentityRef } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
 import { GraphGroup } from 'azure-devops-node-api/interfaces/GraphInterfaces';
+import { VariableGroupParameters } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
 
 describe('Install', () => {
     test('Import Repo', async () => {
@@ -715,8 +716,11 @@ describe('Build Variables', () => {
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
 
         mockTaskApi.getVariableGroups.mockResolvedValue([])
-        mockTaskApi.addVariableGroup.mockResolvedValue({id:1})
-
+        let inParameters: VariableGroupParameters = null
+        mockTaskApi.addVariableGroup.mockImplementation((parameters: VariableGroupParameters) => {
+            inParameters = parameters 
+            return Promise.resolve({id:1})
+        })
         mockBuildApi.getDefinitions.mockResolvedValue([<BuildDefinitionReference>{id:1, name: "export-solution-to-git"}])
 
         mockAADCommand.addSecret.mockResolvedValue(<AADAppSecret>{clientId:'C1', clientSecret:'S1', tenantId:'T1'})
@@ -737,6 +741,13 @@ describe('Build Variables', () => {
         await command.createMakersBuildVariables(args, mockDevOpsWebApi, securityContext)
 
         // Assert
+        expect(inParameters.variables).toBeDefined();
+        expect("AADHost" in inParameters.variables).toBeTruthy();
+        expect("CdsBaseConnectionString" in inParameters.variables).toBeTruthy();
+        expect("ClientId" in inParameters.variables).toBeTruthy();
+        expect("ClientSecret" in inParameters.variables).toBeTruthy();
+        expect("TenantID" in inParameters.variables).toBeTruthy();
+
         expect(mockAADCommand.addSecret).toBeCalledTimes(1)
     })
 });
@@ -817,7 +828,7 @@ describe('Service Connections', () => {
         let args = new DevOpsInstallArguments();
         
         args.environment = "E1"
-        args.settings = { 'region': 'NAM' }
+        args.settings = { 'region': 'NAM', 'cloud': 'Public' }
         args.projectName = "P1"
 
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
@@ -860,7 +871,8 @@ describe('Service Connections', () => {
         args.environment = 'test'
         args.user = "test@microsoft.com"
         args.settings = {
-            'region': 'NAM'
+            'region': 'NAM',
+            'cloud': 'Public'
         }
        
         mockHttpClient.get.mockImplementation((url: string, header: IHeaders) => {

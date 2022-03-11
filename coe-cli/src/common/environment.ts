@@ -19,6 +19,38 @@ export abstract class Environment {
         return {}
     }
 
+    public static getAzureADAuthEndpoint(settings?: { [id: string]: string }): string {
+        let endpoint = 'https://login.microsoftonline.com'
+
+        let cloud = ''
+        if (typeof settings !== "undefined" && "cloud" in settings && typeof settings["cloud"] === "string") {
+            cloud = settings["cloud"]
+        }
+
+        if (typeof settings !== "undefined" && "cloud" in settings && Array.isArray(settings["cloud"]) && settings["cloud"].length > 0) {
+            cloud = settings["cloud"][0]
+        }
+
+        switch (cloud.toUpperCase()) {
+            case "PUBLIC": {
+                endpoint = 'https://login.microsoftonline.com'
+                break;
+            }
+            case 'USGOV': {
+                endpoint = 'https://login.microsoftonline.us'
+                break;
+            }
+            case 'GERMAN': {
+                endpoint = 'https://login.microsoftonline.de'
+                break;
+            }
+            case 'CHINA': {
+                endpoint = 'https://login.chinacloudapi.cn'
+                break;
+            }
+        }
+        return endpoint
+    }
 
     public static getEnvironmentUrl(name: string, settings?: { [id: string] : string }): string {
         let environmentUrl : url.URL = null

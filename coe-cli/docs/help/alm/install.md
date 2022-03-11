@@ -131,6 +131,10 @@ Default value is **true**.
 
 Read more on [Manage user assignment for an app in Azure Active Directory](https://docs.microsoft.com/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
 
+###### --cloud
+
+The Azure cloud your tenant is using. Currently, there are 4 Azure clouds Public, US Gov, Germany and China. The default value is **Public** Azure Public Cloud
+
 ###### --region
 
 The region that environments are deployed to. This setting will be used if a fully qualified domain name is not supplied. The default value is **NAM** North America

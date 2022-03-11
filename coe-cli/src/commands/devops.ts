@@ -450,9 +450,11 @@ class DevOpsCommand {
             aadArgs.createSecret = args.createSecretIfNoExist
             aadArgs.accessTokens = args.accessTokens
             aadArgs.endpoint = args.endpoint
+            aadArgs.settings = args.settings
 
             let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-ALM")
 
+            let aadHost = Environment.getAzureADAuthEndpoint(aadArgs.settings).replace("https://", "")
             if (!aadArgs.createSecret) {
                 this.logger?.warn('Client secret not added for variable group alm-accelerator-variable-group it wil need to be added manually')
             }
@@ -462,18 +464,21 @@ class DevOpsCommand {
             let exportBuild = builds.filter(b => b.name == "export-solution-to-git")
             let buildId = exportBuild.length == 1 ? exportBuild[0].id.toString() : ""
 
-            let paramemeters = <VariableGroupParameters>{}
-            paramemeters.variableGroupProjectReferences = [
+            let parameters = <VariableGroupParameters>{}
+            parameters.variableGroupProjectReferences = [
                 <VariableGroupProjectReference>{
                     name: variableGroupName,
                     projectReference: <ProjectReference>{
                         name: args.projectName,
                     }
                 }]
-            paramemeters.name = variableGroupName
-            paramemeters.description = 'ALM Accelerator for Makers'
-
-            paramemeters.variables = {
+            parameters.name = variableGroupName
+            parameters.description = 'ALM Accelerator for Power Platform'
+            
+            parameters.variables = {
+                "AADHost": <VariableValue>{
+                    value: aadHost
+                },
                 "CdsBaseConnectionString": <VariableValue>{
                     value: "AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
                 },
@@ -489,7 +494,7 @@ class DevOpsCommand {
                 }
             }
 
-            variableGroup = await taskApi.addVariableGroup(paramemeters)
+            variableGroup = await taskApi.addVariableGroup(parameters)
         }
 
         this.logger?.debug("Searching for existing role assignements")
