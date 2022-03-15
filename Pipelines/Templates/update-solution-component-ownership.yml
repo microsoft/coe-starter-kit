@@ -50,6 +50,7 @@ steps:
             }      
           }
           $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $ownershipConfig.ownerEmail -Fields systemuserid
+          $workflowDeactivated = $false
           if($systemuserResult.Count -gt 0) {
               $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
               $impersonationConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
@@ -58,9 +59,9 @@ steps:
 
               if('${{parameters.updateComponentOnwership}}' -ne "false") {
                 #Need to deactivate the flow before setting ownership if currently active
-                if($workflow.statecode -eq "Activated"){
-                    Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode Draft -StatusCode Draft
-                    $workflow.statecode = "Draft"
+                if($workflow.statecode_Property.Value -ne 1){
+                    Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode 0 -StatusCode 1
+                    $workflowDeactivated = $true
                 }
                 Set-CrmRecordOwner -conn $conn $workflow $systemUserId
               }
@@ -69,12 +70,12 @@ steps:
             Write-Host "##vso[task.logissue type=warning]A specified user record was not found in the target environment. Verify your deployment configuration and try again."
           }
           #Activate the workflow using the owner.
-          if($workflow.statecode -ne "Activated" -and '${{parameters.enableFlows}}' -ne "false"){
+          if(($workflow.statecode_Property.Value -ne 1 -or $workflowDeactivated) -and '${{parameters.enableFlows}}' -ne "false"){
             $impersonationConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
             $impersonationCallerId = $systemUserId
             $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
             Write-Host "Enabling Flows"
-            Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode Activated -StatusCode Activated
+            Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode 1 -StatusCode 2
           }
       }
     }
