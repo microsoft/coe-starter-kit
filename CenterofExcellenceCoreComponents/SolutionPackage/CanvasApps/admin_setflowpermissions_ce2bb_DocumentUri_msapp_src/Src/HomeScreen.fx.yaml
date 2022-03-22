@@ -1,8 +1,15 @@
 HomeScreen As screen:
     Height: =Max(App.Height, App.DesignHeight)
-    OnVisible: |
+    OnVisible: |-
         =Set(SelectedFlow, galFlows.Selected);
         Set(SearchScreenNumber, 1);
+        UpdateContext(
+            {
+                showEmailUsers: false,
+                showAddUsers: false,
+                showCantShowThat: false,
+                CantShowThatText: ""
+            });
     Orientation: =If(HomeScreen.Width < HomeScreen.Height, Layout.Vertical, Layout.Horizontal)
     Size: =1 + CountRows(App.SizeBreakpoints) - CountIf(App.SizeBreakpoints, Value >= HomeScreen.Width)
     Width: =Max(App.Width, App.DesignWidth)
@@ -20,7 +27,7 @@ HomeScreen As screen:
             =SortByColumns(Filter(
                 Filter(
                     Flows,
-                        'Flow Environment'.admin_displayname = Text(galEnvironments.Selected.admin_displayname) And 'Flow Deleted'='Flow Deleted (Flows)'.No
+                        'Flow Environment'.'Display Name' = Text(galEnvironments.Selected.'Display Name') And 'Flow Deleted'='Flow Deleted (Flows)'.No
                 ),
                 txtSearchText.Text in 'Display Name' || txtSearchText.Text in 'Flow Maker Display Name' || txtSearchText.Text in FlowIDString
             ), "admin_displayname")
@@ -121,8 +128,17 @@ HomeScreen As screen:
             Height: =40
             HoverBorderColor: =ColorFade(chkSelectApp.BorderColor, 30%)
             HoverFill: =ColorFade(chkSelectApp.Fill, 30%)
-            OnCheck: |-
-                =Collect(EnvCheckedFlows, {FlowName:ThisItem.Flow})
+            OnCheck: |
+                =Collect(
+                    EnvCheckedFlows,
+                    {
+                        FlowName: ThisItem.Flow,
+                        FlowOwner: ThisItem.DerivedOwner,
+                        FlowIsOrphaned: ThisItem.'Flow is Orphaned',
+                        Environment: ThisItem.'Flow Environment'.Environment,
+                        EnvName: ThisItem.'Flow Environment'.Name
+                    }
+                )
             OnUncheck: =Remove(EnvCheckedFlows,LookUp(EnvCheckedFlows,FlowName=ThisItem.Flow));
             PressedBorderColor: =ColorFade(chkSelectApp.BorderColor, -30%)
             PressedColor: =ColorValue(Style.Primary)
@@ -166,7 +182,7 @@ HomeScreen As screen:
             =SortByColumns(
                 Filter(
                     vEnvironments,
-                    txtSearchText_2.Text in 'Display Name'
+                    txtSearchText_2.Text in 'Display Name' && 'Number Of Flows' > 0
                 ),
                 "admin_displayname",
                 If(
@@ -518,11 +534,23 @@ HomeScreen As screen:
         BorderColor: =ColorValue(Style.Primary)
         CheckboxBorderColor: =RGBA(128, 128, 128, 1)
         FocusedBorderColor: =chkSelectAll.BorderColor
+        Font: =Font.Arial
         Height: =40
         HoverBorderColor: =ColorFade(chkSelectAll.BorderColor, 30%)
         HoverFill: =ColorFade(chkSelectAll.Fill, 30%)
         OnCheck: |-
-            =Clear(EnvCheckedFlows);ForAll(galFlows.AllItems, Collect(EnvCheckedFlows,{FlowName:Flow}))
+            =Clear(EnvCheckedFlows);
+            ForAll(galFlows.AllItems, 
+            If(!isSolutionFlow,
+            Collect(EnvCheckedFlows,
+                {
+                    FlowName: Flow,
+                    FlowOwner: DerivedOwner,
+                    FlowIsOrphaned: 'Flow is Orphaned',
+                    Environment: 'Flow Environment'.Environment,
+                    EnvName: 'Flow Environment'.Name
+                }
+            )))
         OnUncheck: =Clear(EnvCheckedFlows)
         PressedBorderColor: =ColorFade(chkSelectAll.BorderColor, -30%)
         PressedColor: =ColorValue(Style.Primary)
@@ -676,11 +704,11 @@ HomeScreen As screen:
             DisabledFill: =bkgAddNewUsers_5.Fill
             Fill: =RGBA(244, 244, 244, 1)  
             FocusedBorderColor: =bkgAddNewUsers_5.BorderColor
-            Height: =950
+            Height: =If(Self.Visible, 950, 0)
             HoverFill: =bkgAddNewUsers_5.Fill
             PressedFill: =bkgAddNewUsers_5.Fill
             Visible: =showAddPermissions
-            Width: =1098
+            Width: =If(Self.Visible, 1098, 0)
             X: =374
             Y: =65
             ZIndex: =29
@@ -804,7 +832,7 @@ HomeScreen As screen:
                 PressedColor: =lblSearchUserID_5.Color
                 PressedFill: =lblSearchUserID_5.Fill
                 Text: |-
-                    =If( !IsBlank(txtSearchUser_5), "User ID: " & Office365Users.UserProfileV2(ThisItem.UserPrincipalName).id)
+                    ="User ID: " & TargetUser.id
                 Width: =536
                 X: =100
                 Y: =88
@@ -822,7 +850,7 @@ HomeScreen As screen:
                 PressedColor: =lblSearchEmail_5.Color
                 PressedFill: =lblSearchEmail_5.Fill
                 Text: =ThisItem.UserPrincipalName
-                Width: =443
+                Width: =484
                 X: =100
                 Y: =47
                 ZIndex: =9
@@ -1018,34 +1046,38 @@ HomeScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |
-                =ForAll(
+                =//get assignment details
+                UpdateContext({TargetUserEmail:galSearchPeopleresult_5.Selected.UserPrincipalName});
+                UpdateContext({TargetUser: Office365Users.UserProfileV2(TargetUserEmail)});
+                UpdateContext({TargetUserID: GUID(TargetUser.id)});
+                UpdateContext({TargetUserDisplayName: TargetUser.displayName});
+                UpdateContext({RoleAssignment: drpSearchUserRole_5.SelectedText.Value});
+                
+                //make permissions changes
+                ForAll(
                     EnvCheckedFlows,
-                    PowerAutomateforAdmins.EditAdminFlowOwnerRole(
-                        galEnvironments.Selected.Name,
-                        FlowName,
-                        {
-                            put: Table(
-                                {
-                                    properties: {
-                                        roleName: vUserRole,
-                                        capabilities: [""],
-                                        NotifyShareTargetOption: "Notify",
-                                        principal: {
-                                            email: galSearchPeopleresult_5.Selected.UserPrincipalName,
-                                            id: Office365Users.UserProfileV2(galSearchPeopleresult_5.Selected.UserPrincipalName).id,
-                                            displayName: galSearchPeopleresult_5.Selected.DisplayName,
-                                            type: "User",
-                                            tenantId: "null"
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    )
-                );
+                    //if viewer or editor
+                    If(RoleAssignment = "Viewer" || RoleAssignment = "Editor",
+                        If('HELPER-ObjectOperations'.Run(TargetUserID, FlowName, EnvName, 
+                            If(RoleAssignment = "Viewer", "addviewer", "addeditor"), "flow").thereturnstring <> "pass", Collect(failedToSet, FlowName)));
+                
+                
+                    //if owner
+                    If(RoleAssignment = "Owner",
+                        If('HELPER-ObjectOperations'.Run(TargetUserID, FlowName, EnvName, 
+                            "assign", "flow").thereturnstring <> "pass", Collect(failedToSet, FlowName))));
+                
+                //see if all permission changes passed
+                If(CountRows(failedToSet) < 1,
+                    Refresh('Power Platform Users'); Refresh(Makers); Refresh(Flows),
+                    UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing permissions failed for some flows, try to set via product UX"}));
+                
                 UpdateContext({showAddPermissions: false});
                 Reset(chkSelectAll);
                 Clear(EnvCheckedFlows);
+                Clear(failedToSet);
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -1120,4 +1152,51 @@ HomeScreen As screen:
             X: =608
             Y: =758
             ZIndex: =41
+
+    cant_do_that_Dialog_2 As group:
+        Height: =5
+        Width: =5
+        X: =20
+        Y: =20
+        ZIndex: =45
+
+        bg_cant_do_that_2 As rectangle:
+            DisabledFill: =bg_cant_do_that_2.Fill
+            Fill: =RGBA(238, 204, 204, 1)
+            Height: =If(Self.Visible, 52, 0)
+            HoverFill: =bg_cant_do_that_2.Fill
+            PressedFill: =bg_cant_do_that_2.Fill
+            Visible: =showCantShowThat
+            Width: =If(Self.Visible, Parent.Width, 0)
+            Y: =52
+            ZIndex: =42
+
+        lbl_cant_do_that_2 As label:
+            Align: =Center
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =bg_cant_do_that_2.Height
+            Text: =CantShowThatText
+            Visible: =showCantShowThat
+            Width: =bg_cant_do_that_2.Width
+            Y: =bg_cant_do_that_2.Y
+            ZIndex: =43
+
+        x_cant_do_that_2 As icon.Cancel:
+            Color: =RGBA(51, 51, 51, 1)
+            DisabledFill: =x_cant_do_that_2.Fill
+            Height: =bg_cant_do_that_2.Height
+            HoverBorderColor: =ColorFade(x_cant_do_that_2.BorderColor, 20%)
+            HoverColor: =ColorFade(x_cant_do_that_2.Color, 20%)
+            HoverFill: =x_cant_do_that_2.Fill
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showCantShowThat: false})
+            PressedBorderColor: =ColorFade(x_cant_do_that_2.BorderColor, -20%)
+            PressedColor: =ColorFade(x_cant_do_that_2.Color, -20%)
+            PressedFill: =x_cant_do_that_2.Fill
+            Visible: =showCantShowThat
+            Width: =Self.Height
+            X: =If(Self.Visible, Parent.Width-Self.Width-5, 0)
+            Y: =bg_cant_do_that_2.Y
+            ZIndex: =44
 
