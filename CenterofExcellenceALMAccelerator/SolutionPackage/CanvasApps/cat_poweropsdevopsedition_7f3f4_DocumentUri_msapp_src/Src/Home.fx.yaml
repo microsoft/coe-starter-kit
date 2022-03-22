@@ -171,6 +171,10 @@ Home As screen:
                     DisplayName
                 )
             );
+            RemoveIf(
+                AllEnvironments,
+                IsBlankOrError(properties.linkedEnvironmentMetadata)
+            );
             Set(
                 DefaultEnvironmentSettingName,
                 "LastSavedEnvironment"
@@ -1706,14 +1710,14 @@ Home As screen:
             AccessibleLabel: ="Environments"
             Default: =DefaultEnvironmentToLoad
             Fill: =PrimaryColor1Value
-            Height: =960
-            Items: =AllEnvironments
+            Height: =886
+            Items: =If(txtEnvironmentSearch.Text = "", Sort(AllEnvironments, properties.linkedEnvironmentMetadata.friendlyName) , Filter(Sort(AllEnvironments, properties.linkedEnvironmentMetadata.friendlyName), txtEnvironmentSearch.Text in properties.linkedEnvironmentMetadata.friendlyName))
             Layout: =Layout.Vertical
             OnSelect: =
             TemplateFill: =If(ThisItem.IsSelected, LightGray, Transparent)
             TemplateSize: =56
             Width: =500
-            Y: =50
+            Y: =123
             ZIndex: =1
 
             lblEnvironments As label:
@@ -1817,6 +1821,56 @@ Home As screen:
             Y: =5
             ZIndex: =3
 
+        EnvironmentSearchBox As group:
+            Height: =5
+            Width: =5
+            X: =-1408
+            Y: =-101
+            ZIndex: =4
+
+            txtEnvironmentSearch As text:
+                AccessibleLabel: ="Search Solutions"
+                Clear: =false
+                Default: =""
+                DelayOutput: =true
+                Height: =46
+                HintText: ="Search Environments"
+                HoverBorderColor: =ColorFade(txtEnvironmentSearch.BorderColor, 20%)
+                HoverColor: =ColorFade(txtEnvironmentSearch.Color, 20%)
+                HoverFill: =ColorFade(txtEnvironmentSearch.Fill, 20%)
+                OnSelect: =
+                PaddingLeft: =10
+                PressedBorderColor: =txtEnvironmentSearch.HoverBorderColor
+                PressedColor: =txtEnvironmentSearch.Color
+                PressedFill: =txtEnvironmentSearch.Fill
+                Width: =452
+                X: =24
+                Y: =66
+                ZIndex: =5
+
+            icoEnvironmentSearch As icon.Search:
+                AccessibleLabel: ="Search Solutions"
+                BorderColor: =ColorFade(icoEnvironmentSearch.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoEnvironmentSearch.Fill, -80%)
+                Height: =43
+                HoverBorderColor: =ColorFade(icoEnvironmentSearch.BorderColor, 20%)
+                HoverColor: =ColorFade(icoEnvironmentSearch.Color, 20%)
+                HoverFill: =ColorFade(icoEnvironmentSearch.Fill, 20%)
+                Icon: =If(Len(txtEnvironmentSearch.Text) = 0, Icon.Search, Icon.Cancel)
+                OnSelect: =If(icoEnvironmentSearch.Icon = Icon.Cancel, Reset(txtEnvironmentSearch))
+                PaddingBottom: =10
+                PaddingLeft: =10
+                PaddingRight: =10
+                PaddingTop: =10
+                PressedBorderColor: =ColorFade(icoEnvironmentSearch.BorderColor, -20%)
+                PressedColor: =ColorFade(icoEnvironmentSearch.Color, -20%)
+                PressedFill: =ColorFade(icoEnvironmentSearch.Fill, -20%)
+                Width: =63
+                X: =413
+                Y: =67
+                ZIndex: =6
+
     CommitDialog As groupContainer:
         Height: =1080
         Visible: =showCommitDialog
@@ -1842,7 +1896,8 @@ Home As screen:
             HoverColor: =ColorFade(btnCommit.Color, 20%)
             HoverFill: =ColorFade(btnCommit.Fill, 20%)
             OnSelect: |-
-                =If(
+                =UpdateContext({ errorMessage: "" });
+                If(
                     promoteStage = "PREPARE",
                     Set(
                         ReturnScreen,
@@ -1965,7 +2020,8 @@ Home As screen:
                                         }
                                     }
                                 ).id,
-                                Notify("Error running pipeline: " & FirstError.Message);
+                                UpdateContext({errorMessage: FirstError.Message});
+                                Notify("Error running pipeline: " & errorMessage);
                             )
                         }
                     );
@@ -1988,7 +2044,8 @@ Home As screen:
                                 locCreateNewBranch,
                                 drpAdoBranches.Selected.DisplayName
                             ),
-                            'Build ID': promoteBuildId
+                            'Build ID': If(IsBlankOrError(errorMessage), promoteBuildId),
+                            Message: errorMessage
                         }
                     );
                     Refresh('Deployment Requests');
@@ -2353,83 +2410,73 @@ Home As screen:
             HoverColor: =ColorFade(btnImport.Color, 20%)
             HoverFill: =ColorFade(btnImport.Fill, 20%)
             OnSelect: |
-                =IfError(
-                    Set(
-                        LastSavedImportPipelineRunsSettingName,
-                        "LastSavedImportPipelineRuns - " & drpImportDeploymentProfiles.Selected.'AzDO Organization' & " - " & drpImportDeploymentProfiles.Selected.'AzDO Project'
-                    );
-                    UpdateContext(
-                        {
-                            piplineToRun: LookUp(
-                                CustomAzureDevOps.GetPipelines(
-                                    drpImportDeploymentProfiles.Selected.'AzDO Organization',
-                                    drpImportDeploymentProfiles.Selected.'AzDO Project'
-                                ).value,
-                                name = "import-unmanaged-to-dev-environment"
-                            )
-                        }
-                    );
-                    UpdateContext(
-                        {
-                            importBuildId: IfError(
-                                CustomAzureDevOps.RunPipeline(
-                                    drpImportDeploymentProfiles.Selected.'AzDO Organization',
-                                    drpImportDeploymentProfiles.Selected.'AzDO Project',
-                                    piplineToRun.id,
-                                    {
-                                        definition: {id: piplineToRun.id},
-                                        variables: {
-                                            Project: {value: drpImportDeploymentProfiles.Selected.'AzDO Project'},
-                                            Repo: {value: drpImportDeploymentProfiles.Selected.Repository},
-                                            SolutionName: {value: drpSolutionFolders.Selected.DisplayName},
-                                            Email: {value: gblUser.Email},
-                                            UserName: {value: gblUser.FullName},
-                                            CommitMessage: {value: ""},
-                                            Branch: {value: drpBranchName.Selected.name},
-                                            BranchToCreate: {value: ""},
-                                            ServiceConnection: {value: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl},
-                                            TriggerSolutionUpgrade: {value: ""},
-                                            BuildDefinitionId: {value: ""},
-                                            PipelineId: {value: ""},
-                                            ImportUnmanaged: {value: "true"},
-                                            EnvironmentName: {value: drpConfigFolders.Selected.DisplayName},
-                                            Data: {value: ""}
-                                        }
+                =UpdateContext({errorMessage: ""});
+                Set(
+                    LastSavedImportPipelineRunsSettingName,
+                    "LastSavedImportPipelineRuns - " & drpImportDeploymentProfiles.Selected.'AzDO Organization' & " - " & drpImportDeploymentProfiles.Selected.'AzDO Project'
+                );
+                UpdateContext(
+                    {
+                        piplineToRun: LookUp(
+                            CustomAzureDevOps.GetPipelines(
+                                drpImportDeploymentProfiles.Selected.'AzDO Organization',
+                                drpImportDeploymentProfiles.Selected.'AzDO Project'
+                            ).value,
+                            name = "import-unmanaged-to-dev-environment"
+                        )
+                    }
+                );
+                UpdateContext(
+                    {
+                        importBuildId: IfError(
+                            CustomAzureDevOps.RunPipeline(
+                                drpImportDeploymentProfiles.Selected.'AzDO Organization',
+                                drpImportDeploymentProfiles.Selected.'AzDO Project',
+                                piplineToRun.id,
+                                {
+                                    definition: {id: piplineToRun.id},
+                                    variables: {
+                                        Project: {value: drpImportDeploymentProfiles.Selected.'AzDO Project'},
+                                        Repo: {value: drpImportDeploymentProfiles.Selected.Repository},
+                                        SolutionName: {value: drpSolutionFolders.Selected.DisplayName},
+                                        Email: {value: gblUser.Email},
+                                        UserName: {value: gblUser.FullName},
+                                        CommitMessage: {value: ""},
+                                        Branch: {value: drpBranchName.Selected.name},
+                                        BranchToCreate: {value: ""},
+                                        ServiceConnection: {value: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl},
+                                        TriggerSolutionUpgrade: {value: ""},
+                                        BuildDefinitionId: {value: ""},
+                                        PipelineId: {value: ""},
+                                        ImportUnmanaged: {value: "true"},
+                                        EnvironmentName: {value: drpConfigFolders.Selected.DisplayName},
+                                        Data: {value: ""}
                                     }
-                                ).id,
-                                Notify("Error running pipeline: " & FirstError.Message);
-                            )
-                        }
-                    );
-                    Patch(
-                        'Deployment Requests',
-                        {
-                            Name: Text(
-                                Now(),
-                                ShortDateTime
-                            ) & " - " & drpSolutionFolders.Selected.DisplayName,
-                            'Solution Name': drpSolutionFolders.Selected.DisplayName,
-                            'Deployment Profile': drpImportDeploymentProfiles.Selected,
-                            'Build ID': importBuildId,
-                            'Request Type': [@Type].Import,
-                            Target: drpSolutionFolders.Selected.DisplayName
-                        }
-                    ),
-                    Patch(
-                        'Deployment Requests',
-                        {
-                            Name: Text(
-                                Now(),
-                                ShortDateTime
-                            ) & " - " & drpSolutionFolders.Selected.DisplayName,
-                            'Solution Name': drpSolutionFolders.Selected.DisplayName,
-                            'Deployment Profile': drpImportDeploymentProfiles.Selected,
-                            'Build ID': importBuildId,
-                            'Request Type': [@Type].Import,
-                            Target: drpSolutionFolders.Selected.DisplayName,
-                            Message: FirstError.Message
-                        }
-                    )
+                                }
+                            ).id,
+                            UpdateContext(
+                                {
+                                    errorMessage: FirstError.Message
+                                }
+                            );
+                            Notify("Error running pipeline: " & errorMessage);
+                        )
+                    }
+                );
+                Patch(
+                    'Deployment Requests',
+                    {
+                        Name: Text(
+                            Now(),
+                            ShortDateTime
+                        ) & " - " & drpSolutionFolders.Selected.DisplayName,
+                        'Solution Name': drpSolutionFolders.Selected.DisplayName,
+                        'Deployment Profile': drpImportDeploymentProfiles.Selected,
+                        'Build ID': If(IsBlankOrError(errorMessage), importBuildId, ""),
+                        'Request Type': [@Type].Import,
+                        Target: drpSolutionFolders.Selected.DisplayName,
+                        Message: errorMessage
+                    }
                 );
                 Refresh('Deployment Requests');
                 UpdateContext(
@@ -2932,7 +2979,8 @@ Home As screen:
             HoverColor: =ColorFade(btnCreate.Color, 20%)
             HoverFill: =ColorFade(btnCreate.Fill, 20%)
             OnSelect: |-
-                =If(
+                =UpdateContext({ errorMessage: ""});
+                If(
                     deployStage = "PREPARE",
                     Set(
                         ReturnScreen,
@@ -3018,27 +3066,24 @@ Home As screen:
                             ),
                             UpdateContext({locPRTargetBranch: drpPullRequestTargetBranches.Selected.name})
                         );
-                        UpdateContext({locDebug: "Creating PR" & locPRSourceBranch & " " & locPRTargetBranch});
-                        IfError(
-                            UpdateContext(
-                                {
-                                    pullRequestId: IfError(
-                                        CustomAzureDevOps.CreatePullRequest(
-                                            drpPRDeploymentProfiles.Selected.'AzDO Organization',
-                                            drpPRDeploymentProfiles.Selected.'AzDO Project',
-                                            drpPRDeploymentProfiles.Selected.'Repository ID',
-                                            {
-                                                sourceRefName: locPRSourceBranch,
-                                                targetRefName: locPRTargetBranch,
-                                                title: txtPullRequestTitle.Text,
-                                                description: txtPullRequestDescription.Text
-                                            }
-                                        ).pullRequestId,
-                                        Notify("Error running pipeline: " & FirstError.Message);
-                                    )
-                                }
-                            ),
-                            UpdateContext({locDebug: FirstError.Message})
+                        UpdateContext(
+                            {
+                                pullRequestId: IfError(
+                                    CustomAzureDevOps.CreatePullRequest(
+                                        drpPRDeploymentProfiles.Selected.'AzDO Organization',
+                                        drpPRDeploymentProfiles.Selected.'AzDO Project',
+                                        drpPRDeploymentProfiles.Selected.'Repository ID',
+                                        {
+                                            sourceRefName: locPRSourceBranch,
+                                            targetRefName: locPRTargetBranch,
+                                            title: txtPullRequestTitle.Text,
+                                            description: txtPullRequestDescription.Text
+                                        }
+                                    ).pullRequestId,
+                                    UpdateContext({errorMessage: FirstError.Message});
+                                    Notify("Error running pipeline: " & errorMessage);
+                                )
+                            }
                         );
                         Patch(
                             'Deployment Requests',
@@ -3060,7 +3105,8 @@ Home As screen:
                                     name = locPRTargetBranch,
                                     DisplayName
                                 ),
-                                'Build ID': pullRequestId
+                                'Build ID': If(IsBlankOrError(errorMessage), promoteBuildId, ""),
+                                Message: errorMessage
                             }
                         ),
                         ClearCollect(
@@ -3080,12 +3126,16 @@ Home As screen:
                         );
                         UpdateContext(
                             {
-                                buildId: CustomAzureDevOps.RunPipeline(
-                                    drpPRDeploymentProfiles.Selected.'AzDO Organization',
-                                    drpPRDeploymentProfiles.Selected.'AzDO Project',
-                                    piplineIdToRun,
-                                    {definition: {id: piplineIdToRun}}
-                                ).id
+                                buildId: IfError(
+                                    CustomAzureDevOps.RunPipeline(
+                                        drpPRDeploymentProfiles.Selected.'AzDO Organization',
+                                        drpPRDeploymentProfiles.Selected.'AzDO Project',
+                                        piplineIdToRun,
+                                        {definition: {id: piplineIdToRun}}
+                                    ).id,
+                                    UpdateContext({errorMessage: FirstError.Message});
+                                    Notify("Error running pipeline: " & errorMessage)
+                                )
                             }
                         );
                         Patch(
@@ -3098,9 +3148,10 @@ Home As screen:
                                 'Solution Name': glrSolutions.Selected.uniquename,
                                 'Deployment Profile': drpPRDeploymentProfiles.Selected,
                                 'Request Type': [@Type].Deploy,
-                                'Build ID': buildId,
+                                'Build ID': If(IsBlankOrError(errorMessage), buildId, ""),
                                 'Deployment Step': drpDeploymentSteps.Selected,
-                                Target: drpDeploymentSteps.Selected.Name
+                                Target: drpDeploymentSteps.Selected.Name,
+                                Message: errorMessage
                             }
                         );
                     );
@@ -3264,7 +3315,7 @@ Home As screen:
             HoverBorderColor: =ColorFade(drpDeploymentSteps.BorderColor, 20%)
             HoverColor: =ColorFade(drpDeploymentSteps.Color, 20%)
             HoverFill: =ColorFade(drpDeploymentSteps.SelectionFill, 20%)
-            Items: =Filter(glrSolutions.Selected.deploymentprofile.'Deployment Steps', Deployable <> 'A Yes or No boolean'.'Not Allowed')
+            Items: =Filter(glrSolutions.Selected.deploymentprofile.'Deployment Steps', cat_deployable <> 'A Yes or No boolean'.'0')
             OnChange: =
             PressedBorderColor: =drpDeploymentSteps.HoverBorderColor
             PressedColor: =drpDeploymentSteps.Fill
@@ -3431,83 +3482,74 @@ Home As screen:
             HoverColor: =ColorFade(btnDelete.Color, 20%)
             HoverFill: =ColorFade(btnDelete.Fill, 20%)
             OnSelect: |
-                =IfError(
-                    UpdateContext(
-                        {
-                            piplineIdToRun: LookUp(
-                                CustomAzureDevOps.GetPipelines(
-                                    drpDeleteDeploymentProfiles.Selected.'AzDO Organization',
-                                    drpDeleteDeploymentProfiles.Selected.'AzDO Project'
-                                ).value,
-                                name = "delete-unmanaged-solution-and-components"
-                            ).id
-                        }
-                    );
-                    
+                =UpdateContext({errorMessage: ""});
+                UpdateContext(
+                    {
+                        piplineIdToRun: LookUp(
+                            CustomAzureDevOps.GetPipelines(
+                                drpDeleteDeploymentProfiles.Selected.'AzDO Organization',
+                                drpDeleteDeploymentProfiles.Selected.'AzDO Project'
+                            ).value,
+                            name = "delete-unmanaged-solution-and-components"
+                        ).id
+                    }
+                );
                 //Updated LookUp and Remove code to RemoveIf
                 UpdateContext(
-                        {
-                            deleteBuildId: IfError(
-                                CustomAzureDevOps.RunPipeline(
-                                    drpDeleteDeploymentProfiles.Selected.'AzDO Organization',
-                                    drpDeleteDeploymentProfiles.Selected.'AzDO Project',
-                                    piplineIdToRun,
-                                    {
-                                        definition: {id: piplineIdToRun},
-                                        variables: {
-                                            Project: {value: drpDeleteDeploymentProfiles.Selected.'AzDO Project'},
-                                            Repo: {value: drpDeleteDeploymentProfiles.Selected.Repository},
-                                            SolutionName: {value: glrSolutions.Selected.uniquename},
-                                            Email: {value: gblUser.Email},
-                                            UserName: {value: gblUser.FullName},
-                                            CommitMessage: {value: txtCommitMessage.Text},
-                                            Branch: {value: drpAdoBranches.Selected.DisplayName},
-                                            BranchToCreate: {value: txtBranchToCreate.Text},
-                                            ServiceConnection: {value: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl},
-                                            TriggerSolutionUpgrade: {value: false},
-                                            BuildDefinitionId: {value: ""},
-                                            PipelineId: {value: piplineIdToRun},
-                                            ImportUnmanaged: {value: ""},
-                                            EnvironmentName: {value: ""},
-                                            Data: {value: "{test: """"}"}
-                                        }
+                    {
+                        deleteBuildId: IfError(
+                            CustomAzureDevOps.RunPipeline(
+                                drpDeleteDeploymentProfiles.Selected.'AzDO Organization',
+                                drpDeleteDeploymentProfiles.Selected.'AzDO Project',
+                                piplineIdToRun,
+                                {
+                                    definition: {id: piplineIdToRun},
+                                    variables: {
+                                        Project: {value: drpDeleteDeploymentProfiles.Selected.'AzDO Project'},
+                                        Repo: {value: drpDeleteDeploymentProfiles.Selected.Repository},
+                                        SolutionName: {value: glrSolutions.Selected.uniquename},
+                                        Email: {value: gblUser.Email},
+                                        UserName: {value: gblUser.FullName},
+                                        CommitMessage: {value: txtCommitMessage.Text},
+                                        Branch: {value: drpAdoBranches.Selected.DisplayName},
+                                        BranchToCreate: {value: txtBranchToCreate.Text},
+                                        ServiceConnection: {value: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl},
+                                        TriggerSolutionUpgrade: {value: false},
+                                        BuildDefinitionId: {value: ""},
+                                        PipelineId: {value: piplineIdToRun},
+                                        ImportUnmanaged: {value: ""},
+                                        EnvironmentName: {value: ""},
+                                        Data: {value: "{test: """"}"}
                                     }
-                                ).id,
-                                Notify("Error running pipeline: " & FirstError.Message);
-                            )
-                        }
-                    );
-                    Patch(
-                        'Deployment Requests',
-                        {
-                            Name: Text(
-                                Now(),
-                                ShortDateTime
-                            ) & " - " & glrSolutions.Selected.friendlyname,
-                            'Solution Name': glrSolutions.Selected.uniquename,
-                            'Deployment Profile': drpDeleteDeploymentProfiles.Selected,
-                            'Build ID': deleteBuildId,
-                            'Request Type': [@Type].Delete
-                        }
-                    );
-                    Patch(
-                        SelectedEnvironmentSolutions,
-                        glrSolutions.Selected,
-                        {deploymentprofile: drpDeleteDeploymentProfiles.Selected}
-                    ),
-                    Patch(
-                        'Deployment Requests',
-                        {
-                            Name: Text(
-                                Now(),
-                                ShortDateTime
-                            ) & " - " & glrSolutions.Selected.friendlyname,
-                            'Solution Name': glrSolutions.Selected.uniquename,
-                            'Deployment Profile': drpDeleteDeploymentProfiles.Selected,
-                            'Request Type': [@Type].Delete,
-                            Message: FirstError.Message
-                        }
-                    )
+                                }
+                            ).id,
+                            UpdateContext(
+                                {
+                                    errorMessage: FirstError.Message
+                                }
+                            );
+                            Notify("Error running pipeline: " & errorMessage);
+                        )
+                    }
+                );
+                Patch(
+                    'Deployment Requests',
+                    {
+                        Name: Text(
+                            Now(),
+                            ShortDateTime
+                        ) & " - " & glrSolutions.Selected.friendlyname,
+                        'Solution Name': glrSolutions.Selected.uniquename,
+                        'Deployment Profile': drpDeleteDeploymentProfiles.Selected,
+                        'Build ID': If(IsBlankOrError(errorMessage), deleteBuildId, ""),
+                        'Request Type': [@Type].Delete,
+                        Message: errorMessage
+                    }
+                );
+                Patch(
+                    SelectedEnvironmentSolutions,
+                    glrSolutions.Selected,
+                    {deploymentprofile: drpDeleteDeploymentProfiles.Selected}
                 );
                 Refresh('Deployment Requests');
                 Reset(txtSolutionName);
@@ -3761,7 +3803,7 @@ Home As screen:
                 PaddingRight: =0
                 PaddingTop: =0
                 Size: =14
-                Text: =ThisItem.'Deployment Environment'.Name
+                Text: =ThisItem.cat_DeploymentEnvironmentId.cat_name
                 VerticalAlign: =VerticalAlign.Top
                 Width: =460
                 X: =57
@@ -4612,6 +4654,7 @@ Home As screen:
             ChevronHoverBackground: =ColorFade(drpProfileBranches.ChevronBackground, 20%)
             ChevronHoverFill: =ColorFade(drpProfileBranches.ChevronFill, 20%)
             Default: =locSelectedDeploymentProfile.'Promote Target Branch Name'
+            DisplayMode: =DisplayMode.Disabled
             Height: =45
             HoverBorderColor: =ColorFade(drpProfileBranches.BorderColor, 20%)
             HoverColor: =ColorFade(drpProfileBranches.Color, 20%)
@@ -4621,7 +4664,7 @@ Home As screen:
             PressedBorderColor: =drpProfileBranches.HoverBorderColor
             PressedColor: =drpProfileBranches.Fill
             PressedFill: =drpProfileBranches.Color
-            Tooltip: ="The Target Branch is used to specify where a new branch should be created from by default when a user selects '" & promoteSolutionLabel & "' and the target branch of a pull request that gets created when a user selects '" & deploySolutionLabel & "'"
+            Tooltip: ="The Target Branch is used to specify where a new branch should be created from by default when a user selects '" & promoteSolutionLabel & "' and the target branch of a pull request that gets created when a user selects '" & deploySolutionLabel & "'. To change this value use the Administration app."
             Visible: =locAddNewProfile Or locUpdateProfile
             Width: =450
             X: =30
@@ -5272,6 +5315,8 @@ Home As screen:
                     Source,
                     "TargetBranch",
                     Target,
+                    "ErrorMessage",
+                    Message,
                     "RequestType",
                     'Request Type',
                     "RequestedByName",

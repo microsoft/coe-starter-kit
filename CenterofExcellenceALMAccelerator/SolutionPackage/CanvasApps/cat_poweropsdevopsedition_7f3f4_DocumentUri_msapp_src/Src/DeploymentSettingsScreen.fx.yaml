@@ -1,5 +1,5 @@
 DeploymentSettingsScreen As screen:
-    OnVisible: |-
+    OnVisible: |
         =If(
             !IsBlank(Param("configsoln")) && !IsBlank(Param("env")) && !IsBlank(Param("profile")) && !IsBlank(Param("step")),
             ClearCollect(
@@ -16,7 +16,6 @@ DeploymentSettingsScreen As screen:
                     name = Param("env")
                 )
             );
-        
             Clear(TempSelectedEnvironmentSolutions);
             Collect(
                 TempSelectedEnvironmentSolutions,
@@ -62,7 +61,6 @@ DeploymentSettingsScreen As screen:
                 SelectedEnvironmentSolutions,
                 TempSelectedEnvironmentSolutions
             );
-            
             Set(
                 SelectedSolutionToConfigure,
                 LookUp(
@@ -94,7 +92,10 @@ DeploymentSettingsScreen As screen:
                 showEnvironmentVariablesSettings: false,
                 showSharingSettings: false,
                 showOwnerSettings: false,
+                showConnectorSettings: false,
+                showGroupTeamsSettings: false,
                 locCloseAfterSave: true,
+                locDeploymentEnvironmentLabel: "Select an Environment to Configure",
                 SolutionLoaderText: "Loading...",
                 DeploymentSettingsLoadingText: "ANALYZING SOLUTION DEPENDENCIES...",
                 SaveDeploymentButtonText: "SAVE AND CLOSE"
@@ -128,6 +129,15 @@ DeploymentSettingsScreen As screen:
                 "deploy-" & Lower(Name) & "-" & SelectedSolutionToConfigure.uniquename
             )
         );
+        UpdateContext({locDeploymentEnvironmentCount: CountRows(DeploymentEnvironments)});
+        RemoveIf(
+            DeploymentEnvironments,
+            IsBlankOrError(EnvironmentUniqueName)
+        );
+        If(
+            locDeploymentEnvironmentCount <> CountRows(DeploymentEnvironments),
+            UpdateContext({locDeploymentEnvironmentLabel: "Select an Environment to Configure (NOTE: One or more deployment environment(s) could not be found. Only the available deployment environment(s) will be configurable.)"})
+        );
         If(
             IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
             UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
@@ -135,10 +145,87 @@ DeploymentSettingsScreen As screen:
                 {
                     SelectedDeploymentEnvironment: LookUp(
                         DeploymentEnvironments,
-                        SelectedDeploymentStep.'Deployment Environment'.URL in EnvironmentUrl
+                        LookUp(
+                            'Deployment Environments',
+                            'Deployment Environment' = SelectedDeploymentStep.'Deployment Environment'.'Deployment Environment',
+                            URL
+                        ) in EnvironmentUrl
                     )
                 }
             )
+        );
+        //Load existing values from deployment configuration data
+        UpdateContext({locSharepointFilter: ""});
+        UpdateContext({locAADGroupFilters: ""});
+        UpdateContext({locEnvironmentUserFilters: ""});
+        If(
+            Not IsBlank(SelectedDeploymentEnvironment),
+            UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & SelectedSolutionToConfigure.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
+            UpdateContext(
+                {
+                    locEnvironmentDeploymentSetting: LookUp(
+                        'User Settings',
+                        Name = locSolutionEnvironmentDeploySettingName
+                    )
+                }
+            );
+            If(
+                IsBlank(locEnvironmentDeploymentSetting.Data),
+                UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run("[]")}),
+                UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
+            );
+            UpdateContext(
+                {
+                    locSharepointFilter: Concat(
+                        Distinct(
+                            Filter(
+                                EnvironmentDeploymentSettings,
+                                StartsWith(
+                                    Name,
+                                    "environmentvariable."
+                                ) And !IsBlankOrError(Value) And !IsBlank(
+                                    Find(
+                                        "sharepoint",
+                                        Value
+                                    )
+                                )
+                            ),
+                            Value
+                        ),
+                        "site:" & Result,
+                        " OR "
+                    ),
+                    locAADGroupFilters: Concat(
+                        Distinct(
+                            Filter(
+                                EnvironmentDeploymentSettings,
+                                StartsWith(
+                                    Name,
+                                    "canvasshare.aadGroupId."
+                                ) And !IsBlankOrError(Value)
+                            ),
+                            Value
+                        ),
+                        "id eq '" & Result & "'",
+                        " OR "
+                    ),
+                    locEnvironmentUserFilters: Concat(
+                        Distinct(
+                            Filter(
+                                EnvironmentDeploymentSettings,
+                                StartsWith(
+                                    Name,
+                                    "owner.ownerEmail."
+                                ) And !IsBlankOrError(Value)
+                            ),
+                            Value
+                        ),
+                        "domainname eq '" & Result & "'",
+                        " or "
+                    )
+                }
+            );
+            
         );
         Clear(SolutionConnectionReferences);
         Clear(SolutionCanvasApps);
@@ -146,16 +233,75 @@ DeploymentSettingsScreen As screen:
         Clear(SolutionFlows);
         Clear(AppSharingPermissions);
         Clear(SharepointLists);
-        ClearCollect(
-            AADGroups,
-            SearchAADGroups.Run(
-                "",
-                {text: ""}
-            ).value
+        Clear(CustomConnectors);
+        Concurrent(
+            ClearCollect(
+                AADGroups,
+                SearchAADGroups.Run(
+                    locAADGroupFilters,
+                    {text: ""}
+                ).value
+            ),
+            ClearCollect(
+                SharepointSites,
+                SearchSharepointSites.Run(
+                    {
+                        text: "",
+                        text_1: locSharepointFilter
+                    }
+                ).value
+            ),
+            ClearCollect(
+                EnvironmentTeams,
+                SearchDeploymentEnvironmentTeams.Run(
+                    Last(
+                        FirstN(
+                            ClearCollect(
+                                splitCol2,
+                                Split(
+                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                    "."
+                                )
+                            ),
+                            2
+                        )
+                    ).Result,
+                    SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                    {
+                        text_3: "",
+                        text_4: ""
+                    }
+                )
+            ),
+            ClearCollect(
+                EnvironmentUsers,
+                SearchDeploymentEnvironmentUsers.Run(
+                    Last(
+                        FirstN(
+                            ClearCollect(
+                                splitCol3,
+                                Split(
+                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                    "."
+                                )
+                            ),
+                            2
+                        )
+                    ).Result,
+                    SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                    {
+                        text_3: "",
+                        text_4: locEnvironmentUserFilters
+                    }
+                )
+            )
         );
         Collect(
             AADGroups,
-            {displayName: ""}
+            {
+                id: "",
+                displayName: ""
+            }
         );
         ClearCollect(
             AADGroups,
@@ -165,13 +311,8 @@ DeploymentSettingsScreen As screen:
             )
         );
         ClearCollect(
-            SharepointSites,
-            SearchSharepointSites.Run(
-                {
-                    text: "*",
-                    text_1: ""
-                }
-            ).value
+            TeamAADGroups,
+            AADGroups
         );
         Collect(
             SharepointSites,
@@ -184,26 +325,17 @@ DeploymentSettingsScreen As screen:
                 webUrl
             )
         );
+        //Add an empty row to EnvironmentTeams
+        Collect(
+            EnvironmentTeams,
+            {name: ""}
+        );
         ClearCollect(
-            EnvironmentUsers,
-            SearchDeploymentEnvironmentUsers.Run(
-                Last(
-                    FirstN(
-                        ClearCollect(
-                            splitCol1,
-                            Split(
-                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                "."
-                            )
-                        ),
-                        2
-                    )
-                ).Result,
-                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                {
-                    text_3: "",
-                    text_4: ""
-                }
+            EnvironmentTeams,
+            Sort(
+                EnvironmentTeams,
+                name,
+                Ascending
             )
         );
         //Add an empty row to EnvironmentUsers
@@ -373,6 +505,32 @@ DeploymentSettingsScreen As screen:
                             ) & "." & workflowid
                         ).Value
                     )
+                ),
+                Collect(
+                    CustomConnectors,
+                    AddColumns(
+                        GetSolutionCustomConnectors.Run(
+                            Last(
+                                FirstN(
+                                    ClearCollect(
+                                        splitCol5,
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        )
+                                    ),
+                                    2
+                                )
+                            ).Result,
+                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                            SelectedSolutionToConfigure.solutionid
+                        ),
+                        "CurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "connector.teamname." & connectorid
+                        ).Value
+                    )
                 )
             );
             
@@ -400,17 +558,152 @@ DeploymentSettingsScreen As screen:
             Width: =1920
             ZIndex: =1
 
+        lblDeployFlowOwner As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Owner"
+            Visible: =showOwnerSettings
+            Width: =182
+            X: =865
+            Y: =253
+            ZIndex: =2
+
+        lblDeployFlowTeamSharing As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Sharing"
+            Visible: =showOwnerSettings
+            Width: =182
+            X: =1330
+            Y: =253
+            ZIndex: =3
+
+        lblDeploySortFlows As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Activation Order"
+            Visible: =showOwnerSettings
+            Width: =175
+            X: =1722
+            Y: =253
+            ZIndex: =4
+
+        lblDeployCustomConnectors As label:
+            FontWeight: =If(showConnectorSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =45
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Custom Connectors"
+            Width: =182
+            X: =644
+            Y: =208
+            ZIndex: =5
+
+        icoDeployCustomConnectors As icon.Add:
+            AccessibleLabel: ="Ownership"
+            BorderColor: =ColorFade(icoDeployCustomConnectors.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeployCustomConnectors.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =49
+            HoverBorderColor: =ColorFade(icoDeployCustomConnectors.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployCustomConnectors.Color, 20%)
+            HoverFill: =ColorFade(icoDeployCustomConnectors.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: false,
+                        showEnvironmentVariablesSettings: false,
+                        showOwnerSettings: false,
+                        showSharingSettings: false,
+                        showConnectorSettings: true,
+                        showGroupTeamsSettings: false
+                
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoDeployCustomConnectors.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployCustomConnectors.Color, -20%)
+            PressedFill: =ColorFade(icoDeployCustomConnectors.Fill, -20%)
+            Tooltip: ="Set Sharing Configuration for the Target Environment"
+            Width: =182
+            X: =644
+            Y: =204
+            ZIndex: =6
+
+        lblDeployGroupTeams As label:
+            FontWeight: =If(showGroupTeamsSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =45
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Group Teams"
+            Width: =182
+            X: =830
+            Y: =208
+            ZIndex: =7
+
+        icoDeployGroupTeams As icon.Add:
+            AccessibleLabel: ="Ownership"
+            BorderColor: =ColorFade(icoDeployGroupTeams.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoDeployGroupTeams.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =49
+            HoverBorderColor: =ColorFade(icoDeployGroupTeams.BorderColor, 20%)
+            HoverColor: =ColorFade(icoDeployGroupTeams.Color, 20%)
+            HoverFill: =ColorFade(icoDeployGroupTeams.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: false,
+                        showEnvironmentVariablesSettings: false,
+                        showOwnerSettings: false,
+                        showSharingSettings: false,
+                        showConnectorSettings: false,
+                        showGroupTeamsSettings: true
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoDeployGroupTeams.BorderColor, -20%)
+            PressedColor: =ColorFade(icoDeployGroupTeams.Color, -20%)
+            PressedFill: =ColorFade(icoDeployGroupTeams.Fill, -20%)
+            Tooltip: ="Set Group Teams and Roles for the Target Environment"
+            Width: =182
+            X: =830
+            Y: =204
+            ZIndex: =8
+
         lblDeployAppSharing As label:
             FontWeight: =If(showSharingSettings, FontWeight.Bold, FontWeight.Semibold)
             Height: =45
             OnSelect: =
             PaddingLeft: =0
             PaddingTop: =0
-            Text: ="App Sharing"
+            Text: ="Canvas Apps"
             Width: =120
             X: =443
             Y: =208
-            ZIndex: =2
+            ZIndex: =9
 
         lblDeployFlowOwnership As label:
             FontWeight: =If(showOwnerSettings, FontWeight.Bold, FontWeight.Semibold)
@@ -418,11 +711,11 @@ DeploymentSettingsScreen As screen:
             OnSelect: =
             PaddingLeft: =0
             PaddingTop: =0
-            Text: ="Component Ownership"
-            Width: =220
-            X: =562
+            Text: ="Flows"
+            Width: =60
+            X: =572
             Y: =208
-            ZIndex: =3
+            ZIndex: =10
 
         icoDeployOwnership As icon.Add:
             AccessibleLabel: ="Ownership"
@@ -441,7 +734,9 @@ DeploymentSettingsScreen As screen:
                         showConnectionReferenceSettings: false,
                         showEnvironmentVariablesSettings: false,
                         showOwnerSettings: true,
-                        showSharingSettings: false
+                        showSharingSettings: false,
+                        showConnectorSettings: false,
+                        showGroupTeamsSettings: false
                     }
                 );
             PaddingBottom: =8
@@ -452,10 +747,10 @@ DeploymentSettingsScreen As screen:
             PressedColor: =ColorFade(icoDeployOwnership.Color, -20%)
             PressedFill: =ColorFade(icoDeployOwnership.Fill, -20%)
             Tooltip: ="Set Sharing Configuration for the Target Environment"
-            Width: =220
-            X: =562
+            Width: =60
+            X: =572
             Y: =204
-            ZIndex: =4
+            ZIndex: =11
 
         lblDeployEnvironmentVariables As label:
             FontWeight: =If(showEnvironmentVariablesSettings, FontWeight.Bold, FontWeight.Semibold)
@@ -467,7 +762,7 @@ DeploymentSettingsScreen As screen:
             Width: =210
             X: =238
             Y: =208
-            ZIndex: =5
+            ZIndex: =12
 
         lblDeployDialogTitle As label:
             Align: =Center
@@ -478,22 +773,33 @@ DeploymentSettingsScreen As screen:
             Size: =16
             Text: ="CONFIGURE DEPLOYMENT SETTINGS (" & SelectedSolutionToConfigure.friendlyname & ")"
             Width: =1920
-            ZIndex: =6
+            ZIndex: =13
 
         icoDeployDialogClose As icon.Cancel:
             AccessibleLabel: ="Close"
             BorderColor: =ColorFade(icoDeployDialogClose.Fill, -20%)
             Color: =RGBA(255, 255, 255, 1)
             DisabledFill: =ColorFade(icoDeployDialogClose.Fill, -80%)
-            DisplayMode: =If(!showDeploymentSettingsLoader && !showSolutionComponentLoader, DisplayMode.Edit, DisplayMode.View)
             Height: =55
             HoverBorderColor: =ColorFade(icoDeployDialogClose.BorderColor, 20%)
             HoverColor: =ColorFade(icoDeployDialogClose.Color, 20%)
             HoverFill: =ColorFade(icoDeployDialogClose.Fill, 20%)
             Icon: =Icon.Cancel
             OnSelect: |-
-                =UpdateContext({SolutionLoaderText: "Saving..."});
-                Select(btnSaveDeployment);
+                =//If(
+                //    !showDeploymentSettingsLoader && !showSolutionComponentLoader,
+                //    UpdateContext({SolutionLoaderText: "Saving..."});
+                //    Select(btnSaveDeployment);
+                //    ,
+                //   Navigate(
+                //        ReturnScreen,
+                //        Fade
+                //    )
+                //)
+                Navigate(
+                    ReturnScreen,
+                    Fade
+                )
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -505,18 +811,18 @@ DeploymentSettingsScreen As screen:
             Width: =55
             X: =1851
             Y: =4
-            ZIndex: =7
+            ZIndex: =14
 
         lblDeployEnvironment As label:
             FontWeight: =FontWeight.Semibold
-            Height: =45
+            Height: =53
             PaddingLeft: =0
             PaddingTop: =0
-            Text: ="Select an Environment to Configure"
-            Width: =600
+            Text: =locDeploymentEnvironmentLabel
+            Width: =1823
             X: =28
             Y: =84
-            ZIndex: =8
+            ZIndex: =15
 
         drpDeployEnvironments As dropdown:
             AccessibleLabel: ="Deployment Environments"
@@ -541,7 +847,7 @@ DeploymentSettingsScreen As screen:
             Width: =1837
             X: =28
             Y: =137
-            ZIndex: =9
+            ZIndex: =16
 
         icoAddDeploymentEnvironment As icon.Add:
             AccessibleLabel: ="Create Environment"
@@ -568,7 +874,7 @@ DeploymentSettingsScreen As screen:
             Width: =57
             X: =1168
             Y: =138
-            ZIndex: =10
+            ZIndex: =17
 
         txtNewDeployEnvironment As text:
             AccessibleLabel: ="Create Environment"
@@ -586,7 +892,7 @@ DeploymentSettingsScreen As screen:
             Width: =1140
             X: =28
             Y: =138
-            ZIndex: =11
+            ZIndex: =18
 
         icoDeployNewEnvironmentClose As icon.Cancel:
             AccessibleLabel: ="Close"
@@ -611,11 +917,130 @@ DeploymentSettingsScreen As screen:
             Width: =57
             X: =1168
             Y: =137
-            ZIndex: =12
+            ZIndex: =19
+
+        "glrCustomConnectors As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            AccessibleLabel: ="Flows"
+            Height: =690
+            Items: =CustomConnectors
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =68
+            Visible: =showConnectorSettings
+            Width: =1850
+            X: =24
+            Y: =278
+            ZIndex: =20
+
+            icoFlow_1 As image:
+                AccessibleLabel: ="Flow"
+                BorderColor: =ColorFade(icoFlow_1.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoFlow_1.BorderColor, 20%)
+                HoverFill: =ColorFade(icoFlow_1.Fill, 20%)
+                Image: |-
+                    ="data:image/jpeg;base64," & ThisItem.iconblob
+                OnSelect: =Select(Parent);
+                PressedBorderColor: =ColorFade(icoFlow_1.BorderColor, -20%)
+                PressedFill: =ColorFade(icoFlow_1.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =58
+                Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                ZIndex: =1
+
+            lblConnectorName As label:
+                Height: =24
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.displayname
+                VerticalAlign: =VerticalAlign.Top
+                Width: =600
+                X: =58
+                Y: =10
+                ZIndex: =2
+
+            lblConnectorId As label:
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: =ThisItem.name
+                VerticalAlign: =VerticalAlign.Top
+                Width: =900
+                X: =58
+                Y: =35
+                ZIndex: =3
+
+            Separator3_4 As rectangle:
+                BorderColor: =ColorFade(Separator3_4.Fill, -20%)
+                DisabledFill: =Separator3_4.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3_4.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3_4.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =5
+
+            icoOpenConnector As icon.Add:
+                AccessibleLabel: ="Open Flow"
+                BorderColor: =ColorFade(icoOpenConnector.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoOpenConnector.Fill, -80%)
+                FocusedBorderThickness: =
+                Height: =45
+                HoverBorderColor: =ColorFade(icoOpenConnector.BorderColor, 20%)
+                HoverColor: =ColorFade(icoOpenConnector.Color, 20%)
+                HoverFill: =ColorFade(icoOpenConnector.Fill, 20%)
+                Icon: =
+                OnSelect: |-
+                    =Select(Parent);
+                    Launch("https://us.flow.microsoft.com/manage/environments/" & SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName & "/solutions/" & glrSolutions.Selected.solutionid & "/flows/" & ThisItem.connectorid,
+                        "",
+                        "_blank"
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoOpenConnector.BorderColor, -20%)
+                PressedColor: =ColorFade(icoOpenConnector.Color, -20%)
+                PressedFill: =ColorFade(icoOpenConnector.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =600
+                Y: =10
+                ZIndex: =9
+
+            drpConnectorShareGroupTeams As dropdown:
+                AccessibleLabel: ="App Sharing Group"
+                ChevronHoverBackground: =ColorFade(drpConnectorShareGroupTeams.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpConnectorShareGroupTeams.ChevronFill, 20%)
+                Default: =ThisItem.CurrentValue
+                Height: =46
+                HoverBorderColor: =ColorFade(drpConnectorShareGroupTeams.BorderColor, 20%)
+                HoverColor: =ColorFade(drpConnectorShareGroupTeams.Color, 20%)
+                HoverFill: =ColorFade(drpConnectorShareGroupTeams.SelectionFill, 20%)
+                Items: =EnvironmentTeams
+                PressedBorderColor: =drpConnectorShareGroupTeams.HoverBorderColor
+                PressedColor: =drpConnectorShareGroupTeams.Fill
+                PressedFill: =drpConnectorShareGroupTeams.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select an Existing AAD Group"
+                Width: =850
+                X: =979
+                Y: =11
+                ZIndex: =13
 
         "glrFlows As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Flows"
-            Height: =715
+            Height: =690
             Items: =SolutionFlows
             Layout: =Layout.Vertical
             TemplatePadding: =0
@@ -623,8 +1048,8 @@ DeploymentSettingsScreen As screen:
             Visible: =showOwnerSettings
             Width: =1850
             X: =24
-            Y: =253
-            ZIndex: =13
+            Y: =278
+            ZIndex: =21
 
             icoFlow As image:
                 AccessibleLabel: ="Flow"
@@ -707,7 +1132,7 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoOpenFlow.Color, -20%)
                 PressedFill: =ColorFade(icoOpenFlow.Fill, -20%)
                 Tooltip: ="Select to Open App"
-                Width: =600
+                Width: =380
                 Y: =10
                 ZIndex: =9
 
@@ -726,8 +1151,8 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpFlowOwnerUsers.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select an Existing AAD Group"
-                Width: =890
-                X: =878
+                Width: =400
+                X: =842
                 Y: =11
                 ZIndex: =10
 
@@ -757,91 +1182,10 @@ DeploymentSettingsScreen As screen:
                 HoverColor: =ColorFade(icoFilterFlows.Color, 20%)
                 HoverFill: =ColorFade(icoFilterFlows.Fill, 20%)
                 Icon: =ThisItem.FilterIcon
-                OnSelect: |
+                OnSelect: |-
                     =UpdateContext({currentUser: glrFlows.Selected.drpFlowOwnerUsers.Selected});
                     If(
-                        glrFlows.Selected.FilterIcon = Icon.FilterFlat,
-                        If(
-                            glrFlows.Selected.FilterVisible,
-                            ClearCollect(
-                                EnvironmentUsers,
-                                SearchDeploymentEnvironmentUsers.Run(
-                                    Last(
-                                        FirstN(
-                                            ClearCollect(
-                                                splitCol1,
-                                                Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
-                                                )
-                                            ),
-                                            2
-                                        )
-                                    ).Result,
-                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                                    {
-                                        text_3: glrFlows.Selected.txtFilterOwners.Text,
-                                        text_4: Text(currentUser.domainname)
-                                    }
-                                )
-                            );
-                            Collect(
-                                EnvironmentUsers,
-                                {domainname: ""}
-                            );
-                            If(
-                                IsBlankOrError(
-                                    LookUp(
-                                        EnvironmentUsers,
-                                        domainname = currentUser.domainname
-                                    )
-                                ),
-                                Collect(
-                                    EnvironmentUsers,
-                                    currentUser
-                                )
-                            );
-                            ClearCollect(
-                                EnvironmentUsers,
-                                Sort(
-                                    EnvironmentUsers,
-                                    domainname
-                                )
-                            );
-                            If(
-                                glrFlows.Selected.txtFilterOwners.Text <> "",
-                                Patch(
-                                    SolutionFlows,
-                                    glrFlows.Selected,
-                                    {
-                                        FilterIcon: Icon.FilterFlatFilled,
-                                        EnvironmentUsers: EnvironmentUsers,
-                                        FilterVisible: false,
-                                        CurrentValue: currentUser.domainname
-                                    }
-                                ),
-                                Patch(
-                                    SolutionFlows,
-                                    glrFlows.Selected,
-                                    {
-                                        FilterIcon: Icon.FilterFlat,
-                                        EnvironmentUsers: EnvironmentUsers,
-                                        FilterVisible: false,
-                                        CurrentValue: currentUser.domainname
-                                    }
-                                );
-                                Reset(drpFlowOwnerUsers);
-                            ),
-                            Patch(
-                                SolutionFlows,
-                                glrFlows.Selected,
-                                {
-                                    FilterVisible: true,
-                                    CurrentValue: currentUser.domainname
-                                }
-                            );
-                        ),
-                        Reset(txtFilterOwners);
+                        glrFlows.Selected.FilterVisible,
                         ClearCollect(
                             EnvironmentUsers,
                             SearchDeploymentEnvironmentUsers.Run(
@@ -860,25 +1204,23 @@ DeploymentSettingsScreen As screen:
                                 SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
                                 {
                                     text_3: glrFlows.Selected.txtFilterOwners.Text,
-                                    text_4: Text(currentUser.domainname)
+                                    text_4: ""
                                 }
                             )
+                        );
+                        UpdateContext(
+                            {
+                                lclFirstUser: First(
+                                    Sort(
+                                        EnvironmentUsers,
+                                        domainname
+                                    )
+                                )
+                            }
                         );
                         Collect(
                             EnvironmentUsers,
                             {domainname: ""}
-                        );
-                        If(
-                            IsBlankOrError(
-                                LookUp(
-                                    EnvironmentUsers,
-                                    domainname = currentUser.domainname
-                                )
-                            ),
-                            Collect(
-                                EnvironmentUsers,
-                                currentUser
-                            )
                         );
                         ClearCollect(
                             EnvironmentUsers,
@@ -887,25 +1229,400 @@ DeploymentSettingsScreen As screen:
                                 domainname
                             )
                         );
+                        If(
+                            IsBlankOrError(lclFirstUser),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: currentUser.domainname
+                                }
+                            ),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: lclFirstUser.domainname
+                                }
+                            );
+                            Reset(drpFlowOwnerUsers);
+                        ),
                         Patch(
                             SolutionFlows,
                             glrFlows.Selected,
                             {
-                                EnvironmentUsers: EnvironmentUsers,
-                                FilterIcon: Icon.FilterFlat,
+                                FilterIcon: Icon.Search,
+                                FilterVisible: true,
                                 CurrentValue: currentUser.domainname
                             }
                         );
-                        Reset(drpFlowOwnerUsers);
-                        
-                    );
+                    )
                 PressedBorderColor: =ColorFade(icoFilterFlows.BorderColor, -20%)
                 PressedColor: =ColorFade(icoFilterFlows.Color, -20%)
                 PressedFill: =ColorFade(icoFilterFlows.Fill, -20%)
+                Tooltip: ="Filter this list"
                 Width: =35
-                X: =1779
+                X: =1250
                 Y: =15
                 ZIndex: =12
+
+            drpFlowShareGroupTeams As dropdown:
+                AccessibleLabel: ="App Sharing Group"
+                ChevronHoverBackground: =ColorFade(drpFlowShareGroupTeams.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpFlowShareGroupTeams.ChevronFill, 20%)
+                Default: =
+                Height: =46
+                HoverBorderColor: =ColorFade(drpFlowShareGroupTeams.BorderColor, 20%)
+                HoverColor: =ColorFade(drpFlowShareGroupTeams.Color, 20%)
+                HoverFill: =ColorFade(drpFlowShareGroupTeams.SelectionFill, 20%)
+                Items: =EnvironmentTeams
+                PressedBorderColor: =drpFlowShareGroupTeams.HoverBorderColor
+                PressedColor: =drpFlowShareGroupTeams.Fill
+                PressedFill: =drpFlowShareGroupTeams.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select an Existing AAD Group"
+                Width: =400
+                X: =1306
+                Y: =11
+                ZIndex: =13
+
+            txtFilterGroupTeams As text:
+                Default: =""
+                Height: =47
+                HintText: ="Enter the name of the group to filter the drop down"
+                HoverBorderColor: =ColorFade(txtFilterGroupTeams.BorderColor, 20%)
+                HoverColor: =ColorFade(txtFilterGroupTeams.Color, 20%)
+                HoverFill: =ColorFade(txtFilterGroupTeams.Fill, 20%)
+                PressedBorderColor: =txtFilterGroupTeams.HoverBorderColor
+                PressedColor: =txtFilterGroupTeams.Color
+                PressedFill: =txtFilterGroupTeams.Fill
+                Visible: =ThisItem.FilterVisible
+                Width: =400
+                X: =1270
+                Y: =10
+                ZIndex: =15
+
+            icoSortFlowsUp As icon.FilterFlat:
+                BorderColor: =ColorFade(icoSortFlowsUp.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoSortFlowsUp.Fill, -80%)
+                Height: =35
+                HoverBorderColor: =ColorFade(icoSortFlowsUp.BorderColor, 20%)
+                HoverColor: =ColorFade(icoSortFlowsUp.Color, 20%)
+                HoverFill: =ColorFade(icoSortFlowsUp.Fill, 20%)
+                Icon: =Icon.ArrowUp
+                OnSelect: |-
+                    =UpdateContext({currentUser: glrFlows.Selected.drpFlowOwnerUsers.Selected});
+                    If(
+                        glrFlows.Selected.FilterVisible,
+                        ClearCollect(
+                            EnvironmentUsers,
+                            SearchDeploymentEnvironmentUsers.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol1,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                {
+                                    text_3: glrFlows.Selected.txtFilterOwners.Text,
+                                    text_4: ""
+                                }
+                            )
+                        );
+                        UpdateContext(
+                            {
+                                lclFirstUser: First(
+                                    Sort(
+                                        EnvironmentUsers,
+                                        domainname
+                                    )
+                                )
+                            }
+                        );
+                        Collect(
+                            EnvironmentUsers,
+                            {domainname: ""}
+                        );
+                        ClearCollect(
+                            EnvironmentUsers,
+                            Sort(
+                                EnvironmentUsers,
+                                domainname
+                            )
+                        );
+                        If(
+                            IsBlankOrError(lclFirstUser),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: currentUser.domainname
+                                }
+                            ),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: lclFirstUser.domainname
+                                }
+                            );
+                            Reset(drpFlowOwnerUsers);
+                        ),
+                        Patch(
+                            SolutionFlows,
+                            glrFlows.Selected,
+                            {
+                                FilterIcon: Icon.Search,
+                                FilterVisible: true,
+                                CurrentValue: currentUser.domainname
+                            }
+                        );
+                    )
+                PressedBorderColor: =ColorFade(icoSortFlowsUp.BorderColor, -20%)
+                PressedColor: =ColorFade(icoSortFlowsUp.Color, -20%)
+                PressedFill: =ColorFade(icoSortFlowsUp.Fill, -20%)
+                Tooltip: ="Filter this list"
+                Width: =35
+                X: =1747
+                Y: =16
+                ZIndex: =16
+
+            icoSortFlowsDown As icon.FilterFlat:
+                BorderColor: =ColorFade(icoSortFlowsDown.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoSortFlowsDown.Fill, -80%)
+                Height: =35
+                HoverBorderColor: =ColorFade(icoSortFlowsDown.BorderColor, 20%)
+                HoverColor: =ColorFade(icoSortFlowsDown.Color, 20%)
+                HoverFill: =ColorFade(icoSortFlowsDown.Fill, 20%)
+                OnSelect: |-
+                    =UpdateContext({currentUser: glrFlows.Selected.drpFlowOwnerUsers.Selected});
+                    If(
+                        glrFlows.Selected.FilterVisible,
+                        ClearCollect(
+                            EnvironmentUsers,
+                            SearchDeploymentEnvironmentUsers.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol1,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                {
+                                    text_3: glrFlows.Selected.txtFilterOwners.Text,
+                                    text_4: ""
+                                }
+                            )
+                        );
+                        UpdateContext(
+                            {
+                                lclFirstUser: First(
+                                    Sort(
+                                        EnvironmentUsers,
+                                        domainname
+                                    )
+                                )
+                            }
+                        );
+                        Collect(
+                            EnvironmentUsers,
+                            {domainname: ""}
+                        );
+                        ClearCollect(
+                            EnvironmentUsers,
+                            Sort(
+                                EnvironmentUsers,
+                                domainname
+                            )
+                        );
+                        If(
+                            IsBlankOrError(lclFirstUser),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: currentUser.domainname
+                                }
+                            ),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: lclFirstUser.domainname
+                                }
+                            );
+                            Reset(drpFlowOwnerUsers);
+                        ),
+                        Patch(
+                            SolutionFlows,
+                            glrFlows.Selected,
+                            {
+                                FilterIcon: Icon.Search,
+                                FilterVisible: true,
+                                CurrentValue: currentUser.domainname
+                            }
+                        );
+                    )
+                PressedBorderColor: =ColorFade(icoSortFlowsDown.BorderColor, -20%)
+                PressedColor: =ColorFade(icoSortFlowsDown.Color, -20%)
+                PressedFill: =ColorFade(icoSortFlowsDown.Fill, -20%)
+                Tooltip: ="Filter this list"
+                Width: =35
+                X: =1782
+                Y: =16
+                ZIndex: =17
+
+            drpFlowActivateUsers As dropdown:
+                AccessibleLabel: ="App Sharing Group"
+                ChevronHoverBackground: =ColorFade(drpFlowActivateUsers.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpFlowActivateUsers.ChevronFill, 20%)
+                Default: =
+                Height: =46
+                HoverBorderColor: =ColorFade(drpFlowActivateUsers.BorderColor, 20%)
+                HoverColor: =ColorFade(drpFlowActivateUsers.Color, 20%)
+                HoverFill: =ColorFade(drpFlowActivateUsers.SelectionFill, 20%)
+                Items: =EnvironmentTeams
+                PressedBorderColor: =drpFlowActivateUsers.HoverBorderColor
+                PressedColor: =drpFlowActivateUsers.Fill
+                PressedFill: =drpFlowActivateUsers.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select an Existing AAD Group"
+                Width: =400
+                X: =378
+                Y: =11
+                ZIndex: =18
+
+            icoFilterFlows_1 As icon.FilterFlat:
+                BorderColor: =ColorFade(icoFilterFlows_1.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoFilterFlows_1.Fill, -80%)
+                Height: =35
+                HoverBorderColor: =ColorFade(icoFilterFlows_1.BorderColor, 20%)
+                HoverColor: =ColorFade(icoFilterFlows_1.Color, 20%)
+                HoverFill: =ColorFade(icoFilterFlows_1.Fill, 20%)
+                Icon: =ThisItem.FilterIcon
+                OnSelect: |-
+                    =UpdateContext({currentUser: glrFlows.Selected.drpFlowOwnerUsers.Selected});
+                    If(
+                        glrFlows.Selected.FilterVisible,
+                        ClearCollect(
+                            EnvironmentUsers,
+                            SearchDeploymentEnvironmentUsers.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol1,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                {
+                                    text_3: glrFlows.Selected.txtFilterOwners.Text,
+                                    text_4: ""
+                                }
+                            )
+                        );
+                        UpdateContext(
+                            {
+                                lclFirstUser: First(
+                                    Sort(
+                                        EnvironmentUsers,
+                                        domainname
+                                    )
+                                )
+                            }
+                        );
+                        Collect(
+                            EnvironmentUsers,
+                            {domainname: ""}
+                        );
+                        ClearCollect(
+                            EnvironmentUsers,
+                            Sort(
+                                EnvironmentUsers,
+                                domainname
+                            )
+                        );
+                        If(
+                            IsBlankOrError(lclFirstUser),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: currentUser.domainname
+                                }
+                            ),
+                            Patch(
+                                SolutionFlows,
+                                glrFlows.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    EnvironmentUsers: EnvironmentUsers,
+                                    FilterVisible: false,
+                                    CurrentValue: lclFirstUser.domainname
+                                }
+                            );
+                            Reset(drpFlowOwnerUsers);
+                        ),
+                        Patch(
+                            SolutionFlows,
+                            glrFlows.Selected,
+                            {
+                                FilterIcon: Icon.Search,
+                                FilterVisible: true,
+                                CurrentValue: currentUser.domainname
+                            }
+                        );
+                    )
+                PressedBorderColor: =ColorFade(icoFilterFlows_1.BorderColor, -20%)
+                PressedColor: =ColorFade(icoFilterFlows_1.Color, -20%)
+                PressedFill: =ColorFade(icoFilterFlows_1.Fill, -20%)
+                Tooltip: ="Filter this list"
+                Width: =35
+                X: =788
+                Y: =15
+                ZIndex: =19
 
         "glrEnvironmentVariables As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Environment Variables"
@@ -918,7 +1635,7 @@ DeploymentSettingsScreen As screen:
             Width: =1850
             X: =24
             Y: =253
-            ZIndex: =14
+            ZIndex: =22
 
             lblEnvironmentVariableLogicalName As label:
                 FocusedBorderThickness: =FocusedBorderThicknessValue
@@ -1121,64 +1838,40 @@ DeploymentSettingsScreen As screen:
                 HoverColor: =ColorFade(icoFilterSites.Color, 20%)
                 HoverFill: =ColorFade(icoFilterSites.Fill, 20%)
                 Icon: =ThisItem.FilterIcon
-                OnSelect: |
+                OnSelect: |-
                     =UpdateContext({currentSharepointSite: glrEnvironmentVariables.Selected.drpSharepointSites.Selected});
                     If(
-                        glrEnvironmentVariables.Selected.FilterIcon = Icon.FilterFlat,
+                        glrEnvironmentVariables.Selected.FilterVisible,
                         If(
-                            glrEnvironmentVariables.Selected.FilterVisible,
+                            !IsBlankOrError(glrEnvironmentVariables.Selected.txtSearchSites.Text),
                             ClearCollect(
                                 SharepointSites,
-                                SearchSharepointSites.Run({text:"*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*", text_1:currentSharepointSite.webUrl}).value
-                            );
-                            Collect(
-                                SharepointSites,
-                                {webUrl: ""}
-                            );
-                            ClearCollect(
-                                SharepointSites,
-                                Sort(
-                                    SharepointSites,
-                                    webUrl
-                                )
-                            );
-                            If(
-                                glrEnvironmentVariables.Selected.txtSearchSites.Text <> "",
-                                Patch(
-                                    SolutionEnvironmentVariables,
-                                    glrEnvironmentVariables.Selected,
+                                SearchSharepointSites.Run(
                                     {
-                                        FilterIcon: Icon.FilterFlatFilled,
-                                        SharepointSites: SharepointSites,
-                                        FilterVisible: false,
-                                        CurrentValue: currentSharepointSite.webUrl
+                                        text: "*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*",
+                                        text_1: ""
                                     }
-                                ),
-                                Patch(
-                                    SolutionEnvironmentVariables,
-                                    glrEnvironmentVariables.Selected,
-                                    {
-                                        FilterIcon: Icon.FilterFlat,
-                                        SharepointSites: SharepointSites,
-                                        FilterVisible: false,
-                                        CurrentValue: currentSharepointSite.webUrl
-                                    }
-                                );
-                                Reset(drpSharepointSites);
+                                ).value
                             ),
-                            Patch(
-                                SolutionEnvironmentVariables,
-                                glrEnvironmentVariables.Selected,
-                                {
-                                    FilterVisible: true,
-                                    CurrentValue: currentSharepointSite.webUrl
-                                }
-                            );
-                        ),
-                        Reset(txtSearchSites);
-                        ClearCollect(
-                            SharepointSites,
-                            SearchSharepointSites.Run({text:"*" & glrEnvironmentVariables.Selected.txtSearchSites.Text & "*", text_1:currentSharepointSite.webUrl}).value
+                            ClearCollect(
+                                SharepointSites,
+                                SearchSharepointSites.Run(
+                                    {
+                                        text: "",
+                                        text_1: ""
+                                    }
+                                ).value
+                            )
+                        );
+                        UpdateContext(
+                            {
+                                lclFirstSite: First(
+                                    Sort(
+                                        SharepointSites,
+                                        webUrl
+                                    )
+                                )
+                            }
                         );
                         Collect(
                             SharepointSites,
@@ -1191,21 +1884,65 @@ DeploymentSettingsScreen As screen:
                                 webUrl
                             )
                         );
+                        If(
+                            IsBlankOrError(lclFirstSite),
+                            Patch(
+                                SolutionEnvironmentVariables,
+                                glrEnvironmentVariables.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    SharepointSites: SharepointSites,
+                                    FilterVisible: false,
+                                    CurrentValue: currentSharepointSite.webUrl
+                                }
+                            ),
+                            Patch(
+                                SolutionEnvironmentVariables,
+                                glrEnvironmentVariables.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    SharepointSites: SharepointSites,
+                                    FilterVisible: false,
+                                    CurrentValue: lclFirstSite.webUrl
+                                }
+                            );
+                            UpdateContext({currentSharepointSite: lclFirstSite});
+                            Reset(drpSharepointSites);
+                        ),
                         Patch(
                             SolutionEnvironmentVariables,
                             glrEnvironmentVariables.Selected,
                             {
-                                SharepointSites: SharepointSites,
-                                FilterIcon: Icon.FilterFlat,
+                                FilterIcon: Search,
+                                FilterVisible: true,
                                 CurrentValue: currentSharepointSite.webUrl
                             }
                         );
-                        Reset(drpSharepointSites);
                         
                     );
+                    ClearCollect(
+                        SharepointLists,
+                        Filter(
+                            SharepointLists,
+                            DefinitionId <> glrEnvironmentVariables.Selected.environmentvariabledefinitionid
+                        )
+                    );
+                    If(
+                        Not IsBlank(currentSharepointSite.id),
+                        Collect(
+                            SharepointLists,
+                            AddColumns(
+                                SearchSharepointLists.Run(currentSharepointSite.id).value,
+                                "DefinitionId",
+                                glrEnvironmentVariables.Selected.environmentvariabledefinitionid
+                            )
+                        )
+                    );
+                    glrEnvironmentVariables.Selected.txtEnvironmentVariableValue.Text = currentSharepointSite.webUrl
                 PressedBorderColor: =ColorFade(icoFilterSites.BorderColor, -20%)
                 PressedColor: =ColorFade(icoFilterSites.Color, -20%)
                 PressedFill: =ColorFade(icoFilterSites.Fill, -20%)
+                Tooltip: ="Filter this list"
                 Visible: =ThisItem.type = 100000004 && ThisItem.parameterkey = "dataset" && ThisItem.apiid = "/providers/microsoft.powerapps/apis/shared_sharepointonline"
                 Width: =35
                 X: =1790
@@ -1242,7 +1979,7 @@ DeploymentSettingsScreen As screen:
             Width: =1850
             X: =24
             Y: =253
-            ZIndex: =15
+            ZIndex: =23
 
             icoConnectorIcon As image:
                 BorderColor: =ColorFade(icoConnectorIcon.Fill, -20%)
@@ -1320,7 +2057,7 @@ DeploymentSettingsScreen As screen:
 
             lblConnectionStatus As label:
                 Align: =Align.Center
-                Color: =If(lblConnectionStatus.Text = "Connected", Color.Green, Color.Red)
+                Color: =If(lblConnectionStatus.Text = "Connected", Color.Green, If(lblConnectionStatus.Text = "Unknown", Color.DarkOrange, Color.Red))
                 FontWeight: =FontWeight.Semibold
                 Height: =43
                 PaddingLeft: =0
@@ -1352,10 +2089,7 @@ DeploymentSettingsScreen As screen:
                                 glrConnectionReferences.Selected.connectorid,
                                 "/"
                             )
-                        ).Result,
-                        "",
-                        "_blank"
-                    )
+                        ).Result)
                 PaddingBottom: =8
                 PaddingLeft: =8
                 PaddingRight: =5
@@ -1450,7 +2184,7 @@ DeploymentSettingsScreen As screen:
 
         "glrCanvasApps As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Canvas Apps"
-            Height: =715
+            Height: =690
             Items: =SolutionCanvasApps
             Layout: =Layout.Vertical
             TemplatePadding: =0
@@ -1458,8 +2192,8 @@ DeploymentSettingsScreen As screen:
             Visible: =showSharingSettings
             Width: =1850
             X: =24
-            Y: =253
-            ZIndex: =16
+            Y: =278
+            ZIndex: =24
 
             icoCanvasApp As image:
                 AccessibleLabel: ="Canvas App"
@@ -1599,11 +2333,7 @@ DeploymentSettingsScreen As screen:
                 Icon: =Icon.DetailList
                 OnSelect: |-
                     =Select(Parent);
-                    Launch(
-                        "https://portal.azure.com/#blade/Microsoft_AAD_IAM/GroupDetailsMenuBlade/Members/groupId/" & drpCanvasAppShareGroups.Selected.id,
-                        "",
-                        "_blank"
-                    )
+                    Launch("https://portal.azure.com/#blade/Microsoft_AAD_IAM/GroupDetailsMenuBlade/Members/groupId/" & drpCanvasAppShareGroups.Selected.id)
                 PaddingBottom: =8
                 PaddingLeft: =8
                 PaddingRight: =5
@@ -1611,7 +2341,7 @@ DeploymentSettingsScreen As screen:
                 PressedBorderColor: =ColorFade(icoViewGroupMembers.BorderColor, -20%)
                 PressedColor: =ColorFade(icoViewGroupMembers.Color, -20%)
                 PressedFill: =ColorFade(icoViewGroupMembers.Fill, -20%)
-                Tooltip: ="Create a New Connection"
+                Tooltip: ="View Azure AD Group Details"
                 Width: =57
                 X: =1546
                 Y: =12
@@ -1645,95 +2375,30 @@ DeploymentSettingsScreen As screen:
                 OnSelect: |
                     =UpdateContext({currentGroup: glrCanvasApps.Selected.drpCanvasAppShareGroups.Selected});
                     If(
-                        glrCanvasApps.Selected.FilterIcon = Icon.FilterFlat,
-                        If(
-                            glrCanvasApps.Selected.FilterVisible,
-                            ClearCollect(
-                                AADGroups,
-                                SearchAADGroups.Run(
-                                    currentGroup.id,
-                                    {text: glrCanvasApps.Selected.txtFilterGroups.Text}
-                                ).value
-                            );
-                            Collect(
-                                AADGroups,
-                                {displayName: ""}
-                            );
-                            If(
-                                IsBlankOrError(
-                                    LookUp(
-                                        AADGroups,
-                                        id = currentGroup.id
-                                    )
-                                ),
-                                Collect(
-                                    AADGroups,
-                                    currentGroup
-                                )
-                            );
-                            ClearCollect(
-                                AADGroups,
-                                Sort(
-                                    AADGroups,
-                                    displayName
-                                )
-                            );
-                            If(
-                                txtFilterGroups.Text <> "",
-                                Patch(
-                                    SolutionCanvasApps,
-                                    glrCanvasApps.Selected,
-                                    {
-                                        FilterIcon: Icon.FilterFlatFilled,
-                                        AADGroups: AADGroups,
-                                        FilterVisible: false,
-                                        CurrentValue: currentGroup.id
-                                    }
-                                ),
-                                Patch(
-                                    SolutionCanvasApps,
-                                    glrCanvasApps.Selected,
-                                    {
-                                        FilterIcon: Icon.FilterFlat,
-                                        AADGroups: AADGroups,
-                                        FilterVisible: false,
-                                        CurrentValue: currentGroup.id
-                                    }
-                                );
-                                Reset(drpCanvasAppShareGroups);
-                            ),
-                            Patch(
-                                SolutionCanvasApps,
-                                glrCanvasApps.Selected,
-                                {
-                                    FilterVisible: true,
-                                    CurrentValue: currentGroup.id
-                                }
-                            );
-                        ),
-                        Reset(txtFilterGroups);
+                        glrCanvasApps.Selected.FilterVisible,
                         ClearCollect(
                             AADGroups,
                             SearchAADGroups.Run(
-                                currentGroup.id,
+                                "",
                                 {text: glrCanvasApps.Selected.txtFilterGroups.Text}
                             ).value
                         );
+                        UpdateContext(
+                            {
+                                lclFirstAADGroup: First(
+                                    Sort(
+                                        AADGroups,
+                                        displayName
+                                    )
+                                )
+                            }
+                        );
                         Collect(
                             AADGroups,
-                            {displayName: ""}
-                        );
-                        If(
-                            IsBlankOrError(
-                                LookUp(
-                                    AADGroups,
-                                    id = currentGroup.id
-                                )
-                            ),
-                            Collect(
-                                AADGroups,
-                                currentGroup
-                            )
+                            {
+                                id: "",
+                                displayName: ""
+                            }
                         );
                         ClearCollect(
                             AADGroups,
@@ -1742,26 +2407,376 @@ DeploymentSettingsScreen As screen:
                                 displayName
                             )
                         );
+                        If(
+                            IsBlankOrError(lclFirstAADGroup),
+                            Patch(
+                                SolutionCanvasApps,
+                                glrCanvasApps.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    AADGroups: AADGroups,
+                                    FilterVisible: false,
+                                    CurrentValue: currentGroup.id
+                                }
+                            ),
+                            Patch(
+                                SolutionCanvasApps,
+                                glrCanvasApps.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    AADGroups: AADGroups,
+                                    FilterVisible: false,
+                                    CurrentValue: lclFirstAADGroup.id
+                                }
+                            );
+                            Reset(drpCanvasAppShareGroups);
+                        ),
                         Patch(
                             SolutionCanvasApps,
                             glrCanvasApps.Selected,
                             {
-                                AADGroups: AADGroups,
-                                FilterIcon: Icon.FilterFlat,
+                                FilterIcon: Search,
+                                FilterVisible: true,
                                 CurrentValue: currentGroup.id
                             }
                         );
-                        Reset(drpCanvasAppShareGroups);
-                        
                     );
                 PressedBorderColor: =ColorFade(icoFilterGroups.BorderColor, -20%)
                 PressedColor: =ColorFade(icoFilterGroups.Color, -20%)
                 PressedFill: =ColorFade(icoFilterGroups.Fill, -20%)
+                Tooltip: ="Filter this list"
                 Visible: =showSharingSettings
                 Width: =35
                 X: =1515
                 Y: =18
                 ZIndex: =10
+
+        "glrGroupTeams As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            AccessibleLabel: ="Canvas Apps"
+            Height: =690
+            Items: =GroupTeams
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =68
+            Visible: =showGroupTeamsSettings
+            Width: =1850
+            X: =24
+            Y: =278
+            ZIndex: =25
+
+            icoGroupTeam As image:
+                AccessibleLabel: ="Canvas App"
+                BorderColor: =ColorFade(icoGroupTeam.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoGroupTeam.BorderColor, 20%)
+                HoverFill: =ColorFade(icoGroupTeam.Fill, 20%)
+                Image: =AADIcon
+                OnSelect: =Select(Parent);
+                PressedBorderColor: =ColorFade(icoGroupTeam.BorderColor, -20%)
+                PressedFill: =ColorFade(icoGroupTeam.Fill, -20%)
+                Tooltip: ="Select to Open App"
+                Width: =58
+                Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                ZIndex: =1
+
+            lblCanvasAppName_1 As label:
+                Height: =24
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =14
+                Text: =ThisItem.DisplayName
+                VerticalAlign: =VerticalAlign.Top
+                Width: =500
+                X: =58
+                Y: =10
+                ZIndex: =2
+
+            lblCanvasAppLogicalName_1 As label:
+                Height: =Self.Size * 1.8
+                OnSelect: =Select(Parent)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                Size: =12
+                Text: =If(IsBlank(ThisItem.Value), First(ThisItem.AADGroups).displayName, LookUp(ThisItem.AADGroups, Text(id) = ThisItem.Value).displayName)
+                VerticalAlign: =VerticalAlign.Top
+                Width: =480
+                X: =58
+                Y: =35
+                ZIndex: =3
+
+            Separator3_5 As rectangle:
+                BorderColor: =ColorFade(Separator3_5.Fill, -20%)
+                DisabledFill: =Separator3_5.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3_5.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3_5.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =4
+
+            txtGroupTeamName As text:
+                AccessibleLabel: ="Environment Variable Value"
+                Default: =ThisItem.DisplayName
+                Height: =46
+                HoverBorderColor: =ColorFade(txtGroupTeamName.BorderColor, 20%)
+                HoverColor: =ColorFade(txtGroupTeamName.Color, 20%)
+                HoverFill: =ColorFade(txtGroupTeamName.Fill, 20%)
+                OnChange: |-
+                    =Patch(
+                        GroupTeams,
+                        ThisItem,
+                        {DisplayName: txtGroupTeamName.Text}
+                    );
+                    Patch(
+                        EnvironmentTeams,
+                        LookUp(EnvironmentTeams, teamid = ThisItem.Id),
+                        {name: txtGroupTeamName.Text}
+                    );
+                    ClearCollect(EnvironmentTeams, Sort(EnvironmentTeams, name));
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =txtGroupTeamName.HoverBorderColor
+                PressedColor: =txtGroupTeamName.Color
+                PressedFill: =txtGroupTeamName.Fill
+                Reset: =resetEnvironment
+                Tooltip: ="Enter a Value for this Environment Variable in the Target Environment"
+                Width: =400
+                X: =543
+                Y: =10
+                ZIndex: =5
+
+            cmbGroupTeamRoles As combobox:
+                ChevronHoverBackground: =ColorFade(cmbGroupTeamRoles.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(cmbGroupTeamRoles.ChevronFill, 20%)
+                DefaultSelectedItems: =Filter(GroupTeamSelectedRoles, GroupTeamId = ThisItem.Id)
+                DisplayFields: =["name"]
+                Height: =46
+                HoverBorderColor: =ColorFade(cmbGroupTeamRoles.BorderColor, 20%)
+                HoverColor: =ColorFade(cmbGroupTeamRoles.Color, 20%)
+                HoverFill: =ColorFade(cmbGroupTeamRoles.SelectionFill, 20%)
+                Items: =Sort('Security Roles', Name)
+                MoreItemsButtonColor: =Self.ChevronBackground
+                OnChange: =ThisItem.DisplayMode
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =cmbGroupTeamRoles.HoverBorderColor
+                SearchFields: =["name"]
+                SearchItems: =Search(Sort('Security Roles', Name),cmbGroupTeamRoles.SearchText,"name")
+                Width: =330
+                X: =1460
+                Y: =10
+                ZIndex: =6
+
+            drpGroupTeamGroups As dropdown:
+                AccessibleLabel: ="App Sharing Group"
+                ChevronHoverBackground: =ColorFade(drpGroupTeamGroups.ChevronBackground, 20%)
+                ChevronHoverFill: =ColorFade(drpGroupTeamGroups.ChevronFill, 20%)
+                Default: =If(IsBlank(ThisItem.Value), First(ThisItem.AADGroups).displayName, LookUp(ThisItem.AADGroups, Text(id) = ThisItem.Value).displayName)
+                Height: =46
+                HoverBorderColor: =ColorFade(drpGroupTeamGroups.BorderColor, 20%)
+                HoverColor: =ColorFade(drpGroupTeamGroups.Color, 20%)
+                HoverFill: =ColorFade(drpGroupTeamGroups.SelectionFill, 20%)
+                Items: =ThisItem.AADGroups
+                OnChange: |-
+                    =Patch(
+                        GroupTeams,
+                        ThisItem,
+                        {Value: drpGroupTeamGroups.Selected.id}
+                    );
+                OnSelect: =
+                PressedBorderColor: =drpGroupTeamGroups.HoverBorderColor
+                PressedColor: =drpGroupTeamGroups.Fill
+                PressedFill: =drpGroupTeamGroups.Color
+                Reset: =resetEnvironment
+                Tooltip: ="Select an Existing AAD Group"
+                Width: =440
+                X: =965
+                Y: =11
+                ZIndex: =7
+
+            txtFilterTeamGroupGroups As text:
+                Default: =""
+                Height: =46
+                HintText: ="Enter the name of the group to filter."
+                HoverBorderColor: =ColorFade(txtFilterTeamGroupGroups.BorderColor, 20%)
+                HoverColor: =ColorFade(txtFilterTeamGroupGroups.Color, 20%)
+                HoverFill: =ColorFade(txtFilterTeamGroupGroups.Fill, 20%)
+                PressedBorderColor: =txtFilterTeamGroupGroups.HoverBorderColor
+                PressedColor: =txtFilterTeamGroupGroups.Color
+                PressedFill: =txtFilterTeamGroupGroups.Fill
+                Visible: =ThisItem.FilterVisible
+                Width: =440
+                X: =965
+                Y: =10
+                ZIndex: =8
+
+            icoDeleteGroupTeam As icon.Add:
+                AccessibleLabel: ="Refresh"
+                BorderColor: =ColorFade(icoDeleteGroupTeam.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledColor: =ColorFade(icoDeleteGroupTeam.Color, 50%)
+                DisabledFill: =ColorFade(icoDeleteGroupTeam.Fill, -80%)
+                Height: =45
+                HoverBorderColor: =ColorFade(icoDeleteGroupTeam.BorderColor, 20%)
+                HoverColor: =ColorFade(icoDeleteGroupTeam.Color, 20%)
+                HoverFill: =ColorFade(icoDeleteGroupTeam.Fill, 20%)
+                Icon: =Icon.Cancel
+                OnSelect: |-
+                    =RemoveIf(
+                        GroupTeams,
+                        Id = glrGroupTeams.Selected.Id
+                    );
+                    UpdateContext(
+                        {
+                            temp: CountIf(
+                                EnvironmentTeams,
+                                Text(teamid) = glrGroupTeams.Selected.Id
+                            )
+                        }
+                    );
+                    RemoveIf(
+                        EnvironmentTeams,
+                        Text(teamid) = glrGroupTeams.Selected.Id
+                    )
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoDeleteGroupTeam.BorderColor, -20%)
+                PressedColor: =ColorFade(icoDeleteGroupTeam.Color, -20%)
+                PressedFill: =ColorFade(icoDeleteGroupTeam.Fill, -20%)
+                Tooltip: ="Delete Group Team"
+                Visible: =showGroupTeamsSettings
+                Width: =45
+                X: =1799
+                Y: =12
+                ZIndex: =9
+
+            icoFilterTeamsGroups As icon.FilterFlat:
+                BorderColor: =ColorFade(icoFilterTeamsGroups.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoFilterTeamsGroups.Fill, -80%)
+                Height: =35
+                HoverBorderColor: =ColorFade(icoFilterTeamsGroups.BorderColor, 20%)
+                HoverColor: =ColorFade(icoFilterTeamsGroups.Color, 20%)
+                HoverFill: =ColorFade(icoFilterTeamsGroups.Fill, 20%)
+                Icon: =ThisItem.FilterIcon
+                OnSelect: |
+                    =UpdateContext({currentGroup: glrGroupTeams.Selected.drpGroupTeamGroups.Selected});
+                    If(
+                        glrGroupTeams.Selected.FilterVisible,
+                        ClearCollect(
+                            AADGroups,
+                            SearchAADGroups.Run(
+                                "",
+                                {text: glrGroupTeams.Selected.txtFilterTeamGroupGroups.Text}
+                            ).value
+                        );
+                        UpdateContext(
+                            {
+                                lclFirstTeamAADGroup: First(
+                                    Sort(
+                                        AADGroups,
+                                        displayName
+                                    )
+                                )
+                            }
+                        );
+                        Collect(
+                            AADGroups,
+                            {
+                                id: "",
+                                displayName: ""
+                            }
+                        );
+                        ClearCollect(
+                            AADGroups,
+                            Sort(
+                                AADGroups,
+                                displayName
+                            )
+                        );
+                        If(
+                            IsBlankOrError(lclFirstAADGroup),
+                            Patch(
+                                GroupTeams,
+                                glrGroupTeams.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    AADGroups: AADGroups,
+                                    FilterVisible: false,
+                                    Value: currentGroup.id
+                                }
+                            ),
+                            Patch(
+                                GroupTeams,
+                                glrGroupTeams.Selected,
+                                {
+                                    FilterIcon: Icon.FilterFlatFilled,
+                                    AADGroups: AADGroups,
+                                    FilterVisible: false,
+                                    Value: lclFirstAADGroup.id
+                                }
+                            );
+                            Reset(drpGroupTeamGroups);
+                        ),
+                        Patch(
+                            GroupTeams,
+                            glrGroupTeams.Selected,
+                            {
+                                FilterIcon: Search,
+                                FilterVisible: true,
+                                Value: currentGroup.id
+                            }
+                        );
+                        
+                    );
+                PressedBorderColor: =ColorFade(icoFilterTeamsGroups.BorderColor, -20%)
+                PressedColor: =ColorFade(icoFilterTeamsGroups.Color, -20%)
+                PressedFill: =ColorFade(icoFilterTeamsGroups.Fill, -20%)
+                Tooltip: ="Filter this list"
+                Visible: =showGroupTeamsSettings
+                Width: =35
+                X: =1413
+                Y: =17
+                ZIndex: =10
+
+            Label1 As label:
+                OnSelect: =Select(Parent)
+                Text: =temp
+                X: =426
+                Y: =17
+                ZIndex: =11
+
+        lblDeployAppGroupSharing As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Sharing"
+            Visible: =showSharingSettings
+            Width: =182
+            X: =733
+            Y: =253
+            ZIndex: =26
+
+        lblDeployAppPermission As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Permissions"
+            Visible: =showSharingSettings
+            Width: =182
+            X: =1628
+            Y: =249
+            ZIndex: =27
 
         btnSaveDeployment As button:
             Height: =45
@@ -1770,7 +2785,9 @@ DeploymentSettingsScreen As screen:
             HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
             OnSelect: |-
                 =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                //Save Deployment Settings
                 Clear(DeploymentSettings);
+                //Save Connection References
                 ForAll(
                     glrConnectionReferences.AllItems,
                     If(
@@ -1817,6 +2834,7 @@ DeploymentSettingsScreen As screen:
                         )
                     )
                 );
+                //Save Envrionment Variables
                 ForAll(
                     glrEnvironmentVariables.AllItems,
                     Collect(
@@ -1837,6 +2855,7 @@ DeploymentSettingsScreen As screen:
                         }
                     )
                 );
+                //Save Canvas App Sharing
                 ForAll(
                     glrCanvasApps.AllItems,
                     Collect(
@@ -1855,6 +2874,7 @@ DeploymentSettingsScreen As screen:
                         }
                     )
                 );
+                //Save Flow Ownership
                 ForAll(
                     glrFlows.AllItems,
                     Collect(
@@ -1868,9 +2888,48 @@ DeploymentSettingsScreen As screen:
                                 ""
                             ) & "." & workflowid,
                             Value: drpFlowOwnerUsers.Selected.domainname
+                        },
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "flowshare.ownerEmail." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid,
+                            Value: drpFlowShareGroupTeams.Selected.name
+                        }
+                        
+                    )
+                );
+                //Save Group Teams
+                ForAll(
+                    glrGroupTeams.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "groupTeam." & Id & "." & txtGroupTeamName.Text,
+                            Value: drpGroupTeamGroups.Selected.id,
+                            Data: Concat(cmbGroupTeamRoles.SelectedItems, Name, ",")
                         }
                     )
                 );
+                ForAll(
+                    glrCustomConnectors.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "connector.teamname." & connectorid,
+                            Value: drpConnectorShareGroupTeams.Selected.name
+                        }
+                    )
+                );
+                
+                //Convert settings to json and store in user settings
                 UpdateContext({settingsJsonText: JSON(DeploymentSettings)});
                 UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
                 UpdateContext(
@@ -1885,14 +2944,6 @@ DeploymentSettingsScreen As screen:
                     IsBlank(locEnvironmentDeploymentSetting),// create it if we don't have one
                     Patch(
                         'User Settings',
-                        {
-                            'App User Setting': AppUserSetting,
-                            Name: locSolutionEnvironmentDeploySettingName,
-                            Data: settingsJsonText
-                        }
-                    );
-                    Patch(
-                        AppUserSetting_UserSettings,
                         {
                             'App User Setting': AppUserSetting,
                             Name: locSolutionEnvironmentDeploySettingName,
@@ -1933,7 +2984,7 @@ DeploymentSettingsScreen As screen:
             Width: =200
             X: =1674
             Y: =1003
-            ZIndex: =17
+            ZIndex: =28
 
         lblDeployConnectionReferences As label:
             FontWeight: =If(showConnectionReferenceSettings, FontWeight.Bold, FontWeight.Semibold)
@@ -1945,7 +2996,7 @@ DeploymentSettingsScreen As screen:
             Width: =210
             X: =28
             Y: =208
-            ZIndex: =18
+            ZIndex: =29
 
         icoRefreshConnections As icon.Add:
             AccessibleLabel: ="Refresh"
@@ -1975,7 +3026,145 @@ DeploymentSettingsScreen As screen:
             Width: =45
             X: =1793
             Y: =206
-            ZIndex: =19
+            ZIndex: =30
+
+        lblNoResults As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: |-
+                =If(
+                    glrCanvasApps.Visible,
+                    "There are no canvas apps in this solution",
+                    If(
+                        glrConnectionReferences.Visible,
+                        "There are no connnection references in this solution",
+                        If(
+                            glrEnvironmentVariables.Visible,
+                            "There are no environment variables in this solution",
+                            If(
+                                glrCustomConnectors.Visible,
+                                "There are no custom connectors in this solution",
+                                If(
+                                    glrFlows.Visible,
+                                    "There are no flows in this solution",
+                                    If(
+                                        glrGroupTeams.Visible,
+                                        "There are no group teams in this solution. Select + to get started."
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            Visible: =(IsEmpty(glrCanvasApps.AllItems) && glrCanvasApps.Visible) || (IsEmpty(glrConnectionReferences.AllItems) && glrConnectionReferences.Visible) || (IsEmpty(glrEnvironmentVariables.AllItems) && glrEnvironmentVariables.Visible) || (IsEmpty(glrCustomConnectors.AllItems) && glrCustomConnectors.Visible) || (IsEmpty(glrGroupTeams.AllItems) && glrGroupTeams.Visible) || (IsEmpty(glrFlows.AllItems) && glrFlows.Visible)
+            Width: =600
+            X: =653
+            Y: =476
+            ZIndex: =33
+
+        lblDeployGroupTeamName As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Team Name"
+            Visible: =showGroupTeamsSettings
+            Width: =182
+            X: =571
+            Y: =253
+            ZIndex: =36
+
+        lblDeployGroupTeamRoles As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Roles"
+            Visible: =showGroupTeamsSettings
+            Width: =182
+            X: =1487
+            Y: =249
+            ZIndex: =37
+
+        lblDeployGroupTeamGroup As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="AAD Group"
+            Visible: =showGroupTeamsSettings
+            Width: =182
+            X: =989
+            Y: =251
+            ZIndex: =38
+
+        lblDeployConnectorTeamSharing As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Sharing"
+            Visible: =showConnectorSettings
+            Width: =182
+            X: =1006
+            Y: =251
+            ZIndex: =39
+
+        lblDeployFlowActivateAs As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Activate As"
+            Visible: =showOwnerSettings
+            Width: =182
+            X: =399
+            Y: =253
+            ZIndex: =40
+
+        icoAddNewGroupTeam As icon.Add:
+            AccessibleLabel: ="Refresh"
+            BorderColor: =ColorFade(icoAddNewGroupTeam.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledColor: =ColorFade(icoAddNewGroupTeam.Color, 50%)
+            DisabledFill: =ColorFade(icoAddNewGroupTeam.Fill, -80%)
+            Height: =45
+            HoverBorderColor: =ColorFade(icoAddNewGroupTeam.BorderColor, 20%)
+            HoverColor: =ColorFade(icoAddNewGroupTeam.Color, 20%)
+            HoverFill: =ColorFade(icoAddNewGroupTeam.Fill, 20%)
+            Icon: =Icon.Add
+            OnSelect: |-
+                =UpdateContext({NewGroupTeamId: Text(GUID())});
+                Collect(GroupTeams, {Name: "ENTER A TEAM NAME", DisplayName: "ENTER A TEAM NAME", Value: "", Id: NewGroupTeamId, AADGroups: TeamAADGroups, DisplayMode: DisplayMode.Edit, FilterVisible:false, FilterIcon: Icon.FilterFlat });
+                Collect(
+                    EnvironmentTeams,
+                    {
+                        name: "ENTER A TEAM NAME",
+                        teamid: NewGroupTeamId
+                    }
+                );
+                ClearCollect(EnvironmentTeams, Sort(EnvironmentTeams, name));
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoAddNewGroupTeam.BorderColor, -20%)
+            PressedColor: =ColorFade(icoAddNewGroupTeam.Color, -20%)
+            PressedFill: =ColorFade(icoAddNewGroupTeam.Fill, -20%)
+            Tooltip: ="Add New Group Team"
+            Visible: =showGroupTeamsSettings
+            Width: =45
+            X: =1822
+            Y: =215
+            ZIndex: =41
 
         loaderSolutionComponents As Preloader:
             Height: =827
@@ -1986,7 +3175,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderSolutionComponents.IsLoading
             Width: =1920
             Y: =253
-            ZIndex: =20
+            ZIndex: =42
 
         loaderDeploymentEnvironment As Preloader:
             Height: =1016
@@ -1997,7 +3186,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderDeploymentEnvironment.IsLoading
             Width: =1920
             Y: =64
-            ZIndex: =21
+            ZIndex: =43
 
         icoDeployConnectionReferences As icon.Add:
             AccessibleLabel: ="Connection References"
@@ -2016,7 +3205,9 @@ DeploymentSettingsScreen As screen:
                         showConnectionReferenceSettings: true,
                         showEnvironmentVariablesSettings: false,
                         showOwnerSettings: false,
-                        showSharingSettings: false
+                        showSharingSettings: false,
+                        showConnectorSettings: false,
+                        showGroupTeamsSettings: false
                     }
                 );
             PaddingBottom: =8
@@ -2030,7 +3221,7 @@ DeploymentSettingsScreen As screen:
             Width: =200
             X: =24
             Y: =204
-            ZIndex: =22
+            ZIndex: =44
 
         icoDeployEnvironmentVariables As icon.Add:
             AccessibleLabel: ="Environment Variables"
@@ -2049,7 +3240,9 @@ DeploymentSettingsScreen As screen:
                         showConnectionReferenceSettings: false,
                         showEnvironmentVariablesSettings: true,
                         showOwnerSettings: false,
-                        showSharingSettings: false
+                        showSharingSettings: false,
+                        showConnectorSettings: false,
+                        showGroupTeamsSettings: false
                     }
                 );
             PaddingBottom: =8
@@ -2063,7 +3256,7 @@ DeploymentSettingsScreen As screen:
             Width: =200
             X: =236
             Y: =204
-            ZIndex: =23
+            ZIndex: =45
 
         icoDeploySharing As icon.Add:
             AccessibleLabel: ="Sharing"
@@ -2082,7 +3275,9 @@ DeploymentSettingsScreen As screen:
                         showConnectionReferenceSettings: false,
                         showEnvironmentVariablesSettings: false,
                         showOwnerSettings: false,
-                        showSharingSettings: true
+                        showSharingSettings: true,
+                        showConnectorSettings: false,
+                        showGroupTeamsSettings: false
                     }
                 );
             PaddingBottom: =8
@@ -2096,59 +3291,7 @@ DeploymentSettingsScreen As screen:
             Width: =120
             X: =439
             Y: =204
-            ZIndex: =24
-
-        lblNoEnvironmentVariables As label:
-            Align: =Align.Center
-            FontWeight: =FontWeight.Semibold
-            Height: =45
-            PaddingLeft: =0
-            PaddingTop: =0
-            Text: ="There are no environment variables in this solution."
-            Visible: =IsEmpty(glrEnvironmentVariables.AllItems) && glrEnvironmentVariables.Visible
-            Width: =600
-            X: =653
-            Y: =476
-            ZIndex: =25
-
-        lblNoConnectionReferences As label:
-            Align: =Align.Center
-            FontWeight: =FontWeight.Semibold
-            Height: =45
-            PaddingLeft: =0
-            PaddingTop: =0
-            Text: ="There are no connection references in this solution."
-            Visible: =IsEmpty(glrConnectionReferences.AllItems) && glrConnectionReferences.Visible
-            Width: =600
-            X: =653
-            Y: =476
-            ZIndex: =26
-
-        lblNoApps As label:
-            Align: =Align.Center
-            FontWeight: =FontWeight.Semibold
-            Height: =45
-            PaddingLeft: =0
-            PaddingTop: =0
-            Text: ="There are no canvas apps in this solution."
-            Visible: =IsEmpty(glrCanvasApps.AllItems) && glrCanvasApps.Visible
-            Width: =600
-            X: =653
-            Y: =476
-            ZIndex: =27
-
-        lblNoFlows As label:
-            Align: =Align.Center
-            FontWeight: =FontWeight.Semibold
-            Height: =45
-            PaddingLeft: =0
-            PaddingTop: =0
-            Text: ="There are no flows in this solution."
-            Visible: =IsEmpty(glrFlows.AllItems) && glrFlows.Visible
-            Width: =600
-            X: =653
-            Y: =476
-            ZIndex: =28
+            ZIndex: =46
 
     btnFunctionsDeploy As groupContainer:
         Height: =320
@@ -2159,6 +3302,7 @@ DeploymentSettingsScreen As screen:
         ZIndex: =2
 
         fncLoadEnvironmentDeploymentSettings As button:
+            Height: =28
             HoverBorderColor: =ColorFade(fncLoadEnvironmentDeploymentSettings.BorderColor, 20%)
             HoverColor: =ColorFade(fncLoadEnvironmentDeploymentSettings.Color, 20%)
             HoverFill: =ColorFade(fncLoadEnvironmentDeploymentSettings.Fill, 20%)
@@ -2186,148 +3330,324 @@ DeploymentSettingsScreen As screen:
                         UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run("[]")}),
                         UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
                     );
-                    ClearCollect(
-                        EnvironmentUsers,
-                        SearchDeploymentEnvironmentUsers.Run(
-                            Last(
-                                FirstN(
-                                    ClearCollect(
-                                        splitCol1,
+                    Concurrent(
+                        ClearCollect(
+                            EnvironmentTeams,
+                            SearchDeploymentEnvironmentTeams.Run(
+                                Last(
+                                    FirstN(
                                         Split(
                                             SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
                                             "."
-                                        )
-                                    ),
-                                    2
-                                )
-                            ).Result,
-                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            {
-                                text_3: "",
-                                text_4: ""
-                            }
-                        )
-                    );
-                    
-                //Add an empty row to EnvironmentUsers
-                    Collect(
-                        EnvironmentUsers,
-                        {domainname: ""}
-                    );
-                    ClearCollect(
-                        EnvironmentUsers,
-                        Sort(
-                            EnvironmentUsers,
-                            domainname,
-                            Ascending
-                        )
-                    );
-                    
-                    Concurrent(
-                        UpdateIf(
-                            SolutionConnectionReferences,
-                            true,
-                            {
-                                CurrentValue: LookUp(
-                                    EnvironmentDeploymentSettings,
-                                    Name = "connectionreference." & connectionreferencelogicalname
-                                ).Value
-                            }
-                        ),
-                        UpdateIf(
-                            SolutionEnvironmentVariables,
-                            true,
-                            {
-                                CurrentValue: LookUp(
-                                    EnvironmentDeploymentSettings,
-                                    Name = "environmentvariable." & schemaname
-                                ).Value
-                            }
-                        ),
-                        UpdateIf(
-                            SolutionCanvasApps,
-                            true,
-                            {
-                                CurrentValue: LookUp(
-                                    EnvironmentDeploymentSettings,
-                                    Name = "canvasshare.aadGroupId." & name
-                                ).Value,
-                                CurrentPermission: LookUp(
-                                    EnvironmentDeploymentSettings,
-                                    Name = "canvasshare.roleName." & name
-                                ).Value
-                            }
-                        ),
-                        UpdateIf(
-                            SolutionFlows,
-                            true,
-                            {
-                                CurrentValue: LookUp(
-                                    EnvironmentDeploymentSettings,
-                                    Name = "owner.ownerEmail." & Substitute(
-                                        name,
-                                        " ",
-                                        ""
-                                    ) & "." & workflowid
-                                ).Value,
-                                EnvironmentUsers: 
-                                EnvironmentUsers
-                            }
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                {
+                                    text_3: "",
+                                    text_4: ""
+                                }
+                            )
                         ),
                         ClearCollect(
-                            EnvironmentConnections,
+                            EnvironmentUsers,
+                            SearchDeploymentEnvironmentUsers.Run(
+                                Last(
+                                    FirstN(
+                                        Split(
+                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            "."
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                {
+                                    text_3: "",
+                                    text_4: ""
+                                }
+                            )
+                        ),
+                        ClearCollect(
+                            GroupTeams,
                             AddColumns(
-                                PowerAppsforMakers.GetConnections(
-                                    {
-                                        '$filter': "environment eq '" & LookUp(
-                                            AllEnvironments,
-                                            SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl,
-                                            name
-                                        ) & "'",
-                                        'api-version': "2016-11-01",
-                                        '$top': 100
-                                    }
-                                ).value,
+                                Filter(
+                                    EnvironmentDeploymentSettings,
+                                    StartsWith(
+                                        Name,
+                                        "groupteam"
+                                    )
+                                ),
                                 "DisplayName",
-                                properties.displayName,
-                                "ConnectionId",
-                                name,
-                                "ApiId",
-                                properties.apiId,
-                                "IconUrl",
-                                properties.iconUri,
-                                "Status",
-                                First(properties.statuses).status
+                                Last(
+                                    FirstN(
+                                        Split(
+                                            Name,
+                                            "."
+                                        ),
+                                        3
+                                    )
+                                ).Result,
+                                "Id",
+                                Last(
+                                    FirstN(
+                                        Split(
+                                            Name,
+                                            "."
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                "AADGroups",
+                                TeamAADGroups,
+                                "FilterVisible",
+                                false,
+                                "FilterIcon",
+                                Icon.FilterFlat,
+                                "SelectedRoles",
+                                Data
+                            )
+                        )
+                    )
+                );
+                Clear(GroupTeamSelectedRoles);
+                ForAll(
+                    GroupTeams As gt,
+                    If(
+                        IsBlankOrError(
+                            LookUp(
+                                EnvironmentTeams,
+                                name = gt.Name
+                            )
+                        ),
+                        Collect(
+                            EnvironmentTeams,
+                            {
+                                name: gt.DisplayName,
+                                teamid: gt.Id
+                            }
+                        )
+                    );
+                    ForAll(
+                        Split(
+                            gt.SelectedRoles,
+                            ","
+                        ),
+                        Collect(
+                            GroupTeamSelectedRoles,
+                            AddColumns(
+                                Filter(
+                                    'Security Roles',
+                                    name = Result
+                                ),
+                                "GroupTeamId",
+                                gt.Id
                             )
                         )
                     );
-                    Clear(SharepointLists);
+                    
+                );
+                //Add an empty row to EnvironmentTeams
+                Collect(
+                    EnvironmentTeams,
+                    {name: ""}
+                );
+                ClearCollect(
+                    EnvironmentTeams,
+                    Sort(
+                        EnvironmentTeams,
+                        name,
+                        Ascending
+                    )
+                );
+                //Add an empty row to EnvironmentUsers
+                Collect(
+                    EnvironmentUsers,
+                    {domainname: ""}
+                );
+                ClearCollect(
+                    EnvironmentUsers,
+                    Sort(
+                        EnvironmentUsers,
+                        domainname,
+                        Ascending
+                    )
+                );
+                Concurrent(
+                    UpdateIf(
+                        SolutionConnectionReferences,
+                        true,
+                        {
+                            CurrentValue: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "connectionreference." & connectionreferencelogicalname
+                            ).Value
+                        }
+                    ),
+                    UpdateIf(
+                        SolutionEnvironmentVariables,
+                        true,
+                        {
+                            CurrentValue: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "environmentvariable." & schemaname
+                            ).Value
+                        }
+                    ),
+                    UpdateIf(
+                        SolutionCanvasApps,
+                        true,
+                        {
+                            CurrentValue: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "canvasshare.aadGroupId." & name
+                            ).Value,
+                            CurrentPermission: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "canvasshare.roleName." & name
+                            ).Value
+                        }
+                    ),
+                    UpdateIf(
+                        SolutionFlows,
+                        true,
+                        {
+                            CurrentValue: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "owner.ownerEmail." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            EnvironmentUsers: EnvironmentUsers
+                        }
+                    ),   
+                    UpdateIf(
+                        CustomConnectors,
+                        true,
+                        {
+                            CurrentValue: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "connector.teamname." & connectorid
+                            ).Value
+                        }
+                    ),
+                     
+                    ClearCollect(
+                        EnvironmentConnections,
+                        AddColumns(
+                            PowerAppsforMakers.GetConnections(
+                                {
+                                    '$filter': "environment eq '" & LookUp(
+                                        AllEnvironments,
+                                        SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl,
+                                        name
+                                    ) & "'",
+                                    'api-version': "2016-11-01",
+                                    '$top': 100
+                                }
+                            ).value,
+                            "DisplayName",
+                            properties.displayName,
+                            "ConnectionId",
+                            name,
+                            "ApiId",
+                            properties.apiId,
+                            "IconUrl",
+                            properties.iconUri,
+                            "Status",
+                            First(properties.statuses).status
+                        )
+                    )
+                );
+                    //Add any connections that the current user doesn't have permissions to access
+                ClearCollect(
+                    locUnsharedConnections,
+                    Filter(
+                        SolutionConnectionReferences,
+                        !IsBlankOrError(CurrentValue) && !(CurrentValue in EnvironmentConnections.ConnectionId)
+                    )
+                );
+                If(
+                    CountRows(locUnsharedConnections) > 0,
+                    UpdateContext(
+                        {
+                            locConnectorSearchCriteria: Concat(
+                                Distinct(
+                                    locUnsharedConnections,
+                                    connectorid
+                                ),
+                                "id eq '" & Result & "' or "
+                            )
+                        }
+                    );
+                    UpdateContext(
+                        {
+                            locConnectorSearchCriteria: Left(
+                                locConnectorSearchCriteria,
+                                Len(locConnectorSearchCriteria) - 3
+                            )
+                        }
+                    );
+                    ClearCollect(
+                        locConnectors,
+                        PowerAppsforMakers.GetConnectors({'$filter': "environment eq '" & SelectedEnvironment.name & "' and " & locConnectorSearchCriteria}).value
+                    );
                     ForAll(
-                        Filter(
-                            SolutionEnvironmentVariables,
-                            type = 100000004 && parameterkey = "dataset"
-                        ),
+                        locUnsharedConnections,
                         If(
-                            Not IsBlank(CurrentValue) && Not IsBlank(
-                                First(
-                                    Filter(
-                                        SharepointSites,
-                                        webUrl = CurrentValue
-                                    )
-                                ).id
+                            IsEmpty(
+                                Filter(
+                                    EnvironmentConnections,
+                                    ConnectionId = CurrentValue
+                                )
                             ),
                             Collect(
-                                SharepointLists,
-                                AddColumns(
-                                    SearchSharepointLists.Run(
-                                        LookUp(
-                                            SharepointSites,
-                                            webUrl = CurrentValue
-                                        ).id
-                                    ).value,
-                                    "DefinitionId",
-                                    environmentvariabledefinitionid
+                                EnvironmentConnections,
+                                {
+                                    ApiId: connectorid,
+                                    ConnectionId: CurrentValue,
+                                    DisplayName: "Existing Unshared Connection",
+                                    Status: "Unknown",
+                                    IconUrl: First(
+                                        Filter(
+                                            locConnectors,
+                                            id = connectorid
+                                        )
+                                    ).properties.iconUri
+                                }
+                            )
+                        )
+                    )
+                );
+                Clear(SharepointLists);
+                ForAll(
+                    Filter(
+                        SolutionEnvironmentVariables,
+                        type = 100000004 && parameterkey = "dataset"
+                    ),
+                    If(
+                        Not IsBlank(CurrentValue) && Not IsBlank(
+                            First(
+                                Filter(
+                                    SharepointSites,
+                                    webUrl = CurrentValue
                                 )
+                            ).id
+                        ),
+                        Collect(
+                            SharepointLists,
+                            AddColumns(
+                                SearchSharepointLists.Run(
+                                    LookUp(
+                                        SharepointSites,
+                                        webUrl = CurrentValue
+                                    ).id
+                                ).value,
+                                "DefinitionId",
+                                environmentvariabledefinitionid
                             )
                         )
                     )
@@ -2346,7 +3666,7 @@ DeploymentSettingsScreen As screen:
             Text: ="fncInitializeHome"
             Width: =560
             X: =4
-            Y: =80
+            Y: =77
             ZIndex: =9
 
     DeploymentDialogOverlay As rectangle:
