@@ -86,6 +86,7 @@ DeploymentSettingsScreen As screen:
         );
         UpdateContext(
             {
+                sortFlowEnabled: true,
                 showDeployDialog: true,
                 showDeploymentSettingsLoader: true,
                 showConnectionReferenceSettings: false,
@@ -213,16 +214,19 @@ DeploymentSettingsScreen As screen:
                         Distinct(
                             Filter(
                                 EnvironmentDeploymentSettings,
-                                StartsWith(
+                                (StartsWith(
                                     Name,
                                     "owner.ownerEmail."
-                                ) And !IsBlankOrError(Value)
+                                ) Or StartsWith(
+                                    Name,
+                                    "flow.activation."
+                                )) And !IsBlankOrError(Value)
                             ),
                             Value
                         ),
                         "domainname eq '" & Result & "'",
                         " or "
-                    )
+                    )            
                 }
             );
             
@@ -495,11 +499,37 @@ DeploymentSettingsScreen As screen:
                         Icon.FilterFlat,
                         "FilterVisible",
                         false,
+                        "ActivationEnvironmentUsers",
+                        EnvironmentUsers,
+                        "ActivationFilterText",
+                        "",
+                        "ActivationFilterIcon",
+                        Icon.FilterFlat,
+                        "ActivationFilterVisible",
+                        false,
+                        "ActivationCurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "activateflow.activateas." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid
+                        ).Value,
+                        "SharingCurrentValue",
+                        LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "flow.sharing." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid
+                        ).Value,
                         "CurrentValue",
                         LookUp(
                             EnvironmentDeploymentSettings,
                             Name = "owner.ownerEmail." & Substitute(
-                                Name,
+                                name,
                                 " ",
                                 ""
                             ) & "." & workflowid
@@ -507,12 +537,21 @@ DeploymentSettingsScreen As screen:
                         "SortOrder",
                          LookUp(
                             EnvironmentDeploymentSettings,
-                            Name = "owner.ownerEmail." & Substitute(
-                                Name,
+                            Name = "activateflow.order." & Substitute(
+                                name,
                                 " ",
                                 ""
                             ) & "." & workflowid
-                        ).Data
+                        ).Value,
+                        "Activate",
+                         LookUp(
+                            EnvironmentDeploymentSettings,
+                            Name = "activateflow.activate." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid
+                        ).Value
                     )
                 ),
                 Collect(
@@ -542,7 +581,6 @@ DeploymentSettingsScreen As screen:
                     )
                 )
             );
-            
         );
         UpdateContext({showConnectionReferenceSettings: true});
         Select(fncLoadEnvironmentDeploymentSettings);
@@ -1009,7 +1047,7 @@ DeploymentSettingsScreen As screen:
                 AccessibleLabel: ="App Sharing Group"
                 ChevronHoverBackground: =ColorFade(drpConnectorShareGroupTeams.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(drpConnectorShareGroupTeams.ChevronFill, 20%)
-                Default: =ThisItem.CurrentValue
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(EnvironmentTeams).name, ThisItem.CurrentValue)
                 Height: =46
                 HoverBorderColor: =ColorFade(drpConnectorShareGroupTeams.BorderColor, 20%)
                 HoverColor: =ColorFade(drpConnectorShareGroupTeams.Color, 20%)
@@ -1028,7 +1066,7 @@ DeploymentSettingsScreen As screen:
         "glrFlows As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Flows"
             Height: =690
-            Items: =SortByColumns(SolutionFlows, "SortOrder", "Ascending")
+            Items: =Sort(SolutionFlows, Value(SortOrder))
             Layout: =Layout.Vertical
             TemplatePadding: =0
             TemplateSize: =68
@@ -1092,7 +1130,7 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =ColorFade(Separator3_3.Fill, -20%)
                 Width: =Parent.TemplateWidth
                 Y: =Parent.TemplateHeight - 1
-                ZIndex: =5
+                ZIndex: =4
 
             icoOpenFlow As icon.Add:
                 AccessibleLabel: ="Open Flow"
@@ -1121,13 +1159,13 @@ DeploymentSettingsScreen As screen:
                 Tooltip: ="Select to Open App"
                 Width: =350
                 Y: =10
-                ZIndex: =9
+                ZIndex: =5
 
             drpFlowOwnerUsers As dropdown:
                 AccessibleLabel: ="Users"
                 ChevronHoverBackground: =ColorFade(drpFlowOwnerUsers.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(drpFlowOwnerUsers.ChevronFill, 20%)
-                Default: =If(IsBlank(ThisItem.CurrentValue), First(EnvironmentUsers).domainname, ThisItem.CurrentValue)
+                Default: =If(IsBlank(ThisItem.CurrentValue), First(EnvironmentUsers).internalemailaddress, ThisItem.CurrentValue)
                 Height: =45
                 HoverBorderColor: =ColorFade(drpFlowOwnerUsers.BorderColor, 20%)
                 HoverColor: =ColorFade(drpFlowOwnerUsers.Color, 20%)
@@ -1137,16 +1175,16 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =drpFlowOwnerUsers.Fill
                 PressedFill: =drpFlowOwnerUsers.Color
                 Reset: =resetEnvironment
-                Tooltip: ="Select an Existing AAD Group"
+                Tooltip: ="Select an Existing User"
                 Width: =400
                 X: =374
                 Y: =11
-                ZIndex: =10
+                ZIndex: =6
 
             txtFilterOwners As text:
                 Default: =""
                 Height: =45
-                HintText: ="Enter the name of the user to filter the drop down"
+                HintText: ="Enter the email of the user to filter the drop down"
                 HoverBorderColor: =ColorFade(txtFilterOwners.BorderColor, 20%)
                 HoverColor: =ColorFade(txtFilterOwners.Color, 20%)
                 HoverFill: =ColorFade(txtFilterOwners.Fill, 20%)
@@ -1155,10 +1193,10 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =txtFilterOwners.Color
                 PressedFill: =txtFilterOwners.Fill
                 Visible: =ThisItem.FilterVisible
-                Width: =890
-                X: =878
+                Width: =400
+                X: =374
                 Y: =10
-                ZIndex: =11
+                ZIndex: =7
 
             icoFilterFlowOwner As icon.FilterFlat:
                 BorderColor: =ColorFade(icoFilterFlowOwner.Fill, -20%)
@@ -1200,20 +1238,20 @@ DeploymentSettingsScreen As screen:
                                 lclFirstUser: First(
                                     Sort(
                                         EnvironmentUsers,
-                                        domainname
+                                        internalemailaddress
                                     )
                                 )
                             }
                         );
                         Collect(
                             EnvironmentUsers,
-                            {domainname: ""}
+                            {internalemailaddress: ""}
                         );
                         ClearCollect(
                             EnvironmentUsers,
                             Sort(
                                 EnvironmentUsers,
-                                domainname
+                                internalemailaddress
                             )
                         );
                         If(
@@ -1225,7 +1263,7 @@ DeploymentSettingsScreen As screen:
                                     FilterIcon: Icon.FilterFlatFilled,
                                     EnvironmentUsers: EnvironmentUsers,
                                     FilterVisible: false,
-                                    CurrentValue: currentUser.domainname
+                                    CurrentValue: currentUser.internalemailaddress
                                 }
                             ),
                             Patch(
@@ -1235,7 +1273,7 @@ DeploymentSettingsScreen As screen:
                                     FilterIcon: Icon.FilterFlatFilled,
                                     EnvironmentUsers: EnvironmentUsers,
                                     FilterVisible: false,
-                                    CurrentValue: lclFirstUser.domainname
+                                    CurrentValue: lclFirstUser.internalemailaddress
                                 }
                             );
                             Reset(drpFlowOwnerUsers);
@@ -1246,7 +1284,7 @@ DeploymentSettingsScreen As screen:
                             {
                                 FilterIcon: Icon.Search,
                                 FilterVisible: true,
-                                CurrentValue: currentUser.domainname
+                                CurrentValue: currentUser.internalemailaddress
                             }
                         );
                     )
@@ -1257,13 +1295,13 @@ DeploymentSettingsScreen As screen:
                 Width: =35
                 X: =782
                 Y: =15
-                ZIndex: =12
+                ZIndex: =8
 
             drpFlowShareGroupTeams As dropdown:
                 AccessibleLabel: ="App Sharing Group"
                 ChevronHoverBackground: =ColorFade(drpFlowShareGroupTeams.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(drpFlowShareGroupTeams.ChevronFill, 20%)
-                Default: =
+                Default: =If(IsBlank(ThisItem.SharingCurrentValue), First(EnvironmentTeams).name, ThisItem.SharingCurrentValue)
                 Height: =46
                 HoverBorderColor: =ColorFade(drpFlowShareGroupTeams.BorderColor, 20%)
                 HoverColor: =ColorFade(drpFlowShareGroupTeams.Color, 20%)
@@ -1277,35 +1315,26 @@ DeploymentSettingsScreen As screen:
                 Width: =400
                 X: =829
                 Y: =11
-                ZIndex: =13
-
-            txtFilterGroupTeams As text:
-                Default: =""
-                Height: =47
-                HintText: ="Enter the name of the group to filter the drop down"
-                HoverBorderColor: =ColorFade(txtFilterGroupTeams.BorderColor, 20%)
-                HoverColor: =ColorFade(txtFilterGroupTeams.Color, 20%)
-                HoverFill: =ColorFade(txtFilterGroupTeams.Fill, 20%)
-                PressedBorderColor: =txtFilterGroupTeams.HoverBorderColor
-                PressedColor: =txtFilterGroupTeams.Color
-                PressedFill: =txtFilterGroupTeams.Fill
-                Visible: =ThisItem.FilterVisible
-                Width: =400
-                X: =1270
-                Y: =10
-                ZIndex: =15
+                ZIndex: =9
 
             icoSortFlowsUp As icon.FilterFlat:
                 BorderColor: =ColorFade(icoSortFlowsUp.Fill, -20%)
                 Color: =PrimaryColor2Value
                 DisabledFill: =ColorFade(icoSortFlowsUp.Fill, -80%)
+                DisplayMode: =If(sortFlowEnabled, DisplayMode.Edit, DisplayMode.Disabled)
                 Height: =35
                 HoverBorderColor: =ColorFade(icoSortFlowsUp.BorderColor, 20%)
                 HoverColor: =ColorFade(icoSortFlowsUp.Color, 20%)
                 HoverFill: =ColorFade(icoSortFlowsUp.Fill, 20%)
                 Icon: =Icon.ArrowUp
                 OnSelect: |-
-                    =Patch(SolutionFlows, ThisItem, {SortOrder: 1});
+                    =UpdateContext({sortFlowEnabled: false});
+                    If(Value(ThisItem.SortOrder) > 1,
+                        UpdateContext({ previousFlow: LookUp(SolutionFlows, SortOrder = Text(Value(ThisItem.SortOrder) - 1))});
+                        Patch(SolutionFlows, previousFlow, {SortOrder: ThisItem.SortOrder });
+                        Patch(SolutionFlows, ThisItem, {SortOrder: Text(Value(ThisItem.SortOrder) - 1) });
+                    );
+                    UpdateContext({sortFlowEnabled: true});
                 PressedBorderColor: =ColorFade(icoSortFlowsUp.BorderColor, -20%)
                 PressedColor: =ColorFade(icoSortFlowsUp.Color, -20%)
                 PressedFill: =ColorFade(icoSortFlowsUp.Fill, -20%)
@@ -1313,18 +1342,25 @@ DeploymentSettingsScreen As screen:
                 Width: =35
                 X: =1758
                 Y: =16
-                ZIndex: =16
+                ZIndex: =10
 
             icoSortFlowsDown As icon.FilterFlat:
                 BorderColor: =ColorFade(icoSortFlowsDown.Fill, -20%)
                 Color: =PrimaryColor2Value
                 DisabledFill: =ColorFade(icoSortFlowsDown.Fill, -80%)
+                DisplayMode: =If(sortFlowEnabled, DisplayMode.Edit, DisplayMode.Disabled)
                 Height: =35
                 HoverBorderColor: =ColorFade(icoSortFlowsDown.BorderColor, 20%)
                 HoverColor: =ColorFade(icoSortFlowsDown.Color, 20%)
                 HoverFill: =ColorFade(icoSortFlowsDown.Fill, 20%)
                 OnSelect: |-
-                    =Patch(SolutionFlows, ThisItem, {SortOrder: 100});
+                    =UpdateContext({sortFlowEnabled: false});
+                    If(Value(ThisItem.SortOrder) < CountRows(SolutionFlows),
+                        UpdateContext({ nextFlow: LookUp(SolutionFlows, Value(SortOrder) = Value(ThisItem.SortOrder) + 1)});
+                        Patch(SolutionFlows, nextFlow, {SortOrder: ThisItem.SortOrder });
+                        Patch(SolutionFlows, ThisItem, {SortOrder: Text(Value(ThisItem.SortOrder) + 1) });
+                    );
+                    UpdateContext({sortFlowEnabled: true});
                 PressedBorderColor: =ColorFade(icoSortFlowsDown.BorderColor, -20%)
                 PressedColor: =ColorFade(icoSortFlowsDown.Color, -20%)
                 PressedFill: =ColorFade(icoSortFlowsDown.Fill, -20%)
@@ -1332,42 +1368,43 @@ DeploymentSettingsScreen As screen:
                 Width: =35
                 X: =1791
                 Y: =16
-                ZIndex: =17
+                ZIndex: =11
 
             drpFlowActivationUsers As dropdown:
                 AccessibleLabel: ="Users"
                 ChevronHoverBackground: =ColorFade(drpFlowActivationUsers.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(drpFlowActivationUsers.ChevronFill, 20%)
-                Default: =If(IsBlank(ThisItem.CurrentValue) || !chkActivateFlow.Value, First(EnvironmentUsers).domainname, ThisItem.CurrentValue)
+                Default: =If(IsBlank(ThisItem.ActivationCurrentValue) || !chkActivateFlow.Value, First(EnvironmentUsers).internalemailaddress, ThisItem.ActivationCurrentValue)
                 DisplayMode: =If(chkActivateFlow.Value, DisplayMode.Edit, DisplayMode.Disabled)
                 Height: =45
                 HoverBorderColor: =ColorFade(drpFlowActivationUsers.BorderColor, 20%)
                 HoverColor: =ColorFade(drpFlowActivationUsers.Color, 20%)
                 HoverFill: =ColorFade(drpFlowActivationUsers.SelectionFill, 20%)
-                Items: =ThisItem.EnvironmentUsers
+                Items: =ThisItem.ActivationEnvironmentUsers
                 PressedBorderColor: =drpFlowActivationUsers.HoverBorderColor
                 PressedColor: =drpFlowActivationUsers.Fill
                 PressedFill: =drpFlowActivationUsers.Color
                 Reset: =resetEnvironment
-                Tooltip: ="Select an Existing AAD Group"
+                Tooltip: ="Select an Existing User"
                 Width: =400
                 X: =1243
                 Y: =11
-                ZIndex: =18
+                ZIndex: =12
 
             icoFilterFlowOwner_1 As icon.FilterFlat:
                 BorderColor: =ColorFade(icoFilterFlowOwner_1.Fill, -20%)
                 Color: =PrimaryColor2Value
                 DisabledFill: =ColorFade(icoFilterFlowOwner_1.Fill, -80%)
+                DisplayMode: =If(chkActivateFlow.Value, DisplayMode.Edit, DisplayMode.Disabled)
                 Height: =35
                 HoverBorderColor: =ColorFade(icoFilterFlowOwner_1.BorderColor, 20%)
                 HoverColor: =ColorFade(icoFilterFlowOwner_1.Color, 20%)
                 HoverFill: =ColorFade(icoFilterFlowOwner_1.Fill, 20%)
-                Icon: =ThisItem.FilterIcon
+                Icon: =ThisItem.ActivationFilterIcon
                 OnSelect: |-
                     =UpdateContext({currentUser: glrFlows.Selected.drpFlowActivationUsers.Selected});
                     If(
-                        glrFlows.Selected.FilterVisible,
+                        glrFlows.Selected.ActivationFilterVisible,
                         ClearCollect(
                             EnvironmentUsers,
                             SearchDeploymentEnvironmentUsers.Run(
@@ -1385,7 +1422,7 @@ DeploymentSettingsScreen As screen:
                                 ).Result,
                                 SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
                                 {
-                                    text_3: glrFlows.Selected.txtFilterOwners.Text,
+                                    text_3: glrFlows.Selected.txtFilterActivationUsers.Text,
                                     text_4: ""
                                 }
                             )
@@ -1395,20 +1432,20 @@ DeploymentSettingsScreen As screen:
                                 lclFirstUser: First(
                                     Sort(
                                         EnvironmentUsers,
-                                        domainname
+                                        internalemailaddress
                                     )
                                 )
                             }
                         );
                         Collect(
                             EnvironmentUsers,
-                            {domainname: ""}
+                            {internalemailaddress: ""}
                         );
                         ClearCollect(
                             EnvironmentUsers,
                             Sort(
                                 EnvironmentUsers,
-                                domainname
+                                internalemailaddress
                             )
                         );
                         If(
@@ -1417,20 +1454,20 @@ DeploymentSettingsScreen As screen:
                                 SolutionFlows,
                                 glrFlows.Selected,
                                 {
-                                    FilterIcon: Icon.FilterFlatFilled,
-                                    EnvironmentUsers: EnvironmentUsers,
-                                    FilterVisible: false,
-                                    CurrentValue: currentUser.domainname
+                                    ActivationFilterIcon: Icon.FilterFlatFilled,
+                                    ActivationEnvironmentUsers: EnvironmentUsers,
+                                    ActivationFilterVisible: false,
+                                    ActivationCurrentValue: currentUser.internalemailaddress
                                 }
                             ),
                             Patch(
                                 SolutionFlows,
                                 glrFlows.Selected,
                                 {
-                                    FilterIcon: Icon.FilterFlatFilled,
-                                    EnvironmentUsers: EnvironmentUsers,
-                                    FilterVisible: false,
-                                    CurrentValue: lclFirstUser.domainname
+                                    ActivationFilterIcon: Icon.FilterFlatFilled,
+                                    ActivationEnvironmentUsers: EnvironmentUsers,
+                                    ActivationFilterVisible: false,
+                                    ActivationCurrentValue: lclFirstUser.internalemailaddress
                                 }
                             );
                             Reset(drpFlowActivationUsers);
@@ -1439,9 +1476,9 @@ DeploymentSettingsScreen As screen:
                             SolutionFlows,
                             glrFlows.Selected,
                             {
-                                FilterIcon: Icon.Search,
-                                FilterVisible: true,
-                                CurrentValue: currentUser.domainname
+                                ActivationFilterIcon: Icon.Search,
+                                ActivationFilterVisible: true,
+                                ActivationCurrentValue: currentUser.internalemailaddress
                             }
                         );
                     )
@@ -1452,10 +1489,10 @@ DeploymentSettingsScreen As screen:
                 Width: =35
                 X: =1651
                 Y: =15
-                ZIndex: =19
+                ZIndex: =13
 
             chkActivateFlow As checkbox:
-                Default: =true
+                Default: =If(IsBlankOrError(ThisItem.Activate) Or ThisItem.Activate = "true", true, false)
                 HoverBorderColor: =ColorFade(chkActivateFlow.BorderColor, 20%)
                 HoverColor: =ColorFade(chkActivateFlow.Color, 20%)
                 HoverFill: =ColorFade(chkActivateFlow.Fill, 20%)
@@ -1467,7 +1504,23 @@ DeploymentSettingsScreen As screen:
                 Width: =50
                 X: =1702
                 Y: =6
-                ZIndex: =20
+                ZIndex: =14
+
+            txtFilterActivationUsers As text:
+                Default: =""
+                Height: =47
+                HintText: ="Enter the email of the user to filter the drop down"
+                HoverBorderColor: =ColorFade(txtFilterActivationUsers.BorderColor, 20%)
+                HoverColor: =ColorFade(txtFilterActivationUsers.Color, 20%)
+                HoverFill: =ColorFade(txtFilterActivationUsers.Fill, 20%)
+                PressedBorderColor: =txtFilterActivationUsers.HoverBorderColor
+                PressedColor: =txtFilterActivationUsers.Color
+                PressedFill: =txtFilterActivationUsers.Fill
+                Visible: =ThisItem.ActivationFilterVisible
+                Width: =400
+                X: =1243
+                Y: =10
+                ZIndex: =15
 
         "glrEnvironmentVariables As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Environment Variables"
@@ -2717,19 +2770,48 @@ DeploymentSettingsScreen As screen:
                                 " ",
                                 ""
                             ) & "." & workflowid,
-                            Value: drpFlowOwnerUsers.Selected.domainname,
-                            Data: SortOrder
+                            Value: drpFlowOwnerUsers.Selected.internalemailaddress
                         },
                         {
                             Build: SelectedDeploymentEnvironment.BuildName,
                             Environment: SelectedDeploymentEnvironment.Name,
-                            Name: "flowshare.ownerEmail." & Substitute(
+                            Name: "flow.sharing." & Substitute(
                                 name,
                                 " ",
                                 ""
                             ) & "." & workflowid,
                             Value: drpFlowShareGroupTeams.Selected.name
-                        }
+                        },
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "activateflow.activateas." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid,
+                            Value: drpFlowActivationUsers.Selected.internalemailaddress
+                        },
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "activateflow.order." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid,
+                            Value: SortOrder
+                        },
+                        {
+                            Build: SelectedDeploymentEnvironment.BuildName,
+                            Environment: SelectedDeploymentEnvironment.Name,
+                            Name: "activateflow.activate." & Substitute(
+                                name,
+                                " ",
+                                ""
+                            ) & "." & workflowid,
+                            Value: Text(chkActivateFlow.Value)
+                        }                
                     )
                 );
                 //Save Group Teams
@@ -3015,14 +3097,14 @@ DeploymentSettingsScreen As screen:
             ZIndex: =38
 
         loaderSolutionComponents As Preloader:
-            Height: =827
+            Height: =876
             IsLoading: =showSolutionComponentLoader
             SpinnerColorHex: =LookUp(loaderSolutionComponents.Styles, Name = "PrimaryColor2Value").Value
             Styles: =ComponentStyles
             Text: =SolutionLoaderText
             Visible: =loaderSolutionComponents.IsLoading
             Width: =1920
-            Y: =253
+            Y: =204
             ZIndex: =39
 
         loaderDeploymentEnvironment As Preloader:
@@ -3370,16 +3452,41 @@ DeploymentSettingsScreen As screen:
                                 ) & "." & workflowid
                             ).Value,
                             EnvironmentUsers: EnvironmentUsers,
-                            SortOrder: LookUp(
+                            ActivationCurrentValue: LookUp(
                                 EnvironmentDeploymentSettings,
-                                Name = "owner.ownerEmail." & Substitute(
+                                Name = "activateflow.activateas." & Substitute(
                                     name,
                                     " ",
                                     ""
                                 ) & "." & workflowid
-                            ).Data
+                            ).Value,
+                            ActivationEnvironmentUsers: EnvironmentUsers,
+                            SharingCurrentValue: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "flow.sharing." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            SortOrder: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "activateflow.order." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            Activate: LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "activateflow.activate." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value
                         }
-                    ),   
+                    ),
                     UpdateIf(
                         CustomConnectors,
                         true,
@@ -3390,7 +3497,6 @@ DeploymentSettingsScreen As screen:
                             ).Value
                         }
                     ),
-                     
                     ClearCollect(
                         EnvironmentConnections,
                         AddColumns(
@@ -3418,7 +3524,27 @@ DeploymentSettingsScreen As screen:
                         )
                     )
                 );
-                    //Add any connections that the current user doesn't have permissions to access
+                ClearCollect(
+                    lclSolutionFlowsTemp,
+                    SolutionFlows
+                );
+                ForAll(
+                    lclSolutionFlowsTemp As sf,
+                    If(
+                        IsBlankOrError(sf.SortOrder),
+                        Patch(
+                            SolutionFlows,
+                            LookUp(SolutionFlows, sf.workflowid = workflowid),
+                            {
+                                SortOrder: CountIf(
+                                    SolutionFlows,
+                                    !IsBlankOrError(SortOrder)
+                                ) + 1
+                            }
+                        )
+                    )
+                );
+                //Add any connections that the current user doesn't have permissions to access
                 ClearCollect(
                     locUnsharedConnections,
                     Filter(
