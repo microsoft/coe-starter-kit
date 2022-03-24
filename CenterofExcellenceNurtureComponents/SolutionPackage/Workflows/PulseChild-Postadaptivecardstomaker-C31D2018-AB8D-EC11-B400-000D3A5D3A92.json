@@ -1,0 +1,482 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoENurtureDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users_1": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoENurtureO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_teams_1": {
+        "api": {
+          "name": "shared_teams"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoENurtureMicrosoftTeams"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Check_if_feedback_is_provided": {
+          "actions": {
+            "Apply_to_each": {
+              "actions": {
+                "Analyze_sentiment_for_current_satisfaction": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "aibuilderpredict_sentimentanalysis"
+                    },
+                    "parameters": {
+                      "item/requestv2/language": "@outputs('Translate_text_into_another_language')?['body/responsev2/predictionOutput/detectedLanguage/language']",
+                      "item/requestv2/text": "@outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myCurrentSatisfaction']"
+                    }
+                  },
+                  "metadata": {
+                    "flowSystemMetadata": {
+                      "portalOperationApiDisplayNameOverride": "AI Builder",
+                      "portalOperationApiTierOverride": "Standard",
+                      "portalOperationBrandColorOverride": "#742775",
+                      "portalOperationGroup": "aibuilder",
+                      "portalOperationIconOverride": "https://psuxemea.azureedge.net/Content/Images/DesignerOperations/aiBuilder.png",
+                      "portalOperationId": "aibuilderpredict_sentimentanalysis"
+                    },
+                    "operationMetadataId": "84173bcd-7634-4370-bf47-d33ce7847b9d"
+                  },
+                  "runAfter": {},
+                  "type": "OpenApiConnection"
+                },
+                "Parse_translated_language": {
+                  "inputs": {
+                    "content": "@outputs('Translate_current_satisfaction_into_admin_language')?['body/responsev2/predictionOutput/text']",
+                    "schema": {
+                      "properties": {
+                        "currentSat": {
+                          "type": "string"
+                        },
+                        "futureIdeas": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "aa496ebc-4a75-4d2c-8bbc-dc1439da3417"
+                  },
+                  "runAfter": {
+                    "Translate_current_satisfaction_into_admin_language": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "ParseJson"
+                },
+                "Translate_current_satisfaction_into_admin_language": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "aibuilderpredict_texttranslationpretrained"
+                    },
+                    "parameters": {
+                      "item/requestv2/sourceLanguage": "auto",
+                      "item/requestv2/targetLanguage": "@parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')",
+                      "item/requestv2/text": "{\n\"currentSat\":\"@{outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myCurrentSatisfaction']}\",\n\"futureIdeas\": \"@{outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myFutureIdeas']}\"\n}"
+                    }
+                  },
+                  "metadata": {
+                    "flowSystemMetadata": {
+                      "portalOperationApiDisplayNameOverride": "AI Builder",
+                      "portalOperationApiTierOverride": "Standard",
+                      "portalOperationBrandColorOverride": "#742775",
+                      "portalOperationGroup": "aibuilder",
+                      "portalOperationIconOverride": "https://psuxemea.azureedge.net/Content/Images/DesignerOperations/aiBuilder.png",
+                      "portalOperationId": "aibuilderpredict_texttranslationpretrained"
+                    },
+                    "operationMetadataId": "433e223e-5dbe-48e5-b953-7fdbdec19d46"
+                  },
+                  "runAfter": {
+                    "Analyze_sentiment_for_current_satisfaction": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                },
+                "Update_Pulse_Feedback_with_response": {
+                  "inputs": {
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "CreateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pulsefeedbacks",
+                      "item/admin_Feedbackfrom@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                      "item/admin_currentsatisfaction": "@outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myCurrentSatisfaction']",
+                      "item/admin_currentsatisfactionsentiment": "@outputs('Analyze_sentiment_for_current_satisfaction')?['body/responsev2/predictionOutput/result/sentiment']",
+                      "item/admin_currentsatisfactiontranslated": "@body('Parse_translated_language')?['currentSat']",
+                      "item/admin_futureideas": "@outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myFutureIdeas']",
+                      "item/admin_futureideastranslated": "@body('Parse_translated_language')?['futureIdeas']",
+                      "item/admin_name": "@{triggerBody()['email']} completed survey @{formatDateTime(utcNow(), 'yyyy-MM-dd')}"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d67fe39d-eb52-48f0-9fd5-27d9a8b2a131"
+                  },
+                  "runAfter": {
+                    "Parse_translated_language": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection"
+                }
+              },
+              "foreach": "@outputs('Detect_the_language_being_used_in_text')?['body/responsev2/predictionOutput/results']",
+              "metadata": {
+                "operationMetadataId": "05832393-3911-463e-b8af-adf2eadf9a31"
+              },
+              "runAfter": {
+                "Detect_the_language_being_used_in_text": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            },
+            "Detect_the_language_being_used_in_text": {
+              "inputs": {
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "aibuilderpredict_languagedetection"
+                },
+                "parameters": {
+                  "item/requestv2/text": "@outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myCurrentSatisfaction']"
+                }
+              },
+              "metadata": {
+                "flowSystemMetadata": {
+                  "portalOperationApiDisplayNameOverride": "AI Builder",
+                  "portalOperationApiTierOverride": "Standard",
+                  "portalOperationBrandColorOverride": "#742775",
+                  "portalOperationGroup": "aibuilder",
+                  "portalOperationIconOverride": "https://psuxemea.azureedge.net/Content/Images/DesignerOperations/aiBuilder.png",
+                  "portalOperationId": "aibuilderpredict_languagedetection"
+                },
+                "operationMetadataId": "917b7fb9-3639-4627-b1a5-988eabdb419f"
+              },
+              "runAfter": {},
+              "type": "OpenApiConnection"
+            }
+          },
+          "expression": {
+            "greater": [
+              "@length(outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myCurrentSatisfaction'])",
+              0
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "08ab5851-8957-460a-adc1-d4a4fbcc4ad5"
+          },
+          "runAfter": {
+            "Update_last_survey_send_in_Maker_table": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        },
+        "Get_user_profile_(V2)": {
+          "inputs": {
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+              "connectionName": "shared_office365users_1",
+              "operationId": "UserProfile_V2"
+            },
+            "parameters": {
+              "$select": "preferredLanguage",
+              "id": "@triggerBody()['email']"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "3f0439d0-3400-4cbe-bb64-94bb900496e9"
+          },
+          "runAfter": {
+            "Respond_to_parent_flow": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Parse_JSON": {
+          "inputs": {
+            "content": "@outputs('Translate_text_into_another_language')?['body/responsev2/predictionOutput/text']",
+            "schema": {
+              "properties": {
+                "currentQ": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "futureQ": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "9433236b-0f17-44e3-b069-8bf0e2b3afa8"
+          },
+          "runAfter": {
+            "Translate_text_into_another_language": [
+              "Succeeded"
+            ]
+          },
+          "type": "ParseJson"
+        },
+        "Post_adaptive_card_to_maker_to_ask_for_pulse_feedback": {
+          "inputs": {
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+              "connectionName": "shared_teams_1",
+              "operationId": "PostCardAndWaitForResponse"
+            },
+            "parameters": {
+              "body/body/messageBody": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Medium\",\n            \"weight\": \"Bolder\",\n            \"text\": \"@{body('Parse_JSON')?['title']}\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"@{body('Parse_JSON')?['description']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"@{body('Parse_JSON')?['currentQ']}\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"\",\n            \"isMultiline\": true,\n            \"maxLength\": 20000,\n            \"id\": \"myCurrentSatisfaction\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"@{body('Parse_JSON')?['futureQ']}\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"\",\n            \"isMultiline\": true,\n            \"maxLength\": 2000,\n            \"id\": \"myFutureIdeas\"\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.4\",\n    \"actions\": [\n        {\n            \"type\": \"Action.Submit\",\n            \"title\": \"Submit Feedback\",\n            \"id\": \"btnSubmit\"\n        }\n    ]\n}",
+              "body/body/recipient/to": "LeeG@PPlatform.OnMicrosoft.com;",
+              "body/body/updateMessage": "Thanks for your response!",
+              "location": "Chat with Flow bot",
+              "poster": "Flow bot"
+            }
+          },
+          "limit": {
+            "timeout": "P2D"
+          },
+          "metadata": {
+            "operationMetadataId": "18c9ca9c-aeb0-46ce-84a0-875e297a6240"
+          },
+          "runAfter": {
+            "Parse_JSON": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnectionWebhook"
+        },
+        "Respond_to_parent_flow": {
+          "description": "Send response to parent flow so the parent flow does not wait for this to be complete",
+          "inputs": {
+            "body": {
+              "status": "Started"
+            },
+            "schema": {
+              "properties": {
+                "status": {
+                  "title": "Status",
+                  "type": "string",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "type": "object"
+            },
+            "statusCode": 200
+          },
+          "kind": "PowerApp",
+          "metadata": {
+            "operationMetadataId": "3ad5f762-941f-420c-9159-5c727f29ae73"
+          },
+          "runAfter": {},
+          "type": "Response"
+        },
+        "Send_time_out_message_to_maker": {
+          "inputs": {
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+              "connectionName": "shared_teams_1",
+              "operationId": "PostMessageToConversation"
+            },
+            "parameters": {
+              "body/messageBody": "<p>This request for feedback above has timed out.&nbsp;</p>",
+              "body/recipient": "@{triggerBody()['email']};",
+              "location": "Chat with Flow bot",
+              "poster": "Flow bot"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "57c2dd10-eb3f-4601-bf6f-fd4112460e22"
+          },
+          "runAfter": {
+            "Post_adaptive_card_to_maker_to_ask_for_pulse_feedback": [
+              "TimedOut"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Translate_text_into_another_language": {
+          "inputs": {
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "aibuilderpredict_texttranslationpretrained"
+            },
+            "parameters": {
+              "item/requestv2/sourceLanguage": "auto",
+              "item/requestv2/targetLanguage": "@coalesce(outputs('Get_user_profile_(V2)')?['body/preferredLanguage'], 'en-US')",
+              "item/requestv2/text": "{\n\"title\": \"We need your feedback\",\n\"description\":\"As a Power Platform developer, we really value your feedback. As part of our commitment to continually improve our service, we would appreciate it if you could provide us with some feedback? What can we do better, what are we doing well and what isn't working well for you today?\",\n\"currentQ\":\"Describe how satisfied you are with the internal Power Platform adoption program and what works well for you today?\",\n\"futureQ\":\"What else would you like to see as part of our Power Platform adoption program?\"\n}"
+            }
+          },
+          "metadata": {
+            "flowSystemMetadata": {
+              "portalOperationApiDisplayNameOverride": "AI Builder",
+              "portalOperationApiTierOverride": "Standard",
+              "portalOperationBrandColorOverride": "#742775",
+              "portalOperationGroup": "aibuilder",
+              "portalOperationIconOverride": "https://psuxemea.azureedge.net/Content/Images/DesignerOperations/aiBuilder.png",
+              "portalOperationId": "aibuilderpredict_texttranslationpretrained"
+            },
+            "operationMetadataId": "62f5f0a4-c129-4514-ae12-9fdb1744dfbf"
+          },
+          "runAfter": {
+            "Get_user_profile_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection"
+        },
+        "Update_last_survey_send_in_Maker_table": {
+          "inputs": {
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "UpdateRecord"
+            },
+            "parameters": {
+              "entityName": "admin_makers",
+              "item/admin_lastpulsesurvey": "@utcNow()",
+              "recordId": "@triggerBody()['text']"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "7cfa9b87-c1ee-4719-b946-40cc246fe2de"
+          },
+          "runAfter": {
+            "Send_time_out_message_to_maker": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "type": "OpenApiConnection"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)": {
+          "defaultValue": "en-US",
+          "metadata": {
+            "description": "The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US",
+            "schemaName": "admin_AdmineMailPreferredLanguage"
+          },
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "inputs": {
+            "schema": {
+              "properties": {
+                "email": {
+                  "description": "Please enter an e-mail address",
+                  "format": "email",
+                  "title": "Email",
+                  "type": "string",
+                  "x-ms-content-hint": "EMAIL",
+                  "x-ms-dynamically-added": true
+                },
+                "text": {
+                  "description": "Please enter your input",
+                  "title": "MakerID",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "email",
+                "text"
+              ],
+              "type": "object"
+            }
+          },
+          "kind": "Button",
+          "metadata": {
+            "operationMetadataId": "1a2efe6f-ee5d-4fca-b998-13ff606e6f07"
+          },
+          "type": "Request"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
