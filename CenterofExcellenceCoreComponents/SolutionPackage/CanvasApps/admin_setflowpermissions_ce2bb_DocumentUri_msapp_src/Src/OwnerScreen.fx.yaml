@@ -1,6 +1,14 @@
 OwnerScreen As screen:
     Height: =Max(App.Height, App.DesignHeight)
-    OnVisible: =Set(SearchScreenNumber, 2);
+    OnVisible: |-
+        =Set(SearchScreenNumber, 2);
+        UpdateContext(
+            {
+                showEmailUsers: false,
+                showAddUsers: false,
+                showCantShowThat: false,
+                CantShowThatText: ""
+            });
     Orientation: =If(OwnerScreen.Width < OwnerScreen.Height, Layout.Vertical, Layout.Horizontal)
     Size: =1 + CountRows(App.SizeBreakpoints) - CountIf(App.SizeBreakpoints, Value >= OwnerScreen.Width)
     Width: =Max(App.Width, App.DesignWidth)
@@ -34,7 +42,7 @@ OwnerScreen As screen:
             If(IsBlank(FlowDerivedOwner), Set(FlowDerivedOwner, LookUp(Flows, Flow=SelectedFlow.Flow).'Flow Creator UPN'));
             
             //navigate
-            Navigate(FlowDetailsScreen)
+            If(IsBlankOrError(ThisItem.WorkflowEntityId), Navigate(FlowDetailsScreen), Navigate(FlowDetailsScreen_Solutions))
         PressedBorderColor: =galFlowsMaker.BorderColor
         PressedFill: =galFlowsMaker.Fill
         TemplateSize: =86
@@ -106,7 +114,7 @@ OwnerScreen As screen:
             PressedBorderColor: =RGBA(0, 0, 0, 0)
             PressedColor: =RGBA(4,45,81,1.00)
             PressedFill: =RGBA(0, 0, 0, 0)
-            Text: =ThisItem.'Flow Environment'.admin_displayname
+            Text: =ThisItem.'Flow Environment'.'Display Name'
             Width: =295
             X: =626
             Y: =19
@@ -125,6 +133,8 @@ OwnerScreen As screen:
                     MakerCheckedFlows,
                     {
                         FlowName: ThisItem.Flow,
+                        FlowOwner: ThisItem.DerivedOwner,
+                        FlowIsOrphaned: ThisItem.'Flow is Orphaned',
                         Environment: ThisItem.'Flow Environment'.Environment,
                         EnvName: ThisItem.'Flow Environment'.Name
                     }
@@ -171,7 +181,7 @@ OwnerScreen As screen:
         Items: |-
             =SortByColumns(
                 Filter(
-                    theMakers,
+                    Makers,
                     txtSearchMaker.Text in 'Display Name' && admin_numberofflows > 0
                 ),
                 "admin_displayname",
@@ -229,7 +239,7 @@ OwnerScreen As screen:
             Height: =60
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverFill: =RGBA(0, 0, 0, 0)
-            Image: =ThisItem.theMakerPicture
+            Image: =ThisItem.PhotoObject
             ImagePosition: =ImagePosition.Fill
             OnSelect: =Select(Parent)
             PaddingBottom: =imgUserProfile_3.PaddingTop
@@ -534,15 +544,17 @@ OwnerScreen As screen:
             =Clear(MakerCheckedFlows);
             ForAll(
                 galFlowsMaker.AllItems,
+                If(!isSolutionFlow,
                 Collect(
                     MakerCheckedFlows,
                     {
-                        AppName: Flow,
+                        FlowName: Flow,
+                        FlowOwner: DerivedOwner,
+                        FlowIsOrphaned: 'Flow is Orphaned',
                         Environment: 'Flow Environment'.Environment,
                         EnvName: 'Flow Environment'.Name
                     }
-                )
-            )
+                )))
         OnUncheck: =Clear(MakerCheckedFlows)
         PressedBorderColor: =ColorFade(chkSelectAll_1.BorderColor, -30%)
         PressedColor: =ColorValue(Style.Primary)
@@ -695,11 +707,11 @@ OwnerScreen As screen:
             DisabledFill: =bkgAddNewUsers_6.Fill
             Fill: =RGBA(244, 244, 244, 1)  
             FocusedBorderColor: =bkgAddNewUsers_6.BorderColor
-            Height: =950
+            Height: =If(Self.Visible, 950, 0)
             HoverFill: =bkgAddNewUsers_6.Fill
             PressedFill: =bkgAddNewUsers_6.Fill
             Visible: =showAddPermissions
-            Width: =1098
+            Width: =If(Self.Visible, 1098, 0)
             X: =374
             Y: =65
             ZIndex: =29
@@ -1036,35 +1048,40 @@ OwnerScreen As screen:
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
-            OnSelect: |
-                =ForAll(
+            OnSelect: |+
+                =//get assignment details
+                UpdateContext({TargetUserEmail:galSearchPeopleresult_6.Selected.UserPrincipalName});
+                UpdateContext({TargetUser: Office365Users.UserProfileV2(TargetUserEmail)});
+                UpdateContext({TargetUserID: GUID(TargetUser.id)});
+                UpdateContext({TargetUserDisplayName: TargetUser.displayName});
+                UpdateContext({RoleAssignment: drpSearchUserRole_6.SelectedText.Value});
+                
+                //make permissions changes
+                ForAll(
                     MakerCheckedFlows,
-                    PowerAutomateforAdmins.EditAdminFlowOwnerRole(
-                        EnvName,
-                        FlowName,
-                        {
-                            put: Table(
-                                {
-                                    properties: {
-                                        roleName: vUserRole,
-                                        capabilities: [""],
-                                        NotifyShareTargetOption: "Notify",
-                                        principal: {
-                                            email: galSearchPeopleresult_6.Selected.UserPrincipalName,
-                                            id: Office365Users.UserProfileV2(galSearchPeopleresult_6.Selected.UserPrincipalName).id,
-                                            displayName: galSearchPeopleresult_6.Selected.DisplayName,
-                                            type: "User",
-                                            tenantId: "null"
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    )
-                );
+                    //if viewer or editor
+                    If(RoleAssignment = "Viewer" || RoleAssignment = "Editor",
+                        If('HELPER-ObjectOperations'.Run(TargetUserID, FlowName, EnvName, 
+                            If(RoleAssignment = "Viewer", "addviewer", "addeditor"), "flow").thereturnstring <> "pass", Collect(failedToSet, FlowName)));
+                
+                
+                    //if owner
+                    If(RoleAssignment = "Owner",
+                        If('HELPER-ObjectOperations'.Run(TargetUserID, FlowName, EnvName, 
+                            "assign", "flow").thereturnstring <> "pass", Collect(failedToSet, FlowName))));
+                
+                //see if all permission changes passed
+                If(CountRows(failedToSet) < 1,
+                    Refresh('Power Platform Users'); Refresh(Makers); Refresh(Flows),
+                    UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing permissions failed for some flows, try to set via product UX"}));
+                
                 UpdateContext({showAddPermissions: false});
                 Reset(chkSelectAll_1);
                 Clear(MakerCheckedFlows);
+                Clear(failedToSet);
+                
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -1143,4 +1160,52 @@ OwnerScreen As screen:
             X: =608
             Y: =758
             ZIndex: =41
+
+    cant_do_that_Dialog_3 As group:
+        Height: =5
+        Width: =5
+        X: =20
+        Y: =20
+        ZIndex: =45
+
+        bg_cant_do_that_3 As rectangle:
+            DisabledFill: =bg_cant_do_that_3.Fill
+            Fill: =RGBA(238, 204, 204, 1)
+            Height: =If(Self.Visible, 52, 0)
+            HoverFill: =bg_cant_do_that_3.Fill
+            PressedFill: =bg_cant_do_that_3.Fill
+            Visible: =showCantShowThat
+            Width: =If(Self.Visible, Parent.Width, 0)
+            Y: =52
+            ZIndex: =42
+
+        lbl_cant_do_that_3 As label:
+            Align: =Center
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =bg_cant_do_that_3.Height
+            Text: =CantShowThatText
+            Visible: =showCantShowThat
+            Width: =bg_cant_do_that_3.Width
+            X: =bg_cant_do_that_3.X
+            Y: =bg_cant_do_that_3.Y
+            ZIndex: =43
+
+        x_cant_do_that_3 As icon.Cancel:
+            Color: =RGBA(51, 51, 51, 1)
+            DisabledFill: =x_cant_do_that_3.Fill
+            Height: =bg_cant_do_that_3.Height
+            HoverBorderColor: =ColorFade(x_cant_do_that_3.BorderColor, 20%)
+            HoverColor: =ColorFade(x_cant_do_that_3.Color, 20%)
+            HoverFill: =x_cant_do_that_3.Fill
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showCantShowThat: false})
+            PressedBorderColor: =ColorFade(x_cant_do_that_3.BorderColor, -20%)
+            PressedColor: =ColorFade(x_cant_do_that_3.Color, -20%)
+            PressedFill: =x_cant_do_that_3.Fill
+            Visible: =showCantShowThat
+            Width: =Self.Height
+            X: =If(Self.Visible, Parent.Width-Self.Width-5, 0)
+            Y: =bg_cant_do_that_3.Y
+            ZIndex: =44
 

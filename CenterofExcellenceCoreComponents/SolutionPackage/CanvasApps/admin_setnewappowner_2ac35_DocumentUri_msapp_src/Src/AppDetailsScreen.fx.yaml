@@ -8,17 +8,13 @@ AppDetailsScreen As screen:
                 SelectedApp.App
             ).value
         );
-        ForAll(appRoles, If(And(CountRows(Filter(theMakers, theMakerID=properties.principal.id))<1, properties.principal.type="User"), 
-           Collect( theMakers, {
-            theMakerID: properties.principal.id,
-            theMakerPicture: Office365Users.UserPhotoV2(properties.principal.id), 
-            theMakerName: properties.principal.displayName,
-            theMakerEmail: properties.principal.email})));
         
         UpdateContext(
             {
                 showEmailUsers: false,
-                showAddUsers: false
+                showAddUsers: false,
+                showCantShowThat: false,
+                CantShowThatText: ""
             }
         );
     Orientation: =If(AppDetailsScreen.Width < AppDetailsScreen.Height, Layout.Vertical, Layout.Horizontal)
@@ -62,7 +58,7 @@ AppDetailsScreen As screen:
             PressedBorderColor: =RGBA(0, 0, 0, 0)
             PressedColor: =RGBA(4,45,81,1.00)
             PressedFill: =RGBA(0, 0, 0, 0)
-            Text: =If(ThisItem.properties.principal.type="Group", ThisItem.properties.principal.type, ThisItem.properties.principal.displayName)
+            Text: =If(ThisItem.properties.principal.type="Group", ThisItem.properties.principal.type, LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).'Display Name')
             Width: =333
             X: =98
             ZIndex: =2
@@ -76,7 +72,7 @@ AppDetailsScreen As screen:
             Height: =60
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverFill: =RGBA(0, 0, 0, 0)
-            Image: =If(ThisItem.properties.principal.type <> "User", SampleImage,  LookUp(theMakers, theMakerID=ThisItem.properties.principal.id).theMakerPicture)
+            Image: =If(ThisItem.properties.principal.type <> "User", SampleImage,  LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject)
             ImagePosition: =ImagePosition.Fill
             OnSelect: =Select(Parent)
             PaddingBottom: =imgUserProfile.PaddingTop
@@ -116,7 +112,6 @@ AppDetailsScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSendTo.AllItems), DisplayMode.Disabled, DisplayMode.Edit)
             Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnMakeOwner.BorderColor
             Font: =Font.'Segoe UI'
@@ -126,36 +121,26 @@ AppDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =PowerAppsforAdmins.SetAdminAppOwner(
-                        SelectedApp.'App Environment'.Name,
-                        SelectedApp.App,
-                    {
-                        newAppOwner: ThisItem.name,
-                        roleForOldAppOwner: "CanEdit"
-                    }
-                );
-                Patch(
-                    'PowerApps Apps',
-                    LookUp(
-                        'PowerApps Apps',
-                        App = SelectedApp.App
-                    ),
-                    {
-                        'App Owner': LookUp(
-                            Makers,
-                            'User Principal Name' = ThisItem.properties.principal.email
-                        ),
-                        'App is Orphaned': "No"
-                    }
-                );
+                =//call helper to reassign
+                If('HELPER-ObjectOperations'.Run(ThisItem.name, SelectedApp.App, SelectedApp.'App Environment'.Name, "assign", "app").thereturnstring="pass",
+                
+                //if success, refresh data in app
+                Refresh('Power Platform Users');
+                Refresh(Makers);
                 Refresh('PowerApps Apps');
+                Set(SelectedApp, LookUp('PowerApps Apps', App=SelectedApp.App));
                 ClearCollect(
                     appRoles,
                     PowerAppsforAdmins.GetAdminAppRoleAssignment(
                         SelectedApp.'App Environment'.Name,
                         SelectedApp.App
-                    ).value
-                )
+                    ).value);, 
+                
+                //else show error message
+                UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing owner failed, try to set via product UX"
+                }));
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -169,7 +154,7 @@ AppDetailsScreen As screen:
             RadiusTopRight: =0
             Size: =14
             Text: ="Make Owner"
-            Visible: =If(ThisItem.properties.roleName = "Owner" || ThisItem.properties.principal.type <> "User", false, true)
+            Visible: =If(ThisItem.properties.roleName = "Owner" || ThisItem.properties.roleName = "CanView" || ThisItem.properties.principal.type <> "User", false, true)
             Width: =200
             X: =627
             Y: =22
@@ -180,8 +165,7 @@ AppDetailsScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSendTo.AllItems), DisplayMode.Disabled, DisplayMode.Edit)
-            Fill: =ColorValue(Style.Tertiary)
+            Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnChangeRole.BorderColor
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
@@ -190,35 +174,26 @@ AppDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =PowerAppsforAdmins.EditAdminAppRoleAssignment(
-                        SelectedApp.'App Environment'.Name,
-                        SelectedApp.App,
-                        {
-                            '$filter': "enviornment eq '" & SelectedApp.'App Environment'.Environment & "'",
-                            put: Table(
-                                {
-                                    properties: {
-                                        roleName: If(ThisItem.properties.roleName = "CanEdit", "CanView", "CanEdit"),
-                                        capabilities: [""],
-                                        NotifyShareTargetOption: "Notify",
-                                        principal: {
-                                            email: galAppRoles.Selected.properties.principal.email,
-                                            id: galAppRoles.Selected.properties.principal.id,
-                                            type: "User",
-                                            tenantId: "null"
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    );
+                =//call helper to reassign
+                If('HELPER-ObjectOperations'.Run(ThisItem.name, SelectedApp.App, SelectedApp.'App Environment'.Name, If(ThisItem.properties.roleName = "CanEdit", "addviewer", "addeditor"), "app").thereturnstring="pass",
+                
+                //if success, refresh data in app
+                Refresh('Power Platform Users');
+                Refresh(Makers);
+                Refresh('PowerApps Apps');
+                Set(SelectedApp, LookUp('PowerApps Apps', App=SelectedApp.App));
                 ClearCollect(
                     appRoles,
                     PowerAppsforAdmins.GetAdminAppRoleAssignment(
                         SelectedApp.'App Environment'.Name,
                         SelectedApp.App
-                    ).value
-                )
+                    ).value);, 
+                
+                //else show error message
+                UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing permissions failed, try to set via product UX"
+                }));
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -243,8 +218,7 @@ AppDetailsScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSendTo.AllItems), DisplayMode.Disabled, DisplayMode.Edit)
-            Fill: =ColorValue(Style.Tertiary)
+            Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnRemoveRole.BorderColor
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
@@ -300,7 +274,7 @@ AppDetailsScreen As screen:
         TypeGroupWarning As label:
             OnSelect: =Select(Parent)
             Text: |-
-                ="Type " & ThisItem.properties.principal.type & ": Cannot change permissions for this type in the app, please go to App Setting and change there"
+                ="Type " & ThisItem.properties.principal.type & ": Cannot change permissions for this user type in the app, please go to App Setting and change there"
             Visible: =ThisItem.properties.roleName <> "Owner" && ThisItem.properties.principal.type <> "User"
             Width: =985
             X: =652
@@ -338,7 +312,7 @@ AppDetailsScreen As screen:
         Width: =266
         X: =56
         Y: =80
-        ZIndex: =4
+        ZIndex: =6
 
     lblAppOverviewName As label:
         BorderColor: =RGBA(230, 230, 230, 1)
@@ -362,7 +336,7 @@ AppDetailsScreen As screen:
         Width: =418
         X: =154
         Y: =152
-        ZIndex: =6
+        ZIndex: =8
 
     bkgOptionBar As rectangle:
         BorderColor: =RGBA(0, 0, 0, 0)
@@ -378,7 +352,7 @@ AppDetailsScreen As screen:
         TabIndex: =0
         Width: =1920
         X: =
-        ZIndex: =11
+        ZIndex: =13
 
     galAppOptions As gallery.galleryHorizontal:
         BorderColor: =RGBA(166, 166, 166, 1)
@@ -411,10 +385,14 @@ AppDetailsScreen As screen:
                     Fade
                 ),
                 1,
-                Launch(theAppMakerURL &  "environments/" & SelectedApp.'App Environment'.Name & "/apps/" & SelectedApp.App & "/details"),
+                If(LookUp(vEnvironments, Environment=SelectedApp.'App Environment'.Environment).'Environment Sku'="Teams", UpdateContext({showCantShowThat: true, CantShowThatText: "Cannot browse to apps for Teams environments"}), 
+                Launch(theAppMakerURL &  "environments/" & SelectedApp.'App Environment'.Name & "/apps/" & SelectedApp.App & "/details")),
                 4,
+                Clear(userIDsForMail);
+                ForAll(Filter(appRoles, properties.principal.type="User"), Collect(userIDsForMail, {mailUserID: GUID(properties.principal.id)}));
                 UpdateContext({showEmailUsers: true}),
                 5,
+                If(LookUp(Environments, Environment=SelectedApp.'App Environment'.Environment).'Environment Sku'="Teams", UpdateContext({showCantShowThat: true, CantShowThatText: "Cannot assign ownership here for apps in Teams environments"}), 
                 UpdateContext({showAddUsers: true});
                 If(
                     drpSearchUserRole.Selected.Value = "Editor",
@@ -424,14 +402,14 @@ AppDetailsScreen As screen:
                         UpdateContext({vUserRole: "CanView"}),
                         UpdateContext({vUserRole: "Owner"})
                     )
-                )
+                ))
             )
         PressedBorderColor: =galAppOptions.BorderColor
         PressedFill: =galAppOptions.Fill
         TemplateSize: =454
         Width: =1866
         X: =28
-        ZIndex: =12
+        ZIndex: =14
 
         lblOption As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -491,7 +469,7 @@ AppDetailsScreen As screen:
         Width: =64
         X: =80
         Y: =143
-        ZIndex: =13
+        ZIndex: =15
 
     imgAppIcon2 As image:
         BorderColor: =ColorFade(imgAppIcon2.Fill,-20%)
@@ -514,7 +492,7 @@ AppDetailsScreen As screen:
         Width: =64
         X: =80
         Y: =143
-        ZIndex: =14
+        ZIndex: =16
 
     bkgPopUp As rectangle:
         DisabledFill: =bkgPopUp.Fill
@@ -525,7 +503,7 @@ AppDetailsScreen As screen:
         PressedFill: =bkgPopUp.Fill
         Visible: =showAddUsers || showEmailUsers
         Width: =1920
-        ZIndex: =15
+        ZIndex: =17
 
     grpAppDetails As group:
         Height: =5
@@ -556,7 +534,7 @@ AppDetailsScreen As screen:
             Width: =896
             X: =971
             Y: =180
-            ZIndex: =2
+            ZIndex: =4
 
         lblDetails As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -580,7 +558,7 @@ AppDetailsScreen As screen:
             Width: =359
             X: =614
             Y: =105
-            ZIndex: =3
+            ZIndex: =5
 
         lblModifiedValue As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -602,7 +580,7 @@ AppDetailsScreen As screen:
             Width: =140
             X: =798
             Y: =180
-            ZIndex: =5
+            ZIndex: =7
 
         lblModifiedLabel As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -626,7 +604,7 @@ AppDetailsScreen As screen:
             Width: =232
             X: =798
             Y: =146
-            ZIndex: =7
+            ZIndex: =9
 
         lblCreatedValue As label:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -648,7 +626,7 @@ AppDetailsScreen As screen:
             Width: =140
             X: =614
             Y: =180
-            ZIndex: =8
+            ZIndex: =10
 
         lblCreatedLabel As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -672,7 +650,7 @@ AppDetailsScreen As screen:
             Width: =232
             X: =614
             Y: =146
-            ZIndex: =9
+            ZIndex: =11
 
         lblDescriptionLabel As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -696,7 +674,96 @@ AppDetailsScreen As screen:
             Width: =335
             X: =973
             Y: =146
-            ZIndex: =10
+            ZIndex: =12
+
+    cant_do_that_Dialog As group:
+        Height: =5
+        Width: =5
+        X: =60
+        Y: =60
+        ZIndex: =41
+
+        bg_cant_do_that As rectangle:
+            DisabledFill: =bg_cant_do_that.Fill
+            Fill: =RGBA(238, 204, 204, 1)
+            Height: =If(Self.Visible, 52, 0)
+            HoverFill: =bg_cant_do_that.Fill
+            PressedFill: =bg_cant_do_that.Fill
+            Visible: =showCantShowThat
+            Width: =If(Self.Visible, Parent.Width, 0)
+            Y: =50
+            ZIndex: =40
+
+        lbl_cant_do_that As label:
+            Align: =Center
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =bg_cant_do_that.Height
+            Text: =CantShowThatText
+            Visible: =showCantShowThat
+            Width: =bg_cant_do_that.Width
+            X: =bg_cant_do_that.X
+            Y: =bg_cant_do_that.Y
+            ZIndex: =41
+
+        x_cant_do_that As icon.Cancel:
+            Color: =RGBA(51, 51, 51, 1)
+            DisabledFill: =x_cant_do_that.Fill
+            Height: =bg_cant_do_that.Height
+            HoverBorderColor: =ColorFade(x_cant_do_that.BorderColor, 20%)
+            HoverColor: =ColorFade(x_cant_do_that.Color, 20%)
+            HoverFill: =x_cant_do_that.Fill
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showCantShowThat: false})
+            PressedBorderColor: =ColorFade(x_cant_do_that.BorderColor, -20%)
+            PressedColor: =ColorFade(x_cant_do_that.Color, -20%)
+            PressedFill: =x_cant_do_that.Fill
+            Visible: =showCantShowThat
+            Width: =Self.Height
+            X: =If(Self.Visible, Parent.Width-Self.Width-5, 0)
+            Y: =bg_cant_do_that.Y
+            ZIndex: =42
+
+    Group1 As group:
+        Height: =5
+        Width: =5
+        X: =60
+        Y: =60
+        ZIndex: =43
+
+        rolesRefresh As icon.Reload:
+            DisabledFill: =rolesRefresh.Fill
+            Height: =rolesHeader.Height
+            HoverBorderColor: =ColorFade(rolesRefresh.BorderColor, 20%)
+            HoverColor: =ColorFade(rolesRefresh.Color, 20%)
+            HoverFill: =rolesRefresh.Fill
+            Icon: =Icon.Reload
+            OnSelect: |
+                =ClearCollect(
+                    appRoles,
+                    PowerAppsforAdmins.GetAdminAppRoleAssignment(
+                        SelectedApp.'App Environment'.Name,
+                        SelectedApp.App
+                    ).value
+                );
+            PaddingBottom: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(rolesRefresh.BorderColor, -20%)
+            PressedColor: =ColorFade(rolesRefresh.Color, -20%)
+            PressedFill: =rolesRefresh.Fill
+            Tooltip: ="Refresh Permissions"
+            Width: =Self.Height
+            X: =rolesHeader.X+rolesHeader.Width
+            Y: =273
+            ZIndex: =2
+
+        rolesHeader As label:
+            Height: =42
+            Text: ="App Permissions"
+            X: =galAppRoles.X
+            Y: =270
+            ZIndex: =3
 
     grpSendEmail As group:
         Height: =5
@@ -719,7 +786,7 @@ AppDetailsScreen As screen:
             Width: =1011
             X: =454
             Y: =232
-            ZIndex: =21
+            ZIndex: =23
 
         lblMessage As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -745,7 +812,7 @@ AppDetailsScreen As screen:
             Width: =234
             X: =517
             Y: =437
-            ZIndex: =22
+            ZIndex: =24
 
         lblSendTo As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -770,7 +837,7 @@ AppDetailsScreen As screen:
             Width: =186
             X: =513
             Y: =239
-            ZIndex: =23
+            ZIndex: =25
 
         "galSendTo As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -780,7 +847,7 @@ AppDetailsScreen As screen:
             Height: =64
             HoverBorderColor: =galSendTo.BorderColor
             HoverFill: =galSendTo.Fill
-            Items: =Filter(appRoles, properties.principal.type <> "Tenant")
+            Items: =userIDsForMail
             Layout: =Layout.Vertical
             LoadingSpinnerColor: =galSendTo.BorderColor
             PressedBorderColor: =galSendTo.BorderColor
@@ -792,7 +859,7 @@ AppDetailsScreen As screen:
             WrapCount: =5
             X: =511
             Y: =261
-            ZIndex: =24
+            ZIndex: =26
 
             Subtitle2 As label:
                 BorderColor: =RGBA(0, 0, 0, 0)
@@ -812,7 +879,7 @@ AppDetailsScreen As screen:
                 PressedColor: =RGBA(0,0,0,1.00)
                 PressedFill: =RGBA(0, 0, 0, 0)
                 Size: =14
-                Text: =ThisItem.properties.principal.displayName
+                Text: =LookUp(Makers, Maker=ThisItem.mailUserID).'Display Name'
                 Width: =177
                 Y: =5
                 ZIndex: =3
@@ -841,7 +908,7 @@ AppDetailsScreen As screen:
             Width: =234
             X: =520
             Y: =338
-            ZIndex: =25
+            ZIndex: =27
 
         txtEmailSubject As text:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -871,7 +938,7 @@ AppDetailsScreen As screen:
             Width: =887
             X: =517
             Y: =373
-            ZIndex: =26
+            ZIndex: =28
 
         txtEmailMessage As richTextEditor:
             BorderColor: =RGBA(230, 230, 230, 1)
@@ -882,7 +949,7 @@ AppDetailsScreen As screen:
             Width: =884
             X: =521
             Y: =483
-            ZIndex: =27
+            ZIndex: =29
 
         btnSendEmail As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -899,12 +966,9 @@ AppDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =ForAll(
-                    Filter(
-                        appRoles, properties.principal.type <> "Tenant"
-                        ), 
+                =ForAll(userIDsForMail, 
                         Office365.SendEmailV2(
-                           properties.principal.email,
+                           LookUp(Makers, Maker=mailUserID).'User Principal Name',
                             galApps.Selected.'App Display Name', 
                             txtEmailMessage.HtmlText, 
                             {Importance:"Normal"}
@@ -930,7 +994,7 @@ AppDetailsScreen As screen:
             Width: =173
             X: =1032
             Y: =794
-            ZIndex: =28
+            ZIndex: =30
 
         btnCancelSendEmail As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -964,7 +1028,7 @@ AppDetailsScreen As screen:
             Width: =173
             X: =1231
             Y: =794
-            ZIndex: =29
+            ZIndex: =31
 
     grpAddUsers As group:
         Height: =5
@@ -984,7 +1048,7 @@ AppDetailsScreen As screen:
             Width: =1098
             X: =374
             Y: =65
-            ZIndex: =16
+            ZIndex: =18
 
         lblFetchingData As label:
             BorderColor: =RGBA(101, 128, 187, 1)
@@ -1005,7 +1069,7 @@ AppDetailsScreen As screen:
             Width: =300
             X: =395
             Y: =181
-            ZIndex: =17
+            ZIndex: =19
 
         tmrSearch As timer:
             BorderColor: =RGBA(0, 0, 0, 1)
@@ -1055,7 +1119,7 @@ AppDetailsScreen As screen:
             Width: =150
             X: =545
             Y: =194
-            ZIndex: =18
+            ZIndex: =20
 
         lblSelectedUserRole As label:
             FocusedBorderColor: =lblSelectedUserRole.BorderColor
@@ -1074,7 +1138,7 @@ AppDetailsScreen As screen:
             Width: =210
             X: =407
             Y: =746
-            ZIndex: =19
+            ZIndex: =21
 
         lblNote As label:
             FocusedBorderColor: =lblNote.BorderColor
@@ -1092,7 +1156,7 @@ AppDetailsScreen As screen:
             Width: =1037
             X: =404
             Y: =811
-            ZIndex: =20
+            ZIndex: =22
 
         btnAddUser As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1109,64 +1173,40 @@ AppDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =If(
-                    drpSearchUserRole.SelectedText.Value = "Viewer" || drpSearchUserRole.SelectedText.Value = "Editor",
-                    PowerAppsforAdmins.EditAdminAppRoleAssignment(
-                        SelectedApp.'App Environment'.Name,
-                        SelectedApp.App,
-                        {
-                            '$filter': "enviornment eq '" & SelectedApp.'App Environment'.Environment & "'",
-                            put: Table(
-                                {
-                                    properties: {
-                                        roleName: vUserRole,
-                                        capabilities: [""],
-                                        NotifyShareTargetOption: "Notify",
-                                        principal: {
-                                            email: galSearchPeopleresult.Selected.UserPrincipalName,
-                                            id: Office365Users.UserProfileV2(galSearchPeopleresult.Selected.UserPrincipalName).id,
-                                            type: "User",
-                                            tenantId: "null"
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    )
-                );
-                If(
-                    drpSearchUserRole.SelectedText.Value = "Owner",
-                    PowerAppsforAdmins.SetAdminAppOwner(
-                        SelectedApp.'App Environment'.Name,
-                        SelectedApp.App,
-                        {
-                            newAppOwner: Text(galSearchPeopleresult.Selected.Id),
-                            roleForOldAppOwner: "CanEdit"
-                        }
-                    );
-                    Patch(
-                        'PowerApps Apps',
-                        LookUp(
-                            'PowerApps Apps',
-                            App = SelectedApp.App
-                        ),
-                        {
-                            'App Owner': LookUp(
-                                Makers,
-                                'User Principal Name' = galSearchPeopleresult.Selected.UserPrincipalName
-                            ),
-                            'App is Orphaned': "No"
-                        }
-                    );
-                    Refresh('PowerApps Apps');
-                );
-                ClearCollect(
+                =//get user details
+                UpdateContext({TargetUserEmail:galSearchPeopleresult.Selected.UserPrincipalName});
+                UpdateContext({TargetUser: Office365Users.UserProfileV2(TargetUserEmail)});
+                UpdateContext({TargetUserID: GUID(TargetUser.id)});
+                UpdateContext({TargetUserDisplayName: TargetUser.displayName});
+                UpdateContext({UpdatePermissionsPassed: "fail"});
+                UpdateContext({RoleAssignment: drpSearchUserRole.SelectedText.Value});
+                
+                
+                //if viewer or editor
+                If(RoleAssignment = "Viewer" || RoleAssignment = "Editor",
+                UpdateContext({UpdatePermissionsPassed: 'HELPER-ObjectOperations'.Run(TargetUserID, SelectedApp.App, SelectedApp.'App Environment'.Name, If(RoleAssignment = "Viewer", "addviewer", "addeditor"), "app").thereturnstring}));
+                
+                //if owner
+                If(RoleAssignment = "Owner",
+                UpdateContext({UpdatePermissionsPassed: 'HELPER-ObjectOperations'.Run(TargetUserID, SelectedApp.App, SelectedApp.'App Environment'.Name, "assign", "app").thereturnstring}));
+                
+                //update app or show error
+                If(UpdatePermissionsPassed = "pass",
+                  Refresh('Power Platform Users');
+                  Refresh(Makers);
+                  Refresh('PowerApps Apps');
+                  ClearCollect(
                     appRoles,
                     PowerAppsforAdmins.GetAdminAppRoleAssignment(
                         SelectedApp.'App Environment'.Name,
                         SelectedApp.App
-                    ).value
-                );
+                    ).value);,
+                
+                UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing permissions failed, try to set via product UX"}));
+                
+                //close dialog
                 UpdateContext({showAddUsers: false})
             PaddingBottom: =10
             PaddingLeft: =10
@@ -1185,7 +1225,7 @@ AppDetailsScreen As screen:
             Width: =173
             X: =1083
             Y: =958
-            ZIndex: =30
+            ZIndex: =32
 
         btnCancelAddUser As button:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1219,7 +1259,7 @@ AppDetailsScreen As screen:
             Width: =173
             X: =1282
             Y: =958
-            ZIndex: =31
+            ZIndex: =33
 
         drpSearchUserRole As dropdown:
             BorderColor: =RGBA(116, 116, 116, 1)
@@ -1245,7 +1285,7 @@ AppDetailsScreen As screen:
             Visible: =showAddUsers
             X: =608
             Y: =758
-            ZIndex: =32
+            ZIndex: =34
 
         galSearchPeopleresult As gallery.galleryVertical:
             BorderColor: =RGBA(233, 232, 233, 1)
@@ -1267,7 +1307,7 @@ AppDetailsScreen As screen:
             Width: =1060
             X: =393
             Y: =233
-            ZIndex: =33
+            ZIndex: =35
 
             imgSearchProfilePic As image:
                 ApplyEXIFOrientation: =false
@@ -1382,7 +1422,7 @@ AppDetailsScreen As screen:
             Width: =1049
             X: =395
             Y: =131
-            ZIndex: =34
+            ZIndex: =36
 
         imgClearInput As image:
             ApplyEXIFOrientation: =false
@@ -1406,7 +1446,7 @@ AppDetailsScreen As screen:
             Width: =txtSearchUser.Height
             X: =1394
             Y: =131
-            ZIndex: =35
+            ZIndex: =37
 
         iSearch As icon.Search:
             BorderColor: =RGBA(101, 128, 187, 1)
@@ -1431,7 +1471,7 @@ AppDetailsScreen As screen:
             Width: =50
             X: =407
             Y: =131
-            ZIndex: =36
+            ZIndex: =38
 
         lblAddNewUsers As label:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -1455,5 +1495,5 @@ AppDetailsScreen As screen:
             Width: =266
             X: =385
             Y: =80
-            ZIndex: =37
+            ZIndex: =39
 

@@ -1,0 +1,241 @@
+﻿{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoENurtureDataverse"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_office365users": {
+        "api": {
+          "name": "shared_office365users"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoENurtureO365Users"
+        },
+        "runtimeSource": "embedded"
+      },
+      "shared_teams": {
+        "api": {
+          "name": "shared_teams"
+        },
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoENurtureMicrosoftTeams"
+        },
+        "runtimeSource": "embedded"
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "Get_Makers": {
+          "inputs": {
+            "authentication": "@parameters('$authentication')",
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "$filter": "admin_userisserviceprinciple eq false and admin_makerisorphaned eq false and (Microsoft.Dynamics.CRM.OlderThanXDays(PropertyName='admin_lastpulsesurvey',PropertyValue=90) or admin_lastpulsesurvey eq null)",
+              "$select": "admin_makerid,admin_userprincipalname",
+              "entityName": "admin_makers"
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "3023a2c6-4e52-48fe-b7b2-59260af3df27"
+          },
+          "runAfter": {},
+          "type": "OpenApiConnection"
+        },
+        "Initialize_makers_to_survey_count": {
+          "inputs": {
+            "variables": [
+              {
+                "name": "surveyXMakers",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "6965b51f-6a44-4464-a1fa-d5e60706607b"
+          },
+          "runAfter": {
+            "Get_Makers": [
+              "Succeeded"
+            ]
+          },
+          "type": "InitializeVariable"
+        },
+        "Proceed_if_makers_have_been_found": {
+          "actions": {
+            "Do_until_x_amount_of_makers_have_been_surveyed": {
+              "actions": {
+                "Get_random_maker_": {
+                  "inputs": "@outputs('Get_Makers')?['body/value'][rand(1, length(outputs('Get_Makers')?['body/value']))]",
+                  "metadata": {
+                    "operationMetadataId": "8924eeec-cea9-4d44-8b4a-5153c833df26"
+                  },
+                  "runAfter": {},
+                  "type": "Compose"
+                },
+                "Increment_variable": {
+                  "inputs": {
+                    "name": "surveyXMakers",
+                    "value": 1
+                  },
+                  "metadata": {
+                    "operationMetadataId": "69db82b0-6405-4b7b-87f6-0956c91e09af"
+                  },
+                  "runAfter": {
+                    "Run_a_Child_Flow": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "IncrementVariable"
+                },
+                "Run_a_Child_Flow": {
+                  "inputs": {
+                    "body": {
+                      "email": "@outputs('Get_random_maker_')?['admin_userprincipalname']",
+                      "text": "@outputs('Get_random_maker_')?['admin_makerid']"
+                    },
+                    "host": {
+                      "workflowReferenceName": "c31d2018-ab8d-ec11-b400-000d3a5d3a92"
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3eec781b-37b2-49d1-af59-b12451adb367"
+                  },
+                  "runAfter": {
+                    "Get_random_maker_": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "Workflow"
+                }
+              },
+              "expression": "@equals(variables('surveyXMakers'), parameters('Pulse - How many makers to survey? (admin_PulseHowmanymakerstosurvey)'))",
+              "limit": {
+                "count": 60,
+                "timeout": "PT1H"
+              },
+              "metadata": {
+                "operationMetadataId": "988d1f70-94c3-4fd8-95ab-149eed0a853c"
+              },
+              "runAfter": {},
+              "type": "Until"
+            }
+          },
+          "else": {
+            "actions": {
+              "Get_my_profile_(V2)": {
+                "inputs": {
+                  "authentication": "@parameters('$authentication')",
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+                    "connectionName": "shared_office365users",
+                    "operationId": "MyProfile_V2"
+                  },
+                  "parameters": {}
+                },
+                "metadata": {
+                  "operationMetadataId": "b436902e-e446-44c1-a587-84cefa6d4a76"
+                },
+                "runAfter": {
+                  "Terminate": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "OpenApiConnection"
+              },
+              "List_teams": {
+                "inputs": {
+                  "authentication": "@parameters('$authentication')",
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+                    "connectionName": "shared_teams",
+                    "operationId": "GetAllTeams"
+                  },
+                  "parameters": {}
+                },
+                "metadata": {
+                  "operationMetadataId": "28ddbb64-83cc-4e82-a158-f397306f3876"
+                },
+                "runAfter": {
+                  "Get_my_profile_(V2)": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "OpenApiConnection"
+              },
+              "Terminate": {
+                "inputs": {
+                  "runStatus": "Succeeded"
+                },
+                "metadata": {
+                  "operationMetadataId": "4fda032c-dfa3-4855-8081-2deddd7d031a"
+                },
+                "runAfter": {},
+                "type": "Terminate"
+              }
+            }
+          },
+          "expression": {
+            "greater": [
+              "@length(outputs('Get_Makers')?['body/value'])",
+              0
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8fc22c8d-7a94-4955-969b-61254537b668"
+          },
+          "runAfter": {
+            "Initialize_makers_to_survey_count": [
+              "Succeeded"
+            ]
+          },
+          "type": "If"
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "Pulse - How many makers to survey? (admin_PulseHowmanymakerstosurvey)": {
+          "defaultValue": 1,
+          "metadata": {
+            "description": "The Pulse survey is send to makers to provide feedback on their experience working with the CoE and Power Platform. Provide the number of makers you want to survey regularly here. If you set this number to 5, the survey will be sent to 5 random makers per week. A Default value of 1 is provided.",
+            "schemaName": "admin_PulseHowmanymakerstosurvey"
+          },
+          "type": "Int"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "metadata": {
+            "operationMetadataId": "0c66d748-7917-44e0-991a-b0004f23aa41"
+          },
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2022-02-14T10:00:00Z"
+          },
+          "type": "Recurrence"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

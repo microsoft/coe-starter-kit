@@ -9,17 +9,12 @@ FlowDetailsScreen As screen:
             ).value
         );
         
-        ForAll(flowRoles, If(And(CountRows(Filter(theMakers, theMakerID=properties.principal.id))<1, properties.principal.type="User"), 
-           Collect( theMakers, {
-            theMakerID: properties.principal.id,
-            theMakerPicture: Office365Users.UserPhotoV2(properties.principal.id), 
-            theMakerName: Office365Users.UserProfileV2(properties.principal.id).displayName,
-            theMakerEmail: Office365Users.UserProfileV2(properties.principal.id).userPrincipalName})));
-        
         UpdateContext(
             {
                 showEmailUsers: false,
-                showAddUsers: false
+                showAddUsers: false,
+                showCantShowThat: false,
+                CantShowThatText: ""
             }
         )
     Orientation: =If(FlowDetailsScreen.Width < FlowDetailsScreen.Height, Layout.Vertical, Layout.Horizontal)
@@ -63,7 +58,7 @@ FlowDetailsScreen As screen:
             PressedBorderColor: =RGBA(0, 0, 0, 0)
             PressedColor: =RGBA(4,45,81,1.00)
             PressedFill: =RGBA(0, 0, 0, 0)
-            Text: =If(ThisItem.properties.principal.type="Group", ThisItem.properties.principal.type, LookUp(theMakers, theMakerID=ThisItem.properties.principal.id).theMakerName)
+            Text: =If(ThisItem.properties.principal.type="Group", ThisItem.properties.principal.type, LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).'Display Name')
             Width: =333
             X: =98
             ZIndex: =1
@@ -77,7 +72,7 @@ FlowDetailsScreen As screen:
             Height: =60
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverFill: =RGBA(0, 0, 0, 0)
-            Image: =If(ThisItem.properties.principal.type <> "User", SampleImage,  LookUp(theMakers, theMakerID=ThisItem.properties.principal.id).theMakerPicture)
+            Image: =If(ThisItem.properties.principal.type <> "User", SampleImage,  LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject)
             ImagePosition: =ImagePosition.Fill
             OnSelect: =Select(Parent)
             PaddingBottom: =imgUserProfile.PaddingTop
@@ -117,7 +112,6 @@ FlowDetailsScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSendTo.AllItems), DisplayMode.Disabled, DisplayMode.Edit)
             Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnMakeOwner.BorderColor
             Font: =Font.'Segoe UI'
@@ -127,9 +121,34 @@ FlowDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =UpdateIf(Flows, Flow=SelectedFlow.Flow, {DerivedOwner: LookUp(Makers, Maker=GUID(ThisItem.properties.principal.id))});
+                =//call helper to reassign
+                If('HELPER-ObjectOperations'.Run(ThisItem.properties.principal.id, SelectedFlow.Flow, SelectedFlow.'Flow Environment'.Name, "assign", "flow").thereturnstring="pass",
+                
+                //if success, refresh data in app
+                Refresh('Power Platform Users');
+                Refresh(Makers);
+                Refresh(Flows);
+                Set(SelectedFlow, LookUp(Flows, Flow=SelectedFlow.Flow));
+                Set(FlowDerivedOwner, ThisItem.properties.principal.id);
+                ClearCollect(
+                    flowRoles,
+                    PowerAutomateforAdmins.GetAdminFlowOwnerRole(
+                        SelectedFlow.'Flow Environment'.Name,
+                        SelectedFlow.Flow
+                    ).value
+                );, 
+                
+                //else show error message
+                UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing owner failed, try to set via product UX"
+                }));
+                
+                
+                /*UpdateIf(Flows, Flow=SelectedFlow.Flow, {DerivedOwner: LookUp(Makers, Maker=GUID(ThisItem.properties.principal.id))});
                 Set(FlowDerivedOwner, LookUp(Flows, Flow=SelectedFlow.Flow).DerivedOwner.Maker);
-                If(SelectedFlow.'Flow is Orphaned'="Yes", UpdateIf(Flows, Flow=SelectedFlow.Flow, {'Flow is Orphaned': "No"}));
+                UpdateIf(Flows, Flow=SelectedFlow.Flow, {'Flow is Orphaned': "No"});
+                */
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -156,7 +175,6 @@ FlowDetailsScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSendTo.AllItems), DisplayMode.Disabled, DisplayMode.Edit)
             Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnChangeRole.BorderColor
             Font: =Font.'Segoe UI'
@@ -166,76 +184,33 @@ FlowDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =//know we wont have to do this for derived owner or creator as blank, so just delete current permissions and readd new ones
-                UpdateContext({CurrentPerms: ThisItem.properties.roleName});
+                =//call helper to reassign
+                If('HELPER-ObjectOperations'.Run(ThisItem.properties.principal.id, SelectedFlow.Flow, SelectedFlow.'Flow Environment'.Name, If(ThisItem.properties.roleName = "CanEdit", "addviewer", "addeditor"), "flow").thereturnstring="pass",
                 
-                //remove all
-                PowerAutomateforAdmins.EditAdminFlowOwnerRole(
-                    SelectedFlow.'Flow Environment'.Name,
-                    SelectedFlow.Flow,
-                    {
-                        delete: Table(
-                            {
-                                id: ThisItem.id
-                            }
-                        )
-                    }
-                );
-                
-                //if making edit
-                If(CurrentPerms="CanView",
-                PowerAutomateforAdmins.EditAdminFlowOwnerRole(
-                    SelectedFlow.'Flow Environment'.Name,
-                    SelectedFlow.Flow,
-                    {
-                        put: Table(
-                            {
-                                properties: {
-                                    roleName: "CanEdit",
-                                    principal: {
-                                        email: Office365Users.UserProfileV2(ThisItem.properties.principal.id).mail,
-                                        id: ThisItem.properties.principal.id,
-                                        displayName: Office365Users.UserProfileV2(ThisItem.properties.principal.id).displayName,
-                                        type: "User",
-                                        tenantId: "null"
-                                    }
-                                }
-                            }
-                        )
-                    }
-                ));
-                
-                //if making view
-                If(CurrentPerms="CanEdit",
-                PowerAutomateforAdmins.EditAdminFlowOwnerRole(
-                    SelectedFlow.'Flow Environment'.Name,
-                    SelectedFlow.Flow,
-                    {
-                        put: Table(
-                            {
-                                properties: {
-                                    roleName: "CanView",
-                                    principal: {
-                                        email: Office365Users.UserProfileV2(ThisItem.properties.principal.id).mail,
-                                        id: ThisItem.properties.principal.id,
-                                        displayName: Office365Users.UserProfileV2(ThisItem.properties.principal.id).displayName,
-                                        type: "User",
-                                        tenantId: "null"
-                                    }
-                                }
-                            }
-                        )
-                    }
-                ));
-                
+                //if success, refresh data in app
+                Refresh('Power Platform Users');
+                Refresh(Makers);
                 Refresh(Flows);
+                Set(SelectedFlow, LookUp(Flows, Flow=SelectedFlow.Flow));
                 ClearCollect(
                     flowRoles,
                     PowerAutomateforAdmins.GetAdminFlowOwnerRole(
                         SelectedFlow.'Flow Environment'.Name,
                         SelectedFlow.Flow
                     ).value
-                )
+                );, 
+                
+                //else show error message
+                UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing owner failed, try to set via product UX"
+                }));
+                
+                
+                /*UpdateIf(Flows, Flow=SelectedFlow.Flow, {DerivedOwner: LookUp(Makers, Maker=GUID(ThisItem.properties.principal.id))});
+                Set(FlowDerivedOwner, LookUp(Flows, Flow=SelectedFlow.Flow).DerivedOwner.Maker);
+                UpdateIf(Flows, Flow=SelectedFlow.Flow, {'Flow is Orphaned': "No"});
+                */
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -263,8 +238,7 @@ FlowDetailsScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSendTo.AllItems), DisplayMode.Disabled, DisplayMode.Edit)
-            Fill: =ColorValue(Style.Tertiary)
+            Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnRemovePermission.BorderColor
             Font: =Font.'Segoe UI'
             FontWeight: =Semibold
@@ -273,7 +247,33 @@ FlowDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =PowerAutomateforAdmins.EditAdminFlowOwnerRole(
+                =//call helper to remove permissions
+                If('HELPER-ObjectOperations'.Run(ThisItem.properties.principal.id, SelectedFlow.Flow, SelectedFlow.'Flow Environment'.Name, "removeuser", "flow").thereturnstring="pass",
+                
+                //if success, refresh data in app
+                Refresh(Flows);
+                ClearCollect(
+                    flowRoles,
+                    PowerAutomateforAdmins.GetAdminFlowOwnerRole(
+                        SelectedFlow.'Flow Environment'.Name,
+                        SelectedFlow.Flow
+                    ).value
+                );, 
+                
+                //else show error message
+                UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Removing permissions failed, try to remove via product UX"
+                }));
+                
+                
+                /*UpdateIf(Flows, Flow=SelectedFlow.Flow, {DerivedOwner: LookUp(Makers, Maker=GUID(ThisItem.properties.principal.id))});
+                Set(FlowDerivedOwner, LookUp(Flows, Flow=SelectedFlow.Flow).DerivedOwner.Maker);
+                UpdateIf(Flows, Flow=SelectedFlow.Flow, {'Flow is Orphaned': "No"});
+                */
+                
+                /*
+                PowerAutomateforAdmins.EditAdminFlowOwnerRole(
                     SelectedFlow.'Flow Environment'.Name,
                     SelectedFlow.Flow,
                     {
@@ -293,6 +293,8 @@ FlowDetailsScreen As screen:
                         SelectedFlow.Flow
                     ).value
                 )
+                
+                */
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -430,6 +432,8 @@ FlowDetailsScreen As screen:
                 1,
                 Launch(theFlowURL & SelectedFlow.'Flow Environment'.Name & "/flows/" & SelectedFlow.Flow & "/details"),
                 4,
+                Clear(userIDsForMail);
+                ForAll(Filter(flowRoles, properties.principal.type="User"), Collect(userIDsForMail, {mailUserID: GUID(properties.principal.id)}));
                 UpdateContext({showEmailUsers: true}),
                 5,
                 UpdateContext({showAddUsers: true});
@@ -720,7 +724,96 @@ FlowDetailsScreen As screen:
             ="Changing flow ownership is not possible in the product, so changing it here only changes it in the context of your CoE Toolkit. It is stored and used as a property of the CoE Flow table: DerivedOwner"
         Width: =1920
         Y: =1041
-        ZIndex: =39
+        ZIndex: =38
+
+    cant_do_that_Dialog As group:
+        Height: =5
+        Width: =5
+        X: =100
+        Y: =100
+        ZIndex: =43
+
+        bg_cant_do_that As rectangle:
+            DisabledFill: =bg_cant_do_that.Fill
+            Fill: =RGBA(238, 204, 204, 1)
+            Height: =If(Self.Visible, 52, 0)
+            HoverFill: =bg_cant_do_that.Fill
+            PressedFill: =bg_cant_do_that.Fill
+            Visible: =showCantShowThat
+            Width: =If(Self.Visible, Parent.Width, 0)
+            Y: =52
+            ZIndex: =39
+
+        lbl_cant_do_that As label:
+            Align: =Center
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =bg_cant_do_that.Height
+            Text: =CantShowThatText
+            Visible: =showCantShowThat
+            Width: =bg_cant_do_that.Width
+            X: =bg_cant_do_that.X
+            Y: =bg_cant_do_that.Y
+            ZIndex: =40
+
+        x_cant_do_that As icon.Cancel:
+            Color: =RGBA(51, 51, 51, 1)
+            DisabledFill: =x_cant_do_that.Fill
+            Height: =bg_cant_do_that.Height
+            HoverBorderColor: =ColorFade(x_cant_do_that.BorderColor, 20%)
+            HoverColor: =ColorFade(x_cant_do_that.Color, 20%)
+            HoverFill: =x_cant_do_that.Fill
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showCantShowThat: false})
+            PressedBorderColor: =ColorFade(x_cant_do_that.BorderColor, -20%)
+            PressedColor: =ColorFade(x_cant_do_that.Color, -20%)
+            PressedFill: =x_cant_do_that.Fill
+            Visible: =showCantShowThat
+            Width: =Self.Height
+            X: =If(Self.Visible, Parent.Width-Self.Width-5, 0)
+            Y: =bg_cant_do_that.Y
+            ZIndex: =43
+
+    role_refresh As group:
+        Height: =5
+        Width: =5
+        X: =100
+        Y: =100
+        ZIndex: =45
+
+        rolesRefresh As icon.Reload:
+            DisabledFill: =rolesRefresh.Fill
+            Height: =rolesHeader.Height
+            HoverBorderColor: =ColorFade(rolesRefresh.BorderColor, 20%)
+            HoverColor: =ColorFade(rolesRefresh.Color, 20%)
+            HoverFill: =rolesRefresh.Fill
+            Icon: =Icon.Reload
+            OnSelect: |
+                =ClearCollect(
+                    flowRoles,
+                    PowerAutomateforAdmins.GetAdminFlowOwnerRole(
+                        SelectedFlow.'Flow Environment'.Name,
+                        SelectedFlow.Flow
+                    ).value
+                );
+            PaddingBottom: =10
+            PaddingRight: =10
+            PaddingTop: =10
+            PressedBorderColor: =ColorFade(rolesRefresh.BorderColor, -20%)
+            PressedColor: =ColorFade(rolesRefresh.Color, -20%)
+            PressedFill: =rolesRefresh.Fill
+            Tooltip: ="Refresh Permissions"
+            Width: =Self.Height
+            X: =190
+            Y: =268
+            ZIndex: =41
+
+        rolesHeader As label:
+            Height: =42
+            Text: ="Flow Permissions"
+            X: =galFlowRoles.X
+            Y: =265
+            ZIndex: =42
 
     grpSendEmail As group:
         Height: =5
@@ -804,7 +897,7 @@ FlowDetailsScreen As screen:
             Height: =68
             HoverBorderColor: =galSendTo.BorderColor
             HoverFill: =galSendTo.Fill
-            Items: =Filter(flowRoles, properties.principal.type <> "Tenant")
+            Items: =userIDsForMail
             Layout: =Layout.Vertical
             LoadingSpinnerColor: =galSendTo.BorderColor
             PressedBorderColor: =galSendTo.BorderColor
@@ -820,7 +913,7 @@ FlowDetailsScreen As screen:
 
             Label1 As label:
                 OnSelect: =Select(Parent)
-                Text: =LookUp(theMakers, theMakerID=ThisItem.properties.principal.id).theMakerName
+                Text: =LookUp(Makers, Maker=ThisItem.mailUserID).'Display Name'
                 X: =12
                 Y: =9
                 ZIndex: =1
@@ -907,12 +1000,9 @@ FlowDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =ForAll(
-                    Filter(
-                        flowRoles, properties.principal.type <> "Tenant"
-                    ),
+                =ForAll(userIDsForMail,
                     Office365.SendEmailV2(
-                        LookUp(theMakers, theMakerID=properties.principal.id).theMakerEmail,
+                        LookUp(Makers, Maker=mailUserID).'User Principal Name',
                         galFlows.Selected.'Display Name',
                         txtEmailMessage.HtmlText,
                         {Importance: "Normal"}
@@ -1329,35 +1419,42 @@ FlowDetailsScreen As screen:
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =PowerAutomateforAdmins.EditAdminFlowOwnerRole(
-                    SelectedFlow.'Flow Environment'.Name,
-                    SelectedFlow.Flow,
-                    {
-                        put: Table(
-                            {
-                                properties: {
-                                    roleName: vUserRole,
-                                    capabilities: [""],
-                                    NotifyShareTargetOption: "Notify",
-                                    principal: {
-                                        email: galSearchPeopleresult.Selected.UserPrincipalName,
-                                        id: Office365Users.UserProfileV2(galSearchPeopleresult.Selected.UserPrincipalName).id,
-                                        displayName: galSearchPeopleresult.Selected.DisplayName,
-                                        type: "User",
-                                        tenantId: "null"
-                                    }
-                                }
-                            }
-                        )
-                    }
-                );
-                ClearCollect(
+                =//get user details
+                UpdateContext({TargetUserEmail:galSearchPeopleresult.Selected.UserPrincipalName});
+                UpdateContext({TargetUser: Office365Users.UserProfileV2(TargetUserEmail)});
+                UpdateContext({TargetUserID: GUID(TargetUser.id)});
+                UpdateContext({TargetUserDisplayName: TargetUser.displayName});
+                UpdateContext({UpdatePermissionsPassed: "fail"});
+                UpdateContext({RoleAssignment: drpSearchUserRole.SelectedText.Value});
+                
+                //if viewer or editor
+                If(RoleAssignment = "Viewer" || RoleAssignment = "Editor",
+                UpdateContext({UpdatePermissionsPassed: 'HELPER-ObjectOperations'.Run(TargetUserID, SelectedFlow.Flow, SelectedFlow.'Flow Environment'.Name, If(RoleAssignment = "Viewer", "addviewer", "addeditor"), "flow").thereturnstring}));
+                
+                //if owner
+                If(RoleAssignment = "Owner",
+                UpdateContext({UpdatePermissionsPassed: 'HELPER-ObjectOperations'.Run(TargetUserID, SelectedFlow.Flow, SelectedFlow.'Flow Environment'.Name, "assign", "flow").thereturnstring}));
+                
+                //update app or show error
+                If(UpdatePermissionsPassed = "pass",
+                    Refresh('Power Platform Users');
+                    Refresh(Makers);
+                    Refresh(Flows);
+                    Set(SelectedFlow, LookUp(Flows, Flow=SelectedFlow.Flow));
+                    If(RoleAssignment = "Owner", Set(FlowDerivedOwner, galSearchPeopleresult_1.Selected.Id));
+                    ClearCollect(
                     flowRoles,
                     PowerAutomateforAdmins.GetAdminFlowOwnerRole(
                         SelectedFlow.'Flow Environment'.Name,
                         SelectedFlow.Flow
-                    ).value
-                );
+                    ).value),
+                
+                //else show error message
+                    UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Changing owner failed, try to set via product UX"
+                }));
+                
                 UpdateContext({showAddUsers: false})
             PaddingBottom: =10
             PaddingLeft: =10
