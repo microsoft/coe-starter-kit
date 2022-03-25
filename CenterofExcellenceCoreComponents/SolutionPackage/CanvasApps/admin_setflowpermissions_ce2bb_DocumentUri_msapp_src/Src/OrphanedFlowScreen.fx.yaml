@@ -1,6 +1,14 @@
 OrphanedFlowScreen As screen:
     Height: =Max(App.Height, App.DesignHeight)
-    OnVisible: =Set(SearchScreenNumber, 3);
+    OnVisible: |-
+        =Set(SearchScreenNumber, 3);
+        UpdateContext(
+            {
+                showEmailUsers: false,
+                showAddUsers: false,
+                showCantShowThat: false,
+                CantShowThatText: ""
+            });
     Orientation: =If(OrphanedFlowScreen.Width < OrphanedFlowScreen.Height, Layout.Vertical, Layout.Horizontal)
     Size: =1 + CountRows(App.SizeBreakpoints) - CountIf(App.SizeBreakpoints, Value >= OrphanedFlowScreen.Width)
     Width: =Max(App.Width, App.DesignWidth)
@@ -32,7 +40,7 @@ OrphanedFlowScreen As screen:
             If(IsBlank(FlowDerivedOwner), Set(FlowDerivedOwner, LookUp(Flows, Flow=SelectedFlow.Flow).'Flow Creator UPN'));
             
             //navigate
-            Navigate(FlowDetailsScreen)
+            If(IsBlankOrError(ThisItem.WorkflowEntityId), Navigate(FlowDetailsScreen), Navigate(FlowDetailsScreen_Solutions))
         PressedBorderColor: =galFlows_2.BorderColor
         PressedFill: =galFlows_2.Fill
         TemplateSize: =86
@@ -81,7 +89,7 @@ OrphanedFlowScreen As screen:
             PressedBorderColor: =RGBA(0, 0, 0, 0)
             PressedColor: =RGBA(4,45,81,1.00)
             PressedFill: =RGBA(0, 0, 0, 0)
-            Text: =ThisItem.'Flow Environment'.admin_displayname
+            Text: =ThisItem.'Flow Environment'.'Display Name'
             Width: =380
             X: =1100
             Y: =19
@@ -117,13 +125,15 @@ OrphanedFlowScreen As screen:
             Height: =40
             HoverBorderColor: =ColorFade(chkSelectApp_2.BorderColor, 30%)
             HoverFill: =ColorFade(chkSelectApp_2.Fill, 30%)
-            OnCheck: |-
+            OnCheck: |
                 =Collect(
                     OrphanedCheckedFlows,
                     {
                         FlowName: ThisItem.Flow,
-                        EnvName: ThisItem.'Flow Environment'.Name,
-                        Environment: ThisItem.'Flow Environment'.Environment
+                        FlowOwner: ThisItem.DerivedOwner,
+                        FlowIsOrphaned: ThisItem.'Flow is Orphaned',
+                        Environment: ThisItem.'Flow Environment'.Environment,
+                        EnvName: ThisItem.'Flow Environment'.Name
                     }
                 )
             OnUncheck: =Remove(OrphanedCheckedFlows,LookUp(OrphanedCheckedFlows,FlowName=ThisItem.Flow));
@@ -1105,25 +1115,23 @@ OrphanedFlowScreen As screen:
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0, 0, 0, 1)
             HoverFill: =ColorValue(Style.Secondary)
-            OnSelect: |
-                =ForAll(
+            OnSelect: |-
+                =//delete apps
+                ForAll(
                     OrphanedCheckedFlows,
-                    PowerAutomateforAdmins.RemoveAdminFlow(
-                        EnvName,
-                        FlowName,
-                        {'api-version': "2016-11-01"}
-                    );
-                    Patch(
-                        Flows,
-                        LookUp(
-                            Flows,
-                            Flow = FlowName
-                        ),{'Flow Deleted':true,'Flow Deleted On':Now()}
-                    );Refresh(Flows)
-                );
+                    If('HELPER-ObjectOperations'.Run("none", FlowName, EnvName, "delete", "flow").thereturnstring <> "pass", Collect(failedToSet, FlowName)));
+                
+                //see if all deletions worked
+                If(CountRows(failedToSet) < 1,
+                    Refresh(Flows),
+                    UpdateContext({
+                        showCantShowThat: true,
+                        CantShowThatText: "Deleting some flows failed, try to delete via product UX"}));
+                
                 UpdateContext({showDeleteSelected: false});
                 Reset(chkSelectAll_2);
                 Clear(OrphanedCheckedFlows);
+                Clear(failedToSet);
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -1201,4 +1209,52 @@ OrphanedFlowScreen As screen:
         X: =924
         Y: =203
         ZIndex: =66
+
+    cant_do_that_Dialog_4 As group:
+        Height: =5
+        Width: =5
+        X: =20
+        Y: =20
+        ZIndex: =70
+
+        bg_cant_do_that_4 As rectangle:
+            DisabledFill: =bg_cant_do_that_4.Fill
+            Fill: =RGBA(238, 204, 204, 1)
+            Height: =If(Self.Visible, 52, 0)
+            HoverFill: =bg_cant_do_that_4.Fill
+            PressedFill: =bg_cant_do_that_4.Fill
+            Visible: =showCantShowThat
+            Width: =If(Self.Visible, Parent.Width, 0)
+            Y: =52
+            ZIndex: =67
+
+        lbl_cant_do_that_4 As label:
+            Align: =Center
+            Color: =RGBA(51, 51, 51, 1)
+            Height: =bg_cant_do_that_4.Height
+            Text: =CantShowThatText
+            Visible: =showCantShowThat
+            Width: =bg_cant_do_that_4.Width
+            X: =bg_cant_do_that_4.X
+            Y: =bg_cant_do_that_4.Y
+            ZIndex: =68
+
+        x_cant_do_that_4 As icon.Cancel:
+            Color: =RGBA(51, 51, 51, 1)
+            DisabledFill: =x_cant_do_that_4.Fill
+            Height: =bg_cant_do_that_4.Height
+            HoverBorderColor: =ColorFade(x_cant_do_that_4.BorderColor, 20%)
+            HoverColor: =ColorFade(x_cant_do_that_4.Color, 20%)
+            HoverFill: =x_cant_do_that_4.Fill
+            Icon: =Icon.Cancel
+            OnSelect: |-
+                =UpdateContext({showCantShowThat: false})
+            PressedBorderColor: =ColorFade(x_cant_do_that_4.BorderColor, -20%)
+            PressedColor: =ColorFade(x_cant_do_that_4.Color, -20%)
+            PressedFill: =x_cant_do_that_4.Fill
+            Visible: =showCantShowThat
+            Width: =Self.Height
+            X: =If(Self.Visible, Parent.Width-Self.Width-5, 0)
+            Y: =bg_cant_do_that_4.Y
+            ZIndex: =69
 
