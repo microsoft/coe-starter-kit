@@ -94,6 +94,49 @@ steps:
   parameters:
     configPath: $(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\
     environmentName: $(EnvironmentName)
+
+# We'll store configuration data as artifacts on the build pipeline to be used during deployment. This includes configuration data created via Configuration data migration tool and deploymentSettings.json and customDeploymentSettings.json 
+- powershell: |
+    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\ConfigurationMigrationData"
+    if(Test-Path $path) {
+        $compress = @{
+            Path = $path + '\*.*'
+            CompressionLevel = 'Fastest'
+            DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
+        }
+        Compress-Archive @compress
+    }
+    $settingFiles = @("deploymentSettings","customDeploymentSettings")
+
+    foreach ($settingFile in $settingFiles) {
+        $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$settingFile.json"
+        if(Test-Path $path) {
+            Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile.json"
+        }
+    }
+
+    if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
+        Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
+        ForEach-Object {
+            $environment = $_.Name
+            $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
+            if(Test-Path $path) {
+                $compress = @{
+                    Path = $path + '\*.*'
+                    CompressionLevel = 'Fastest'
+                    DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData-' + $environment + '.zip'
+                }
+                Compress-Archive @compress
+            }
+            foreach ($settingFile in $settingFiles) {
+                $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\$settingFile.json"
+                if(Test-Path $path) {
+                    Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile-$environment.json"
+                }
+            }
+        }
+    }
+  displayName: 'Archive Configuration Migration Data'    
     
 # Update any deploymentSettings.json via FileTransform task. This task will replace values in a JSON file based on their path. See https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/transforms-variable-substitution?view=azure-devops&tabs=Classic#jsonvarsubs
 - task: FileTransform@1
@@ -145,48 +188,6 @@ steps:
     SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\$(SolutionName)_$(Build.BuildNumber).zip'
     SolutionType: ${{parameters.buildType}}
 
-# We'll store configuration data as artifacts on the build pipeline to be used during deployment. This includes configuration data created via Configuration data migration tool and deploymentSettings.json and customDeploymentSettings.json 
-- powershell: |
-    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\ConfigurationMigrationData"
-    if(Test-Path $path) {
-        $compress = @{
-            Path = $path + '\*.*'
-            CompressionLevel = 'Fastest'
-            DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
-        }
-        Compress-Archive @compress
-    }
-    $settingFiles = @("deploymentSettings","customDeploymentSettings")
-
-    foreach ($settingFile in $settingFiles) {
-        $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$settingFile.json"
-        if(Test-Path $path) {
-            Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile.json"
-        }
-    }
-
-    if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
-        Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
-        ForEach-Object {
-            $environment = $_.Name
-            $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
-            if(Test-Path $path) {
-                $compress = @{
-                    Path = $path + '\*.*'
-                    CompressionLevel = 'Fastest'
-                    DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData-' + $environment + '.zip'
-                }
-                Compress-Archive @compress
-            }
-            foreach ($settingFile in $settingFiles) {
-                $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\$settingFile.json"
-                if(Test-Path $path) {
-                    Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile-$environment.json"
-                }
-            }
-        }
-    }
-  displayName: 'Archive Configuration Migration Data'
 
 #Run Solution Checker against our solution. This is currently only triggered for pipelines that trigger for Pull Requests
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.checker.PowerPlatformChecker@0
