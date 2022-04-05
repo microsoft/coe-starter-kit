@@ -5,6 +5,8 @@ parameters:
   type: string
 - name: solutionComponentOwnershipConfiguration
   type: string
+- name: activateFlowConfiguration
+  type: string
 - name: updateComponentOnwership
   type: string
 - name: enableFlows
@@ -30,26 +32,34 @@ steps:
     #    }
     #]
     $config = ConvertFrom-Json '${{parameters.solutionComponentOwnershipConfiguration}}'
-    #$config = ConvertFrom-Json '[{"solutionComponentType": 29,"solutionComponentUniqueName": "bd40f612-41ff-ea11-a815-000d3a1abe26","ownerEmail": "jonis@pplatform.onmicrosoft.com"}]'
-    
+    if('${{parameters.enableFlows}}' -ne "false") {
+        # Retrieve the activation config to use when activating flows for owners
+        $activationConfigs = ConvertFrom-Json '${{parameters.activateFlowConfiguration}}'
+        $activationConfigs | Sort-Object [int]sortOrder
+
+        $flowsToActivate = [System.Collections.ArrayList]@()
+    }
     # Workflows of type Modern Flow might need an interactive user owner.
     # One example is where you want the Flow that runs to use that users license entitlements.
     # Currently only implementing workflow ownership change until we indentify real usage scenarios for other solution components needing ownership change post import.
     # See https://docs.microsoft.com/en-us/dynamics365/customer-engagement/web-api/solutioncomponent?view=dynamics-ce-odata-9
     # ...for solutionComponentType values 29=Workflow (including Flow), 300=Canvas App, etc 
     foreach ($ownershipConfig in $config){
+      Write-Host "Owner Config: $ownershipConfig.ownerEmail - $ownershipConfig.solutionComponentUniqueName"
       if($ownershipConfig.ownerEmail -ne '' -and $ownershipConfig.solutionComponentType -ne '' -and $ownershipConfig.solutionComponentUniqueName -ne ''){
           switch ($ownershipConfig.solutionComponentType){
             # Workflow 
             29 {  
-                $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -Fields clientdata,category,statecode
+                Write-Host "Retrieving Workflow Record"
+                $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -Fields name, clientdata,category,statecode
             } 
             default {
               Write-Host "##vso[task.logissue type=warning]NOT IMPLEMENTED - You supplied a solutionComponentType of $ownershipConfig.solutionComponentType for solutionComponentUniqueName $solutionComponentUniqueName"
               exit 1;
             }      
           }
-          $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "domainname" -FilterOperator "eq" -FilterValue $ownershipConfig.ownerEmail -Fields systemuserid
+          Write-Host "Retrieving User Record"
+          $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "internalemailaddress" -FilterOperator "eq" -FilterValue $ownershipConfig.ownerEmail -Fields systemuserid
           $workflowDeactivated = $false
           if($systemuserResult.Count -gt 0) {
               $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
@@ -59,10 +69,13 @@ steps:
 
               if('${{parameters.updateComponentOnwership}}' -ne "false") {
                 #Need to deactivate the flow before setting ownership if currently active
+                Write-Host "StateCode Property $workflow.statecode_Property.Value"
                 if($workflow.statecode_Property.Value -ne 0){
+                    Write-Host "Deactivating the Flow"
                     Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode 0 -StatusCode 1
                     $workflowDeactivated = $true
                 }
+                Write-Host "Setting flow owner $ownershipConfig.solutionComponentUniqueName with $systemUserId"
                 Set-CrmRecordOwner -conn $conn $workflow $systemUserId
               }
           }
@@ -71,14 +84,31 @@ steps:
           }
           #Activate the workflow using the owner.
           if(($workflow.statecode_Property.Value -ne 1 -or $workflowDeactivated) -and '${{parameters.enableFlows}}' -ne "false"){
-            $impersonationConn = Get-CrmConnection -ConnectionString "$(CdsBaseConnectionString)${{parameters.serviceConnection}}"
-            $impersonationCallerId = $systemUserId
-            $impersonationConn.OrganizationWebProxyClient.CallerId = $impersonationCallerId 
-            Write-Host "Enabling Flows"
-            Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -StateCode 1 -StatusCode 2
+
+            Write-Host "Retrieving activation config"
+            $activationConfig = $activationConfigs | Where-Object { $_.solutionComponentUniqueName -eq $ownershipConfig.solutionComponentUniqueName } | Select-Object -First 1
+            if($activationConfig.activate -ne 'false') {
+                Write-Host "Adding flow " $ownershipConfig.solutionComponentName " to activation collection"
+                $flowActivation = [PSCustomObject]@{}
+                $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponent' -Value $workflow
+                $flowActivation | Add-Member -MemberType NoteProperty -Name 'impersonationCallerId' -Value $systemUserId
+                $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $activationConfig.sortOrder
+                $flowsToActivate.Add($flowActivation)
+            }
           }
       }
     }
+    if('${{parameters.enableFlows}}' -ne "false") {
+
+        #Activate any flows added to the collection based on sort order
+        $flowsToActivate | Sort-Object [int]sortOrder
+        foreach($flowToActivate in $flowsToActivate) {
+            Write-Host "Activating Flow: " $flowToActivate.solutionComponent.name
+            $impersonationConn.OrganizationWebProxyClient.CallerId = $flowToActivate.impersonationCallerId 
+            Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $flowToActivate.solutionComponent.workflowid -StateCode 1 -StatusCode 2
+        }
+    }
+
     
   displayName: '${{parameters.displayName}}'
   condition: and(succeeded(), ne('${{parameters.solutionComponentOwnershipConfiguration}}', ''))

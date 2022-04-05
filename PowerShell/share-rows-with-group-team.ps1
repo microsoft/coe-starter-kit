@@ -21,12 +21,12 @@ function Grant-AccessToWorkflow ($token, $dataverseHost, $teamName, $workflowId)
     }
 }
 
-function Grant-AccessToConnector ($token, $dataverseHost, $teamName, $workflowId) {
+function Grant-AccessToConnector ($token, $dataverseHost, $teamName, $connectorId) {
     $teamId = Get-TeamId $token $dataverseHost $teamName
     if($teamId -ne '') {
         $body = "{
         `n    `"Target`":{
-        `n        `"connectorid`":`"$workflowId`",
+        `n        `"connectorid`":`"$connectorId`",
         `n        `"@odata.type`": `"Microsoft.Dynamics.CRM.connector`"
         `n    },
         `n    `"PrincipalAccess`":{

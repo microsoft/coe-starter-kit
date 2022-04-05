@@ -42,7 +42,9 @@ parameters:
   type: string
   default: ''
 steps:
-
+- template: set-spn-token.yml
+  parameters:
+    serviceConnection: '$(ServiceConnection)'
 # Set pipeline vars for tools paths.
 - template: set-tools-paths.yml
 
@@ -118,12 +120,6 @@ steps:
    }
   displayName: 'Update Solution XML with Build Number'
 
-# TEMPORARY WORKAROUND: Power Apps CLI functionality will eventually be surfaced in Azure DevOps tasks.
-# However, to use functionality ahead of the tasks, we install the CLI.  Once the task is available, we move to using the task.
-- template: install-pac.yml
-  parameters:
-    canvasUnpackVersion: ''
-
 - powershell: |
     #Set variable to continue on unpack error for use in the next two steps
     if('$(ContinueOnCanvasUnpackError)'.Contains("ContinueOnCanvasUnpackError")) {
@@ -137,13 +133,16 @@ steps:
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
    ForEach-Object {
         $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
-        $env:PATH = $env:PATH + ";" + "$(pacPath)"
-        # Adding a temporary try / catch here to handle unexpected errors in canvas unpack. This is not idea, however, we need to ensure that breaking changes in unpack don't leave the pipelines permanently broken
-        pac canvas unpack --msapp $_.FullName --sources $unpackedPath
+        #Temporarily unpacking with latest version of Power Apps Language Tooling
+        Write-Host "Unpacking via PowerShell"
+        . "$env:POWERSHELLPATH/canvas-unpack-pack.ps1"
+        Invoke-CanvasUnpackPack "unpack" $_.FullName $unpackedPath
+       
         del $_.FullName
    }
   displayName: 'Unpack msapp files fail on error'
   enabled: true
+  workingDirectory: $(PowerShellPath)
   condition: and(succeeded(), ne(variables.ContinueOnCanvasUnpackError, 'true'))
 
 # Unpack source files into a folder
@@ -151,9 +150,11 @@ steps:
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
    ForEach-Object {
         $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
-        $env:PATH = $env:PATH + ";" + "$(pacPath)"
-        # Adding a temporary try / catch here to handle unexpected errors in canvas unpack. This is not idea, however, we need to ensure that breaking changes in unpack don't leave the pipelines permanently broken
-        pac canvas unpack --msapp $_.FullName --sources $unpackedPath
+        #Temporarily unpacking with latest version of Power Apps Language Tooling
+        Write-Host "Unpacking via PowerShell"
+        . "$env:POWERSHELLPATH/canvas-unpack-pack.ps1"
+        Invoke-CanvasUnpackPack "unpack" $_.FullName $unpackedPath
+
         if( -not $?)
         {
             $msg = $Error[0].Exception.Message
@@ -167,6 +168,7 @@ steps:
   displayName: 'Unpack msapp files continue on error'
   enabled: true
   continueOnError: true
+  workingDirectory: $(PowerShellPath)
   condition: and(succeeded(), eq(variables.ContinueOnCanvasUnpackError, 'true'))
 
 
@@ -209,44 +211,42 @@ steps:
   displayName: 'Fix unset GUIDs in new Business Rules'
 
 - powershell: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
-   ForEach-Object {
-     $xml=[xml](Get-Content $_.FullName)
-     $workflowNode = $xml.SelectSingleNode("//Workflow")
-     $workflowNode.StateCode = '0'
-     $workflowNode.StatusCode = '1'
-     $xml.Save($_.FullName)
-   }
-  displayName: 'Conditionally Disable Flows'
-  condition: and(succeeded(), eq(variables.DisableFlows, 'true'))
-
-- powershell: |
    Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions" -Recurse -Filter environmentvariablevalues.json | Remove-Item
   displayName: 'Verify Environment Variable Current Value Not Exported'
   condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'))
-
-
-- template: update-deployment-settings.yml
-  parameters:
-    orgUrl: '$(System.TeamFoundationCollectionUri)'
-    project: '${{parameters.project}}'
-    repo: '${{parameters.repo}}'
-    serviceConnection: '${{parameters.serviceConnection}}'
-    solutionName: '${{parameters.solutionName}}'
-    profileId: '$(EnvironmentName)'
-    configurationData: '${{parameters.configurationData}}'
-    generateEnvironmentVariables: $(DeploymentSettings.GenerateEnvironmentVariables)
-    generateConnectionReferences: $(DeploymentSettings.GenerateConnectionReferences)
-    generateOwnershipConfig: $(DeploymentSettings.GenerateFlowOwnership)
-    generateCanvasSharingConfig: $(DeploymentSettings.GenerateCanvasAppSharing)
-    generateAADGroupTeamConfig: $(DeploymentSettings.GenerateAADGroupTeam)
-    overwriteExisting: $(DeploymentSettings.OverwriteExistingFiles)
 
 # Set paths to deployment settings
 - template: set-deployment-configuration-paths.yml
   parameters:
     configPath: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\config\'
     environmentName: ''
+ 
+# Update deployment settings configuration
+- template: update-deployment-settings.yml
+  parameters:
+    orgUrl: '$(System.TeamFoundationCollectionUri)'
+    projectName: '${{parameters.project}}'
+    repo: '${{parameters.repo}}'
+    serviceConnection: '${{parameters.serviceConnection}}'
+    solutionName: '${{parameters.solutionName}}'
+    profileEnvironmentUrl: '$(EnvironmentName)'
+    profileId: '$(BuildDefinitionId)'
+    configurationData: '${{parameters.configurationData}}'
+    generateEnvironmentVariables: $(DeploymentSettings.GenerateEnvironmentVariables)
+    generateConnectionReferences: $(DeploymentSettings.GenerateConnectionReferences)
+    generateFlowConfig: $(DeploymentSettings.GenerateFlowOwnership)
+    generateCanvasSharingConfig: $(DeploymentSettings.GenerateCanvasAppSharing)
+    generateAADGroupTeamConfig: $(DeploymentSettings.GenerateAADGroupTeam)
+    generateCustomConnectorConfig: $(DeploymentSettings.GenerateCustomConnectorConfig)
+
+# Enabled or Disable Flows in the Solution based on configuration
+- template: enable-disable-solution-flows.yml
+  parameters:
+    buildSourceDirectory: '$(Build.SourcesDirectory)'
+    repo: '${{parameters.repo}}'
+    solutionName: '${{parameters.solutionName}}'
+    disableAllFlows: '$(DisableFlows)'
+    activateFlowConfiguration: '$(outActivateFlows)'
 
 # Set deployment variable for default environment variables
 - template: set-deployment-variable.yml
@@ -255,11 +255,11 @@ steps:
     pipelineVariableValue: ''
     deploymentSettingsPath: $(CustomDeploymentSettingsPath)
     deploymentSettingsNode: 'DefaultEnvironmentVariables'
-    displayName: 'Retrieve Default Environment Variable Config'
+    displayName: 'Retrieve Default Environment Variable Config for Export'
 
 - powershell: |
-   if('$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)' -ne '') {
-       $config = ConvertFrom-Json '$(outDefaultEnvironmentVariables.outDefaultEnvironmentVariables)'
+   if('$(outDefaultEnvironmentVariables)' -ne '') {
+       $config = ConvertFrom-Json '$(outDefaultEnvironmentVariables)'
        foreach ($c in $config) {
            $envVariableName = $c[0]
            Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 
@@ -281,7 +281,6 @@ steps:
     }
   displayName: 'Verify Default Environment Variables Are Set'
   condition: and(succeeded(), eq(variables.VerifyDefaultEnvironmentVariableValues, 'true'))
-
 
 - powershell: |
     git add --all
