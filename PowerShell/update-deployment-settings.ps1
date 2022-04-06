@@ -3,8 +3,9 @@
     Write-Host (ConvertTo-Json -Depth 10 $configurationDataJson)
     #Generate Deployment Settings
     Write-Host "Update Deployment Settings"
-    $deploymentSettingsFilePath = "$buildSourceDirectory\$repo\$solutionName\config\deploymentSettings.json"
+	Remove-CurrentDeploymentSettingsConfiguration $buildSourceDirectory $repo $solutionName
     $customDeploymentSettingsFilePath = "$buildSourceDirectory\$repo\$solutionName\config\customDeploymentSettings.json"
+    $deploymentSettingsFilePath = "$buildSourceDirectory\$repo\$solutionName\config\deploymentSettings.json"
     if(!(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\")) {
         New-Item "$buildSourceDirectory\$repo\$solutionName\" -Name "config" -ItemType "directory"
     }
@@ -308,6 +309,14 @@ function New-DeploymentPipelines($buildRepositoryName, $orgUrl, $projectName, $r
         }
     }
 }
+
+function Remove-CurrentDeploymentSettingsConfiguration($buildSourceDirectory, $repo, $solutionName)
+{
+	
+	Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\**\customDeploymentSettings.json" -Recurse -Force
+	Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\**\deploymentSettings.json" -Recurse -Force
+}
+
 function Set-BuildDefinitionVariables($orgUrl, $projectId, $azdoAuthType, $buildDefinitionResult, $definitionId, $newBuildDefinitionVariables) {
     #Set the build definition variables to the newly created list
     $buildDefinitionResult.variables = $newBuildDefinitionVariables
