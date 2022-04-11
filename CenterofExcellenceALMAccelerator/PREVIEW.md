@@ -6,4 +6,8 @@ This list may be updated as we move toward general availability so please check 
 
 - Canvas Pack / Unpack - https://github.com/microsoft/PowerApps-Language-Tooling
 - Impersonation for activating Flows - There is work being done to make sharing of connections possible with service principals to remove this blocker to GA. - https://github.com/microsoft/coe-starter-kit/issues/2415
-- Requirement for service principal to have App Management Permission. This permission gives the service principal Power Platform admin rights although it is only used in the pipelines in a limited fashion. As such it's not following a pattern of zero trust we'd like to achieve in the CoE Starter Kit - https://docs.microsoft.com/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp
+- Requirement for service principal to have App Management Permission. This permission (https://docs.microsoft.com/powershell/module/microsoft.powerapps.administration.powershell/new-powerappmanagementapp) gives the service principal Power Platform admin rights although it is only used in the pipelines in the following areas.
+  - Sharing Canvas Apps
+  - Updating Canvas App Owners
+  - Activating Flows (where an activation user is not specified in the deployment configuration)
+  - Running Test Automation (where applicable to override connection consent)
