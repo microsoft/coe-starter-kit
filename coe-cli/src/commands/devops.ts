@@ -1088,7 +1088,6 @@ class DevOpsCommand {
             }
         }
 
-        this.logger?.info(util.format("Creating new pipeline definition %s", destinationBuildName));
         let result
         try {
             result = await client.createDefinition(newBuild, project.name);
@@ -1096,7 +1095,6 @@ class DevOpsCommand {
             this.logger?.error(util.format("Error creating new pipeline definition results %s", error));
             throw error
         }
-        this.logger?.info(util.format("Creating new pipeline definition results %s", JSON.stringify(result)));
 
         if (defaultSettings && args.openDefaultPages) {
             await open(`${baseUrl}/_build/${result?.id}`)
