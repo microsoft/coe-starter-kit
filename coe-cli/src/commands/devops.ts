@@ -1094,6 +1094,7 @@ class DevOpsCommand {
             result = await client.createDefinition(newBuild, project.name);
         } catch(error) {
             this.logger?.info(util.format("Error creating new pipeline definition results %s", error));
+            throw error
         }
         this.logger?.info(util.format("Creating new pipeline definition results %s", JSON.stringify(result)));
 

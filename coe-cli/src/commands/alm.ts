@@ -375,7 +375,10 @@ class ALMCommand {
       let devopsCommand = this.createDevOpsCommand();
       await devopsCommand.branch(branchArgs)
       this.logger?.info("Branch option complete")
-    } catch(err) {this.logger?.info(err)}
+    } catch (error) {
+        this.logger?.info(error)
+        throw error
+    }
 
   }
 
