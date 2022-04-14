@@ -349,31 +349,34 @@ class ALMCommand {
    *
    */
   async branch(args: ALMBranchArguments) : Promise<void> {
-    this.logger?.info("Setup branch")
-    this.logger?.verbose(JSON.stringify(args))
+    try{
+      this.logger?.info("Setup branch")
+      this.logger?.verbose(JSON.stringify(args))
 
-    let branchArgs = new DevOpsBranchArguments();
-    if (args.accessToken === undefined || args.accessToken.length == 0) {
-        this.logger?.info("Getting access tokens")
-        let tokens = await this.getAccessTokens(args)
-        branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
-    }
-    else {
-        this.logger?.info("Using supplied access token")
-        branchArgs.accessToken = args.accessToken;
-    }
-    branchArgs.organizationName = args.organizationName;
-    branchArgs.projectName = args.projectName;
-    branchArgs.repositoryName = args.repositoryName;
-    branchArgs.pipelineRepository = args.pipelineRepository;
-    branchArgs.sourceBuildName = args.sourceBuildName;
-    branchArgs.destinationBranch = args.destinationBranch;
-    branchArgs.settings = args.settings;
-    branchArgs.openDefaultPages = true;
+      let branchArgs = new DevOpsBranchArguments();
+      if (args.accessToken === undefined || args.accessToken.length == 0) {
+          this.logger?.info("Getting access tokens")
+          let tokens = await this.getAccessTokens(args)
+          branchArgs.accessToken = tokens["499b84ac-1321-427f-aa17-267ca6975798"];
+      }
+      else {
+          this.logger?.info("Using supplied access token")
+          branchArgs.accessToken = args.accessToken;
+      }
+      branchArgs.organizationName = args.organizationName;
+      branchArgs.projectName = args.projectName;
+      branchArgs.repositoryName = args.repositoryName;
+      branchArgs.pipelineRepository = args.pipelineRepository;
+      branchArgs.sourceBuildName = args.sourceBuildName;
+      branchArgs.destinationBranch = args.destinationBranch;
+      branchArgs.settings = args.settings;
+      branchArgs.openDefaultPages = true;
 
-    let devopsCommand = this.createDevOpsCommand();
-    await devopsCommand.branch(branchArgs)
-    this.logger?.info("Branch option complete")
+      let devopsCommand = this.createDevOpsCommand();
+      await devopsCommand.branch(branchArgs)
+      this.logger?.info("Branch option complete")
+    } catch(err) {this.logger?.info(err)}
+
   }
 
   async getAccessTokens(args: any) : Promise<{ [id: string] : string }>  {
