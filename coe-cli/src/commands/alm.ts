@@ -376,10 +376,9 @@ class ALMCommand {
       await devopsCommand.branch(branchArgs)
       this.logger?.info("Branch option complete")
     } catch (error) {
-        this.logger?.info(error)
+        this.logger?.error(error)
         throw error
     }
-
   }
 
   async getAccessTokens(args: any) : Promise<{ [id: string] : string }>  {
