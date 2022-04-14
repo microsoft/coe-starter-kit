@@ -1089,7 +1089,12 @@ class DevOpsCommand {
         }
 
         this.logger?.info(util.format("Creating new pipeline definition %s", destinationBuildName));
-        let result = await client.createDefinition(newBuild, project.name);
+        let result
+        try {
+            result = await client.createDefinition(newBuild, project.name);
+        } catch(error) {
+            this.logger?.info(util.format("Error creating new pipeline definition results %s", error));
+        }
         this.logger?.info(util.format("Creating new pipeline definition results %s", JSON.stringify(result)));
 
         if (defaultSettings && args.openDefaultPages) {
