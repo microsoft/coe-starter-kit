@@ -978,6 +978,11 @@ class DevOpsCommand {
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
         this.logger?.info(`Retrieving default pool`)
+        let agentPools = await taskApi?.getAgentPools()
+        agentPools.forEach(agentPool => {
+            this.logger?.info(`Pool: ${agentPool.name}`)
+        })
+
         let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
 
         let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
