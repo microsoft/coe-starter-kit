@@ -973,13 +973,15 @@ class DevOpsCommand {
         let definitions = await buildClient.getDefinitions(project.name)
 
         let taskApi = await connection.getTaskAgentApi()
-        let defaultAgent: TaskAgentPool[] = []
-        defaultAgent = (await taskApi?.getAgentPools())?.filter(a => a.name == "Default");
 
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
-        let defaultAgentPool = defaultAgent?.length > 0 ? defaultAgent[0] : undefined
+        this.logger?.debug(`Retrieving default pool`)
+        let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
+
+        let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
+        this.logger?.debug(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
 
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentPool);
