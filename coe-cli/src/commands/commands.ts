@@ -90,7 +90,7 @@ class CoeCliCommands {
             return;
         }
 
-        let logLevel = "info"
+        let logLevel = "debug"
         if ( args.log === "string" ) {
             logLevel = args.log
         }
