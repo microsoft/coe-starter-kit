@@ -397,8 +397,11 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
 
+        this.logger?.debug(`Retrieving default pool`)
         let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
+
         let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
+        this.logger?.debug(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
 
         let builds = await buildApi.getDefinitions(args.projectName)
 
