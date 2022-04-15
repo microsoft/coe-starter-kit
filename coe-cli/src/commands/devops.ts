@@ -985,7 +985,7 @@ class DevOpsCommand {
             this.logger?.info(`Pool: ${agentPool.name}`)
         })
 
-        let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
+        let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Azure Pipelines")
 
         let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
         this.logger?.info(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
