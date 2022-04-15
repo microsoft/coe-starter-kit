@@ -419,7 +419,7 @@ class DevOpsCommand {
 
                 if (typeof build.queue === "undefined") {
                     this.logger?.debug(`Missing build queue for ${build.name}`)
-                    build.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultAgentPool }
+                    build.queue = <BuildInterfaces.AgentPoolQueue>{ queue: defaultAgentPool }
                     changes = true
                 }
 
@@ -1097,7 +1097,7 @@ class DevOpsCommand {
             newBuild.queue = sourceBuild.queue
         } else {
             this.logger?.info("Setting pool from default pool");
-            newBuild.queue = <BuildInterfaces.BuildDefinitionReference>{
+            newBuild.queue = <BuildInterfaces.AgentPoolQueue>{
                 queue: defaultPool
             }
         }
