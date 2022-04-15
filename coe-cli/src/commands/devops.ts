@@ -397,11 +397,11 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
 
-        this.logger?.debug(`Retrieving default pool`)
+        this.logger?.info(`Retrieving default pool`)
         let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
 
         let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
-        this.logger?.debug(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
+        this.logger?.info(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
 
         let builds = await buildApi.getDefinitions(args.projectName)
 
@@ -977,11 +977,11 @@ class DevOpsCommand {
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
-        this.logger?.debug(`Retrieving default pool`)
+        this.logger?.info(`Retrieving default pool`)
         let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
 
         let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
-        this.logger?.debug(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
+        this.logger?.info(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
 
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentPool);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentPool);
@@ -1086,8 +1086,10 @@ class DevOpsCommand {
             newBuild.triggers = sourceBuild.triggers
         }
         if (sourceBuild.queue != null) {
+            this.logger?.info("Setting pool from source pool");
             newBuild.queue = sourceBuild.queue
         } else {
+            this.logger?.info("Setting pool from default pool");
             newBuild.queue = <BuildInterfaces.BuildDefinitionReference>{
                 queue: defaultPool
             }
