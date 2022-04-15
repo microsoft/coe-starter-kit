@@ -979,6 +979,8 @@ class DevOpsCommand {
 
         this.logger?.info(`Retrieving default pool`)
         let agentPools = await taskApi?.getAgentPools()
+        this.logger?.info(`Agent Pool Count: ${agentPools.length}`)
+
         agentPools.forEach(agentPool => {
             this.logger?.info(`Pool: ${agentPool.name}`)
         })
