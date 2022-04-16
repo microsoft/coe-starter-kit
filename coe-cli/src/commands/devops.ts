@@ -20,7 +20,7 @@ import { FileHandle } from 'fs/promises';
 import httpm = require('typed-rest-client/HttpClient');
 
 import { AADAppInstallArguments, AADCommand } from "./aad";
-import { EndpointAuthorization, ServiceEndpoint, TaskAgentPool, VariableGroupParameters } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
+import { EndpointAuthorization, ServiceEndpoint, TaskAgentQueue, VariableGroupParameters } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
 import { ProjectReference, VariableGroupProjectReference, VariableValue } from "azure-devops-node-api/interfaces/ReleaseInterfaces";
 
 import * as winston from 'winston';
@@ -397,11 +397,11 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
 
-        this.logger?.info(`Retrieving default pool`)
-        let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Default")
+        this.logger?.info(`Retrieving default Queue`)
+        let defaultQueue = (await taskApi?.getAgentQueues())?.filter(p => p.name == "Azure Pipelines")
 
-        let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
-        this.logger?.info(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
+        let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
+        this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
 
         let builds = await buildApi.getDefinitions(args.projectName)
 
@@ -412,14 +412,14 @@ class DevOpsCommand {
 
             if (exportBuild.length == 0) {
                 this.logger?.debug(`Creating build ${buildNames[i]}`)
-                await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentPool)
+                await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentQueue)
             } else {
                 let build = await buildApi.getDefinition(args.projectName, exportBuild[0].id)
                 let changes = false
 
                 if (typeof build.queue === "undefined") {
                     this.logger?.debug(`Missing build queue for ${build.name}`)
-                    build.queue = <BuildInterfaces.AgentPoolQueue>{ queue: defaultAgentPool }
+                    build.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultAgentQueue }
                     changes = true
                 }
 
@@ -766,7 +766,7 @@ class DevOpsCommand {
         return connection
     }
 
-    async createBuild(buildApi: IBuildApi, repo: GitRepository, name: string, yamlFilename: string, defaultPool: TaskAgentPool): Promise<BuildInterfaces.BuildDefinition> {
+    async createBuild(buildApi: IBuildApi, repo: GitRepository, name: string, yamlFilename: string, defaultQueue: TaskAgentQueue): Promise<BuildInterfaces.BuildDefinition> {
         let newBuild = <BuildInterfaces.BuildDefinition>{};
         newBuild.name = name
         newBuild.repository = <BuildInterfaces.BuildRepository>{}
@@ -778,7 +778,7 @@ class DevOpsCommand {
         let process = <BuildInterfaces.YamlProcess>{};
         process.yamlFilename = yamlFilename
         newBuild.process = process
-        newBuild.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultPool }
+        newBuild.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultQueue }
 
         return buildApi.createDefinition(newBuild, repo.project.name)
     }
@@ -977,25 +977,25 @@ class DevOpsCommand {
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
-        this.logger?.info(`Retrieving default pool`)
-        let agentPools = await taskApi?.getAgentPools()
-        this.logger?.info(`Agent Pool Count: ${agentPools.length}`)
+        this.logger?.info(`Retrieving default Queue`)
+        let agentQueues = await taskApi?.getAgentQueues()
+        this.logger?.info(`Agent Queue Count: ${agentQueues.length}`)
 
-        agentPools.forEach(agentPool => {
-            this.logger?.info(`Pool: ${agentPool.name}`)
+        agentQueues.forEach(agentQueue => {
+            this.logger?.info(`Queue: ${agentQueue.name}`)
         })
 
-        let defaultPool = (await taskApi?.getAgentPools())?.filter(p => p.name == "Azure Pipelines")
+        let defaultQueue = (await taskApi?.getAgentQueues())?.filter(p => p.name == "Azure Pipelines")
 
-        let defaultAgentPool = defaultPool?.length > 0 ? defaultPool[0] : undefined
-        this.logger?.info(`Default pool: ${defaultPool?.length > 0 ? defaultPool[0].name : "undefined"}`)
+        let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
+        this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
 
-        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentPool);
-        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentPool);
-        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, defaultAgentPool);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentQueue);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentQueue);
+        await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, defaultAgentQueue);
     }
 
-    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, template: string, createInBranch: string, defaultPool: TaskAgentPool): Promise<void> {
+    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, template: string, createInBranch: string, defaultQueue: TaskAgentQueue): Promise<void> {
 
         let source = args.sourceBuildName
         let destination = args.destinationBranch
@@ -1044,7 +1044,7 @@ class DevOpsCommand {
             sourceBuild.repository.url = repo.url
             sourceBuild.repository.type = 'TfsGit'
             let environmentName = ''
-            let seviceConnection = ''
+            let serviceConnection = ''
 
             let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
             let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
@@ -1053,30 +1053,30 @@ class DevOpsCommand {
             switch (template?.toLowerCase()) {
                 case "validation": {
                     environmentName = 'Validation'
-                    seviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
+                    serviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
                     break;
                 }
                 case "test": {
                     environmentName = 'Test'
-                    seviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
+                    serviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
                     break;
                 }
                 case "prod": {
                     environmentName = 'Production'
-                    seviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
+                    serviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
                     break;
                 }
             }
 
             this.logger?.debug(util.format("Environment Name %s", environmentName));
-            this.logger?.debug(util.format("URL %s", seviceConnection));
+            this.logger?.debug(util.format("URL %s", serviceConnection));
 
             sourceBuild.variables = {
                 EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
             }
             sourceBuild.variables.EnvironmentName.value = environmentName
-            sourceBuild.variables.ServiceConnection.value = seviceConnection
+            sourceBuild.variables.ServiceConnection.value = serviceConnection
         }
 
         this.logger?.info(util.format("Creating new pipeline %s", destinationBuildName));
@@ -1092,14 +1092,22 @@ class DevOpsCommand {
         if (sourceBuild.triggers != null) {
             newBuild.triggers = sourceBuild.triggers
         }
+        else {
+            let trigger = <BuildInterfaces.ContinuousIntegrationTrigger>{}
+            trigger.triggerType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
+            trigger.branchFilters = []
+            trigger.pathFilters = []
+            trigger.maxConcurrentBuildsPerBranch = 1
+            trigger.batchChanges = false
+            trigger.settingsSourceType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
+            newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]    
+        }
         if (sourceBuild.queue != null) {
-            this.logger?.info("Setting pool from source pool");
+            this.logger?.info(`Setting Queue from source Queue`);
             newBuild.queue = sourceBuild.queue
         } else {
-            this.logger?.info("Setting pool from default pool");
-            newBuild.queue = <BuildInterfaces.AgentPoolQueue>{
-                queue: defaultPool
-            }
+            this.logger?.info(`Setting Queue from default Queue`);
+            newBuild.queue = defaultQueue
         }
 
         let result
