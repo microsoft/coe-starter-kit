@@ -396,40 +396,46 @@ class DevOpsCommand {
         }
 
         let taskApi = await connection.getTaskAgentApi()
+        let core = await connection.getCoreApi()
+        let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
 
-        this.logger?.info(`Retrieving default Queue`)
-        let defaultQueue = (await taskApi?.getAgentQueues())?.filter(p => p.name == "Azure Pipelines")
+        if (typeof project !== "undefined") {
+            this.logger?.info(util.format("Found project %s", project.name))
 
-        let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
-        this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
+            this.logger?.info(`Retrieving default Queue`)
+            let defaultQueue = (await taskApi?.getAgentQueues(args.projectName))?.filter(p => p.name == "Azure Pipelines")
 
-        let builds = await buildApi.getDefinitions(args.projectName)
+            let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
+            this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
 
-        let buildNames = ['export-solution-to-git', 'import-unmanaged-to-dev-environment', 'delete-unmanaged-solution-and-components']
+            let builds = await buildApi.getDefinitions(args.projectName)
 
-        for (var i = 0; i < buildNames.length; i++) {
-            let exportBuild = builds.filter(b => b.name == buildNames[i])
+            let buildNames = ['export-solution-to-git', 'import-unmanaged-to-dev-environment', 'delete-unmanaged-solution-and-components']
 
-            if (exportBuild.length == 0) {
-                this.logger?.debug(`Creating build ${buildNames[i]}`)
-                await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentQueue)
-            } else {
-                let build = await buildApi.getDefinition(args.projectName, exportBuild[0].id)
-                let changes = false
+            for (var i = 0; i < buildNames.length; i++) {
+                let exportBuild = builds.filter(b => b.name == buildNames[i])
 
-                if (typeof build.queue === "undefined") {
-                    this.logger?.debug(`Missing build queue for ${build.name}`)
-                    build.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultAgentQueue }
-                    changes = true
-                }
-
-                if (changes) {
-                    this.logger?.debug(`Updating ${build.name}`)
-                    await buildApi.updateDefinition(build, args.projectName, exportBuild[0].id)
+                if (exportBuild.length == 0) {
+                    this.logger?.debug(`Creating build ${buildNames[i]}`)
+                    await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentQueue)
                 } else {
-                    this.logger?.debug(`No changes to ${buildNames[i]}`)
-                }
+                    let build = await buildApi.getDefinition(args.projectName, exportBuild[0].id)
+                    let changes = false
 
+                    if (typeof build.queue === "undefined") {
+                        this.logger?.debug(`Missing build queue for ${build.name}`)
+                        build.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultAgentQueue }
+                        changes = true
+                    }
+
+                    if (changes) {
+                        this.logger?.debug(`Updating ${build.name}`)
+                        await buildApi.updateDefinition(build, args.projectName, exportBuild[0].id)
+                    } else {
+                        this.logger?.debug(`No changes to ${buildNames[i]}`)
+                    }
+
+                }
             }
         }
     }
@@ -779,6 +785,15 @@ class DevOpsCommand {
         process.yamlFilename = yamlFilename
         newBuild.process = process
         newBuild.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultQueue }
+        
+        let trigger = <BuildInterfaces.ContinuousIntegrationTrigger>{}
+        trigger.triggerType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
+        trigger.branchFilters = []
+        trigger.pathFilters = []
+        trigger.maxConcurrentBuildsPerBranch = 1
+        trigger.batchChanges = false
+        trigger.settingsSourceType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
+        newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]    
 
         return buildApi.createDefinition(newBuild, repo.project.name)
     }
@@ -978,14 +993,14 @@ class DevOpsCommand {
         let baseUrl = `$(devOpsOrgUrl}${args.projectName}`
 
         this.logger?.info(`Retrieving default Queue`)
-        let agentQueues = await taskApi?.getAgentQueues()
+        let agentQueues = await taskApi?.getAgentQueues(project.id)
         this.logger?.info(`Agent Queue Count: ${agentQueues.length}`)
 
         agentQueues.forEach(agentQueue => {
             this.logger?.info(`Queue: ${agentQueue.name}`)
         })
 
-        let defaultQueue = (await taskApi?.getAgentQueues())?.filter(p => p.name == "Azure Pipelines")
+        let defaultQueue = (await taskApi?.getAgentQueues(project.id))?.filter(p => p.name == "Azure Pipelines")
 
         let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
         this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
