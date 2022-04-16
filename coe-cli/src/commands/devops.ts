@@ -936,21 +936,32 @@ class DevOpsCommand {
 
         if (buildTypes.length > 0) {
             let existingConfigurations = await policyApi.getPolicyConfigurations(args.projectName);
+
+            existingConfigurations.forEach(policy => {
+                if (policy.settings.scope?.length == 1) {
+                    this.logger?.info(`Policy: ${policy.settings.displayName} RefName: ${policy.settings.scope[0].refName} RepoId: ${policy.settings.scope[0].repositoryId} Type: ${policy.type.id == buildTypes[0].id}`)
+                }
+                else {
+                    this.logger?.info(`Policy: ${policy.settings.displayName} Scopes: ${policy.settings.scopes?.length} Type: ${policy.type.id == buildTypes[0].id}`)
+                }
+                
+            })
+    
             let existingPolices = existingConfigurations.filter((policy: PolicyConfiguration) => {
                 if (policy.settings.scope?.length == 1
-                    && policy.settings.scope[0].refName == `ref/heads/${args.destinationBranch}`
-                    && policy.settings.scope[0].repositorytId == repo.id
-                    && policy.type.id == policyTypes[0].id) {
+                    && policy.settings.scope[0].refName == `refs/heads/${args.destinationBranch}`
+                    && policy.settings.scope[0].repositoryId == repo.id
+                    && policy.type.id == buildTypes[0].id) {
                     return true
                 }
             })
-
+            
             if ((existingPolices.length == 0) && (buildMatch.length > 0)) {
                 let newPolicy = <PolicyConfiguration>{}
                 newPolicy.settings = {}
                 newPolicy.settings.buildDefinitionId = buildMatch[0].id
                 newPolicy.settings.displayName = 'Build Validation'
-                newPolicy.settings.filenamePatterens = [`/${args.destinationBranch}/*`]
+                newPolicy.settings.filenamePatterns = [`/${args.destinationBranch}/*`]
                 newPolicy.settings.manualQueueOnly = false
                 newPolicy.settings.queueOnSourceUpdateOnly = false
                 newPolicy.settings.validDuration = 0
