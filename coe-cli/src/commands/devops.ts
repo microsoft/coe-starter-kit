@@ -1115,10 +1115,8 @@ class DevOpsCommand {
             newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]    
         }
         if (sourceBuild.queue != null) {
-            this.logger?.info(`Setting Queue from source Queue`);
             newBuild.queue = sourceBuild.queue
         } else {
-            this.logger?.info(`Setting Queue from default Queue`);
             newBuild.queue = defaultQueue
         }
 
