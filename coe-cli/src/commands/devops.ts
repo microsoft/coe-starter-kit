@@ -936,16 +936,6 @@ class DevOpsCommand {
 
         if (buildTypes.length > 0) {
             let existingConfigurations = await policyApi.getPolicyConfigurations(args.projectName);
-
-            existingConfigurations.forEach(policy => {
-                if (policy.settings.scope?.length == 1) {
-                    this.logger?.info(`Policy: ${policy.settings.displayName} RefName: ${policy.settings.scope[0].refName} RepoId: ${policy.settings.scope[0].repositoryId} Type: ${policy.type.id == buildTypes[0].id}`)
-                }
-                else {
-                    this.logger?.info(`Policy: ${policy.settings.displayName} Scopes: ${policy.settings.scopes?.length} Type: ${policy.type.id == buildTypes[0].id}`)
-                }
-                
-            })
     
             let existingPolices = existingConfigurations.filter((policy: PolicyConfiguration) => {
                 if (policy.settings.scope?.length == 1
@@ -955,7 +945,7 @@ class DevOpsCommand {
                     return true
                 }
             })
-            
+
             if ((existingPolices.length == 0) && (buildMatch.length > 0)) {
                 let newPolicy = <PolicyConfiguration>{}
                 newPolicy.settings = {}
@@ -1005,16 +995,12 @@ class DevOpsCommand {
 
         this.logger?.info(`Retrieving default Queue`)
         let agentQueues = await taskApi?.getAgentQueues(project.id)
-        this.logger?.info(`Agent Queue Count: ${agentQueues.length}`)
+        this.logger?.info(`Found: ${agentQueues?.length} queues`)
 
-        agentQueues.forEach(agentQueue => {
-            this.logger?.info(`Queue: ${agentQueue.name}`)
-        })
-
-        let defaultQueue = (await taskApi?.getAgentQueues(project.id))?.filter(p => p.name == "Azure Pipelines")
+        let defaultQueue = agentQueues?.filter(p => p.name == "Azure Pipelines")
 
         let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
-        this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
+        this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."}`)
 
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentQueue);
         await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentQueue);
