@@ -424,7 +424,7 @@ class DevOpsCommand {
 
                     if (typeof build.queue === "undefined") {
                         this.logger?.debug(`Missing build queue for ${build.name}`)
-                        build.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultAgentQueue }
+                        build.queue = defaultAgentQueue
                         changes = true
                     }
 
@@ -784,7 +784,7 @@ class DevOpsCommand {
         let process = <BuildInterfaces.YamlProcess>{};
         process.yamlFilename = yamlFilename
         newBuild.process = process
-        newBuild.queue = <BuildInterfaces.BuildDefinitionReference>{ queue: defaultQueue }
+        newBuild.queue = defaultQueue
         
         let trigger = <BuildInterfaces.ContinuousIntegrationTrigger>{}
         trigger.triggerType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
