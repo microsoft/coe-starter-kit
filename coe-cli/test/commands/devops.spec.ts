@@ -26,7 +26,7 @@ import exp = require('constants');
 import { RoleAssignment } from 'azure-devops-node-api/interfaces/SecurityRolesInterfaces';
 import { IdentityRef } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
 import { GraphGroup } from 'azure-devops-node-api/interfaces/GraphInterfaces';
-import { VariableGroupParameters } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
+import { VariableGroupParameters, TaskAgentQueue } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
 
 describe('Install', () => {
     test('Import Repo', async () => {
@@ -174,25 +174,37 @@ describe('Install Build', () => {
         let logger = mock<winston.Logger>()
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let args = new DevOpsInstallArguments();
+        let mockProject = mock<CoreInterfaces.TeamProject>()
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
+        let mockTaskAgentApi = mock<ITaskAgentApi>();
         let mockBuildApi = mock<IBuildApi>();
+        let mockCoreApi = mock<corem.ICoreApi>(); 
+        let mockQueues = mock<TaskAgentQueue[]>([{id:1, name:"Azure Pipelines"}])
         let repo = <GitRepository>{project: <CoreInterfaces.TeamProjectReference>{name:"P1"}}
 
-        mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
+        command.createWebApi = () => mockDevOpsWebApi
         mockBuildApi.getDefinitions.mockResolvedValue([])
-        
+        mockTaskAgentApi.getAgentQueues.mockResolvedValue(mockQueues)
+        mockCoreApi.getProject.mockResolvedValue(mockProject)
+        mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
+        mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
+        mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
+
         // Act
         await command.createMakersBuildPipelines(args, mockDevOpsWebApi, repo)
 
         // Assert
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
         expect(mockBuildApi.createDefinition.mock.calls[0][0].name).toBe('export-solution-to-git')
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].queue.id).toBe(1)
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[0][0].process).yamlFilename).toBe('/Pipelines/export-solution-to-git.yml')
         
         expect(mockBuildApi.createDefinition.mock.calls[1][0].name).toBe('import-unmanaged-to-dev-environment')
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].queue.id).toBe(1)
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[1][0].process).yamlFilename).toBe('/Pipelines/import-unmanaged-to-dev-environment.yml')
 
         expect(mockBuildApi.createDefinition.mock.calls[2][0].name).toBe('delete-unmanaged-solution-and-components')
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].queue.id).toBe(1)
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[2][0].process).yamlFilename).toBe('/Pipelines/delete-unmanaged-solution-and-components.yml')
     })
 })
@@ -208,6 +220,7 @@ describe('Branch', () => {
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockCoreApi = mock<corem.ICoreApi>(); 
         let mockTaskAgentApi = mock<ITaskAgentApi>();
+        let mockQueues = mock<TaskAgentQueue[]>([{id:1, name:"Azure Pipelines"}])
         
         let mockProject = mock<CoreInterfaces.TeamProject>()
         
@@ -221,6 +234,8 @@ describe('Branch', () => {
 
         command.createWebApi = (org: string, handler: IRequestHandler) => mockDevOpsWebApi;
         command.getUrl = (url: string) => Promise.resolve('123')
+        command.createBranch = (args: DevOpsBranchArguments, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi) => Promise.resolve(<GitRepository>{})
+        mockTaskAgentApi.getAgentQueues.mockResolvedValue(mockQueues)
 
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
@@ -244,18 +259,43 @@ describe('Branch', () => {
         args.accessToken = "FOO"
         args.organizationName = "org"
         args.projectName = "P1"
-        args.repositoryName = "repo1"        
+        args.repositoryName = "NewSolution"        
         args.pipelineRepository = "templates"
         args.sourceBranch = "main"  
-        args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
-
+        args.settings = { 'validation': 'https://validation.crm.dynamics.com', 'test': 'https://test.crm.dynamics.com', 'prod': 'https://production.crm.dynamics.com' }
         // Act
         await command.branch(args)
 
         // Assert
         expect(mockDevOpsWebApi.getCoreApi).toHaveBeenCalled()
         expect(mockCoreApi.getProject).toHaveBeenCalled()
+
+        expect(mockBuildApi.createDefinition).toHaveBeenCalled()
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].name).toBe('deploy-validation-NewSolution')
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].queue.id).toBe(1)
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].triggers.length).toBe(1)
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].triggers[0].triggerType).toBe(2)
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables["EnvironmentName"].value).toBe("Validation")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables["ServiceConnection"].value).toBe("https://validation.crm.dynamics.com/")
+        expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[0][0].process).yamlFilename).toBe('/NewSolution/deploy-validation-NewSolution.yml')
+
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].name).toBe('deploy-test-NewSolution')
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].queue.id).toBe(1)
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].triggers.length).toBe(1)
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].triggers[0].triggerType).toBe(2)
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["EnvironmentName"].value).toBe("Test")
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["ServiceConnection"].value).toBe("https://test.crm.dynamics.com/")
+        expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[1][0].process).yamlFilename).toBe('/NewSolution/deploy-test-NewSolution.yml')
+
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].name).toBe('deploy-prod-NewSolution')
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].queue.id).toBe(1)
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].triggers.length).toBe(1)
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].triggers[0].triggerType).toBe(2)
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["EnvironmentName"].value).toBe("Production")
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["ServiceConnection"].value).toBe("https://production.crm.dynamics.com/")
+        expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[2][0].process).yamlFilename).toBe('/NewSolution/deploy-prod-NewSolution.yml')
+
     })
 
     test('Create new branch if project exists and source build exists - Case Insensitive', async () => {
@@ -683,7 +723,7 @@ describe('Policy', () => {
         expect(mockPolicyApi.createPolicyConfiguration).toHaveBeenCalled()
         expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].type.displayName).toBe("Build")
         expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].settings.displayName).toBe("Build Validation")
-        expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].settings.filenamePatterens[0]).toBe("/Test1/*")
+        expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].settings.filenamePatterns[0]).toBe("/Test1/*")
         expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].settings.scope[0].refName).toBe("refs/heads/Test1")
         expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].settings.scope[0].repositoryId).toBe("123")
         expect(mockPolicyApi.createPolicyConfiguration.mock.calls[0][0].settings.scope[0].matchKind).toBe("Exact")
