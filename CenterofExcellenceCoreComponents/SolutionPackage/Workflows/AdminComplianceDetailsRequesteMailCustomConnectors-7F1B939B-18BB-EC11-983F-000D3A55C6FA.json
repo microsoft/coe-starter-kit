@@ -1,0 +1,433 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "impersonation": {},
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Developer Compliance Center URL (admin_DeveloperComplianceCenterURL)": {
+          "defaultValue": "fake link here",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_DeveloperComplianceCenterURL",
+            "description": "Leave blank on Import. URL to Developer Compliance Center Canvas App. "
+          }
+        },
+        "Admin eMail (admin_AdminMail)": {
+          "defaultValue": "adelev@PPlatform.onmicrosoft.com",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdminMail",
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
+          }
+        }
+      },
+      "triggers": {
+        "When_Custom_Connecror_Admin_Risk_Assessment_-_State_is_modified": {
+          "metadata": {
+            "operationMetadataId": "e552d4c1-9165-470a-8a52-a8dd2b032a96"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/entityname": "admin_connector",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filteringattributes": "admin_adminrequirementriskassessmentstate",
+              "subscriptionRequest/name": "7f1b939b-18bb-ec11-983f-000d3a55c6fa"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Initialize_emailGUID": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "8243356f-c7ff-48f5-9126-da25fe595e3d"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "emailGUID",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_assignee": {
+          "runAfter": {
+            "Initialize_emailGUID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7bfd9f17-3c4d-444a-b175-d896b3fc6866"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varAssignee",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "If_Admin_Risk_Assessment_State_is_Requested": {
+          "actions": {
+            "Get_Row_-_Send_Audit_Mail_to_Owner_-_Custom_Connectors": {
+              "actions": {
+                "Get_a_row_by_ID": {
+                  "runAfter": {
+                    "Set_emailGUID_to_localized_row": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "entityName": "admin_customizedemails",
+                      "recordId": "@variables('emailGUID')",
+                      "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "List_emails_for_preferred_language": {
+                  "runAfter": {
+                    "emailGUID_to_en-US": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "entityName": "admin_customizedemails",
+                      "$select": "admin_customizedemailid",
+                      "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq ''"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Set_emailGUID_to_localized_row": {
+                  "runAfter": {
+                    "List_emails_for_preferred_language": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "4c1f823f-63a0-4d98-b489-df53e0e934b7"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "emailGUID",
+                    "value": "@{if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']), 0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))}"
+                  },
+                  "description": "if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']),0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))"
+                },
+                "emailGUID_to_en-US": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "d19afed8-4f91-4914-9cb7-fe89e74e1a6c"
+                  },
+                  "type": "Compose",
+                  "inputs": "33ecdd7b-26bb-ec11-983f-000d3a55c6fa"
+                }
+              },
+              "runAfter": {
+                "If_BPF_not_already_started_for_this_app,_start_it": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
+              },
+              "type": "Scope"
+            },
+            "Check_maker_and_set_eMail_assignee": {
+              "actions": {
+                "Check_if_Maker_is_orphaned": {
+                  "actions": {
+                    "Set_variable_to_Admin_eMail": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "31f7a560-efce-4a67-9ebc-1f972875a0f6"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "varAssignee",
+                        "value": "@{parameters('Admin eMail (admin_AdminMail)')}"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Check_Maker_status": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Set_variable_to_Maker_eMail": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "23c6af05-f4fb-405a-86f3-3c8e07681441"
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "varAssignee",
+                          "value": "@body('Check_Maker_status')?['useremail']"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@body('Check_Maker_status')?['userisorphan']",
+                      "True"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "2e428884-464c-47da-905c-008200042729"
+                  },
+                  "type": "If"
+                },
+                "Get_Maker": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "1d1d87d5-1081-4159-834f-bcbd4e694ae4"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "entityName": "admin_makers",
+                      "recordId": "@triggerOutputs()?['body/_admin_maker_value']",
+                      "$select": "admin_displayname"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Check_Maker_status": {
+                  "runAfter": {
+                    "Get_Maker": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "fe0c3165-0e98-4546-a12b-ccdd78385cb9"
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                    },
+                    "body": {
+                      "text": "@triggerOutputs()?['body/_admin_maker_value']",
+                      "text_1": "@outputs('Get_Maker')?['body/admin_displayname']",
+                      "boolean": false
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "39699716-8261-40dc-9422-67ce56f65a1e"
+              },
+              "type": "Scope"
+            },
+            "Send_eMail": {
+              "actions": {
+                "Send_Audit_Mail_to_Owner_Custom_Connector": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "cde22ca8-5369-47d5-bc3e-5a4c6f3c5660"
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                    },
+                    "body": {
+                      "email": "@variables('varAssignee')",
+                      "text": "@outputs('Get_a_row_by_ID')?['body/admin_subject']",
+                      "text_1": "@{outputs('Get_a_row_by_ID')?['body/admin_body']}\n\n<a href='@{parameters('Developer Compliance Center URL (admin_DeveloperComplianceCenterURL)')}&connectorName=@{triggerOutputs()?['body/admin_connectorid']}'>Developer Compliance Center</a><br><br>\n\n<b><u>Custom Connector Details:</u></b>\n<p><b>Display Name:</b>  @{triggerOutputs()?['body/admin_displayname']} </p>\n<p><b>Environment:</b> @{triggerOutputs()?['body/admin_environmentdisplayname']} </p>\n",
+                      "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                      "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                      "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])"
+                    }
+                  },
+                  "description": "b5bb8e1c-8741-ec11-8c62-00224829bf00"
+                },
+                "Send_Audit_Mail_to_Admin_Custom_Connector": {
+                  "runAfter": {
+                    "Send_Audit_Mail_to_Owner_Custom_Connector": [
+                      "Failed"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "cde22ca8-5369-47d5-bc3e-5a4c6f3c5660"
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                    },
+                    "body": {
+                      "email": "@parameters('Admin eMail (admin_AdminMail)')",
+                      "text": "@{outputs('Get_a_row_by_ID')?['body/admin_subject']} - REASSIGNED TO ADMIN",
+                      "text_1": "REASSIGNED TO ADMIN <br>\n@{outputs('Get_a_row_by_ID')?['body/admin_body']}\n\n<a href='@{parameters('Developer Compliance Center URL (admin_DeveloperComplianceCenterURL)')}&connectorName=@{triggerOutputs()?['body/admin_connectorid']}'>Developer Compliance Center</a><br><br>\n\n<b><u>Custom Connector Details:</u></b>\n<p><b>Display Name:</b> @{triggerOutputs()?['body/admin_displayname']} </p>\n<p><b>Environment:</b> @{triggerOutputs()?['body/admin_environmentdisplayname']} </p>\n",
+                      "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                      "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                      "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])"
+                    }
+                  },
+                  "description": "b5bb8e1c-8741-ec11-8c62-00224829bf00"
+                }
+              },
+              "runAfter": {
+                "Get_Row_-_Send_Audit_Mail_to_Owner_-_Custom_Connectors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f5fee0be-c992-4a1e-ba34-c481ea5632ae"
+              },
+              "type": "Scope"
+            },
+            "List_BPFs_for_this_App": {
+              "runAfter": {
+                "Check_maker_and_set_eMail_assignee": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "38657fe9-1fb8-406b-931b-61995e23c97d"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "entityName": "new_customconnecterapprovalbpfs",
+                  "$select": "businessprocessflowinstanceid",
+                  "$filter": "_bpf_admin_connectorid_value eq '@{triggerOutputs()?['body/admin_connectorid']}'"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "If_BPF_not_already_started_for_this_app,_start_it": {
+              "actions": {
+                "Start_App_Audit_BPF": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "ac86b0d9-2e77-430a-b3ba-a481ef2b84ca"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "CreateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "new_customconnecterapprovalbpfs",
+                      "item/bpf_name": "Audit for @{triggerOutputs()?['body/admin_displayname']}",
+                      "item/activestagestartedon": "@utcNow()",
+                      "item/bpf_admin_connectorid@odata.bind": "admin_connectors(@{triggerOutputs()?['body/admin_connectorid']})"
+                    },
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 10,
+                      "interval": "PT10S"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "List_BPFs_for_this_App": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "equals": [
+                  "@length(outputs('List_BPFs_for_this_App')?['body/value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "5ef038f2-c89f-4a80-a15e-d97a488087ab"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_assignee": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/admin_adminrequirementriskassessmentstate']",
+              597910001
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8d48ef52-baa1-44d0-aeb1-acd2f84670b1"
+          },
+          "type": "If"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
