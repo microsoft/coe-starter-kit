@@ -3,7 +3,6 @@
     Write-Host (ConvertTo-Json -Depth 10 $configurationDataJson)
     #Generate Deployment Settings
     Write-Host "Update Deployment Settings"
-    Remove-CurrentDeploymentSettingsConfiguration $buildSourceDirectory $repo $solutionName
     $customDeploymentSettingsFilePath = "$buildSourceDirectory\$repo\$solutionName\config\customDeploymentSettings.json"
     $deploymentSettingsFilePath = "$buildSourceDirectory\$repo\$solutionName\config\deploymentSettings.json"
     if(!(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\")) {
@@ -310,14 +309,6 @@ function New-DeploymentPipelines($buildRepositoryName, $orgUrl, $projectName, $r
     }
 }
 
-function Remove-CurrentDeploymentSettingsConfiguration($buildSourceDirectory, $repo, $solutionName)
-{
-    if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\") {
-        Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\**\customDeploymentSettings.json" -Recurse -Force
-        Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\**\deploymentSettings.json" -Recurse -Force
-    }
-}
-
 function Set-BuildDefinitionVariables($orgUrl, $projectId, $azdoAuthType, $buildDefinitionResult, $definitionId, $newBuildDefinitionVariables) {
     #Set the build definition variables to the newly created list
     $buildDefinitionResult.variables = $newBuildDefinitionVariables
@@ -348,9 +339,15 @@ function Set-EnvironmentDeploymentSettingsConfiguration($buildSourceDirectory, $
             #Convert the JSON in the cat_data field to an object
             $variableConfiguration = ConvertFrom-Json $variableConfigurationJson
             foreach($variable in $variableConfiguration) {
+                $environmentName = $variable.Environment
+                if(-Not [string]::IsNullOrWhiteSpace($environmentName)) {
+                    if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName") {
+                        Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName" -Recurse -Force
+                    }
+                }
+
                 $variableName = $variable.Name
                 if($variableName.Contains("groupTeam.")) {
-                    $environmentName = $variable.Environment
                     $teamGroupConfigVariable = "#{$variableName}#"
     
                     $teamName = $variable.Name.split('.')[-1]
@@ -362,16 +359,19 @@ function Set-EnvironmentDeploymentSettingsConfiguration($buildSourceDirectory, $
                 }
             }
         }
-        $newCustomConfiguration.AadGroupTeamConfiguration = $groupTeams
-        if($groupTeams.Count -gt 0 -and -Not [string]::IsNullOrWhiteSpace($environmentName)) {
-            if(!(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName")) {
-                New-Item "$buildSourceDirectory\$repo\$solutionName\config" -Name "$environmentName" -ItemType "directory"
-            }
+
+        if(-Not [string]::IsNullOrWhiteSpace($environmentName)) {
+            $newCustomConfiguration.AadGroupTeamConfiguration = $groupTeams
+            if($groupTeams.Count -gt 0) {
+                if(!(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName")) {
+                    New-Item "$buildSourceDirectory\$repo\$solutionName\config" -Name "$environmentName" -ItemType "directory"
+                }
         
 
-            #Convert the updated configuration to json and store in customDeploymentSettings.json
-            $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
-            Set-Content -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\customDeploymentSettings.json" -Value $json
+                #Convert the updated configuration to json and store in customDeploymentSettings.json
+                $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
+                Set-Content -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\customDeploymentSettings.json" -Value $json
+            }
         }
     }
 }
