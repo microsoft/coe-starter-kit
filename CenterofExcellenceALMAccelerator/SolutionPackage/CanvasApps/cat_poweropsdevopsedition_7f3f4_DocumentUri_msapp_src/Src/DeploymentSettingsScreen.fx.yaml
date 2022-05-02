@@ -1,7 +1,7 @@
 DeploymentSettingsScreen As screen:
-    OnVisible: |
+    OnVisible: |-
         =If(
-            !IsBlank(Param("configsoln")) && !IsBlank(Param("env")) && !IsBlank(Param("profile")) && !IsBlank(Param("step")),
+            !IsBlank(Param("configsoln")) And !IsBlank(Param("env")) And !IsBlank(Param("profile")) And !IsBlank(Param("step")),
             ClearCollect(
                 AllEnvironments,
                 Sort(
@@ -82,7 +82,6 @@ DeploymentSettingsScreen As screen:
                     'Deployment Step' = GUID(Param("step"))
                 )
             );
-            
         );
         UpdateContext(
             {
@@ -140,461 +139,463 @@ DeploymentSettingsScreen As screen:
             UpdateContext({locDeploymentEnvironmentLabel: "Select an Environment to Configure (NOTE: One or more deployment environment(s) could not be found. Only the available deployment environment(s) will be configurable.)"})
         );
         If(
-            IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
-            UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
-            UpdateContext(
-                {
-                    SelectedDeploymentEnvironment: LookUp(
-                        DeploymentEnvironments,
-                        LookUp(
-                            'Deployment Environments',
-                            'Deployment Environment' = SelectedDeploymentStep.'Deployment Environment'.'Deployment Environment',
-                            URL
-                        ) in EnvironmentUrl
-                    )
-                }
-            )
-        );
-        //Load existing values from deployment configuration data
+            CountRows(DeploymentEnvironments) > 0,
+            If(
+                IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
+                UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
+                UpdateContext(
+                    {
+                        SelectedDeploymentEnvironment: LookUp(
+                            DeploymentEnvironments,
+                            LookUp(
+                                'Deployment Environments',
+                                'Deployment Environment' = SelectedDeploymentStep.'Deployment Environment'.'Deployment Environment',
+                                URL
+                            ) in EnvironmentUrl
+                        )
+                    }
+                )
+            );
+            //Load existing values from deployment configuration data
         UpdateContext({locSharepointFilter: ""});
-        UpdateContext({locAADGroupFilters: ""});
-        UpdateContext({locEnvironmentUserFilters: ""});
-        If(
-            Not IsBlank(SelectedDeploymentEnvironment),
-            UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & SelectedSolutionToConfigure.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
-            UpdateContext(
-                {
-                    locEnvironmentDeploymentSetting: LookUp(
-                        'User Settings',
-                        Name = locSolutionEnvironmentDeploySettingName
+            UpdateContext({locAADGroupFilters: ""});
+            UpdateContext({locEnvironmentUserFilters: ""});
+            If(
+                Not IsBlank(SelectedDeploymentEnvironment),
+                UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & SelectedSolutionToConfigure.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
+                UpdateContext(
+                    {
+                        locEnvironmentDeploymentSetting: LookUp(
+                            'User Settings',
+                            Name = locSolutionEnvironmentDeploySettingName
+                        )
+                    }
+                );
+                If(
+                    IsBlank(locEnvironmentDeploymentSetting.Data),
+                    UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run("[]")}),
+                    UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
+                );
+                UpdateContext(
+                    {
+                        locSharepointFilter: Concat(
+                            Distinct(
+                                Filter(
+                                    EnvironmentDeploymentSettings,
+                                    StartsWith(
+                                        Name,
+                                        "environmentvariable."
+                                    ) And !IsBlankOrError(Value) And !IsBlank(
+                                        Find(
+                                            "sharepoint",
+                                            Value
+                                        )
+                                    )
+                                ),
+                                Value
+                            ),
+                            "site:" & Result,
+                            " OR "
+                        ),
+                        locAADGroupFilters: Concat(
+                            Distinct(
+                                Filter(
+                                    EnvironmentDeploymentSettings,
+                                    StartsWith(
+                                        Name,
+                                        "canvasshare.aadGroupId."
+                                    ) And !IsBlankOrError(Value)
+                                ),
+                                Value
+                            ),
+                            "id eq '" & Result & "'",
+                            " OR "
+                        ),
+                        locEnvironmentUserFilters: Concat(
+                            Distinct(
+                                Filter(
+                                    EnvironmentDeploymentSettings,
+                                    (StartsWith(
+                                        Name,
+                                        "owner.ownerEmail."
+                                    ) Or StartsWith(
+                                        Name,
+                                        "flow.activation."
+                                    )) And !IsBlankOrError(Value)
+                                ),
+                                Value
+                            ),
+                            "internalemailaddress eq '" & Result & "'",
+                            " or "
+                        )
+                    }
+                );
+            );
+            Clear(SolutionConnectionReferences);
+            Clear(SolutionCanvasApps);
+            Clear(SolutionEnvironmentVariables);
+            Clear(SolutionFlows);
+            Clear(AppSharingPermissions);
+            Clear(SharepointLists);
+            Clear(CustomConnectors);
+            Concurrent(
+                ClearCollect(
+                    AADGroups,
+                    SearchAADGroups.Run(
+                        locAADGroupFilters,
+                        {text: ""}
+                    ).value
+                ),
+                ClearCollect(
+                    SharepointSites,
+                    SearchSharepointSites.Run(
+                        {
+                            text: "",
+                            text_1: locSharepointFilter
+                        }
+                    ).value
+                ),
+                ClearCollect(
+                    EnvironmentTeams,
+                    SearchDeploymentEnvironmentTeams.Run(
+                        Last(
+                            FirstN(
+                                ClearCollect(
+                                    splitCol2,
+                                    Split(
+                                        SelectedDeploymentEnvironment.EnvironmentUrl,
+                                        "."
+                                    )
+                                ),
+                                2
+                            )
+                        ).Result,
+                        LookUp(
+                            AllEnvironments,
+                            SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl
+                        ).properties.linkedEnvironmentMetadata.uniqueName,
+                        {
+                            text_3: "",
+                            text_4: ""
+                        }
                     )
+                ),
+                ClearCollect(
+                    EnvironmentUsers,
+                    SearchDeploymentEnvironmentUsers.Run(
+                        Last(
+                            FirstN(
+                                ClearCollect(
+                                    splitCol3,
+                                    Split(
+                                        SelectedDeploymentEnvironment.EnvironmentUrl,
+                                        "."
+                                    )
+                                ),
+                                2
+                            )
+                        ).Result,
+                        LookUp(
+                            AllEnvironments,
+                            SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl
+                        ).properties.linkedEnvironmentMetadata.uniqueName,
+                        {
+                            text_3: "",
+                            text_4: locEnvironmentUserFilters
+                        }
+                    )
+                )
+            );
+            Collect(
+                AADGroups,
+                {
+                    id: "",
+                    displayName: ""
                 }
+            );
+            ClearCollect(
+                AADGroups,
+                Sort(
+                    AADGroups,
+                    displayName
+                )
+            );
+            ClearCollect(
+                TeamAADGroups,
+                AADGroups
+            );
+            Collect(
+                SharepointSites,
+                {webUrl: ""}
+            );
+            ClearCollect(
+                SharepointSites,
+                Sort(
+                    SharepointSites,
+                    webUrl
+                )
+            );
+            //Add an empty row to EnvironmentTeams
+        Collect(
+                EnvironmentTeams,
+                {name: ""}
+            );
+            ClearCollect(
+                EnvironmentTeams,
+                Sort(
+                    EnvironmentTeams,
+                    name,
+                    Ascending
+                )
+            );
+            //Add an empty row to EnvironmentUsers
+        Collect(
+                EnvironmentUsers,
+                {internalemailaddress: ""}
+            );
+            ClearCollect(
+                EnvironmentUsers,
+                Sort(
+                    EnvironmentUsers,
+                    internalemailaddress,
+                    Ascending
+                )
             );
             If(
-                IsBlank(locEnvironmentDeploymentSetting.Data),
-                UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run("[]")}),
-                UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
-            );
-            UpdateContext(
-                {
-                    locSharepointFilter: Concat(
-                        Distinct(
-                            Filter(
-                                EnvironmentDeploymentSettings,
-                                StartsWith(
-                                    Name,
-                                    "environmentvariable."
-                                ) And !IsBlankOrError(Value) And !IsBlank(
-                                    Find(
-                                        "sharepoint",
-                                        Value
+                CountRows(DeploymentEnvironments) > 0,
+                Concurrent(
+                    Collect(
+                        SolutionConnectionReferences,
+                        AddColumns(
+                            GetSolutionConnectionReferences.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol1,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
                                     )
-                                )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                SelectedSolutionToConfigure.solutionid
                             ),
-                            Value
-                        ),
-                        "site:" & Result,
-                        " OR "
-                    ),
-                    locAADGroupFilters: Concat(
-                        Distinct(
-                            Filter(
+                            "CurrentValue",
+                            LookUp(
                                 EnvironmentDeploymentSettings,
-                                StartsWith(
-                                    Name,
-                                    "canvasshare.aadGroupId."
-                                ) And !IsBlankOrError(Value)
-                            ),
-                            Value
-                        ),
-                        "id eq '" & Result & "'",
-                        " OR "
+                                Name = "connectionreference." & connectionreferencelogicalname
+                            ).Value
+                        )
                     ),
-                    locEnvironmentUserFilters: Concat(
-                        Distinct(
-                            Filter(
+                    Collect(
+                        SolutionEnvironmentVariables,
+                        AddColumns(
+                            GetSolutionEnvironmentVariableDefinitions.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol2,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                SelectedSolutionToConfigure.solutionid
+                            ),
+                            "SharepointSites",
+                            SharepointSites,
+                            "FilterText",
+                            "",
+                            "FilterIcon",
+                            Icon.FilterFlat,
+                            "FilterVisible",
+                            false,
+                            "CurrentValue",
+                            LookUp(
                                 EnvironmentDeploymentSettings,
-                                (StartsWith(
-                                    Name,
-                                    "owner.ownerEmail."
-                                ) Or StartsWith(
-                                    Name,
-                                    "flow.activation."
-                                )) And !IsBlankOrError(Value)
-                            ),
-                            Value
-                        ),
-                        "internalemailaddress eq '" & Result & "'",
-                        " or "
-                    )
-                }
-            );
-            
-        );
-        Clear(SolutionConnectionReferences);
-        Clear(SolutionCanvasApps);
-        Clear(SolutionEnvironmentVariables);
-        Clear(SolutionFlows);
-        Clear(AppSharingPermissions);
-        Clear(SharepointLists);
-        Clear(CustomConnectors);
-        Concurrent(
-            ClearCollect(
-                AADGroups,
-                SearchAADGroups.Run(
-                    locAADGroupFilters,
-                    {text: ""}
-                ).value
-            ),
-            ClearCollect(
-                SharepointSites,
-                SearchSharepointSites.Run(
-                    {
-                        text: "",
-                        text_1: locSharepointFilter
-                    }
-                ).value
-            ),
-            ClearCollect(
-                EnvironmentTeams,
-                SearchDeploymentEnvironmentTeams.Run(
-                    Last(
-                        FirstN(
-                            ClearCollect(
-                                splitCol2,
-                                Split(
-                                    SelectedDeploymentEnvironment.EnvironmentUrl,
-                                    "."
-                                )
-                            ),
-                            2
+                                Name = "environmentvariable." & schemaname
+                            ).Value
                         )
-                    ).Result,
-                    LookUp(
-                        AllEnvironments,
-                        SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl
-                    ).properties.linkedEnvironmentMetadata.uniqueName,
-                    {
-                        text_3: "",
-                        text_4: ""
-                    }
-                )
-            ),
-            ClearCollect(
-                EnvironmentUsers,
-                SearchDeploymentEnvironmentUsers.Run(
-                    Last(
-                        FirstN(
-                            ClearCollect(
-                                splitCol3,
-                                Split(
-                                    SelectedDeploymentEnvironment.EnvironmentUrl,
-                                    "."
-                                )
+                    ),
+                    Collect(
+                        AppSharingPermissions,
+                        {
+                            Text: "Can View",
+                            Value: "CanView"
+                        },
+                        {
+                            Text: "Can Edit",
+                            Value: "CanEdit"
+                        },
+                        {
+                            Text: "Can View and Share",
+                            Value: "CanViewWithShare"
+                        }
+                    ),
+                    Collect(
+                        SolutionCanvasApps,
+                        AddColumns(
+                            GetSolutionCanvasApps.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol3,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                SelectedSolutionToConfigure.solutionid
                             ),
-                            2
+                            "AADGroups",
+                            AADGroups,
+                            "FilterText",
+                            "",
+                            "FilterIcon",
+                            Icon.FilterFlat,
+                            "FilterVisible",
+                            false,
+                            "CurrentValue",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "canvasshare.aadGroupId." & name
+                            ).Value,
+                            "CurrentPermission",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "canvasshare.roleName." & name
+                            ).Value
                         )
-                    ).Result,
-                    LookUp(
-                        AllEnvironments,
-                        SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl
-                    ).properties.linkedEnvironmentMetadata.uniqueName,
-                    {
-                        text_3: "",
-                        text_4: locEnvironmentUserFilters
-                    }
-                )
-            )
-        );
-        Collect(
-            AADGroups,
-            {
-                id: "",
-                displayName: ""
-            }
-        );
-        ClearCollect(
-            AADGroups,
-            Sort(
-                AADGroups,
-                displayName
-            )
-        );
-        ClearCollect(
-            TeamAADGroups,
-            AADGroups
-        );
-        Collect(
-            SharepointSites,
-            {webUrl: ""}
-        );
-        ClearCollect(
-            SharepointSites,
-            Sort(
-                SharepointSites,
-                webUrl
-            )
-        );
-        //Add an empty row to EnvironmentTeams
-        Collect(
-            EnvironmentTeams,
-            {name: ""}
-        );
-        ClearCollect(
-            EnvironmentTeams,
-            Sort(
-                EnvironmentTeams,
-                name,
-                Ascending
-            )
-        );
-        //Add an empty row to EnvironmentUsers
-        Collect(
-            EnvironmentUsers,
-            {internalemailaddress: ""}
-        );
-        ClearCollect(
-            EnvironmentUsers,
-            Sort(
-                EnvironmentUsers,
-                internalemailaddress,
-                Ascending
-            )
-        );
-        If(
-            CountRows(DeploymentEnvironments) > 0,
-            Concurrent(
-                Collect(
-                    SolutionConnectionReferences,
-                    AddColumns(
-                        GetSolutionConnectionReferences.Run(
-                            Last(
-                                FirstN(
-                                    ClearCollect(
-                                        splitCol1,
-                                        Split(
-                                            SelectedDeploymentEnvironment.EnvironmentUrl,
-                                            "."
-                                        )
-                                    ),
-                                    2
-                                )
-                            ).Result,
-                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            SelectedSolutionToConfigure.solutionid
-                        ),
-                        "CurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "connectionreference." & connectionreferencelogicalname
-                        ).Value
+                    ),
+                    Collect(
+                        SolutionFlows,
+                        AddColumns(
+                            GetSolutionFlows.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol4,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                SelectedSolutionToConfigure.solutionid
+                            ),
+                            "EnvironmentUsers",
+                            EnvironmentUsers,
+                            "FilterText",
+                            "",
+                            "FilterIcon",
+                            Icon.FilterFlat,
+                            "FilterVisible",
+                            false,
+                            "ActivationEnvironmentUsers",
+                            EnvironmentUsers,
+                            "ActivationFilterText",
+                            "",
+                            "ActivationFilterIcon",
+                            Icon.FilterFlat,
+                            "ActivationFilterVisible",
+                            false,
+                            "ActivationCurrentValue",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "activateflow.activateas." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            "SharingCurrentValue",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "flow.sharing." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            "CurrentValue",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "owner.ownerEmail." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            "SortOrder",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "activateflow.order." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value,
+                            "Activate",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "activateflow.activate." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & workflowid
+                            ).Value
+                        )
+                    ),
+                    Collect(
+                        CustomConnectors,
+                        AddColumns(
+                            GetSolutionCustomConnectors.Run(
+                                Last(
+                                    FirstN(
+                                        ClearCollect(
+                                            splitCol5,
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            )
+                                        ),
+                                        2
+                                    )
+                                ).Result,
+                                SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
+                                SelectedSolutionToConfigure.solutionid
+                            ),
+                            "CurrentValue",
+                            LookUp(
+                                EnvironmentDeploymentSettings,
+                                Name = "connector.teamname." & Substitute(
+                                    displayname,
+                                    " ",
+                                    ""
+                                ) & "." & connectorid
+                            ).Value
+                        )
                     )
-                ),
-                Collect(
-                    SolutionEnvironmentVariables,
-                    AddColumns(
-                        GetSolutionEnvironmentVariableDefinitions.Run(
-                            Last(
-                                FirstN(
-                                    ClearCollect(
-                                        splitCol2,
-                                        Split(
-                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            "."
-                                        )
-                                    ),
-                                    2
-                                )
-                            ).Result,
-                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            SelectedSolutionToConfigure.solutionid
-                        ),
-                        "SharepointSites",
-                        SharepointSites,
-                        "FilterText",
-                        "",
-                        "FilterIcon",
-                        Icon.FilterFlat,
-                        "FilterVisible",
-                        false,
-                        "CurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "environmentvariable." & schemaname
-                        ).Value
-                    )
-                ),
-                Collect(
-                    AppSharingPermissions,
-                    {
-                        Text: "Can View",
-                        Value: "CanView"
-                    },
-                    {
-                        Text: "Can Edit",
-                        Value: "CanEdit"
-                    },
-                    {
-                        Text: "Can View and Share",
-                        Value: "CanViewWithShare"
-                    }
-                ),
-                Collect(
-                    SolutionCanvasApps,
-                    AddColumns(
-                        GetSolutionCanvasApps.Run(
-                            Last(
-                                FirstN(
-                                    ClearCollect(
-                                        splitCol3,
-                                        Split(
-                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            "."
-                                        )
-                                    ),
-                                    2
-                                )
-                            ).Result,
-                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            SelectedSolutionToConfigure.solutionid
-                        ),
-                        "AADGroups",
-                        AADGroups,
-                        "FilterText",
-                        "",
-                        "FilterIcon",
-                        Icon.FilterFlat,
-                        "FilterVisible",
-                        false,
-                        "CurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "canvasshare.aadGroupId." & name
-                        ).Value,
-                        "CurrentPermission",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "canvasshare.roleName." & name
-                        ).Value
-                    )
-                ),
-                Collect(
-                    SolutionFlows,
-                    AddColumns(
-                        GetSolutionFlows.Run(
-                            Last(
-                                FirstN(
-                                    ClearCollect(
-                                        splitCol4,
-                                        Split(
-                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            "."
-                                        )
-                                    ),
-                                    2
-                                )
-                            ).Result,
-                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            SelectedSolutionToConfigure.solutionid
-                        ),
-                        "EnvironmentUsers",
-                        EnvironmentUsers,
-                        "FilterText",
-                        "",
-                        "FilterIcon",
-                        Icon.FilterFlat,
-                        "FilterVisible",
-                        false,
-                        "ActivationEnvironmentUsers",
-                        EnvironmentUsers,
-                        "ActivationFilterText",
-                        "",
-                        "ActivationFilterIcon",
-                        Icon.FilterFlat,
-                        "ActivationFilterVisible",
-                        false,
-                        "ActivationCurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "activateflow.activateas." & Substitute(
-                                name,
-                                " ",
-                                ""
-                            ) & "." & workflowid
-                        ).Value,
-                        "SharingCurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "flow.sharing." & Substitute(
-                                name,
-                                " ",
-                                ""
-                            ) & "." & workflowid
-                        ).Value,
-                        "CurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "owner.ownerEmail." & Substitute(
-                                name,
-                                " ",
-                                ""
-                            ) & "." & workflowid
-                        ).Value,
-                        "SortOrder",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "activateflow.order." & Substitute(
-                                name,
-                                " ",
-                                ""
-                            ) & "." & workflowid
-                        ).Value,
-                        "Activate",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "activateflow.activate." & Substitute(
-                                name,
-                                " ",
-                                ""
-                            ) & "." & workflowid
-                        ).Value
-                    )
-                ),
-                Collect(
-                    CustomConnectors,
-                    AddColumns(
-                        GetSolutionCustomConnectors.Run(
-                            Last(
-                                FirstN(
-                                    ClearCollect(
-                                        splitCol5,
-                                        Split(
-                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            "."
-                                        )
-                                    ),
-                                    2
-                                )
-                            ).Result,
-                            SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
-                            SelectedSolutionToConfigure.solutionid
-                        ),
-                        "CurrentValue",
-                        LookUp(
-                            EnvironmentDeploymentSettings,
-                            Name = "connector.teamname." & Substitute(
-                                displayname,
-                                " ",
-                                ""
-                            ) & "." & connectorid
-                        ).Value
-                    )
-                )
+                );
             );
+            UpdateContext({showConnectionReferenceSettings: true});
+            Select(fncLoadEnvironmentDeploymentSettings);
             
-        );
-        UpdateContext({showConnectionReferenceSettings: true});
-        Select(fncLoadEnvironmentDeploymentSettings);
+        )
 
     DeploymentSettingsDialog As groupContainer:
         BorderColor: =BorderColorValue
@@ -622,7 +623,7 @@ DeploymentSettingsScreen As screen:
             OnSelect: =
             PaddingLeft: =0
             PaddingTop: =0
-            Text: ="Flow Owner"
+            Text: ="Owner"
             Tooltip: ="Updates the owner of the flow in the target environment."
             Visible: =showOwnerSettings && !IsEmpty(glrFlows.AllItems)
             Width: =182
@@ -636,7 +637,7 @@ DeploymentSettingsScreen As screen:
             OnSelect: =FontWeight.Semibold
             PaddingLeft: =0
             PaddingTop: =0
-            Text: ="App Team Sharing"
+            Text: ="Team Sharing"
             Tooltip: ="Required if your Flow is called from a canvas app. To correctly share the Flow with a Dataverse group team."
             Visible: =showOwnerSettings && !IsEmpty(glrFlows.AllItems)
             Width: =350
@@ -1799,7 +1800,7 @@ DeploymentSettingsScreen As screen:
                 HoverBorderColor: =ColorFade(drpSharepointLists.BorderColor, 20%)
                 HoverColor: =ColorFade(drpSharepointLists.Color, 20%)
                 HoverFill: =ColorFade(drpSharepointLists.SelectionFill, 20%)
-                Items: =Filter(SharepointLists, DefinitionId = ThisItem._parentdefinitionid_value)
+                Items: =Sort(Filter(SharepointLists, DefinitionId = ThisItem._parentdefinitionid_value), name)
                 OnChange: =txtEnvironmentVariableValue.Text = drpSharepointLists.Selected.id
                 PressedBorderColor: =drpSharepointLists.HoverBorderColor
                 PressedColor: =drpSharepointLists.Fill
@@ -3709,7 +3710,7 @@ DeploymentSettingsScreen As screen:
                     locUnsharedConnections,
                     Filter(
                         SolutionConnectionReferences,
-                        !IsBlankOrError(CurrentValue) && !(CurrentValue in EnvironmentConnections.ConnectionId)
+                        !IsBlankOrError(CurrentValue) And !(CurrentValue in EnvironmentConnections.ConnectionId)
                     )
                 );
                 If(
@@ -3768,10 +3769,10 @@ DeploymentSettingsScreen As screen:
                 ForAll(
                     Filter(
                         SolutionEnvironmentVariables,
-                        type = 100000004 && parameterkey = "dataset"
+                        type = 100000004 And parameterkey = "dataset"
                     ),
                     If(
-                        Not IsBlank(CurrentValue) && Not IsBlank(
+                        Not IsBlank(CurrentValue) And Not IsBlank(
                             First(
                                 Filter(
                                     SharepointSites,
