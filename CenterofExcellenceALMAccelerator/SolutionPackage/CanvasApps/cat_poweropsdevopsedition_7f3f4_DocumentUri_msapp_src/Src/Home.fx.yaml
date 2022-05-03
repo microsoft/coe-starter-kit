@@ -1460,11 +1460,9 @@ Home As screen:
                     IsBlankOrError(locSelectedDeploymentProfile) Or locSelectedDeploymentProfile.'Deployment Profile' <> glrSolutions.Selected.deploymentprofile.'Deployment Profile',
                     UpdateContext(
                         {
-                            locSelectedDeploymentProfile: First(
-                                Filter(
-                                    'Deployment Profiles',
-                                    'Deployment Profile' = glrSolutions.Selected.deploymentprofile.'Deployment Profile'
-                                )
+                            locSelectedDeploymentProfile: LookUp(
+                                'Deployment Profiles',
+                                'Deployment Profile' = glrSolutions.Selected.deploymentprofile.'Deployment Profile'
                             ),
                             //Need this value to load
                             locBranch: locSelectedDeploymentProfile.'Promote Target Branch Name'
@@ -4214,7 +4212,11 @@ Home As screen:
                 =UpdateContext(
                     {
                         locOrgChanged: locSelectedDeploymentProfile.'AzDO Organization' <> drpProfileDeploymentProfiles.Selected.'AzDO Organization',
-                        locSelectedDeploymentProfile: LookUp('Deployment Profiles', 'Deployment Profile' = drpProfileDeploymentProfiles.Selected.'Deployment Profile')
+                        locSelectedDeploymentProfile: LookUp(
+                            'Deployment Profiles',
+                            'Deployment Profile' = drpProfileDeploymentProfiles.Selected.'Deployment Profile'
+                        ),
+                        locBranch: locSelectedDeploymentProfile.'Promote Target Branch Name'
                     }
                 );
                 If(
@@ -4251,7 +4253,7 @@ Home As screen:
                     If(
                         !IsBlankOrError(locSelectedDeploymentProfile.'Repository ID'),
                         ClearCollect(
-                            SelectedRepoBranches,
+                            ProfileSelectedRepoBranches,
                             AddColumns(
                                 Filter(
                                     CustomAzureDevOps.GetBranches(
@@ -4269,7 +4271,7 @@ Home As screen:
                                 )
                             )
                         );
-                        Collect(SelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
+                        Collect(ProfileSelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
                     ),
                     UpdateContext(
                         {
@@ -4588,7 +4590,7 @@ Home As screen:
                             locPreviouslySelectedDeploymentProfile: drpProfileDeploymentProfiles.Selected,
                             locSelectedDeploymentProfile: {
                                 Name: "",
-                                'Promote Target Branch Name': UseSolutionBranchText
+                                'Promote Target Branch Name': SelectedRepoBranches
                             }
                         }
                     );
@@ -4606,26 +4608,28 @@ Home As screen:
                         ).value
                     );
                     Clear(SelectedRepoBranches);
-                    If(CountRows(SelectedOrgProjects) > 0 && CountRows(SelectedProjectRepos) > 0,
-                    Collect(
-                        SelectedRepoBranches,
-                        AddColumns(
-                            Filter(
-                                CustomAzureDevOps.GetBranches(
-                                    First(Orgs).AccountName,
-                                    First(SelectedOrgProjects).name,
-                                    First(SelectedProjectRepos).id
-                                ).value,
-                                "refs/heads/" in name
-                            ),
-                            "DisplayName",
-                            Substitute(
-                                name,
-                                "refs/heads/",
-                                ""
+                    If(
+                        CountRows(SelectedOrgProjects) > 0 && CountRows(SelectedProjectRepos) > 0,
+                        Collect(
+                            SelectedRepoBranches,
+                            AddColumns(
+                                Filter(
+                                    CustomAzureDevOps.GetBranches(
+                                        First(Orgs).AccountName,
+                                        First(SelectedOrgProjects).name,
+                                        First(SelectedProjectRepos).id
+                                    ).value,
+                                    "refs/heads/" in name
+                                ),
+                                "DisplayName",
+                                Substitute(
+                                    name,
+                                    "refs/heads/",
+                                    ""
+                                )
                             )
                         )
-                    ));
+                    );
                     UpdateContext(
                         {
                             locSelectedDeploymentProfile: {
@@ -4634,7 +4638,7 @@ Home As screen:
                                 'AzDO Project': First(SelectedOrgProjects).name,
                                 Repository: First(SelectedProjectRepos).name,
                                 'Repository ID': First(SelectedProjectRepos).id,
-                                'Promote Target Branch': First(SelectedRepoBranches).name
+                                'Promote Target Branch': UseSolutionBranchText
                             }
                         }
                     );
@@ -4656,49 +4660,72 @@ Home As screen:
                                 'Deployment Profile'.'Deployment Profile' = locPreviouslySelectedDeploymentProfile.'Deployment Profile'
                             )
                         );
-                        ClearCollect(
-                            SelectedOrgProjects,
-                            CustomAzureDevOps.GetProjects(locPreviouslySelectedDeploymentProfile.'AzDO Organization').value
-                        );
-                        ClearCollect(
-                            SelectedProjectRepos,
-                            CustomAzureDevOps.GetGitRepos(
-                                locPreviouslySelectedDeploymentProfile.'AzDO Organization',
-                                locPreviouslySelectedDeploymentProfile.'AzDO Project'
-                            ).value
-                        );
-                        ClearCollect(
-                            SelectedRepoBranches,
-                            AddColumns(
-                                Filter(
-                                    CustomAzureDevOps.GetBranches(
+                        If(
+                            !IsBlankOrError(locPreviouslySelectedDeploymentProfile.'AzDO Organization'),
+                            ClearCollect(
+                                SelectedOrgProjects,
+                                CustomAzureDevOps.GetProjects(locPreviouslySelectedDeploymentProfile.'AzDO Organization').value
+                            );
+                            If(
+                                !IsBlankOrError(locPreviouslySelectedDeploymentProfile.'AzDO Project'),
+                                ClearCollect(
+                                    SelectedProjectRepos,
+                                    CustomAzureDevOps.GetGitRepos(
                                         locPreviouslySelectedDeploymentProfile.'AzDO Organization',
-                                        locPreviouslySelectedDeploymentProfile.'AzDO Project',
-                                        locPreviouslySelectedDeploymentProfile.'Repository ID'
-                                    ).value,
-                                    "refs/heads/" in name
-                                ),
-                                "DisplayName",
-                                Substitute(
-                                    name,
-                                    "refs/heads/",
-                                    ""
+                                        locPreviouslySelectedDeploymentProfile.'AzDO Project'
+                                    ).value
                                 )
-                            )
+                            );
+                            If(
+                                !IsBlankOrError(locPreviouslySelectedDeploymentProfile.'Repository ID'),
+                                ClearCollect(
+                                    ProfileSelectedRepoBranches,
+                                    AddColumns(
+                                        Filter(
+                                            CustomAzureDevOps.GetBranches(
+                                                locPreviouslySelectedDeploymentProfile.'AzDO Organization',
+                                                locPreviouslySelectedDeploymentProfile.'AzDO Project',
+                                                locPreviouslySelectedDeploymentProfile.'Repository ID'
+                                            ).value,
+                                            "refs/heads/" in name
+                                        ),
+                                        "DisplayName",
+                                        Substitute(
+                                            name,
+                                            "refs/heads/",
+                                            ""
+                                        )
+                                    )
+                                )
+                            );
+                            Collect(
+                                ProfileSelectedRepoBranches,
+                                {
+                                    DisplayName: UseSolutionBranchText,
+                                    name: UseSolutionBranchText
+                                }
+                            ),
+                            ClearCollect(
+                                ProfileSelectedRepoBranches,
+                                {
+                                    DisplayName: UseSolutionBranchText,
+                                    name: UseSolutionBranchText
+                                }
+                            );
                         );
                     );
                     UpdateContext(
                         {
                             saveProfileButtonText: "SAVE",
-                            locSelectedDeploymentProfile: locPreviouslySelectedDeploymentProfile,
+                            locSelectedDeploymentProfile: LookUp(
+                                'Deployment Profiles',
+                                'Deployment Profile' = locPreviouslySelectedDeploymentProfile.'Deployment Profile'
+                            ),
+                            locBranch: locSelectedDeploymentProfile.'Promote Target Branch Name',
                             locPreviouslySelectedDeploymentProfile: Blank()
                         }
                     );
-                    UpdateContext(
-                        {
-                            locBranch: locSelectedDeploymentProfile.'Promote Target Branch Name'
-                        }
-                    );
+                    
                 );
                 Reset(drpProfileOrgs);
                 Reset(drpProfileProjects);
@@ -4771,7 +4798,7 @@ Home As screen:
                 If(
                     !IsBlankOrError(SelectedRepo),
                     ClearCollect(
-                        SelectedRepoBranches,
+                        ProfileSelectedRepoBranches,
                         AddColumns(
                             Filter(
                                 CustomAzureDevOps.GetBranches(
@@ -4789,7 +4816,7 @@ Home As screen:
                             )
                         )
                     );
-                    Collect(SelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
+                    Collect(ProfileSelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
                 );
                 Reset(drpProfileProjects);
                 Reset(drpProfileRepositories);
@@ -4832,7 +4859,7 @@ Home As screen:
                 If(
                     !IsBlankOrError(SelectedRepo),
                     ClearCollect(
-                        SelectedRepoBranches,
+                        ProfileSelectedRepoBranches,
                         AddColumns(
                             Filter(
                                 CustomAzureDevOps.GetBranches(
@@ -4851,7 +4878,7 @@ Home As screen:
                         )
                     );
                     Collect(
-                        SelectedRepoBranches,
+                        ProfileSelectedRepoBranches,
                         {
                             DisplayName: UseSolutionBranchText,
                             name: UseSolutionBranchText
@@ -4891,7 +4918,7 @@ Home As screen:
                 =If(
                     !IsBlankOrError(drpProfileRepositories.Selected),
                     ClearCollect(
-                        SelectedRepoBranches,
+                        ProfileSelectedRepoBranches,
                         AddColumns(
                             Filter(
                                 CustomAzureDevOps.GetBranches(
@@ -4909,7 +4936,7 @@ Home As screen:
                             )
                         )
                     );
-                    Collect(SelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
+                    Collect(ProfileSelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
                 );
                 Reset(drpProfileBranches);
             PressedBorderColor: =drpProfileRepositories.HoverBorderColor
@@ -5006,7 +5033,7 @@ Home As screen:
             AccessibleLabel: ="Publish Profile"
             ChevronHoverBackground: =ColorFade(drpProfileBranches.ChevronBackground, 20%)
             ChevronHoverFill: =ColorFade(drpProfileBranches.ChevronFill, 20%)
-            Default: =If(IsBlankOrError(locSelectedDeploymentProfile.'Promote Target Branch Name'), UseSolutionBranchText, locSelectedDeploymentProfile.'Promote Target Branch Name')
+            Default: =locSelectedDeploymentProfile.'Promote Target Branch Name'
             DisplayMode: =DisplayMode.Disabled
             Height: =45
             HoverBorderColor: =ColorFade(drpProfileBranches.BorderColor, 20%)
