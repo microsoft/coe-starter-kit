@@ -2074,7 +2074,51 @@ DeploymentSettingsScreen As screen:
                 HoverBorderColor: =ColorFade(drpConnectionReferenceConnections.BorderColor, 20%)
                 HoverColor: =ColorFade(drpConnectionReferenceConnections.Color, 20%)
                 HoverFill: =ColorFade(drpConnectionReferenceConnections.SelectionFill, 20%)
-                Items: =Sort(Filter(EnvironmentConnections, ApiId = ThisItem.connectorid), Status)
+                Items: |-
+                    =If(
+                        IsBlankOrError(ThisItem.CustomConnectorId),
+                        Sort(
+                            Filter(
+                                EnvironmentConnections,
+                                ApiId = ThisItem.connectorid
+                            ),
+                            Status
+                        ),
+                        //Need to parse out the name of the connector from the expand query which returns a json string for some reason in the legacy connector.
+                        //We should be able to clean this up when the new dataverse connector supports cross environment actions
+                        Sort(
+                            Filter(
+                                EnvironmentConnections,
+                                First(
+                                    Filter(
+                                        EnvironmentCustomConnectors,
+                                        name = Trim(
+                                            Substitute(
+                                                Substitute(
+                                                    Last(
+                                                        Split(
+                                                            First(
+                                                                Split(
+                                                                    ThisItem.CustomConnectorId,
+                                                                    ","
+                                                                )
+                                                            ).Result,
+                                                            ":"
+                                                        )
+                                                    ).Result,
+                                                    """",
+                                                    ""
+                                                ),
+                                                "\n",
+                                                ""
+                                            )
+                                        )
+                                    )
+                                ).connectorinternalid in ApiId
+                            ),
+                            Status
+                        )
+                    )
                 PressedBorderColor: =drpConnectionReferenceConnections.HoverBorderColor
                 PressedColor: =drpConnectionReferenceConnections.Fill
                 PressedFill: =drpConnectionReferenceConnections.Color
@@ -2104,22 +2148,93 @@ DeploymentSettingsScreen As screen:
                 BorderColor: =ColorFade(icoNewConnection.Fill, -20%)
                 Color: =PrimaryColor2Value
                 DisabledFill: =ColorFade(icoNewConnection.Fill, -80%)
-                DisplayMode: =If(IsBlankOrError(drpDeployEnvironments.Selected.EnvironmentId), DisplayMode.Disabled, DisplayMode.Edit)
+                DisplayMode: |-
+                    =If(
+                        IsBlankOrError(drpDeployEnvironments.Selected.EnvironmentId) Or (!IsBlankOrError(ThisItem.CustomConnectorId) And IsBlankOrError(
+                            First(
+                                Filter(
+                                    EnvironmentCustomConnectors,
+                                    name = Trim(
+                                        Substitute(
+                                            Substitute(
+                                                Last(
+                                                    Split(
+                                                        First(
+                                                            Split(
+                                                                ThisItem.CustomConnectorId,
+                                                                ","
+                                                            )
+                                                        ).Result,
+                                                        ":"
+                                                    )
+                                                ).Result,
+                                                """",
+                                                ""
+                                            ),
+                                            "\n",
+                                            ""
+                                        )
+                                    )
+                                )
+                            )
+                        )),
+                        DisplayMode.Disabled,
+                        DisplayMode.Edit
+                    )
                 FocusedBorderThickness: =
                 Height: =47
                 HoverBorderColor: =ColorFade(icoNewConnection.BorderColor, 20%)
                 HoverColor: =ColorFade(icoNewConnection.Color, 20%)
                 HoverFill: =ColorFade(icoNewConnection.Fill, 20%)
                 Icon: =Icon.Add
-                OnSelect: |-
+                OnSelect: |
                     =Select(Parent);
-                    Launch(
-                        "https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/available?apiName=" & Last(
-                            Split(
-                                glrConnectionReferences.Selected.connectorid,
-                                "/"
-                            )
-                        ).Result)
+                    If(
+                        IsBlankOrError(glrConnectionReferences.Selected.CustomConnectorId),
+                        Launch(
+                            "https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/available?apiName=" & Last(
+                                Split(
+                                    glrConnectionReferences.Selected.connectorid,
+                                    "/"
+                                )
+                            ).Result
+                        ),
+                        //Need to parse out the name of the connector from the expand query which returns a json string for some reason in the legacy connector.
+                        UpdateContext(
+                            {
+                                locConnectorId: First(
+                                    Filter(
+                                        EnvironmentCustomConnectors,
+                                        name = Trim(
+                                            Substitute(
+                                                Substitute(
+                                                    Last(
+                                                        Split(
+                                                            First(
+                                                                Split(
+                                                                    glrConnectionReferences.Selected.CustomConnectorId,
+                                                                    ","
+                                                                )
+                                                            ).Result,
+                                                            ":"
+                                                        )
+                                                    ).Result,
+                                                    """",
+                                                    ""
+                                                ),
+                                                "\n",
+                                                ""
+                                            )
+                                        )
+                                    )
+                                ).connectorinternalid
+                            }
+                        );
+                        If(
+                            !IsBlankOrError(locConnectorId),
+                            Launch("https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/available?apiName=" & locConnectorId)
+                        )
+                    );
                 PaddingBottom: =8
                 PaddingLeft: =8
                 PaddingRight: =5
@@ -2414,8 +2529,10 @@ DeploymentSettingsScreen As screen:
                         ClearCollect(
                             AADGroups,
                             SearchAADGroups.Run(
-                                "",
-                                {text: glrCanvasApps.Selected.txtFilterGroups.Text}
+                                {
+                                    text: glrCanvasApps.Selected.txtFilterGroups.Text,
+                                    text_1: ""
+                                }
                             ).value
                         );
                         UpdateContext(
@@ -2649,8 +2766,8 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =txtFilterTeamGroupGroups.Fill
                 Visible: =ThisItem.FilterVisible
                 Width: =440
-                X: =965
-                Y: =10
+                X: =947
+                Y: =11
                 ZIndex: =8
 
             icoDeleteGroupTeam As icon.Add:
@@ -2703,8 +2820,10 @@ DeploymentSettingsScreen As screen:
                         ClearCollect(
                             AADGroups,
                             SearchAADGroups.Run(
-                                "",
-                                {text: glrGroupTeams.Selected.txtFilterTeamGroupGroups.Text}
+                                {
+                                    text: glrGroupTeams.Selected.txtFilterTeamGroupGroups.Text,
+                                    text_1: ""
+                                }
                             ).value
                         );
                         UpdateContext(
@@ -2732,7 +2851,7 @@ DeploymentSettingsScreen As screen:
                             )
                         );
                         If(
-                            IsBlankOrError(lclFirstAADGroup),
+                            IsBlankOrError(lclFirstTeamAADGroup),
                             Patch(
                                 GroupTeams,
                                 glrGroupTeams.Selected,
@@ -2750,7 +2869,7 @@ DeploymentSettingsScreen As screen:
                                     FilterIcon: Icon.FilterFlatFilled,
                                     AADGroups: AADGroups,
                                     FilterVisible: false,
-                                    Value: lclFirstAADGroup.id
+                                    Value: lclFirstTeamAADGroup.id
                                 }
                             );
                             Reset(drpGroupTeamGroups);
@@ -3916,6 +4035,7 @@ DeploymentSettingsScreen As screen:
             Align: =Center
             FontWeight: =FontWeight.Semibold
             Height: =28
+            OnSelect: =glrConnectionReferences.Selected.connectionreferencedisplayname
             Size: =16
             Text: =glrConnectionReferences.Selected.connectionreferencedisplayname
             Width: =550
