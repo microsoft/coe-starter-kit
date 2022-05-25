@@ -48,6 +48,22 @@
             "schemaName": "admin_AdmineMailPreferredLanguage",
             "description": "The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US"
           }
+        },
+        "ProductionEnvironment (admin_ProductionEnvironment)": {
+          "defaultValue": true,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_ProductionEnvironment",
+            "description": "Yes by default. Set to No if you are creating a dev type envt. This will allow some flows to set target users to the admin instead of resource owners"
+          }
+        },
+        "Individual Admin (admin_ApprovalAdmin)": {
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_ApprovalAdmin",
+            "description": "An individual admin's email. Some actions (approvals / team chats) cannot accept a group/DL. So this env variable is for those instances in the kit. "
+          }
         }
       },
       "triggers": {
@@ -110,7 +126,7 @@
               "location": "Chat with Flow bot",
               "body/body/messageBody": "{\n    \"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Medium\",\n            \"weight\": \"Bolder\",\n            \"text\": \"@{body('Parse_JSON')?['title']}\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"width\": \"stretch\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"@{body('Parse_JSON')?['description']}\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"@{body('Parse_JSON')?['currentQ']}\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"\",\n            \"isMultiline\": true,\n            \"maxLength\": 20000,\n            \"id\": \"myCurrentSatisfaction\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"@{body('Parse_JSON')?['futureQ']}\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"Input.Text\",\n            \"placeholder\": \"\",\n            \"isMultiline\": true,\n            \"maxLength\": 2000,\n            \"id\": \"myFutureIdeas\"\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.4\",\n    \"actions\": [\n        {\n            \"type\": \"Action.Submit\",\n            \"title\": \"Submit Feedback\",\n            \"id\": \"btnSubmit\"\n        }\n    ]\n}",
               "body/body/updateMessage": "Thanks for your response!",
-              "body/body/recipient/to": "LeeG@PPlatform.OnMicrosoft.com;"
+              "body/body/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['email'])};"
             },
             "authentication": {
               "type": "Raw",
@@ -137,7 +153,7 @@
             "parameters": {
               "poster": "Flow bot",
               "location": "Chat with Flow bot",
-              "body/recipient": "@{triggerBody()['email']};",
+              "body/recipient": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['email'])};",
               "body/messageBody": "<p>This request for feedback above has timed out.&nbsp;</p>"
             },
             "authentication": {
@@ -316,10 +332,10 @@
                       "item/admin_currentsatisfaction": "@outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myCurrentSatisfaction']",
                       "item/admin_currentsatisfactionsentiment": "@outputs('Analyze_sentiment_for_current_satisfaction')?['body/responsev2/predictionOutput/result/sentiment']",
                       "item/admin_currentsatisfactiontranslated": "@body('Parse_translated_language')?['currentSat']",
-                      "item/admin_Feedbackfrom@odata.bind": "admin_makers(@{triggerBody()['text']})",
+                      "item/admin_Feedbackfrom@odata.bind": "admin_makers(@{outputs('the_Maker_ID')})",
                       "item/admin_futureideas": "@outputs('Post_adaptive_card_to_maker_to_ask_for_pulse_feedback')?['body/data/myFutureIdeas']",
                       "item/admin_futureideastranslated": "@body('Parse_translated_language')?['futureIdeas']",
-                      "item/admin_name": "@{triggerBody()['email']} completed survey @{formatDateTime(utcNow(), 'yyyy-MM-dd')}"
+                      "item/admin_name": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['email'])} completed survey @{formatDateTime(utcNow(), 'yyyy-MM-dd')}"
                     },
                     "authentication": {
                       "type": "Raw",
@@ -383,7 +399,7 @@
         },
         "Translate_text_into_another_language": {
           "runAfter": {
-            "Get_user_profile_(V2)": [
+            "the_Maker_ID": [
               "Succeeded"
             ]
           },
@@ -466,7 +482,7 @@
             },
             "parameters": {
               "entityName": "admin_makers",
-              "recordId": "@triggerBody()['text']",
+              "recordId": "@outputs('the_Maker_ID')",
               "item/admin_lastpulsesurvey": "@utcNow()"
             },
             "authentication": {
@@ -474,6 +490,45 @@
               "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
             }
           }
+        },
+        "Get_admin_profile_(V2)": {
+          "runAfter": {
+            "Get_user_profile_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3ef63fcc-8a1c-4662-90c7-0b60aaa16afa"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_office365users_1",
+              "operationId": "UserProfile_V2",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+            },
+            "parameters": {
+              "id": "@parameters('Individual Admin (admin_ApprovalAdmin)')",
+              "$select": "id"
+            },
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            }
+          }
+        },
+        "the_Maker_ID": {
+          "runAfter": {
+            "Get_admin_profile_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "52133d5a-fdd3-4843-8c0c-6e856ec0cf1f"
+          },
+          "type": "Compose",
+          "inputs": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), outputs('Get_admin_profile_(V2)')?['body/id'], triggerBody()['text'])",
+          "description": "For non-production environments, will attribute feedback to admin, not user"
         }
       }
     }
