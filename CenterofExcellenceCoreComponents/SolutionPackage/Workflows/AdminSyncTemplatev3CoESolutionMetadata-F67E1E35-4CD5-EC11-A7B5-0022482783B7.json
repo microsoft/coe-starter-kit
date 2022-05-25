@@ -1,0 +1,1744 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_powerappsforadmins": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsAdmin2"
+        },
+        "api": {
+          "name": "shared_powerappsforadmins"
+        }
+      },
+      "shared_flowmanagement": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "api": {
+          "name": "shared_flowmanagement"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1
+          },
+          "metadata": {
+            "operationMetadataId": "25f9b0bc-c820-45fb-a1ea-6f838694ad51"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Get_Tenant_Info": {
+          "actions": {
+            "Select_Envt_PowerApps": {
+              "runAfter": {
+                "Get_Apps_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "5818c134-4631-4bb9-ba79-4fc6fc58f905"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
+                "select": {
+                  "GUID": "@item()?['name']",
+                  "URL": "@item()?['properties/appOpenUri']",
+                  "DisplayName": "@item()?['properties/displayName']"
+                }
+              }
+            },
+            "Get_CoE_Envt": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "1e2a1796-e15e-4482-ba58-dd7c37879b79"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_environments",
+                  "recordId": "@workflow()?['tags']['environmentName']",
+                  "$select": "admin_environmentcdsmetadataname, admin_environmentname"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_Apps_as_Admin": {
+              "runAfter": {
+                "Get_CoE_Envt": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "a604d373-8596-480f-bce3-a765513203d0"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_powerappsforadmins",
+                  "operationId": "Get-AdminApps",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
+                },
+                "parameters": {
+                  "environment": "@outputs('Get_CoE_Envt')?['body/admin_environmentname']",
+                  "api-version": "2016-11-01",
+                  "$top": 250
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "List_Flows_as_Admin": {
+              "runAfter": {
+                "Select_Envt_PowerApps": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "09d0c7ce-f5af-47e3-a85d-160ea3ca1f5c"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_flowmanagement",
+                  "operationId": "ListFlowsInEnvironment",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement"
+                },
+                "parameters": {
+                  "environmentName": "@outputs('Get_CoE_Envt')?['body/admin_environmentname']"
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Select_Envt_Cloud_Flows": {
+              "runAfter": {
+                "List_Flows_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "375475ff-34b8-4168-9483-596f8f50b5dc"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@outputs('List_Flows_as_Admin')?['body/value']",
+                "select": {
+                  "GUID": "@item()?['name']",
+                  "URL": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), outputs('Get_CoE_Envt')?['body/admin_environmentname'], '/flows/', item()?['name'], '/details')",
+                  "DisplayName": "@item()?['properties/displayName']"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_metadataArray": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7543f29e-8ef5-4552-87f0-d4098bea370b"
+          },
+          "type": "Scope"
+        },
+        "Initialize_metadataArray": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "f8a30abc-5a7f-4217-80d4-e012fbbc929e"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "metadataArray",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Flows": {
+          "actions": {
+            "Set_metadataArray_to_Flows": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "79a8491c-488e-4b13-8e90-a95983528f60"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "metadataArray",
+                "value": [
+                  {
+                    "ObjectName": "[Child] Admin | Sync Logs",
+                    "CoESolution": "Audit Logs",
+                    "CoESolutionArea": "Audit Logs",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "1"
+                  },
+                  {
+                    "ObjectName": "Add Maker Assessment Starter Data",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "It's recommended to run this flow, and let it complete, before continuing.",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "5"
+                  },
+                  {
+                    "ObjectName": "Add pain points",
+                    "CoESolution": "Innovation Backlog",
+                    "CoESolutionArea": "Innovation Backlog",
+                    "Flag": "It's recommended to run this flow, and let it complete, before continuing.",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "1"
+                  },
+                  {
+                    "ObjectName": "HELPER - Send Email",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "1"
+                  },
+                  {
+                    "ObjectName": "Admin | Email Managers Ignored Inactivity notifications Approvals",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "8"
+                  },
+                  {
+                    "ObjectName": "Admin | Inactivity notifications v2 (Check Approval)",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "Be sure to setup and check on Governance Pre-reqs",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "4"
+                  },
+                  {
+                    "ObjectName": "Admin | Inactivity notifications v2 (Clean Up and Delete)",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "5"
+                  },
+                  {
+                    "ObjectName": "Admin | Inactivity notifications v2 (Start Approval for Apps)",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "6"
+                  },
+                  {
+                    "ObjectName": "HELPER - Maker Check",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "2"
+                  },
+                  {
+                    "ObjectName": "HELPER - CloudFlowOperations",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "4"
+                  },
+                  {
+                    "ObjectName": "HELPER - CanvasAppOperations",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "5"
+                  },
+                  {
+                    "ObjectName": "HELPER - ObjectOperations",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "6"
+                  },
+                  {
+                    "ObjectName": "CLEANUP HELPER - Check Deleted (Canvas Apps)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "7"
+                  },
+                  {
+                    "ObjectName": "CLEANUP HELPER - Check Deleted (Cloud Flows)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "8"
+                  },
+                  {
+                    "ObjectName": "CLEANUP HELPER - Check Deleted (Custom Connectors)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "9"
+                  },
+                  {
+                    "ObjectName": "CLEANUP HELPER - Check Deleted (Model Driven Apps)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "10"
+                  },
+                  {
+                    "ObjectName": "CLEANUP HELPER - Check Deleted (PVA)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "11"
+                  },
+                  {
+                    "ObjectName": "CLEANUP HELPER - Power Apps User Shared With",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "12"
+                  },
+                  {
+                    "ObjectName": "Admin | Add Maker to Group",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "13"
+                  },
+                  {
+                    "ObjectName": "Admin | Excuse Support Envts from Governance Flows",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "14"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 Configure Emails",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "It's recommended to run this flow, and let it complete, before continuing",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "15"
+                  },
+                  {
+                    "ObjectName": "Admin | Inactivity notifications v2 (Start Approval for Flows)",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "7"
+                  },
+                  {
+                    "ObjectName": "Command Center App >  Get M365 Service Messages",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "16"
+                  },
+                  {
+                    "ObjectName": "Admin | Newsletter with Product Updates",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "1"
+                  },
+                  {
+                    "ObjectName": "Admin | Quarantine non-compliant apps",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Quarantine",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "2"
+                  },
+                  {
+                    "ObjectName": "Admin | Set app quarantine status",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Quarantine",
+                    "Flag": "Be sure to setup and check on Governance Pre-reqs",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "1"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Audit Logs",
+                    "CoESolution": "Audit Logs",
+                    "CoESolutionArea": "Audit Logs",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "2"
+                  },
+                  {
+                    "ObjectName": "Command Center App > Initially Populate Bookmarks",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "17"
+                  },
+                  {
+                    "ObjectName": "Command Center App > Get CoE Flows",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "18"
+                  },
+                  {
+                    "ObjectName": "Command Center App > Set CoE Flows State",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "19"
+                  },
+                  {
+                    "ObjectName": "DLP Editor>Parse impacted resources into CSV",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "20"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Connectors)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "It's recommended to run this flow, and let it complete, before continuing.",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "21"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 CoE Solution Metadata",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "It's recommended to run this flow, and let it complete, before continuing.",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "22"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Apps)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "23"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Custom Connectors)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "24"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Connection Identities)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "25"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Desktop Flow - Runs)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "26"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Desktop flows)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "27"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Flow Action Details)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "Due to the high number of API calls, a Per Flow license may be needed for this flow",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "28"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Flows)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "29"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Model Driven Apps)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "30"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Portals)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "31"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (PVA)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "32"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3 (Sync Flow Errors)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "33"
+                  },
+                  {
+                    "ObjectName": "Admin | Sync Template v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "34"
+                  },
+                  {
+                    "ObjectName": "CLEANUP - Admin | Sync Template v3 (Check Deleted)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "35"
+                  },
+                  {
+                    "ObjectName": "CLEANUP - Admin | Sync Template v3 (Connection Status)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "36"
+                  },
+                  {
+                    "ObjectName": "CLEANUP - Admin | Sync Template v3 (Delete Bad Data)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "37"
+                  },
+                  {
+                    "ObjectName": "CLEANUP - Admin | Sync Template v3 (Orphaned Makers)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "38"
+                  },
+                  {
+                    "ObjectName": "CLEANUP - Admin | Sync Template v3 (Power Apps User Shared With)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "39"
+                  },
+                  {
+                    "ObjectName": "Admin | Capacity Alerts",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Other Core Components",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "45"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance request complete apps v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "45"
+                  },
+                  {
+                    "ObjectName": "DLP Request | Apply Policy to Environment (Child)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "45"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance request complete bots v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "46"
+                  },
+                  {
+                    "ObjectName": "Admin | Welcome Email v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Other Core Components",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "46"
+                  },
+                  {
+                    "ObjectName": "DLP Request | Sync Policy to Dataverse (Child)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "46"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance request complete custom connector v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "47"
+                  },
+                  {
+                    "ObjectName": "App Catalog > Request Access",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Other Core Components",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "47"
+                  },
+                  {
+                    "ObjectName": "DLP Request | Process Approved Policy Change",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "47"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance request complete desktop flows v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "48"
+                  },
+                  {
+                    "ObjectName": "DLP Request | Sync new Policy",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "48"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance request complete flows v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "49"
+                  },
+                  {
+                    "ObjectName": "DLP Request | Sync Shared Policies",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "49"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance Teams Environment BPF kickoff v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "50"
+                  },
+                  {
+                    "ObjectName": "Env Request | Cleanup Environments",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "50"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance Details Request eMail (Apps)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "51"
+                  },
+                  {
+                    "ObjectName": "Env Request | Create Approved Environment",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "51"
+                  },
+                  {
+                    "ObjectName": "HELPER - CanvasAppOperations Gov",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Governance Pre-reqs",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "2"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance Details Request eMail (Chatbots)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "52"
+                  },
+                  {
+                    "ObjectName": "HELPER - CloudFlowOperations Gov",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Governance Pre-reqs",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "1"
+                  },
+                  {
+                    "ObjectName": "Env Request | Notify admin when new request submitted",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "52"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance Details Request eMail (Custom Connectors)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "53"
+                  },
+                  {
+                    "ObjectName": "Env Request | Notify requestor when rejected",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "53"
+                  },
+                  {
+                    "ObjectName": "HELPER - ObjectOperations Gov",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Governance Pre-reqs",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "3"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance Details Request eMail (Desktop Flows)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "54"
+                  },
+                  {
+                    "ObjectName": "Microsoft Teams Admin | Ask for Business Justification when Microsoft Teams environment is created",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Dataverse for Teams Governance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "5"
+                  },
+                  {
+                    "ObjectName": "Microsoft Teams Admin | Send Reminder Mail",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Dataverse for Teams Governance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "6"
+                  },
+                  {
+                    "ObjectName": "Microsoft Teams Admin | Weekly Clean Up of Microsoft Teams environments",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Dataverse for Teams Governance",
+                    "Flag": "Be sure to setup and check on Governance Pre-reqs",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "4"
+                  },
+                  {
+                    "ObjectName": "Pulse - Survey Makers for CoE feedback",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "7"
+                  },
+                  {
+                    "ObjectName": "Pulse [Child] - Post adaptive cards to maker",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "6"
+                  },
+                  {
+                    "ObjectName": "Request Orphaned Objects Reassigned (Child)",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Cleanup Orphans",
+                    "Flag": "Be sure to setup and check on Governance Pre-reqs",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "4"
+                  },
+                  {
+                    "ObjectName": "Request Orphaned Objects Reassigned (Parent)",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Cleanup Orphans",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "5"
+                  },
+                  {
+                    "ObjectName": "Training In A Day | Feedback Reminder",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "2"
+                  },
+                  {
+                    "ObjectName": "Training In A Day | Registration Confirmation",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "3"
+                  },
+                  {
+                    "ObjectName": "Training In A Day | Reminder 3 days prior event",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "4"
+                  },
+                  {
+                    "ObjectName": "Update Software Tools",
+                    "CoESolution": "Innovation Backlog",
+                    "CoESolutionArea": "Innovation Backlog",
+                    "Flag": "It's recommended to run this flow, and let it complete, before continuing.",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "2"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance Details Request eMail (Flows)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "True",
+                    "InstallOrder": "55"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance detail request [Teams] v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "56"
+                  },
+                  {
+                    "ObjectName": "Admin | Compliance detail request v3",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "TBD",
+                    "ObjectType": "CloudFlows",
+                    "ShipOn": "False",
+                    "InstallOrder": "57"
+                  }
+                ]
+              }
+            },
+            "Parse_JSON_-_Flows": {
+              "runAfter": {
+                "Set_metadataArray_to_Flows": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "4fb6cec5-20a3-4a79-8d76-f5578d1a02c9"
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@variables('metadataArray')",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ObjectName": {
+                        "type": "string"
+                      },
+                      "CoESolution": {
+                        "type": "string"
+                      },
+                      "CoESolutionArea": {
+                        "type": "string"
+                      },
+                      "Flag": {
+                        "type": "string"
+                      },
+                      "HelpLink": {
+                        "type": "string"
+                      },
+                      "ObjectType": {
+                        "type": "string"
+                      },
+                      "ShipOn": {
+                        "type": "string"
+                      },
+                      "InstallOrder": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "ObjectName",
+                      "CoESolution",
+                      "CoESolutionArea",
+                      "Flag",
+                      "HelpLink",
+                      "ObjectType",
+                      "ShipOn",
+                      "InstallOrder"
+                    ]
+                  }
+                }
+              }
+            },
+            "Apply_to_each_-_Flow": {
+              "foreach": "@body('Parse_JSON_-_Flows')",
+              "actions": {
+                "Add_if_does_not_exist_-_Flows": {
+                  "actions": {
+                    "Add_Metadata_-_Flows": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0354a06a-94fa-448c-a043-8ff26fb50aed"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "CreateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_coesolutionmetadatas",
+                          "item/admin_objectname": "@items('Apply_to_each_-_Flow')['ObjectName']",
+                          "item/admin_coesolution": "@items('Apply_to_each_-_Flow')['CoESolution']",
+                          "item/admin_coesolutionarea": "@items('Apply_to_each_-_Flow')['CoESolutionArea']",
+                          "item/admin_flag": "@items('Apply_to_each_-_Flow')['Flag']",
+                          "item/admin_helplink": "@items('Apply_to_each_-_Flow')['HelpLink']",
+                          "item/admin_installorder": "@items('Apply_to_each_-_Flow')['InstallOrder']",
+                          "item/admin_objectguid": "@if(equals(length(body('Filter_array_-_Flows')), 0), '',  first(body('Filter_array_-_Flows'))?['GUID'])",
+                          "item/admin_objecttype": "@items('Apply_to_each_-_Flow')['ObjectType']",
+                          "item/admin_objecturl": "@if(equals(length(body('Filter_array_-_Flows')), 0), '',  first(body('Filter_array_-_Flows'))?['URL'])",
+                          "item/admin_shipon": "@items('Apply_to_each_-_Flow')['ShipOn']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "See_if_already_exists_-_Flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_Metadata_-_Flows": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "91b971ab-f833-44e9-8015-a5b3ba1dda5a"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord",
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                          },
+                          "parameters": {
+                            "entityName": "admin_coesolutionmetadatas",
+                            "recordId": "@first(outputs('See_if_already_exists_-_Flows')?['body/value'])?['admin_coesolutionmetadataid']",
+                            "item/admin_objectname": "@items('Apply_to_each_-_Flow')['ObjectName']",
+                            "item/admin_coesolution": "@items('Apply_to_each_-_Flow')['CoESolution']",
+                            "item/admin_coesolutionarea": "@items('Apply_to_each_-_Flow')['CoESolutionArea']",
+                            "item/admin_flag": "@items('Apply_to_each_-_Flow')['Flag']",
+                            "item/admin_helplink": "@items('Apply_to_each_-_Flow')['HelpLink']",
+                            "item/admin_installorder": "@items('Apply_to_each_-_Flow')['InstallOrder']",
+                            "item/admin_objectguid": "@if(equals(length(body('Filter_array_-_Flows')), 0), '',  first(body('Filter_array_-_Flows'))?['GUID'])",
+                            "item/admin_objecttype": "@items('Apply_to_each_-_Flow')['ObjectType']",
+                            "item/admin_objecturl": "@if(equals(length(body('Filter_array_-_Flows')), 0), '',  first(body('Filter_array_-_Flows'))?['URL'])",
+                            "item/admin_shipon": "@items('Apply_to_each_-_Flow')['ShipOn']"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "less": [
+                      "@length(outputs('See_if_already_exists_-_Flows')?['body/value'])",
+                      1
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "ac003774-a532-4e00-b8e6-770b7ad14455"
+                  },
+                  "type": "If"
+                },
+                "Filter_array_-_Flows": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "f66a4cd5-6e40-49a4-b28f-7934369f238b"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@body('Select_Envt_Cloud_Flows')",
+                    "where": "@equals(item()?['DisplayName'], items('Apply_to_each_-_Flow')['ObjectName'])"
+                  }
+                },
+                "See_if_already_exists_-_Flows": {
+                  "runAfter": {
+                    "Filter_array_-_Flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "6e243b6d-b2ce-40e3-9c02-5ac90fd2af44"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_coesolutionmetadatas",
+                      "$select": "admin_coesolutionmetadataid",
+                      "$filter": "admin_objectname eq '@{items('Apply_to_each_-_Flow')['ObjectName']}'",
+                      "$top": 1
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "Parse_JSON_-_Flows": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2afdbf28-ad11-4c16-88d2-064924d3a664"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Apps": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "cf0e0e98-d727-4779-9b85-f1dd8e44b0e0"
+          },
+          "type": "Scope"
+        },
+        "Apps": {
+          "actions": {
+            "Set_metadataArray_to_Apps": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "79a8491c-488e-4b13-8e90-a95983528f60"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "metadataArray",
+                "value": [
+                  {
+                    "ObjectName": "Admin - Access this App",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/setup-powerbi#optional-configure-embedded-apps-in-the-coe-dashboard",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Developer Compliance Center",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/governance-components#developer-compliance-center",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Admin - Access this Flow",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/setup-powerbi#optional-configure-embedded-apps-in-the-coe-dashboard",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Admin - Command Center",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#admin---command-center",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Cleanup Old Objects App",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/governance-components#cleanup-old-objects-app",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "App and Flow Inactivity Notifications Clean Up View",
+                    "CoESolution": "Governance",
+                    "CoESolutionArea": "Inactivity Notifications",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/governance-components#app-and-flow-archive-and-clean-up-view",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Innovation Backlog",
+                    "CoESolution": "Innovation Backlog",
+                    "CoESolutionArea": "Innovation Backlog",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/innovationbacklog-components#innovation-backlog-app",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Innovation Backlog Admin",
+                    "CoESolution": "Innovation Backlog",
+                    "CoESolutionArea": "Innovation Backlog",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/innovationbacklog-components#innovation-backlog-admin-app",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Admin - Environment Request",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/env-mgmt",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "App Catalog",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#app-catalog",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Developer Compliance Center (Teams version)",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Compliance",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/governance-components#developer-compliance-center",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "DLP Editor V2",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#dlp-editor-v2",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Maker - Command Center",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#admin---command-center",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Maker - Environment Request",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Environment Request",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/env-mgmt",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Power Platform Admin View",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#power-platform-admin-view",
+                    "ObjectType": "ModelDrivenApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Set App Permissions",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#set-app-permissions",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Set Flow Permissions",
+                    "CoESolution": "Core",
+                    "CoESolutionArea": "Inventory",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/core-components#set-flow-permissions",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Maker Assessment",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/nurture-components#maker-assessment",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Maker Assessment Admin App",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/nurture-components#maker-assessment-admin-app",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Power Platform Training Registration",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/nurture-components#training-in-a-day--registration",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Template Catalog",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/nurture-components#template-catalog",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  },
+                  {
+                    "ObjectName": "Power Platform Training Management",
+                    "CoESolution": "Nurture",
+                    "CoESolutionArea": "Nurture",
+                    "Flag": "",
+                    "HelpLink": "https://docs.microsoft.com/power-platform/guidance/coe/nurture-components#training-in-a-day--management",
+                    "ObjectType": "CanvasApp",
+                    "ShipOn": true,
+                    "InstallOrder": 1
+                  }
+                ]
+              }
+            },
+            "Parse_JSON_-_Apps": {
+              "runAfter": {
+                "Set_metadataArray_to_Apps": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "4fb6cec5-20a3-4a79-8d76-f5578d1a02c9"
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@variables('metadataArray')",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ObjectName": {
+                        "type": "string"
+                      },
+                      "CoESolution": {
+                        "type": "string"
+                      },
+                      "CoESolutionArea": {
+                        "type": "string"
+                      },
+                      "Flag": {
+                        "type": "string"
+                      },
+                      "HelpLink": {
+                        "type": "string"
+                      },
+                      "ObjectType": {
+                        "type": "string"
+                      },
+                      "ShipOn": {
+                        "type": "boolean"
+                      },
+                      "InstallOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "ObjectName",
+                      "CoESolution",
+                      "CoESolutionArea",
+                      "Flag",
+                      "HelpLink",
+                      "ObjectType",
+                      "ShipOn",
+                      "InstallOrder"
+                    ]
+                  }
+                }
+              }
+            },
+            "Apply_to_each_-_App": {
+              "foreach": "@body('Parse_JSON_-_Apps')",
+              "actions": {
+                "Add_if_does_not_exist_-_Apps": {
+                  "actions": {
+                    "Add_Metadata_-_Apps": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0354a06a-94fa-448c-a043-8ff26fb50aed"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "CreateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_coesolutionmetadatas",
+                          "item/admin_objectname": "@items('Apply_to_each_-_App')['ObjectName']",
+                          "item/admin_coesolution": "@items('Apply_to_each_-_App')['CoESolution']",
+                          "item/admin_coesolutionarea": "@items('Apply_to_each_-_App')['CoESolutionArea']",
+                          "item/admin_flag": "@items('Apply_to_each_-_App')['Flag']",
+                          "item/admin_helplink": "@items('Apply_to_each_-_App')['HelpLink']",
+                          "item/admin_installorder": "@items('Apply_to_each_-_App')['InstallOrder']",
+                          "item/admin_objectguid": "@if(equals(length(body('Filter_array_-_Apps')), 0), '',  first(body('Filter_array_-_Apps'))?['GUID'])",
+                          "item/admin_objecttype": "@items('Apply_to_each_-_App')['ObjectType']",
+                          "item/admin_objecturl": "@if(equals(length(body('Filter_array_-_Apps')), 0), '',  first(body('Filter_array_-_Apps'))?['URL'])",
+                          "item/admin_shipon": "@items('Apply_to_each_-_App')['ShipOn']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "See_if_already_exists_-_Apps": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Update_Metadata_-_Apps": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "91b971ab-f833-44e9-8015-a5b3ba1dda5a"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "UpdateRecord",
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                          },
+                          "parameters": {
+                            "entityName": "admin_coesolutionmetadatas",
+                            "recordId": "@first(outputs('See_if_already_exists_-_Apps')?['body/value'])?['admin_coesolutionmetadataid']",
+                            "item/admin_objectname": "@items('Apply_to_each_-_App')['ObjectName']",
+                            "item/admin_coesolution": "@items('Apply_to_each_-_App')['CoESolution']",
+                            "item/admin_coesolutionarea": "@items('Apply_to_each_-_App')['CoESolutionArea']",
+                            "item/admin_flag": "@items('Apply_to_each_-_App')['Flag']",
+                            "item/admin_helplink": "@items('Apply_to_each_-_App')['HelpLink']",
+                            "item/admin_installorder": "@items('Apply_to_each_-_App')['InstallOrder']",
+                            "item/admin_objectguid": "@if(equals(length(body('Filter_array_-_Apps')), 0), '',  first(body('Filter_array_-_Apps'))?['GUID'])",
+                            "item/admin_objecttype": "@items('Apply_to_each_-_App')['ObjectType']",
+                            "item/admin_objecturl": "@if(equals(length(body('Filter_array_-_Apps')), 0), '',  first(body('Filter_array_-_Apps'))?['URL'])",
+                            "item/admin_shipon": "@items('Apply_to_each_-_App')['ShipOn']"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "less": [
+                      "@length(outputs('See_if_already_exists_-_Apps')?['body/value'])",
+                      1
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "ac003774-a532-4e00-b8e6-770b7ad14455"
+                  },
+                  "type": "If"
+                },
+                "Filter_array_-_Apps": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "f66a4cd5-6e40-49a4-b28f-7934369f238b"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@body('Select_Envt_PowerApps')",
+                    "where": "@equals(item()?['DisplayName'], items('Apply_to_each_-_App')['ObjectName'])"
+                  }
+                },
+                "See_if_already_exists_-_Apps": {
+                  "runAfter": {
+                    "Filter_array_-_Apps": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "6e243b6d-b2ce-40e3-9c02-5ac90fd2af44"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_coesolutionmetadatas",
+                      "$select": "admin_coesolutionmetadataid",
+                      "$filter": "admin_objectname eq '@{items('Apply_to_each_-_App')['ObjectName']}'",
+                      "$top": 1
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "Parse_JSON_-_Apps": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2afdbf28-ad11-4c16-88d2-064924d3a664"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Get_Tenant_Info": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "cf0e0e98-d727-4779-9b85-f1dd8e44b0e0"
+          },
+          "type": "Scope"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
