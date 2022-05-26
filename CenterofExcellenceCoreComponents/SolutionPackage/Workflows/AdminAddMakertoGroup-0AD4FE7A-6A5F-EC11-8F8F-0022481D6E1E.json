@@ -1,153 +1,184 @@
 {
-  "properties": {
-    "connectionReferences": {
-      "shared_office365groups": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "admin_CoECoreO365Groups"
+    "properties": {
+      "connectionReferences": {
+        "shared_office365groups": {
+          "runtimeSource": "embedded",
+          "connection": {
+            "connectionReferenceLogicalName": "admin_CoECoreO365Groups"
+          },
+          "api": {
+            "name": "shared_office365groups"
+          }
         },
-        "api": {
-          "name": "shared_office365groups"
+        "shared_commondataserviceforapps_1": {
+          "runtimeSource": "embedded",
+          "connection": {
+            "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+          },
+          "api": {
+            "name": "shared_commondataserviceforapps"
+          }
         }
       },
-      "shared_commondataserviceforapps_1": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+      "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+          "$connections": {
+            "defaultValue": {},
+            "type": "Object"
+          },
+          "$authentication": {
+            "defaultValue": {},
+            "type": "SecureObject"
+          },
+          "Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)": {
+            "defaultValue": "ac6c2c0b-9d2b-4bc0-8117-ec1a244dbfa4",
+            "type": "String",
+            "metadata": {
+              "schemaName": "admin_PowerPlatformMakeSecurityGroup",
+              "description": "Enter the ID of the Microsoft 365 group which will contain all your Power Platform Makers.  It is needed to communicate and share apps with them."
+            }
+          }
         },
-        "api": {
-          "name": "shared_commondataserviceforapps"
-        }
+        "triggers": {
+          "When_a_Maker_is_added": {
+            "metadata": {
+              "operationMetadataId": "f9599028-34b2-4d03-a03a-f0db581ba7c1"
+            },
+            "type": "OpenApiConnectionWebhook",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_commondataserviceforapps_1",
+                "operationId": "SubscribeWebhookTrigger",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+              },
+              "parameters": {
+                "subscriptionRequest/message": 1,
+                "subscriptionRequest/entityname": "admin_maker",
+                "subscriptionRequest/scope": 4
+              },
+              "authentication": "@parameters('$authentication')"
+            },
+            "description": "When a Maker record is added in this environment, run the flow"
+          }
+        },
+        "actions": {
+          "Try_-_Add_Maker_to_Group": {
+            "actions": {
+              "If_service_principle_Terminate_exit_here": {
+                "actions": {
+                  "Terminate_on_Service_Principle": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "84ba54a9-64b6-4ea3-8f5f-0dd739618d03"
+                    },
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Succeeded"
+                    },
+                    "description": "The maker record is service principle. Terminate the flow."
+                  }
+                },
+                "runAfter": {},
+                "expression": {
+                  "equals": [
+                    "@triggerOutputs()?['body/admin_userisserviceprinciple']",
+                    "@true"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "12ce10c7-afc3-4767-bc7c-6e1ff51c2ce3"
+                },
+                "type": "If",
+                "description": "Check if the record is Service Principle by checking UserIsServicePrinciple column. If so, terminate the flow"
+              },
+              "List_Power_Platform_Maker_group_members": {
+                "runAfter": {
+                  "If_service_principle_Terminate_exit_here": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "5e25ddf9-c694-4161-8238-523dfd439c85"
+                },
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365groups",
+                    "operationId": "ListGroupMembers",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups"
+                  },
+                  "parameters": {
+                    "groupId": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                },
+                "description": "List group members \"Power Platform Maker Group ID  (admin_PowerPlatformMakeSecurityGroup)\""
+              },
+              "Add_maker_to_Power_Platform_Maker_group": {
+                "runAfter": {
+                  "List_Power_Platform_Maker_group_members": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "5911e9dd-380b-4725-bd48-e4f67de64be7"
+                },
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365groups",
+                    "operationId": "AddMemberToGroup",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups"
+                  },
+                  "parameters": {
+                    "groupId": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')",
+                    "userUpn": "@triggerOutputs()?['body/admin_userprincipalname']"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                },
+                "description": "Add maker to group \"Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)\""
+              }
+            },
+            "runAfter": {},
+            "metadata": {
+              "operationMetadataId": "8e1668f3-abda-436a-be23-4a781d37c954"
+            },
+            "type": "Scope",
+            "description": "Try - Run actions in this scope"
+          },
+          "Catch_-_Add_Maker_to_Group": {
+            "actions": {
+              "Catch_-_Terminate": {
+                "runAfter": {},
+                "metadata": {
+                  "operationMetadataId": "7a3ab205-3b68-46cd-9dd2-247a4afe4f38"
+                },
+                "type": "Terminate",
+                "inputs": {
+                  "runStatus": "Failed",
+                  "runError": {
+                    "message": "Already a member"
+                  }
+                },
+                "description": "Terminate the flow. Already a member"
+              }
+            },
+            "runAfter": {
+              "Try_-_Add_Maker_to_Group": [
+                "Failed"
+              ]
+            },
+            "metadata": {
+              "operationMetadataId": "4c6779ab-867e-4dc7-99f2-ced4c5e1f3e5"
+            },
+            "type": "Scope",
+            "description": "Catch - Run if Try scope fails"
+          }
+        },
+        "outputs": {}
       }
     },
-    "definition": {
-      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion": "1.0.0.0",
-      "parameters": {
-        "$connections": {
-          "defaultValue": {},
-          "type": "Object"
-        },
-        "$authentication": {
-          "defaultValue": {},
-          "type": "SecureObject"
-        },
-        "Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)": {
-          "defaultValue": "ac6c2c0b-9d2b-4bc0-8117-ec1a244dbfa4",
-          "type": "String",
-          "metadata": {
-            "schemaName": "admin_PowerPlatformMakeSecurityGroup",
-            "description": "Enter the ID of the Microsoft 365 group which will contain all your Power Platform Makers.  It is needed to communicate and share apps with them."
-          }
-        }
-      },
-      "triggers": {
-        "When_a_row_is_added": {
-          "metadata": {
-            "operationMetadataId": "f9599028-34b2-4d03-a03a-f0db581ba7c1"
-          },
-          "type": "OpenApiConnectionWebhook",
-          "inputs": {
-            "host": {
-              "connectionName": "shared_commondataserviceforapps_1",
-              "operationId": "SubscribeWebhookTrigger",
-              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-            },
-            "parameters": {
-              "subscriptionRequest/message": 1,
-              "subscriptionRequest/entityname": "admin_maker",
-              "subscriptionRequest/scope": 4
-            },
-            "authentication": "@parameters('$authentication')"
-          }
-        }
-      },
-      "actions": {
-        "If_service_principle_then_exit_here": {
-          "actions": {
-            "Terminate_2": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "84ba54a9-64b6-4ea3-8f5f-0dd739618d03"
-              },
-              "type": "Terminate",
-              "inputs": {
-                "runStatus": "Succeeded"
-              }
-            }
-          },
-          "runAfter": {},
-          "expression": {
-            "equals": [
-              "@triggerOutputs()?['body/admin_userisserviceprinciple']",
-              "@true"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "12ce10c7-afc3-4767-bc7c-6e1ff51c2ce3"
-          },
-          "type": "If"
-        },
-        "List_group_members": {
-          "runAfter": {
-            "If_service_principle_then_exit_here": [
-              "Succeeded"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "5e25ddf9-c694-4161-8238-523dfd439c85"
-          },
-          "type": "OpenApiConnection",
-          "inputs": {
-            "host": {
-              "connectionName": "shared_office365groups",
-              "operationId": "ListGroupMembers",
-              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups"
-            },
-            "parameters": {
-              "groupId": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')"
-            },
-            "authentication": "@parameters('$authentication')"
-          }
-        },
-        "Add_member_to_group": {
-          "runAfter": {
-            "List_group_members": [
-              "Succeeded"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "5911e9dd-380b-4725-bd48-e4f67de64be7"
-          },
-          "type": "OpenApiConnection",
-          "inputs": {
-            "host": {
-              "connectionName": "shared_office365groups",
-              "operationId": "AddMemberToGroup",
-              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups"
-            },
-            "parameters": {
-              "groupId": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')",
-              "userUpn": "@triggerOutputs()?['body/admin_userprincipalname']"
-            },
-            "authentication": "@parameters('$authentication')"
-          }
-        },
-        "Catch:_Already_a_member": {
-          "runAfter": {
-            "Add_member_to_group": [
-              "Failed"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "0aa8c690-e099-45d6-8f68-24027c4acbec"
-          },
-          "type": "Compose",
-          "inputs": "Catch: Already a member"
-        }
-      },
-      "outputs": {}
-    }
-  },
-  "schemaVersion": "1.0.0.0"
-}
+    "schemaVersion": "1.0.0.0"
+  }
