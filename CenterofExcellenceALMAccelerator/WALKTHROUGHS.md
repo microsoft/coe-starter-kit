@@ -4,6 +4,9 @@ Below you'll find video content for the ALM Accelerator for Power Platform.
 ### ALM Accelerator for Power Platform - Power CAT Live
 [![ALM Accelerator for Power Platform New Maker](http://i.ytimg.com/vi/daK6LuR9Uuk/maxresdefault.jpg)](https://www.youtube.com/watch?v=daK6LuR9Uuk "ALM Accelerator for Power Platform on Power CAT Live")
 
+### ALM for Pro and Citizen Developers - Power Platform (by Michael Megel from DynamicsCon
+[![ALM for Pro and Citizen Developers - Power Platform](http://i.ytimg.com/vi/lVqxkRUfDhI/maxresdefault.jpg)](https://www.youtube.com/watch?v=lVqxkRUfDhI "ALM for Pro and Citizen Developers - Power Platform")
+
 ### Experience Updates in the ALM Accelerator for Power Platform 
 [![ALM Accelerator for Power Platform New Maker](https://i.ytimg.com/vi/hpIYEy-IQGQ/maxresdefault.jpg)](https://youtu.be/hpIYEy-IQGQ "ALM Accelerator for Power Platform on Power CAT Live")
 
