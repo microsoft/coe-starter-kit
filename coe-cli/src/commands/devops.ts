@@ -1084,7 +1084,7 @@ class DevOpsCommand {
                 }
             }
             //Fall back to using the service connection url supplied as the service connection name if no name was supplied
-            if (typeof serviceConnectionName === "undefined") {
+            if (typeof serviceConnectionName === "undefined" || serviceConnectionName == '') {
                 serviceConnectionName = serviceConnectionUrl
             }
             this.logger?.debug(util.format("Environment Name %s", environmentName));
