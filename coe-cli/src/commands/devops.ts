@@ -1056,7 +1056,8 @@ class DevOpsCommand {
             sourceBuild.repository.url = repo.url
             sourceBuild.repository.type = 'TfsGit'
             let environmentName = ''
-            let serviceConnection = ''
+            let serviceConnectionName = ''
+            let serviceConnectionUrl = ''
 
             let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
             let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
@@ -1065,30 +1066,39 @@ class DevOpsCommand {
             switch (template?.toLowerCase()) {
                 case "validation": {
                     environmentName = 'Validation'
-                    serviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
+                    serviceConnectionName = args.settings["validation-scname"]
+                    serviceConnectionUrl = Environment.getEnvironmentUrl(validationName, args.settings)
                     break;
                 }
                 case "test": {
                     environmentName = 'Test'
-                    serviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
+                    serviceConnectionName = args.settings["test-scname"]
+                    serviceConnectionUrl = Environment.getEnvironmentUrl(testName, args.settings)
                     break;
                 }
                 case "prod": {
                     environmentName = 'Production'
-                    serviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
+                    serviceConnectionName = args.settings["prod-scname"]
+                    serviceConnectionUrl = Environment.getEnvironmentUrl(prodName, args.settings)
                     break;
                 }
             }
-
+            //Fall back to using the service connection url supplied as the service connection name if no name was supplied
+            if (typeof serviceConnectionName === "undefined") {
+                serviceConnectionName = serviceConnectionUrl
+            }
             this.logger?.debug(util.format("Environment Name %s", environmentName));
-            this.logger?.debug(util.format("URL %s", serviceConnection));
+            this.logger?.debug(util.format("Name %s", serviceConnectionName));
+            this.logger?.debug(util.format("URL %s", serviceConnectionUrl));
 
             sourceBuild.variables = {
                 EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
-                ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
+                ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{},
+                ServiceConnectionUrl: <BuildInterfaces.BuildDefinitionVariable>{}
             }
             sourceBuild.variables.EnvironmentName.value = environmentName
-            sourceBuild.variables.ServiceConnection.value = serviceConnection
+            sourceBuild.variables.ServiceConnection.value = serviceConnectionName
+            sourceBuild.variables.ServiceConnectionUrl.value = serviceConnectionUrl
         }
 
         this.logger?.info(util.format("Creating new pipeline %s", destinationBuildName));
