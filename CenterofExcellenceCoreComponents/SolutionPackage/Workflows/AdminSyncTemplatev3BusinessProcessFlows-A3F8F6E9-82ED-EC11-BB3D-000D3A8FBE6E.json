@@ -1,0 +1,904 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "api": {
+          "name": "shared_commondataservice"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "FullInventory (admin_FullInventory)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_FullInventory",
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running "
+          }
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "metadata": {
+            "operationMetadataId": "998b3d3d-34e1-489b-aefd-9b0cf86c7670"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Check_if_BPFs_can_be_retrieved_for_this_environment": {
+          "actions": {
+            "Terminate,_inquiry__not_supported": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "303cf191-ec29-40ed-b90b-d73833e269c0"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_hascds']",
+                  "@false"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentsku']",
+                  "Teams"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentsku']",
+                  "Developer"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9b6688e4-c25b-4e40-9deb-fcf181094357"
+          },
+          "type": "If"
+        },
+        "Get_BPFs_and_Exit_if_no_BPFs_in_envt_or_if_no_permissions": {
+          "actions": {
+            "Count_BPFs": {
+              "actions": {
+                "Quit_if_no_BPFs": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "f8a93c00-c6c9-4716-9e92-62ed6d148503"
+                  },
+                  "type": "Terminate",
+                  "inputs": {
+                    "runStatus": "Succeeded"
+                  }
+                }
+              },
+              "runAfter": {
+                "Terminate_if_no_access": [
+                  "Skipped"
+                ]
+              },
+              "expression": {
+                "equals": [
+                  "@length(body('List_BPFs')?['value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b7370f16-6982-490a-92dd-0fd0001e2c79"
+              },
+              "type": "If"
+            },
+            "List_BPFs": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "18cc04ae-6bf0-45a5-88cd-867597f3f22a"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataservice_1",
+                  "operationId": "GetItems_V2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice"
+                },
+                "parameters": {
+                  "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                  "table": "workflows",
+                  "$filter": "category eq 4"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Terminate_if_no_access": {
+              "runAfter": {
+                "List_BPFs": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "713f1ba1-95d3-4176-80c2-0488efa1cb30"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "404",
+                  "message": "Unauthorized"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Check_if_BPFs_can_be_retrieved_for_this_environment": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3e11da85-65c2-4bec-a9d3-76ca594e26b2"
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "runAfter": {
+            "Get_BPFs_and_Exit_if_no_BPFs_in_envt_or_if_no_permissions": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "cdc98291-b926-4a68-b8c5-a1a14a84eef0"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
+        },
+        "Put_BPFs_in_CoE": {
+          "actions": {
+            "Apply_to_each_BPF": {
+              "foreach": "@outputs('List_BPFs')?['body/value']",
+              "actions": {
+                "Reset_isNewToCoE": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "0026ab47-6260-4024-ae1b-2ef07b41847c"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  }
+                },
+                "Check_that_client_data_not_equal_to_null": {
+                  "actions": {
+                    "Parse_BPF_JSON": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "28d07587-4b00-4b01-a41b-fbd34b55640e"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@items('Apply_to_each_BPF')?['clientdata']",
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "primaryEntityName": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "workflowEntityId": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "UniqueNameString": {
+                      "runAfter": {
+                        "Parse_BPF_JSON": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "9171e3ef-9a25-4c08-b9a0-06968c9dc9a7"
+                      },
+                      "type": "Compose",
+                      "inputs": "@concat(triggerOutputs()?['body/admin_environmentid'], '_', items('Apply_to_each_BPF')?['workflowid'])",
+                      "description": "concat(triggerOutputs()?['body/admin_environmentid'], '_', items('Apply_to_each_BPF')?['ItemInternalId'])"
+                    },
+                    "Get_BPF_Owner": {
+                      "runAfter": {
+                        "UniqueNameString": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "573598b3-98f4-430a-ac38-23c47fd98333"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataservice_1",
+                          "operationId": "GetItem_V2",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "table": "systemusers",
+                          "id": "@items('Apply_to_each_BPF')?['_ownerid_value']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "List_BPFs_that_match_by_Unique_Name": {
+                      "runAfter": {
+                        "Get_BPF_Owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f27db8f8-39f7-4436-a2f5-e22a8a27cb35"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_businessprocessflowses",
+                          "$select": "admin_businessprocessflowsid, admin_businessprocessflowmodifiedon",
+                          "$filter": "admin_businessprocessflowuniquename eq '@{outputs('UniqueNameString')}'"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "If_did_not_return_rows_then_new_to_Coe_else_get_GUID": {
+                      "actions": {
+                        "Set_isNewToCoE_to_true": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "d80b0b28-6547-471c-840e-71ead6d72265"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "isNewToCoE",
+                            "value": "@true"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "List_BPFs_that_match_by_Unique_Name": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "bpfGUID": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "41c3a781-6fc3-40e6-8b86-d86d859f54bc"
+                            },
+                            "type": "Compose",
+                            "inputs": "@first(outputs('List_BPFs_that_match_by_Unique_Name')?['body/value'])['admin_businessprocessflowsid']",
+                            "description": "first(outputs('List_BPFs_that_match_by_Unique_Name')?['body/value'])['admin_businessprocessflowsid']"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(outputs('List_BPFs_that_match_by_Unique_Name')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a48ae06e-cb75-4f88-a4b4-d34431db3b94"
+                      },
+                      "type": "If"
+                    },
+                    "Update_or_Insert_BPF_and_Owner": {
+                      "actions": {
+                        "See_if_BPF_Needs_Update_To_CoE": {
+                          "actions": {
+                            "Get_BPF_from_CoE": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "d3dbc705-6c1f-4969-a0f2-e3b66569112e"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "GetItem",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_businessprocessflowses",
+                                  "recordId": "@outputs('bpfGUID')",
+                                  "$select": "admin_name, admin_businessprocessflowmodifiedon"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "CoE_ModifiedOn": {
+                              "runAfter": {
+                                "Get_BPF_from_CoE": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "099790f1-5f28-4a4a-8584-33f16fa1864c"
+                              },
+                              "type": "Compose",
+                              "inputs": "@coalesce(formatDateTime(outputs('Get_BPF_from_CoE')?['body/admin_businessprocessflowmodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')"
+                            },
+                            "Set_BPF_NeedsUpdatedInCoE_true_bc_last_modifed_was_null": {
+                              "runAfter": {
+                                "CoE_ModifiedOn": [
+                                  "Failed"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "4fc37477-7a2c-4461-b83e-5ca1bf18e71c"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "BPF_NeedsUpdatedInCoE",
+                                "value": "@true"
+                              }
+                            },
+                            "BPF_ModifiedOn": {
+                              "runAfter": {
+                                "Set_BPF_NeedsUpdatedInCoE_true_bc_last_modifed_was_null": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "8dcbd96b-f378-4f2d-adc7-817f4f9c9111"
+                              },
+                              "type": "Compose",
+                              "inputs": "@formatDateTime(items('Apply_to_each_BPF')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')"
+                            },
+                            "Set_BPF_NeedsUpdatedInCoE_true_bc_modifedon_was_null": {
+                              "runAfter": {
+                                "BPF_ModifiedOn": [
+                                  "Failed"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "68d687bf-c7c6-4537-8201-17c17d1e39fb"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "BPF_NeedsUpdatedInCoE",
+                                "value": "@true"
+                              }
+                            },
+                            "See_if_needs_updated": {
+                              "actions": {
+                                "Set_BPF_NeedsUpdatedInCoE_true": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "97e50298-1e8e-4c34-9ebf-ccdcdfa2b441"
+                                  },
+                                  "type": "SetVariable",
+                                  "inputs": {
+                                    "name": "BPF_NeedsUpdatedInCoE",
+                                    "value": "@true"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Set_BPF_NeedsUpdatedInCoE_true_bc_modifedon_was_null": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "expression": {
+                                "or": [
+                                  {
+                                    "equals": [
+                                      "@parameters('FullInventory (admin_FullInventory)')",
+                                      "True"
+                                    ]
+                                  },
+                                  {
+                                    "equals": [
+                                      "@variables('BPF_NeedsUpdatedInCoE')",
+                                      "@true"
+                                    ]
+                                  },
+                                  {
+                                    "less": [
+                                      "@outputs('CoE_ModifiedOn')",
+                                      "@outputs('BPF_ModifiedOn')"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "2bab952f-3749-450e-b4dc-011e57ba2b68"
+                              },
+                              "type": "If"
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "3d281cad-2845-4a78-a58d-52027cbc30e7"
+                          },
+                          "type": "Scope"
+                        },
+                        "Only_proceed_if_changed_since_last_updated_in_CoE_or_FullInventory": {
+                          "actions": {
+                            "Run_a_Child_Flow": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "3562efe5-74e1-4106-94e8-c06bd84ca311"
+                              },
+                              "type": "Workflow",
+                              "inputs": {
+                                "host": {
+                                  "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                                },
+                                "body": {
+                                  "text": "@if(equals(body('Get_BPF_Owner')?['azureactivedirectoryobjectid'], null), '', body('Get_BPF_Owner')?['azureactivedirectoryobjectid'])",
+                                  "text_1": "@body('Get_BPF_Owner')?['fullname']",
+                                  "boolean": false
+                                }
+                              }
+                            },
+                            "Check_if_Orphan_-_Edit": {
+                              "actions": {
+                                "Update_BPF_(Orphaned)": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "5ee4f359-0b73-4e10-959c-56d0655a4598"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "UpdateRecord",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_businessprocessflowses",
+                                      "recordId": "@outputs('bpfGUID')",
+                                      "item/admin_name": "@items('Apply_to_each_BPF')?['workflowid']",
+                                      "item/admin_businessprocessflowcreatedon": "@items('Apply_to_each_BPF')?['createdon']",
+                                      "item/admin_businessprocessflowdeleted": false,
+                                      "item/admin_businessprocessflowdescription": "@body('Parse_BPF_JSON')?['description']",
+                                      "item/admin_businessprocessflowdisplayname": "@items('Apply_to_each_BPF')?['name']",
+                                      "item/admin_BusinessProcessFlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_businessprocessflowenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                      "item/admin_businessprocessflowisorphaned": "yes",
+                                      "item/admin_businessprocessflowmode": "@items('Apply_to_each_BPF')?['_mode_label']",
+                                      "item/admin_businessprocessflowmodifiedon": "@items('Apply_to_each_BPF')?['modifiedon']",
+                                      "item/admin_businessprocessflowprimaryentity": "@items('Apply_to_each_BPF')?['primaryentity']",
+                                      "item/admin_businessprocessflowstate": "@items('Apply_to_each_BPF')?['_statecode_label']",
+                                      "item/admin_businessprocessflowstatus": "@items('Apply_to_each_BPF')?['_statuscode_label']",
+                                      "item/admin_businessprocessflowtype": "@items('Apply_to_each_BPF')?['_businessprocesstype_label']",
+                                      "item/admin_businessprocessflowuniquename": "@outputs('UniqueNameString')",
+                                      "item/admin_businessprocessflowworkflowentityid": "@body('Parse_BPF_JSON')?['workflowEntityId']"
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Run_a_Child_Flow": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Update_BPF": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "59565e4e-a768-491f-b451-2ec88898b251"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "UpdateRecord",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_businessprocessflowses",
+                                        "recordId": "@outputs('bpfGUID')",
+                                        "item/admin_name": "@items('Apply_to_each_BPF')?['workflowid']",
+                                        "item/admin_businessprocessflowcreatedon": "@items('Apply_to_each_BPF')?['createdon']",
+                                        "item/admin_businessprocessflowdeleted": false,
+                                        "item/admin_businessprocessflowdescription": "@body('Parse_BPF_JSON')?['description']",
+                                        "item/admin_businessprocessflowdisplayname": "@items('Apply_to_each_BPF')?['name']",
+                                        "item/admin_BusinessProcessFlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_businessprocessflowenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_businessprocessflowisorphaned": "no",
+                                        "item/admin_businessprocessflowmode": "@items('Apply_to_each_BPF')?['_mode_label']",
+                                        "item/admin_businessprocessflowmodifiedon": "@items('Apply_to_each_BPF')?['modifiedon']",
+                                        "item/admin_BusinessProcessFlowOwner@odata.bind": "admin_makers(@{body('Run_a_Child_Flow')?['userid']})",
+                                        "item/admin_businessprocessflowprimaryentity": "@items('Apply_to_each_BPF')?['primaryentity']",
+                                        "item/admin_businessprocessflowstate": "@items('Apply_to_each_BPF')?['_statecode_label']",
+                                        "item/admin_businessprocessflowstatus": "@items('Apply_to_each_BPF')?['_statuscode_label']",
+                                        "item/admin_businessprocessflowtype": "@items('Apply_to_each_BPF')?['_businessprocesstype_label']",
+                                        "item/admin_businessprocessflowuniquename": "@outputs('UniqueNameString')",
+                                        "item/admin_businessprocessflowworkflowentityid": "@body('Parse_BPF_JSON')?['workflowEntityId']"
+                                      },
+                                      "authentication": "@parameters('$authentication')"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@body('Run_a_Child_Flow')?['userisorphan']",
+                                  "True"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "94189860-9bac-4df5-bf33-168a2d468e02"
+                              },
+                              "type": "If"
+                            }
+                          },
+                          "runAfter": {
+                            "See_if_BPF_Needs_Update_To_CoE": [
+                              "Succeeded"
+                            ]
+                          },
+                          "expression": {
+                            "equals": [
+                              "@variables('BPF_NeedsUpdatedInCoE')",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "f29a768b-d916-4073-9d95-617f6cdf03ea"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "If_did_not_return_rows_then_new_to_Coe_else_get_GUID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Maker_Check_-_New": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "395cdc0c-3396-4ebe-b2ea-e3ebfafaf286"
+                            },
+                            "type": "Workflow",
+                            "inputs": {
+                              "host": {
+                                "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                              },
+                              "body": {
+                                "text": "@if(equals(body('Get_BPF_Owner')?['azureactivedirectoryobjectid'], null), '', body('Get_BPF_Owner')?['azureactivedirectoryobjectid'])",
+                                "text_1": "@body('Get_BPF_Owner')?['fullname']",
+                                "boolean": false
+                              }
+                            }
+                          },
+                          "Check_if_Orphan_-_New": {
+                            "actions": {
+                              "Create__BPF_(Orphaned)": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "601a32fc-034e-4e22-ba7a-d3c92b19e51b"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "CreateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_businessprocessflowses",
+                                    "item/admin_name": "@items('Apply_to_each_BPF')?['workflowid']",
+                                    "item/admin_businessprocessflowcreatedon": "@items('Apply_to_each_BPF')?['createdon']",
+                                    "item/admin_businessprocessflowdeleted": false,
+                                    "item/admin_businessprocessflowdescription": "@body('Parse_BPF_JSON')?['description']",
+                                    "item/admin_businessprocessflowdisplayname": "@items('Apply_to_each_BPF')?['name']",
+                                    "item/admin_BusinessProcessFlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_businessprocessflowenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_businessprocessflowisorphaned": "yes",
+                                    "item/admin_businessprocessflowmode": "@items('Apply_to_each_BPF')?['_mode_label']",
+                                    "item/admin_businessprocessflowmodifiedon": "@items('Apply_to_each_BPF')?['modifiedon']",
+                                    "item/admin_businessprocessflowprimaryentity": "@items('Apply_to_each_BPF')?['primaryentity']",
+                                    "item/admin_businessprocessflowstate": "@items('Apply_to_each_BPF')?['_statecode_label']",
+                                    "item/admin_businessprocessflowstatus": "@items('Apply_to_each_BPF')?['_statuscode_label']",
+                                    "item/admin_businessprocessflowtype": "@items('Apply_to_each_BPF')?['_businessprocesstype_label']",
+                                    "item/admin_businessprocessflowuniquename": "@outputs('UniqueNameString')",
+                                    "item/admin_businessprocessflowworkflowentityid": "@body('Parse_BPF_JSON')?['workflowEntityId']"
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              }
+                            },
+                            "runAfter": {
+                              "Maker_Check_-_New": [
+                                "Succeeded"
+                              ]
+                            },
+                            "else": {
+                              "actions": {
+                                "Create__BPF": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "ed88b2b0-0837-47c9-bf19-c9d00427b231"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "CreateRecord",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_businessprocessflowses",
+                                      "item/admin_name": "@items('Apply_to_each_BPF')?['workflowid']",
+                                      "item/admin_businessprocessflowcreatedon": "@items('Apply_to_each_BPF')?['createdon']",
+                                      "item/admin_businessprocessflowdeleted": false,
+                                      "item/admin_businessprocessflowdescription": "@body('Parse_BPF_JSON')?['description']",
+                                      "item/admin_businessprocessflowdisplayname": "@items('Apply_to_each_BPF')?['name']",
+                                      "item/admin_BusinessProcessFlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_businessprocessflowenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                      "item/admin_businessprocessflowisorphaned": "no",
+                                      "item/admin_businessprocessflowmode": "@items('Apply_to_each_BPF')?['_mode_label']",
+                                      "item/admin_businessprocessflowmodifiedon": "@items('Apply_to_each_BPF')?['modifiedon']",
+                                      "item/admin_BusinessProcessFlowOwner@odata.bind": "admin_makers(@{outputs('Maker_Check_-_New')?['Body']?['userid']})",
+                                      "item/admin_businessprocessflowprimaryentity": "@items('Apply_to_each_BPF')?['primaryentity']",
+                                      "item/admin_businessprocessflowstate": "@items('Apply_to_each_BPF')?['_statecode_label']",
+                                      "item/admin_businessprocessflowstatus": "@items('Apply_to_each_BPF')?['_statuscode_label']",
+                                      "item/admin_businessprocessflowtype": "@items('Apply_to_each_BPF')?['_businessprocesstype_label']",
+                                      "item/admin_businessprocessflowuniquename": "@outputs('UniqueNameString')",
+                                      "item/admin_businessprocessflowworkflowentityid": "@body('Parse_BPF_JSON')?['workflowEntityId']"
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              }
+                            },
+                            "expression": {
+                              "equals": [
+                                "@body('Maker_Check_-_New')?['userisorphan']",
+                                "True"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "930204d9-ce43-4283-881c-2801a60fd16e"
+                            },
+                            "type": "If"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@variables('isNewToCoE')",
+                          "@false"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2049abd5-43c8-4a0a-bee2-56b271e16482"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Reset_BPF_NeedsUpdatedInCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@items('Apply_to_each_BPF')?['clientdata']",
+                        "@null"
+                      ]
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "a5975a38-f47d-4d99-b5ba-09de2cd0095b"
+                  },
+                  "type": "If"
+                },
+                "Reset_BPF_NeedsUpdatedInCoE": {
+                  "runAfter": {
+                    "Reset_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "1fa03a7e-4e91-48fa-ae35-fcf556963885"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "BPF_NeedsUpdatedInCoE",
+                    "value": "@false"
+                  }
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "71d10e4a-0f17-4bd0-b32c-8bc995c65e53"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Initialize_BPF_NeedsUpdatedInCoE": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "fc05dedd-2ece-4ac0-b01e-15e35895259c"
+          },
+          "type": "Scope"
+        },
+        "Initialize_BPF_NeedsUpdatedInCoE": {
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9ede7832-defd-43d8-95f9-cac7dd9b3bbc"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "BPF_NeedsUpdatedInCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
+        },
+        "Put_BPFs_in_CoE_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "613da3ef-3857-4218-ae25-b8be6d66b3c4"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3 (Business Process Flows)",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "e6fb89b6-b607-465a-aa3a-4c86d692f5c8"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Business Process Flows Failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Put_BPFs_in_CoE": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0dbc47e1-3e25-4cc2-8949-d62f0755e5dc"
+          },
+          "type": "Scope"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
