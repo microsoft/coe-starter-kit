@@ -1110,17 +1110,17 @@ class DevOpsCommand {
             }
 
             if (typeof environmentTenantId !== "undefined" || environmentTenantId != '') {
-                this.logger?.debug(util.format("Setting tenant id"));
+                this.logger?.info(util.format("Setting tenant id %s", environmentTenantId));
                 sourceBuild.variables.TenantID = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.TenantID.value = environmentTenantId
             }
             if (typeof environmentClientId !== "undefined" || environmentClientId != '') {
-                this.logger?.debug(util.format("Setting client id"));
+                this.logger?.info(util.format("Setting client id %s", environmentClientId));
                 sourceBuild.variables.ClientId = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.ClientId.value = environmentClientId
             }
             if (typeof environmentSecret !== "undefined" || environmentSecret != '') {
-                this.logger?.debug(util.format("Setting client secret"));
+                this.logger?.info(util.format("Setting client secret %s", environmentSecret));
                 sourceBuild.variables.ClientSecret = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.ClientSecret.value = environmentSecret
             }
