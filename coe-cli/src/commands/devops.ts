@@ -1108,23 +1108,21 @@ class DevOpsCommand {
                 ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnectionUrl: <BuildInterfaces.BuildDefinitionVariable>{}
             }
-            /*
-            if (typeof environmentTenantId !== "undefined" || environmentTenantId != '') {
+            if (typeof environmentTenantId !== "undefined" && environmentTenantId != '') {
                 this.logger?.info(util.format("Setting tenant id %s", environmentTenantId));
                 sourceBuild.variables.TenantID = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.TenantID.value = environmentTenantId
             }
-            if (typeof environmentClientId !== "undefined" || environmentClientId != '') {
+            if (typeof environmentClientId !== "undefined" && environmentClientId != '') {
                 this.logger?.info(util.format("Setting client id %s", environmentClientId));
                 sourceBuild.variables.ClientId = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.ClientId.value = environmentClientId
             }
-            if (typeof environmentSecret !== "undefined" || environmentSecret != '') {
+            if (typeof environmentSecret !== "undefined" && environmentSecret != '') {
                 this.logger?.info(util.format("Setting client secret %s", environmentSecret));
                 sourceBuild.variables.ClientSecret = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.ClientSecret.value = environmentSecret
             }
-            */
             sourceBuild.variables.EnvironmentName.value = environmentName
             sourceBuild.variables.ServiceConnection.value = serviceConnectionName
             sourceBuild.variables.ServiceConnectionUrl.value = serviceConnectionUrl
