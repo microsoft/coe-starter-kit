@@ -1058,6 +1058,9 @@ class DevOpsCommand {
             let environmentName = ''
             let serviceConnectionName = ''
             let serviceConnectionUrl = ''
+            let environmentTenantId = ''
+            let environmentClientId = ''
+            let environmentSecret = ''
 
             let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
             let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
@@ -1067,18 +1070,27 @@ class DevOpsCommand {
                 case "validation": {
                     environmentName = 'Validation'
                     serviceConnectionName = args.settings["validation-scname"]
+                    environmentTenantId = args.settings["validation-tenantid"]
+                    environmentClientId = args.settings["validation-clientid"]
+                    environmentSecret = args.settings["validation-clientsecret"]
                     serviceConnectionUrl = Environment.getEnvironmentUrl(validationName, args.settings)
                     break;
                 }
                 case "test": {
                     environmentName = 'Test'
                     serviceConnectionName = args.settings["test-scname"]
+                    environmentTenantId = args.settings["test-tenantid"]
+                    environmentClientId = args.settings["test-clientid"]
+                    environmentSecret = args.settings["test-clientsecret"]
                     serviceConnectionUrl = Environment.getEnvironmentUrl(testName, args.settings)
                     break;
                 }
                 case "prod": {
                     environmentName = 'Production'
                     serviceConnectionName = args.settings["prod-scname"]
+                    environmentTenantId = args.settings["prod-tenantid"]
+                    environmentClientId = args.settings["prod-clientid"]
+                    environmentSecret = args.settings["prod-clientsecret"]
                     serviceConnectionUrl = Environment.getEnvironmentUrl(prodName, args.settings)
                     break;
                 }
@@ -1095,6 +1107,18 @@ class DevOpsCommand {
                 EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnectionUrl: <BuildInterfaces.BuildDefinitionVariable>{}
+            }
+            if (typeof environmentTenantId === "undefined" || environmentTenantId == '') {
+                sourceBuild.variables.TenantID = <BuildInterfaces.BuildDefinitionVariable>{}
+                sourceBuild.variables.TenantID.value = environmentTenantId
+            }
+            if (typeof environmentClientId === "undefined" || environmentClientId == '') {
+                sourceBuild.variables.ClientId = <BuildInterfaces.BuildDefinitionVariable>{}
+                sourceBuild.variables.ClientId.value = environmentClientId
+            }
+            if (typeof environmentSecret === "undefined" || environmentSecret == '') {
+                sourceBuild.variables.ClientSecret = <BuildInterfaces.BuildDefinitionVariable>{}
+                sourceBuild.variables.ClientSecret.value = environmentSecret
             }
             sourceBuild.variables.EnvironmentName.value = environmentName
             sourceBuild.variables.ServiceConnection.value = serviceConnectionName
