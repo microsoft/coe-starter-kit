@@ -18,6 +18,15 @@
         "api": {
           "name": "shared_flowmanagement"
         }
+      },
+      "shared_commondataserviceforapps_2": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
       }
     },
     "definition": {
@@ -1285,6 +1294,7 @@
                                       "item/cr5d5_flowisorphaned": "yes",
                                       "item/admin_flowmodifiedon": "@items('Apply_to_each_Flow')?['properties']?['lastModifiedTime']",
                                       "item/admin_flowstate": "@body('Get_Flow_as_Admin')['properties']['state']",
+                                      "item/admin_flowsuspensionreason": "@body('Get_Flow_as_Admin')['properties']['flowSuspensionReason']",
                                       "item/admin_flowidstring": "@items('Apply_to_each_Flow')?['name']",
                                       "item/admin_workflowentityid": "@body('Parse_JSON_2')?['properties']?['workflowEntityId']"
                                     },
@@ -1339,6 +1349,7 @@
                                         "item/admin_flowmakerdisplayname": "@outputs('Maker_Check_-_Edit')?['Body']?['userdisplayname']",
                                         "item/admin_flowmodifiedon": "@items('Apply_to_each_Flow')?['properties']?['lastModifiedTime']",
                                         "item/admin_flowstate": "@body('Get_Flow_as_Admin')['properties']['state']",
+                                        "item/admin_flowsuspensionreason": "@body('Get_Flow_as_Admin')['properties']['flowSuspensionReason']",
                                         "item/admin_flowidstring": "@items('Apply_to_each_Flow')?['name']",
                                         "item/admin_FlowCreator@odata.bind": "admin_makers(@{variables('FlowOwnerID')})",
                                         "item/admin_workflowentityid": "@body('Parse_JSON_2')?['properties']?['workflowEntityId']"
@@ -1573,6 +1584,7 @@
                                     "item/cr5d5_flowisorphaned": "yes",
                                     "item/admin_flowmodifiedon": "@outputs('Get_New_Flow_as_Admin')?['body/properties/lastModifiedTime']",
                                     "item/admin_flowstate": "@outputs('Get_New_Flow_as_Admin')?['body/properties/state']",
+                                    "item/admin_flowsuspensionreason": "@outputs('Get_New_Flow_as_Admin')?['body/properties/flowSuspensionReason']",
                                     "item/admin_flowidstring": "@outputs('Get_New_Flow_as_Admin')?['body/name']",
                                     "item/admin_workflowentityid": "@body('Parse_New_Flow_JSON')?['properties']?['workflowEntityId']"
                                   },
@@ -1628,6 +1640,7 @@
                                       "item/admin_flowmakerdisplayname": "@outputs('Maker_Check_-_New')?['Body']?['userdisplayname']",
                                       "item/admin_flowmodifiedon": "@outputs('Get_New_Flow_as_Admin')?['body/properties/lastModifiedTime']",
                                       "item/admin_flowstate": "@outputs('Get_New_Flow_as_Admin')?['body/properties/state']",
+                                      "item/admin_flowsuspensionreason": "@outputs('Get_New_Flow_as_Admin')?['body/properties/flowSuspensionReason']",
                                       "item/admin_flowidstring": "@outputs('Get_New_Flow_as_Admin')?['body/name']",
                                       "item/admin_FlowCreator@odata.bind": "admin_makers(@{body('Maker_Check_-_New')?['userid']})",
                                       "item/admin_workflowentityid": "@body('Parse_New_Flow_JSON')?['properties']?['workflowEntityId']"
@@ -2803,6 +2816,294 @@
                 "from": "@outputs('List_Flows_as_Admin')?['body/value']",
                 "where": "@or(greater(item()?['properties/createdTime'], body('Get_past_time')), greater(item()?['properties/lastModifiedTime'], body('Get_past_time')), equals(item()?['properties/lastModifiedTime'], null))"
               }
+            },
+            "Flow_State": {
+              "actions": {
+                "For_each_disabled_flow": {
+                  "foreach": "@outputs('List_flows_turned_off')?['body/value']",
+                  "actions": {
+                    "Filter_this_flow_from_tenant_-_state": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0a0ef88b-66ae-4a02-801e-31927c22d72a"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Select_Flow_columns')",
+                        "where": "@equals(item()?['flowid'], items('For_each_disabled_flow')?['admin_flowid'])"
+                      }
+                    },
+                    "Current_flow_state": {
+                      "runAfter": {
+                        "Filter_this_flow_from_tenant_-_state": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2257e3af-f46b-4ae1-b6e7-2e44da11a662"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(body('Filter_this_flow_from_tenant_-_state'))?['flowstate']"
+                    },
+                    "If_state_has_changed,_update_it": {
+                      "actions": {
+                        "Update_flow_state_from_disabled_state": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "07912ed5-0363-487a-97d9-255cf022be2b"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_flows",
+                              "recordId": "@items('For_each_disabled_flow')?['admin_flowid']",
+                              "item/admin_flowstate": "@outputs('Current_flow_state')",
+                              "item/admin_flowsuspensionreason": "@outputs('Current_flow_suspension_reason')"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Current_flow_suspension_reason": [
+                          "Succeeded"
+                        ]
+                      },
+                      "expression": {
+                        "or": [
+                          {
+                            "not": {
+                              "equals": [
+                                "@items('For_each_disabled_flow')?['admin_flowstate']",
+                                "@outputs('Current_flow_state')"
+                              ]
+                            }
+                          },
+                          {
+                            "and": [
+                              {
+                                "equals": [
+                                  "@items('For_each_disabled_flow')?['admin_flowstate']",
+                                  "Suspended"
+                                ]
+                              },
+                              {
+                                "equals": [
+                                  "@items('For_each_disabled_flow')?['admin_flowsuspensionreason']",
+                                  "@null"
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e77f8e9c-f665-4600-bc75-fd62df1afe72"
+                      },
+                      "type": "If"
+                    },
+                    "Current_flow_suspension_reason": {
+                      "runAfter": {
+                        "Current_flow_state": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2257e3af-f46b-4ae1-b6e7-2e44da11a662"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(body('Filter_this_flow_from_tenant_-_state'))?['flowsuspensionreason']"
+                    }
+                  },
+                  "runAfter": {
+                    "List_flows_turned_off": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d9e49340-2491-4827-a3da-18b2d44da712"
+                  },
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
+                },
+                "Select_Flow_columns": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "a2aa5618-1f44-4095-b57c-2498fed66b31"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@outputs('List_Flows_as_Admin')?['body/value']",
+                    "select": {
+                      "flowid": "@item()?['name']",
+                      "flowstate": "@item()?['properties/state']",
+                      "flowsuspensionreason": "@item()?['properties/flowSuspensionReason']"
+                    }
+                  }
+                },
+                "List_flows_turned_on": {
+                  "runAfter": {
+                    "For_each_disabled_flow": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0614f021-bff4-4167-a871-4925b29fb9f5"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps_2",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_flows",
+                      "$select": "admin_flowid, admin_displayname, admin_flowstate, admin_flowsuspensionreason",
+                      "$filter": "_admin_flowenvironment_value eq  @{triggerOutputs()?['body/admin_environmentid']} and admin_flowstate eq 'Started'"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "List_flows_turned_off": {
+                  "runAfter": {
+                    "Select_Flow_columns": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0614f021-bff4-4167-a871-4925b29fb9f5"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps_2",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_flows",
+                      "$select": "admin_flowid, admin_displayname, admin_flowstate, admin_flowsuspensionreason",
+                      "$filter": "_admin_flowenvironment_value eq  @{triggerOutputs()?['body/admin_environmentid']} and admin_flowstate ne 'Started'"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "For_each_enabled_flow": {
+                  "foreach": "@outputs('List_flows_turned_on')?['body/value']",
+                  "actions": {
+                    "Filter_this_flow_from_tenant_-_state_on": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0a0ef88b-66ae-4a02-801e-31927c22d72a"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Select_Flow_columns')",
+                        "where": "@equals(item()?['flowid'], items('For_each_enabled_flow')?['admin_flowid'])"
+                      }
+                    },
+                    "Current_flow_state_-_enabled": {
+                      "runAfter": {
+                        "Filter_this_flow_from_tenant_-_state_on": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2257e3af-f46b-4ae1-b6e7-2e44da11a662"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(body('Filter_this_flow_from_tenant_-_state_on'))?['flowstate']"
+                    },
+                    "If_state_has_changed,_update_it_2": {
+                      "actions": {
+                        "Update_flow_state_from_disabled_state_2": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "07912ed5-0363-487a-97d9-255cf022be2b"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_flows",
+                              "recordId": "@items('For_each_enabled_flow')?['admin_flowid']",
+                              "item/admin_flowstate": "@outputs('Current_flow_state_-_enabled')",
+                              "item/admin_flowsuspensionreason": "@outputs('Current_flow_suspension_reason_-_enabled')"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Current_flow_suspension_reason_-_enabled": [
+                          "Succeeded"
+                        ]
+                      },
+                      "expression": {
+                        "not": {
+                          "equals": [
+                            "@items('For_each_enabled_flow')?['admin_flowstate']",
+                            "@outputs('Current_flow_state_-_enabled')"
+                          ]
+                        }
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e77f8e9c-f665-4600-bc75-fd62df1afe72"
+                      },
+                      "type": "If"
+                    },
+                    "Current_flow_suspension_reason_-_enabled": {
+                      "runAfter": {
+                        "Current_flow_state_-_enabled": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "7ee405dd-c1e1-42c5-a6d5-6372c7e2e410"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(body('Filter_this_flow_from_tenant_-_state_on'))?['flowsuspensionreason']"
+                    }
+                  },
+                  "runAfter": {
+                    "List_flows_turned_on": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d9e49340-2491-4827-a3da-18b2d44da712"
+                  },
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Apply_to_each_Flow": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f7ace7b8-2e70-4bab-8dd7-a9409aa723ef"
+              },
+              "type": "Scope"
             }
           },
           "runAfter": {
