@@ -1108,7 +1108,7 @@ class DevOpsCommand {
                 ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnectionUrl: <BuildInterfaces.BuildDefinitionVariable>{}
             }
-
+            /*
             if (typeof environmentTenantId !== "undefined" || environmentTenantId != '') {
                 this.logger?.info(util.format("Setting tenant id %s", environmentTenantId));
                 sourceBuild.variables.TenantID = <BuildInterfaces.BuildDefinitionVariable>{}
@@ -1124,6 +1124,7 @@ class DevOpsCommand {
                 sourceBuild.variables.ClientSecret = <BuildInterfaces.BuildDefinitionVariable>{}
                 sourceBuild.variables.ClientSecret.value = environmentSecret
             }
+            */
             sourceBuild.variables.EnvironmentName.value = environmentName
             sourceBuild.variables.ServiceConnection.value = serviceConnectionName
             sourceBuild.variables.ServiceConnectionUrl.value = serviceConnectionUrl
