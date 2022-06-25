@@ -1121,6 +1121,7 @@ class DevOpsCommand {
             if (typeof environmentSecret !== "undefined" && environmentSecret != '') {
                 this.logger?.info(util.format("Setting client secret %s", environmentSecret));
                 sourceBuild.variables.ClientSecret = <BuildInterfaces.BuildDefinitionVariable>{}
+                sourceBuild.variables.ClientSecret.isSecret = true
                 sourceBuild.variables.ClientSecret.value = environmentSecret
             }
             sourceBuild.variables.EnvironmentName.value = environmentName
