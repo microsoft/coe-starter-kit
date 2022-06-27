@@ -1163,11 +1163,11 @@ class DevOpsCommand {
             commit.newContent.content = (response)?.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
             commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, templatesRepository)
             commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-
+            /*
             let variableGroup = args.settings[names[i] + "-variablegroup"]
             if (typeof variableGroup !== "undefined" && variableGroup != '') {
                 commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
-            }
+            }*/
 
             commit.newContent.contentType = ItemContentType.RawText
 
