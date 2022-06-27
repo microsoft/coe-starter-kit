@@ -325,7 +325,7 @@ class DevOpsCommand {
 
         if (refs.length == 0) {
             this.logger?.debug(`Importing ${args.repositoryName}`)
-            repo.defaultBranch = "refs/heads/main"
+            repo.defaultBranch = "refs/heads/release"
             let importRequest = await gitApi.createImportRequest(<GitImportRequest>{
                 parameters: <GitImportRequestParameters>{ gitSource: <GitImportGitSource>{ url: "https://github.com/microsoft/coe-alm-accelerator-templates.git" } },
                 repository: repo
@@ -483,7 +483,6 @@ class DevOpsCommand {
                 }]
             parameters.name = variableGroupName
             parameters.description = 'ALM Accelerator for Power Platform'
-            
             parameters.variables = {
                 "AADHost": <VariableValue>{
                     value: aadHost
@@ -891,7 +890,7 @@ class DevOpsCommand {
 
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
-                newGitCommit.changes = await this.getGitCommitChanges(args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
+                newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
 
                 let gitPush = <GitPush>{}
                 gitPush.refUpdates = [newRef]
@@ -1070,27 +1069,18 @@ class DevOpsCommand {
                 case "validation": {
                     environmentName = 'Validation'
                     serviceConnectionName = args.settings["validation-scname"]
-                    environmentTenantId = args.settings["validation-tenantid"]
-                    environmentClientId = args.settings["validation-clientid"]
-                    environmentSecret = args.settings["validation-clientsecret"]
                     serviceConnectionUrl = Environment.getEnvironmentUrl(validationName, args.settings)
                     break;
                 }
                 case "test": {
                     environmentName = 'Test'
                     serviceConnectionName = args.settings["test-scname"]
-                    environmentTenantId = args.settings["test-tenantid"]
-                    environmentClientId = args.settings["test-clientid"]
-                    environmentSecret = args.settings["test-clientsecret"]
                     serviceConnectionUrl = Environment.getEnvironmentUrl(testName, args.settings)
                     break;
                 }
                 case "prod": {
                     environmentName = 'Production'
                     serviceConnectionName = args.settings["prod-scname"]
-                    environmentTenantId = args.settings["prod-tenantid"]
-                    environmentClientId = args.settings["prod-clientid"]
-                    environmentSecret = args.settings["prod-clientsecret"]
                     serviceConnectionUrl = Environment.getEnvironmentUrl(prodName, args.settings)
                     break;
                 }
@@ -1108,22 +1098,7 @@ class DevOpsCommand {
                 ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{},
                 ServiceConnectionUrl: <BuildInterfaces.BuildDefinitionVariable>{}
             }
-            if (typeof environmentTenantId !== "undefined" && environmentTenantId != '') {
-                this.logger?.info(util.format("Setting tenant id %s", environmentTenantId));
-                sourceBuild.variables.TenantID = <BuildInterfaces.BuildDefinitionVariable>{}
-                sourceBuild.variables.TenantID.value = environmentTenantId
-            }
-            if (typeof environmentClientId !== "undefined" && environmentClientId != '') {
-                this.logger?.info(util.format("Setting client id %s", environmentClientId));
-                sourceBuild.variables.ClientId = <BuildInterfaces.BuildDefinitionVariable>{}
-                sourceBuild.variables.ClientId.value = environmentClientId
-            }
-            if (typeof environmentSecret !== "undefined" && environmentSecret != '') {
-                this.logger?.info(util.format("Setting client secret %s", environmentSecret));
-                sourceBuild.variables.ClientSecret = <BuildInterfaces.BuildDefinitionVariable>{}
-                sourceBuild.variables.ClientSecret.isSecret = true
-                sourceBuild.variables.ClientSecret.value = environmentSecret
-            }
+
             sourceBuild.variables.EnvironmentName.value = environmentName
             sourceBuild.variables.ServiceConnection.value = serviceConnectionName
             sourceBuild.variables.ServiceConnectionUrl.value = serviceConnectionUrl
@@ -1171,7 +1146,7 @@ class DevOpsCommand {
         }
     }
 
-    async getGitCommitChanges(destinationBranch: string, defaultBranch: string, templatesRepository:string, names: string[]): Promise<GitChange[]> {
+    async getGitCommitChanges(args: DevOpsBranchArguments, destinationBranch: string, defaultBranch: string, templatesRepository:string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         for (let i = 0; i < names.length; i++) {
             let url = util.format("https://raw.githubusercontent.com/microsoft/coe-alm-accelerator-templates/main/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]);
@@ -1183,6 +1158,11 @@ class DevOpsCommand {
             commit.item = <GitItem>{}
             commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
             commit.newContent = <ItemContent>{}
+
+            let variableGroup = args.settings[names[i] + "-variablegroup"]
+            if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+            }
             commit.newContent.content = (response)?.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
             commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, templatesRepository)
             commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
