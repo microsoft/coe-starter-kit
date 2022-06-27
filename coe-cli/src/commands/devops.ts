@@ -325,7 +325,7 @@ class DevOpsCommand {
 
         if (refs.length == 0) {
             this.logger?.debug(`Importing ${args.repositoryName}`)
-            repo.defaultBranch = "refs/heads/release"
+            repo.defaultBranch = "refs/heads/main"
             let importRequest = await gitApi.createImportRequest(<GitImportRequest>{
                 parameters: <GitImportRequestParameters>{ gitSource: <GitImportGitSource>{ url: "https://github.com/microsoft/coe-alm-accelerator-templates.git" } },
                 repository: repo
@@ -483,6 +483,7 @@ class DevOpsCommand {
                 }]
             parameters.name = variableGroupName
             parameters.description = 'ALM Accelerator for Power Platform'
+            
             parameters.variables = {
                 "AADHost": <VariableValue>{
                     value: aadHost
