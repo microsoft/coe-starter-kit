@@ -628,11 +628,13 @@ describe('Build', () => {
         let args = new DevOpsBranchArguments();
         let project = <CoreInterfaces.TeamProject>{}
         let gitMock = mock<gitm.GitApi>()
+
         project.name = 'test'
         command.getUrl = () => Promise.resolve(`[SampleSolutionName]
 -[BranchContainingTheBuildTemplates]
 -[RepositoryContainingTheBuildTemplates]
--[SampleSolutionName]`)
+-[SampleSolutionName]
+-[alm-accelerator-variable-group]`)
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
@@ -650,7 +652,6 @@ describe('Build', () => {
         await command.createBranch(args, project, gitMock)
 
         // Assert
-        
         expect(gitMock.createPush).toBeCalledTimes(0)
     });
 
@@ -665,7 +666,8 @@ describe('Build', () => {
         command.getUrl = () => Promise.resolve(`[SampleSolutionName]
 -[BranchContainingTheBuildTemplates]
 -[RepositoryContainingTheBuildTemplates]
--[SampleSolutionName]`)
+-[SampleSolutionName]
+-[alm-accelerator-variable-group]`)
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
@@ -681,21 +683,34 @@ describe('Build', () => {
         args.destinationBranch = "New"
         args.pipelineRepository = "templates"
 
+        //Testing override of variable group
+        args.settings["validation-variablegroup"] = "validation-variable-group"
+        args.settings["test-variablegroup"] = "test-variable-group"
+        args.settings["prod-variablegroup"] = "prod-variable-group"
+
         gitMock.getRepositories.mockResolvedValue([repo])
         gitMock.getRefs.mockResolvedValue([refSource])
-
         // Act
         await command.createBranch(args, project, gitMock)
 
-        // Assert
-        
         expect(gitMock.createPush).toHaveBeenCalled()
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes.length).toBe(3)
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].item.path).toBe("/New/deploy-validation-New.yml")
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].newContent.content).toBe(`[New]
 -[main]
 -[templates]
--[New]`)
+-[New]
+-[validation-variable-group]`)
+        expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[1].newContent.content).toBe(`[New]
+-[main]
+-[templates]
+-[New]
+-[test-variable-group]`)
+expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[2].newContent.content).toBe(`[New]
+-[main]
+-[templates]
+-[New]
+-[prod-variable-group]`)
     })
 });
 

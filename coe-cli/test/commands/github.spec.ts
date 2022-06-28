@@ -37,7 +37,7 @@ describe('Related Tests', () => {
         args.asset = 'Test1'
         args.settings = { installFile: "https://github.com/download/something" }
         Config.data["pat"] = "123"
-        let result = await command.getRelease(args)
+        let result = await command.getRelease(args, 'coe-starter-kit')
 
         // Assert
         expect(result).toBe(`base64:MTIz`)

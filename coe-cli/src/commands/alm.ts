@@ -171,7 +171,7 @@ class ALMCommand {
         gitHubArguments.asset = args.settings['installAsset'] 
       }
       gitHubArguments.settings = args.settings
-      importArgs.sourceLocation = await github.getRelease(gitHubArguments)
+      importArgs.sourceLocation = await github.getRelease(gitHubArguments, 'coe-starter-kit')
       importArgs.authorization = github.getAccessToken(gitHubArguments)
     }
     

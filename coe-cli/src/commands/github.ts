@@ -32,13 +32,13 @@ class GitHubCommand {
      * @param args 
      * @returns 
      */
-    async getRelease(args: GitHubReleaseArguments) : Promise<string> {        
+    async getRelease(args: GitHubReleaseArguments, repo: string) : Promise<string> {        
         let octokitRepo = this.createOctoKitRepos(this.config["pat"])
 
         try {
             let results = await octokitRepo.listReleases({
                 owner:'microsoft',
-                repo:'coe-starter-kit'
+                repo:repo,
             });
             let releaseName = ''
             switch ( args.type ) {
@@ -59,30 +59,35 @@ class GitHubCommand {
                 coeRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
             }
             if (coeRelease.length > 0) {
-                let asset = coeRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
-                if (asset.length > 0) {
-                    let headers = null
-                    if(this.config["pat"]?.length > 0) {
-                        headers = {
-                            authorization: `token ${this.config["pat"]}`,
-                            accept: 'application/octet-stream'
+                if(args.asset == 'Source Code (zip)') {
+                    return coeRelease[0].zipball_url
+                }
+                else {
+                    let asset = coeRelease[0].assets.filter((a: any) => a.name.indexOf(args.asset) >= 0)
+                    if (asset.length > 0) {
+                        let headers = null
+                        if(this.config["pat"]?.length > 0) {
+                            headers = {
+                                authorization: `token ${this.config["pat"]}`,
+                                accept: 'application/octet-stream'
+                            }
+                        } else {
+                            headers = {
+                                accept: 'application/octet-stream'
+                            }
                         }
-                    } else {
-                        headers = {
-                            accept: 'application/octet-stream'
-                        }
-                    }
-                    let download = await this.octokitRequest({
-                        url: '/repos/{owner}/{repo}/releases/assets/{asset_id}',
-                        headers: headers,
-                        owner: 'microsoft',
-                        repo: 'coe-starter-kit',
-                        asset_id: asset[0].id
-                    })
-
-                    const buffer = Buffer.from(download.data);
-                    return 'base64:' + buffer.toString('base64');
-                } 
+                        let download = await this.octokitRequest({
+                            url: '/repos/{owner}/{repo}/releases/assets/{asset_id}',
+                            headers: headers,
+                            owner: 'microsoft',
+                            repo: repo,
+                            asset_id: asset[0].id
+                        })
+    
+                        const buffer = Buffer.from(download.data);
+                        return 'base64:' + buffer.toString('base64');
+                    } 
+                }
                 throw Error("Release not found")
             }                
         } catch (ex) {
