@@ -1,17 +1,21 @@
-# This is a build template referenced from build-deploy-Solution.yml
-# NOTE: We are *not* using a Dataverse environment to validate the build in the pipeline.  
-# Instead, we have configured a PR trigger (see: https://docs.microsoft.com/en-us/azure/devops/pipelines/repos/azure-repos-git?view=azure-devops&tabs=yaml#pr-triggers)
-# When a PR is created is, we kick off a build and attempt to deploy that build to a Dataverse environment.
-# This serves as the initial quality check for the PR.
+#This template builds a solution from source control. Once the solution is built deploy-Solution.yml can be called to deploy from the asset built here
 parameters:
 - name: buildType
   type: string
   default: 'Both'
+- name: serviceConnectionName
+  type: string
+- name: serviceConnectionUrl
+  type: string
+- name: solutionName
+  type: string
 
 steps:  
+- template: Hooks\build-solution-pre-hook.yml
+
 - template: set-spn-token.yml
   parameters:
-    serviceConnection: '$(ServiceConnection)'
+    serviceConnection: ${{parameters.serviceConnectionUrl}}
 
 # Set pipeline vars for tools paths.
 - template: set-tools-paths.yml
@@ -26,9 +30,11 @@ steps:
   displayName: 'Set Source Repo Name'
   condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
 
+- template: Hooks\build-solution-manipulate-source-pre-hook.yml
+
 # Solution version in source control is not used.  Instead, create version at build time from the current build number.
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\SolutionPackage\**\Solution.xml" | 
+   Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\**\Solution.xml" | 
    ForEach-Object {
         (Get-Content $_.FullName) `
             -replace '<Version>[\s\S]*?<\/Version>', '<Version>$(Build.BuildNumber)</Version>' |
@@ -40,7 +46,7 @@ steps:
 # Before we committed changes, we formatted all json files for readability in source control.  This breaks solution package, so we need to flatten them before packing   
 - pwsh: |
     #When we unpack the solution files, we format the json, but it causes solution import failures so we need to flatten the files
-    Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)" -Recurse -Filter *.json |
+    Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}" -Recurse -Filter *.json |
     ForEach-Object {
         $fileContent = (Get-Content $_.FullName) -join ' '
         if(-not [string]::IsNullOrWhiteSpace($fileContent)) {
@@ -49,10 +55,10 @@ steps:
     }
   displayName: 'Flatten JSON files'
   enabled: true
-  
+
 - powershell: |
     $manifestVersion = ''
-    $manifestPaths = Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)" -Recurse -Filter *CanvasManifest.json
+    $manifestPaths = Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}" -Recurse -Filter *CanvasManifest.json
     foreach($manifestPath in $manifestPaths) {
         $manifest = Get-Content $manifestPath.FullName | ConvertFrom-Json
         if($manifest.FormatVersion -ne '') {
@@ -67,9 +73,9 @@ steps:
 
 # Pack canvas app source files into msapp
 - pwsh: |
-   $solutionSource = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)"
+   $solutionSource = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}"
    # We need to keep the source of the canvas app in temp for later use in canvas test automation
-   Copy-Item $solutionSource -Destination "$(Agent.TempDirectory)\$(SolutionName)" -Recurse -Force
+   Copy-Item $solutionSource -Destination "$(Agent.TempDirectory)\${{parameters.solutionName}}" -Recurse -Force
    Get-ChildItem -Path $solutionSource -Recurse -Filter *_src | 
    ForEach-Object {     
      $unpackedPath = $_.FullName
@@ -92,57 +98,20 @@ steps:
 # Set paths to deployment settings
 - template: set-deployment-configuration-paths.yml
   parameters:
-    configPath: $(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\
+    configPath: $(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\config\
     environmentName: $(EnvironmentName)
 
 # We'll store configuration data as artifacts on the build pipeline to be used during deployment. This includes configuration data created via Configuration data migration tool and deploymentSettings.json and customDeploymentSettings.json 
 - powershell: |
-    $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\ConfigurationMigrationData"
-    if(Test-Path $path) {
-        $compress = @{
-            Path = $path + '\*.*'
-            CompressionLevel = 'Fastest'
-            DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData.zip'
-        }
-        Compress-Archive @compress
-    }
-    $settingFiles = @("deploymentSettings","customDeploymentSettings")
-
-    foreach ($settingFile in $settingFiles) {
-        $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$settingFile.json"
-        if(Test-Path $path) {
-            Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile.json"
-        }
-    }
-
-    if(Test-Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config") {
-        Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config" | 
-        ForEach-Object {
-            $environment = $_.Name
-            $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\ConfigurationMigrationData"
-            if(Test-Path $path) {
-                $compress = @{
-                    Path = $path + '\*.*'
-                    CompressionLevel = 'Fastest'
-                    DestinationPath = '$(Build.ArtifactStagingDirectory)/ConfigurationMigrationData-' + $environment + '.zip'
-                }
-                Compress-Archive @compress
-            }
-            foreach ($settingFile in $settingFiles) {
-                $path = "$(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\$environment\$settingFile.json"
-                if(Test-Path $path) {
-                    Copy-Item $path "$(Build.ArtifactStagingDirectory)/$settingFile-$environment.json"
-                }
-            }
-        }
-    }
+    . "$env:POWERSHELLPATH/archive-configuration-migration-data.ps1"
+    Invoke-ArchiveConfigurationMigrationData $(Build.SourcesDirectory) $(Build.ArtifactStagingDirectory) $(RepoName) ${{parameters.solutionName}}
   displayName: 'Archive Configuration Migration Data'    
     
 # Update any deploymentSettings.json via FileTransform task. This task will replace values in a JSON file based on their path. See https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/transforms-variable-substitution?view=azure-devops&tabs=Classic#jsonvarsubs
 - task: FileTransform@1
   displayName: 'File Transformation: deploymentSettings.json'
   inputs:
-    folderPath: $(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\
+    folderPath: $(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\config\
     targetFiles: '*deploymentSettings*.json'
     fileType: json
   condition: and(succeeded(), or(ne(variables['DeploymentSettingsPath'], ''), ne(variables['CustomDeploymentSettingsPath'], '')))
@@ -152,7 +121,7 @@ steps:
 - task: qetza.replacetokens.replacetokens-task.replacetokens@3
   displayName: 'Replace Tokens: deploymentSettings.json'
   inputs:
-    rootDirectory: $(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\config\
+    rootDirectory: $(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\config\
     targetFiles: '*deploymentSettings*.json'
     actionOnMissing: 'silently continue'
     writeBOM: false
@@ -175,16 +144,18 @@ steps:
   parameters:
     buildSourceDirectory: '$(Build.SourcesDirectory)'
     repo: '$(RepoName)'
-    solutionName: '$(SolutionName)'
+    solutionName: '${{parameters.solutionName}}'
     disableAllFlows: 'false'
     activateFlowConfiguration: '$(outActivateFlows)'
+
+- template: Hooks\build-solution-pack-pre-hook.yml
 
 #Pack the solution based on the build type parameter (Unmanaged, Managed or Both)
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.pack-solution.PowerPlatformPackSolution@0
   displayName: 'Pack Solutions (Unmanaged and/or Managed)'
   inputs:
-    SolutionSourceFolder: $(Build.SourcesDirectory)\$(RepoName)\$(SolutionName)\SolutionPackage
-    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\$(SolutionName)_$(Build.BuildNumber).zip'
+    SolutionSourceFolder: $(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage
+    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_$(Build.BuildNumber).zip'
     SolutionType: ${{parameters.buildType}}
 
 
@@ -193,8 +164,8 @@ steps:
   displayName: 'Run Solution Checker'
   inputs:
     authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: '$(ServiceConnection)'
-    FilesToAnalyze: '$(Build.ArtifactStagingDirectory)\$(SolutionName)_$(Build.BuildNumber).zip'
+    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
+    FilesToAnalyze: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_$(Build.BuildNumber).zip'
     RuleSet: '0ad12346-e108-40b8-a956-9a8f95ea18c9'
   condition: and(succeeded(), and(ne(variables['DisableSolutionChecker'], 'true'), eq(variables['Build.Reason'], 'PullRequest')))
 
@@ -203,3 +174,5 @@ steps:
   inputs:
     targetPath: '$(Build.ArtifactStagingDirectory)'
     artifact: drop
+
+- template: Hooks\build-solution-post-hook.yml
