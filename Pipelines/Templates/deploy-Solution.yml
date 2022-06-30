@@ -130,76 +130,11 @@ steps:
   condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'))
 
 - powershell: |    
-    echo "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]false"
-    $solutionUpgradeLabel = "solution-upgrade"
-    $triggerSolutionUpgrade = '$(TriggerSolutionUpgrade)'
-    $triggerSolutionUpgradeVariableSupplied = !$triggerSolutionUpgrade.Contains("TriggerSolutionUpgrade")
-    # If the TriggerSolutionUpgrade variable is set at queue time, then override the logic to determine solution upgrade based on PR label of solution-upgrade
-    if ($triggerSolutionUpgradeVariableSupplied) {
-      echo "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]$triggerSolutionUpgrade"
-    }
-    else {
-      # In order to determine if we need to perform a Solution Upgrade, we see if the Pull Request has a label of solution-upgrade on it.
-      # The only way we know how to determine if the PR that created the commit for the branch had a label is to use the REST API
-      if ("$(Build.Reason)" -ne "PullRequest") { 
-        Write-Host "Build.Repository.Provider is $(Build.Repository.Provider)"
-        if("$(Build.Repository.Provider)" -eq "TfsGit") {      
-          $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-          $headers.Add("Authorization", "Bearer $env:SYSTEM_ACCESSTOKEN")
-          $headers.Add("Content-Type", "application/json")
-          $buildSourceVersion = "$(Build.SourceVersion)"        
-          $pullrequestqueryBody = "{
-          `n  `"queries`": [
-          `n    {
-          `n      `"type`": `"lastMergeCommit`",
-          `n      `"items`": [ `"$buildSourceVersion`" ]
-          `n    }
-          `n  ]
-          `n}"
-          $pullrequestqueryBodyResourceUrl = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/git/repositories/$(Build.Repository.Name)/pullrequestquery?api-version=6.0"
-          $pullrequestqueryResponse = Invoke-RestMethod $pullrequestqueryBodyResourceUrl -Method 'POST' -Headers $headers -Body $pullrequestqueryBody 
-          $pullrequestqueryResponseResults = $pullrequestqueryResponse.results
-          $pullRequestId = $pullrequestqueryResponseResults.$buildSourceVersion.pullRequestId
-          if (-not [string]::IsNullOrEmpty($pullRequestId)) {
-            $pullRequestLabelQuery = "$(System.TeamFoundationCollectionUri)$(System.TeamProjectId)/_apis/git/repositories/$(Build.Repository.Name)/pullRequests/$pullRequestId/labels?api-version=6.0"
-            
-            $pullRequestLabelQueryResponse = Invoke-RestMethod -Uri $pullRequestLabelQuery -Method Get -Headers @{
-              Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
-            }
-            $pullRequestLabelQueryResponseValue = $pullRequestLabelQueryResponse.value
-            if ($pullRequestLabelQueryResponseValue.Count -gt 0) {
-              $triggerSolutionUpgrade = $pullRequestLabelQueryResponseValue.name.Contains($solutionUpgradeLabel).ToString().ToLower()
-              echo "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]$triggerSolutionUpgrade"
-            }
-          }
-        }
-        
-        if("$(Build.Repository.Provider)" -eq "GitHub") {
-          $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-          $headers.Add("Accept", "application/vnd.github.groot-preview+json")
-          $headers.Add("Authorization", "Bearer $(GitHubPAT)")
-          
-          Write-Host "Build.SourceVersion is $(Build.SourceVersion)"
-          $pullsRequest = "https://api.github.com/repos/$(GitHubRepo)/commits/$(Build.SourceVersion)/pulls"
-          
-          $pullsResponse = Invoke-RestMethod $pullsRequest -Method 'GET' -Headers $headers
-          
-          if ($pullsResponse.Count -gt 0) {
-            $pullNumber = $pullsResponse[0].number
-            $issuesRequest = "https://api.github.com/repos/$(GitHubRepo)/issues/$pullNumber"
-            $issuesResponse = Invoke-RestMethod $issuesRequest -Method 'GET' -Headers $headers 
-            
-            if ($issuesResponse.labels.Count -gt 0) {
-              $triggerSolutionUpgrade = $issuesResponse.labels.name.Contains($solutionUpgradeLabel).ToString().ToLower()
-              echo "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]$triggerSolutionUpgrade"
-            }
-          }
-        }
-      }
-    }
-  name: setTriggerSolutionUpgrade
+    . "$env:POWERSHELLPATH/set-trigger-solution-upgrade.ps1"
+    Set-TriggerSolutionUpgrade '$(TriggerSolutionUpgrade)' '$(System.TeamFoundationCollectionUri)' '$(System.TeamProjectId)' '$(Build.Repository.Name)' '$(Build.Repository.Provider)' '$(Build.SourceVersion)' '$(Build.Reason)' $testConfig.gitHubRepo $testConfig.gitHubPat
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+  name: setTriggerSolutionUpgrade
   condition: and(succeeded(), ne('${{parameters.importUnmanaged}}', 'true'))
   displayName: 'Set TriggerSolutionUpgrade Variable'
 
