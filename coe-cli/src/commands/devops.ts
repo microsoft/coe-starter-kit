@@ -6,6 +6,7 @@ import * as CoreInterfaces from 'azure-devops-node-api/interfaces/CoreInterfaces
 import { GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus } from 'azure-devops-node-api/interfaces/GitInterfaces';
 import * as gitm from "azure-devops-node-api/GitApi"
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces';
+import { GitHubCommand, GitHubReleaseArguments } from './github';
 
 import axios from 'axios';
 import open = require('open');
@@ -15,6 +16,7 @@ import { PolicyConfiguration } from "azure-devops-node-api/interfaces/PolicyInte
 
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import path = require('path');
+const AdmZip = require('adm-zip');
 import * as fs from 'fs';
 import { FileHandle } from 'fs/promises';
 import httpm = require('typed-rest-client/HttpClient');
@@ -39,15 +41,29 @@ class DevOpsCommand {
     createAADCommand: () => AADCommand
     getUrl: (url: string) => Promise<string>
     runCommand: (command: string, displayOutput: boolean) => string
+    deleteIfExists: (name: string, type: string) => Promise<void>
+    writeFile: (name: string, data: Buffer) => Promise<void>
     prompt: Prompt
     getHttpClient: (connection: azdev.WebApi) => httpm.HttpClient
     logger: winston.Logger
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
+    createGitHubCommand: () => GitHubCommand
 
     constructor(logger: winston.Logger, defaultFs: any = null) {
         this.logger = logger
         this.createWebApi = (orgUrl: string, authHandler: IRequestHandler) => new azdev.WebApi(orgUrl, authHandler)
         this.createAADCommand = () => new AADCommand(this.logger)
+        this.createGitHubCommand = () => new GitHubCommand(this.logger)
+        this.deleteIfExists = async (name: string, type: string) => {
+            if (fs.existsSync(name)) {
+                if (type == "file")
+                    await fs.promises.unlink(name)
+                else if (type == "directory") {
+                    await fs.promises.rm(name, { recursive: true })
+                }
+            }
+        }
+        this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.getUrl = async (url: string) => {
             return (await (axios.get<string>(url))).data
         }
@@ -99,15 +115,15 @@ class DevOpsCommand {
             await this.createMakersBuildPipelines(args, connection, repo)
 
             let securityContext = await this.setupSecurity(args, connection)
-    
+
             await this.createMakersBuildVariables(args, connection, securityContext)
-    
-            await this.createMakersServiceConnections(args, connection)    
+
+            await this.createMakersServiceConnections(args, connection)
         }
     }
 
     async setupSecurity(args: DevOpsInstallArguments, connection: azdev.WebApi): Promise<DevOpsProjectSecurityContext> {
-        let context : DevOpsProjectSecurityContext = <DevOpsProjectSecurityContext>{}
+        let context: DevOpsProjectSecurityContext = <DevOpsProjectSecurityContext>{}
         let coreApi = await connection.getCoreApi();
 
         let projects = await coreApi.getProjects()
@@ -200,7 +216,7 @@ class DevOpsCommand {
         let devOpsAADGroupFilter = (i: any) => i.displayName == `[TEAM FOUNDATION]\\${name}` && i.entityType == "Group" && i.originDirectory == 'aad'
 
         let match = descriptorInfo.results?.filter((r: any) => r.identities?.filter((i: any) => aadGroupFilter(i) || devOpsAADGroupFilter(i)).length == 1)
-        
+
         if (match.length == 1) {
             let identityMatch = match[0].identities?.filter((i: any) => aadGroupFilter(i) || devOpsAADGroupFilter(i))[0]
             if (identityMatch.subjectDescriptor == null) {
@@ -296,35 +312,42 @@ class DevOpsCommand {
 
         let extensionsApi = await connection.getExtensionManagementApi()
 
-        let extensions = await extensionsApi.getInstalledExtensions()
-
-        for (let i = 0; i < args.extensions.length; i++) {
-            let extension = args.extensions[i]
-
-            let match = extensions.filter((e: InstalledExtension) => e.extensionId == extension.name && e.publisherId == extension.publisher)
-            if (match.length == 0) {
-                this.logger.info(`Installing ${extension.name} by ${extension.publisher}`)
-                await extensionsApi.installExtensionByName(extension.publisher, extension.name)
-            } else {
-                this.logger.info(`Extension ${extension.name} by ${extension.publisher} installed`)
+        this.logger.info(`Retrieving Extensions`)
+        try{
+            let extensions = await extensionsApi.getInstalledExtensions()
+            for (let i = 0; i < args.extensions.length; i++) {
+                let extension = args.extensions[i]
+    
+                let match = extensions.filter((e: InstalledExtension) => e.extensionId == extension.name && e.publisherId == extension.publisher)
+                if (match.length == 0) {
+                    this.logger.info(`Installing ${extension.name} by ${extension.publisher}`)
+                    await extensionsApi.installExtensionByName(extension.publisher, extension.name)
+                } else {
+                    this.logger.info(`Extension ${extension.name} by ${extension.publisher} installed`)
+                }
             }
+        } catch (err) {
+          this.logger?.error(err)
+          throw err
         }
+
     }
 
-    async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi): Promise<GitRepository> {
+    async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) {
         let gitApi = await connection.getGitApi()
 
-        this.logger.info(`Checking pipeline repository`)
+        this.logger.info(`Checking pipeline repository ${args.pipelineRepositoryName}`)
         let repo = await this.getRepository(args, gitApi, args.pipelineRepositoryName)
-
+ 
         if (repo == null) {
             return Promise.resolve(null)
         }
+        this.logger?.info(`Importing ${repo.name}`)
 
         let refs = await gitApi.getRefs(repo.id, args.projectName)
 
         if (refs.length == 0) {
-            this.logger?.debug(`Importing ${args.repositoryName}`)
+            this.logger?.debug(`Importing ${args.pipelineRepositoryName}`)
             repo.defaultBranch = "refs/heads/main"
             let importRequest = await gitApi.createImportRequest(<GitImportRequest>{
                 parameters: <GitImportRequestParameters>{ gitSource: <GitImportGitSource>{ url: "https://github.com/microsoft/coe-alm-accelerator-templates.git" } },
@@ -347,11 +370,65 @@ class DevOpsCommand {
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
             await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
-        } else {
-            this.logger.info(`Pipeline repository ${args.repositoryName}`)
-        }
 
-        return repo;
+            this.logger?.debug(`Getting latest templates from release`)
+
+            let github = this.createGitHubCommand();
+            let gitHubArguments = new GitHubReleaseArguments();
+            gitHubArguments.type = 'alm'
+            gitHubArguments.asset = 'Source Code (zip)'
+            gitHubArguments.settings = {}
+            let sourceZipLocation = await github.getRelease(gitHubArguments, 'coe-alm-accelerator-templates')
+    
+            let response = await axios({
+                method: "get",
+                url: sourceZipLocation,
+                responseType: 'arraybuffer'
+            })
+    
+            const zip = new AdmZip(response.data);
+            const entries = zip.getEntries();
+            let changes: GitChange[] = []
+            let topLevelDir = entries[0].entryName
+            for(let entry of entries) {
+                if(!entry.isDirectory) {
+                    let commit = <GitChange>{}
+                    commit.changeType = VersionControlChangeType.Edit
+                    commit.item = <GitItem>{}
+                    commit.item.path = entry.entryName.replace(topLevelDir, '')
+                    commit.newContent = <ItemContent>{}
+                    commit.newContent.content = entry.getData().toString("utf-8")
+                    commit.newContent.contentType = ItemContentType.RawText
+                    changes.push(commit)                
+                }
+            }
+            refs = await gitApi.getRefs(repo.id, args.projectName)
+     
+            if (refs.length > 0) {
+                let sourceRef = refs.filter(f => f.name == "refs/heads/main")
+                if(sourceRef.length > 0) {
+                    let newRef = <GitRefUpdate>{};
+                    newRef.repositoryId = repo.id
+                    newRef.oldObjectId = sourceRef[0].objectId
+                    newRef.name = "refs/heads/main"
+        
+                    let newGitCommit = <GitCommitRef>{}
+                    newGitCommit.comment = "Add DevOps Pipelines"
+                    newGitCommit.changes = changes
+        
+                    let gitPush = <GitPush>{}
+                    gitPush.repository = repo
+                    gitPush.refUpdates = [newRef]
+                    gitPush.commits = [newGitCommit]
+        
+                    this.logger?.debug(`Pushing latest pipelines ${repo.name} (${repo.id}) to ${args.projectName} main with ${gitPush?.commits[0]?.changes.length} changes`)
+                    await gitApi.createPush(gitPush, repo.id, args.projectName)
+                }
+            }
+    
+        } else {
+            this.logger.info(`Pipeline repository ${args.pipelineRepositoryName}`)
+        }
     }
 
     private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi, repositoryName: string): Promise<GitRepository> {
@@ -363,10 +440,11 @@ class DevOpsCommand {
         }
 
         if (repos?.filter(r => r.name == repositoryName).length == 0) {
-            this.logger?.debug(`Creating repository ${args.repositoryName}`)
+            this.logger?.info(`Creating repository ${repositoryName}`)
             return await gitApi.createRepository(<GitRepositoryCreateOptions>{ name: repositoryName }, args.projectName)
         } else {
-            return repos.filter(r => r.name == args.repositoryName)[0]
+            this.logger?.info(`Found repository ${repositoryName}`)
+            return repos.filter(r => r.name == repositoryName)[0]
         }
     }
 
@@ -483,7 +561,7 @@ class DevOpsCommand {
                 }]
             parameters.name = variableGroupName
             parameters.description = 'ALM Accelerator for Power Platform'
-            
+
             parameters.variables = {
                 "AADHost": <VariableValue>{
                     value: aadHost
@@ -509,7 +587,7 @@ class DevOpsCommand {
         this.logger?.debug("Searching for existing role assignements")
 
         let variableGroupId = `${securityContext.projectId}%24${variableGroup.id}`
-        
+
         let client = this.getHttpClient(connection)
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
@@ -520,24 +598,23 @@ class DevOpsCommand {
 
         let roleAssignments = <RoleAssignment[]>roleAssignmentsResponse.value
 
-        if ( roleAssignments.filter( (r: RoleAssignment) => r.identity.id == securityContext.almGroup.originId ).length == 0 ) {
+        if (roleAssignments.filter((r: RoleAssignment) => r.identity.id == securityContext.almGroup.originId).length == 0) {
             this.logger?.debug(`Adding User role for Group ${securityContext.almGroup.displayName}`)
 
-            let headers = <IHeaders>{ };
+            let headers = <IHeaders>{};
             headers["Content-Type"] = "application/json"
 
-            let updateRequest = await client.put(variableGroupUrl, JSON.stringify([{"roleName":"User","userId":securityContext.almGroup.originId}]), headers)
+            let updateRequest = await client.put(variableGroupUrl, JSON.stringify([{ "roleName": "User", "userId": securityContext.almGroup.originId }]), headers)
             let newRoleAssignmentJson = await updateRequest.readBody();
             let newRoleAssignmentResult = JSON.parse(newRoleAssignmentJson)
 
-            if (newRoleAssignmentResult.value?.length == 1)
-            {
+            if (newRoleAssignmentResult.value?.length == 1) {
                 let newRoleAssignment = <RoleAssignment>newRoleAssignmentResult.value[0]
                 this.logger?.info(`Added new role assignnment ${newRoleAssignment.identity.displayName} for variable group ${variableGroupName}`)
             } else {
                 this.logger?.error(`Role for ${securityContext.almGroup.displayName} not assigned to ${variableGroupName}`)
             }
-            
+
         }
 
     }
@@ -785,7 +862,7 @@ class DevOpsCommand {
         process.yamlFilename = yamlFilename
         newBuild.process = process
         newBuild.queue = defaultQueue
-        
+
         let trigger = <BuildInterfaces.ContinuousIntegrationTrigger>{}
         trigger.triggerType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
         trigger.branchFilters = []
@@ -793,7 +870,7 @@ class DevOpsCommand {
         trigger.maxConcurrentBuildsPerBranch = 1
         trigger.batchChanges = false
         trigger.settingsSourceType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
-        newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]    
+        newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]
 
         return buildApi.createDefinition(newBuild, repo.project.name)
     }
@@ -891,7 +968,7 @@ class DevOpsCommand {
 
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
-                newGitCommit.changes = await this.getGitCommitChanges(args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
+                newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
 
                 let gitPush = <GitPush>{}
                 gitPush.refUpdates = [newRef]
@@ -936,7 +1013,7 @@ class DevOpsCommand {
 
         if (buildTypes.length > 0) {
             let existingConfigurations = await policyApi.getPolicyConfigurations(args.projectName);
-    
+
             let existingPolices = existingConfigurations.filter((policy: PolicyConfiguration) => {
                 if (policy.settings.scope?.length == 1
                     && policy.settings.scope[0].refName == `refs/heads/${args.destinationBranch}`
@@ -1025,7 +1102,7 @@ class DevOpsCommand {
                 sourceBuild.repository = repo
                 if (destinationBuild != null && destinationBuild.variables != null) {
                     let destinationKeys = Object.keys(destinationBuild.variables)
-                    if(sourceBuild.variables != null) {
+                    if (sourceBuild.variables != null) {
                         let sourceKeys = Object.keys(sourceBuild.variables)
                         if (destinationKeys.length == 0 && sourceKeys.length > 0) {
                             destinationBuild.variables = sourceBuild.variables
@@ -1056,7 +1133,11 @@ class DevOpsCommand {
             sourceBuild.repository.url = repo.url
             sourceBuild.repository.type = 'TfsGit'
             let environmentName = ''
-            let serviceConnection = ''
+            let serviceConnectionName = ''
+            let serviceConnectionUrl = ''
+            let environmentTenantId = ''
+            let environmentClientId = ''
+            let environmentSecret = ''
 
             let validationName = typeof (args.settings["validation"] === "string") ? args.settings["validation"] : "yourenviromenthere-validation"
             let testName = typeof (args.settings["test"] === "string") ? args.settings["test"] : "yourenviromenthere-test"
@@ -1065,30 +1146,40 @@ class DevOpsCommand {
             switch (template?.toLowerCase()) {
                 case "validation": {
                     environmentName = 'Validation'
-                    serviceConnection = Environment.getEnvironmentUrl(validationName, args.settings)
+                    serviceConnectionName = args.settings["validation-scname"]
+                    serviceConnectionUrl = Environment.getEnvironmentUrl(validationName, args.settings)
                     break;
                 }
                 case "test": {
                     environmentName = 'Test'
-                    serviceConnection = Environment.getEnvironmentUrl(testName, args.settings)
+                    serviceConnectionName = args.settings["test-scname"]
+                    serviceConnectionUrl = Environment.getEnvironmentUrl(testName, args.settings)
                     break;
                 }
                 case "prod": {
                     environmentName = 'Production'
-                    serviceConnection = Environment.getEnvironmentUrl(prodName, args.settings)
+                    serviceConnectionName = args.settings["prod-scname"]
+                    serviceConnectionUrl = Environment.getEnvironmentUrl(prodName, args.settings)
                     break;
                 }
             }
-
+            //Fall back to using the service connection url supplied as the service connection name if no name was supplied
+            if (typeof serviceConnectionName === "undefined" || serviceConnectionName == '') {
+                serviceConnectionName = serviceConnectionUrl
+            }
             this.logger?.debug(util.format("Environment Name %s", environmentName));
-            this.logger?.debug(util.format("URL %s", serviceConnection));
+            this.logger?.debug(util.format("Name %s", serviceConnectionName));
+            this.logger?.debug(util.format("URL %s", serviceConnectionUrl));
 
             sourceBuild.variables = {
                 EnvironmentName: <BuildInterfaces.BuildDefinitionVariable>{},
-                ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{}
+                ServiceConnection: <BuildInterfaces.BuildDefinitionVariable>{},
+                ServiceConnectionUrl: <BuildInterfaces.BuildDefinitionVariable>{}
             }
+
             sourceBuild.variables.EnvironmentName.value = environmentName
-            sourceBuild.variables.ServiceConnection.value = serviceConnection
+            sourceBuild.variables.ServiceConnection.value = serviceConnectionName
+            sourceBuild.variables.ServiceConnectionUrl.value = serviceConnectionUrl
         }
 
         this.logger?.info(util.format("Creating new pipeline %s", destinationBuildName));
@@ -1112,7 +1203,7 @@ class DevOpsCommand {
             trigger.maxConcurrentBuildsPerBranch = 1
             trigger.batchChanges = false
             trigger.settingsSourceType = BuildInterfaces.DefinitionTriggerType.ContinuousIntegration
-            newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]    
+            newBuild.triggers = <BuildInterfaces.ContinuousIntegrationTrigger[]>[trigger]
         }
         if (sourceBuild.queue != null) {
             newBuild.queue = sourceBuild.queue
@@ -1123,7 +1214,7 @@ class DevOpsCommand {
         let result
         try {
             result = await client.createDefinition(newBuild, project.name);
-        } catch(error) {
+        } catch (error) {
             this.logger?.error(util.format("Error creating new pipeline definition results %s", error));
             throw error
         }
@@ -1133,7 +1224,7 @@ class DevOpsCommand {
         }
     }
 
-    async getGitCommitChanges(destinationBranch: string, defaultBranch: string, templatesRepository:string, names: string[]): Promise<GitChange[]> {
+    async getGitCommitChanges(args: DevOpsBranchArguments, destinationBranch: string, defaultBranch: string, templatesRepository: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         for (let i = 0; i < names.length; i++) {
             let url = util.format("https://raw.githubusercontent.com/microsoft/coe-alm-accelerator-templates/main/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]);
@@ -1145,9 +1236,16 @@ class DevOpsCommand {
             commit.item = <GitItem>{}
             commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
             commit.newContent = <ItemContent>{}
+
             commit.newContent.content = (response)?.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
             commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, templatesRepository)
             commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+
+            let variableGroup = args.settings[names[i] + "-variablegroup"]
+            if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+            }
+
             commit.newContent.contentType = ItemContentType.RawText
 
             results.push(commit)
@@ -1231,7 +1329,7 @@ type GraphMembership = {
 /**
  * Install Arguments
  */
- class DevOpsInstallArguments {
+class DevOpsInstallArguments {
 
     constructor() {
         this.extensions = []

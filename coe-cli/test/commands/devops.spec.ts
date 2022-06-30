@@ -263,7 +263,15 @@ describe('Branch', () => {
         args.pipelineRepository = "templates"
         args.sourceBranch = "main"  
         args.destinationBranch = "NewSolution"  
-        args.settings = { 'validation': 'https://validation.crm.dynamics.com', 'test': 'https://test.crm.dynamics.com', 'prod': 'https://production.crm.dynamics.com' }
+
+        let settings : { [id: string] : string } = {}
+        settings["validation"] = "https://validation.crm.dynamics.com"
+        settings["test"] = "https://test.crm.dynamics.com"
+        settings["prod"] = "https://production.crm.dynamics.com"
+        settings["validation-scname"] = "Validation Service Connection"
+        settings["test-scname"] = "Test Service Connection"
+        settings["prod-scname"] = "Prod Service Connection"
+        args.settings = settings
         // Act
         await command.branch(args)
 
@@ -277,7 +285,8 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[0][0].triggers.length).toBe(1)
         expect(mockBuildApi.createDefinition.mock.calls[0][0].triggers[0].triggerType).toBe(2)
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables["EnvironmentName"].value).toBe("Validation")
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables["ServiceConnection"].value).toBe("https://validation.crm.dynamics.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables["ServiceConnection"].value).toBe("Validation Service Connection")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables["ServiceConnectionUrl"].value).toBe("https://validation.crm.dynamics.com/")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[0][0].process).yamlFilename).toBe('/NewSolution/deploy-validation-NewSolution.yml')
 
         expect(mockBuildApi.createDefinition.mock.calls[1][0].name).toBe('deploy-test-NewSolution')
@@ -285,7 +294,8 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[1][0].triggers.length).toBe(1)
         expect(mockBuildApi.createDefinition.mock.calls[1][0].triggers[0].triggerType).toBe(2)
         expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["EnvironmentName"].value).toBe("Test")
-        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["ServiceConnection"].value).toBe("https://test.crm.dynamics.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["ServiceConnection"].value).toBe("Test Service Connection")
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["ServiceConnectionUrl"].value).toBe("https://test.crm.dynamics.com/")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[1][0].process).yamlFilename).toBe('/NewSolution/deploy-test-NewSolution.yml')
 
         expect(mockBuildApi.createDefinition.mock.calls[2][0].name).toBe('deploy-prod-NewSolution')
@@ -293,7 +303,8 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[2][0].triggers.length).toBe(1)
         expect(mockBuildApi.createDefinition.mock.calls[2][0].triggers[0].triggerType).toBe(2)
         expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["EnvironmentName"].value).toBe("Production")
-        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["ServiceConnection"].value).toBe("https://production.crm.dynamics.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["ServiceConnection"].value).toBe("Prod Service Connection")
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["ServiceConnectionUrl"].value).toBe("https://production.crm.dynamics.com/")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[2][0].process).yamlFilename).toBe('/NewSolution/deploy-prod-NewSolution.yml')
 
     })
@@ -328,13 +339,6 @@ describe('Branch', () => {
         mockRepo.name = 'RePo1'
         mockRepo.defaultBranch = 'refs/heads/main'
         mockSourceRef.name = 'refs/heads/main'
-        mockTaskAgentApi.getVariableGroups.mockResolvedValue([<BuildInterfaces.VariableGroup>{
-            variables: {
-                "ValidationServiceConnection": <BuildDefinitionVariable>{
-                    value: "123"
-                }
-            }
-        }])
         let args = new DevOpsBranchArguments();
         args.accessToken = "FOO"
         args.organizationName = "org"
@@ -520,9 +524,22 @@ describe('Branch', () => {
         await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
 
         // Assert
+
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.EnvironmentName.value).toBe("Validation")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.ServiceConnection.value).toBe("https://foo.validation.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.ServiceConnectionUrl.value).toBe("https://foo.validation.com/")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.Foo).toBeUndefined()
+
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables.EnvironmentName.value).toBe("Test")
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables.ServiceConnection.value).toBe("https://foo.test.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables.ServiceConnectionUrl.value).toBe("https://foo.test.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[1][0].variables.Foo).toBeUndefined()
+
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables.EnvironmentName.value).toBe("Production")
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables.ServiceConnection.value).toBe("https://foo.prod.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables.ServiceConnectionUrl.value).toBe("https://foo.prod.com/")
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].variables.Foo).toBeUndefined()
+
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
         expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
         expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(0)
@@ -611,11 +628,13 @@ describe('Build', () => {
         let args = new DevOpsBranchArguments();
         let project = <CoreInterfaces.TeamProject>{}
         let gitMock = mock<gitm.GitApi>()
+
         project.name = 'test'
         command.getUrl = () => Promise.resolve(`[SampleSolutionName]
 -[BranchContainingTheBuildTemplates]
 -[RepositoryContainingTheBuildTemplates]
--[SampleSolutionName]`)
+-[SampleSolutionName]
+-[alm-accelerator-variable-group]`)
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
@@ -633,7 +652,6 @@ describe('Build', () => {
         await command.createBranch(args, project, gitMock)
 
         // Assert
-        
         expect(gitMock.createPush).toBeCalledTimes(0)
     });
 
@@ -648,7 +666,8 @@ describe('Build', () => {
         command.getUrl = () => Promise.resolve(`[SampleSolutionName]
 -[BranchContainingTheBuildTemplates]
 -[RepositoryContainingTheBuildTemplates]
--[SampleSolutionName]`)
+-[SampleSolutionName]
+-[alm-accelerator-variable-group]`)
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
@@ -664,21 +683,34 @@ describe('Build', () => {
         args.destinationBranch = "New"
         args.pipelineRepository = "templates"
 
+        //Testing override of variable group
+        args.settings["validation-variablegroup"] = "validation-variable-group"
+        args.settings["test-variablegroup"] = "test-variable-group"
+        args.settings["prod-variablegroup"] = "prod-variable-group"
+
         gitMock.getRepositories.mockResolvedValue([repo])
         gitMock.getRefs.mockResolvedValue([refSource])
-
         // Act
         await command.createBranch(args, project, gitMock)
 
-        // Assert
-        
         expect(gitMock.createPush).toHaveBeenCalled()
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes.length).toBe(3)
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].item.path).toBe("/New/deploy-validation-New.yml")
         expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].newContent.content).toBe(`[New]
 -[main]
 -[templates]
--[New]`)
+-[New]
+-[validation-variable-group]`)
+        expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[1].newContent.content).toBe(`[New]
+-[main]
+-[templates]
+-[New]
+-[test-variable-group]`)
+expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[2].newContent.content).toBe(`[New]
+-[main]
+-[templates]
+-[New]
+-[prod-variable-group]`)
     })
 });
 
