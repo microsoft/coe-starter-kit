@@ -1,4 +1,4 @@
-# ALM for Power Platform hands-on Lab Step-by-Step
+# ALM for Power Platform hands-on Lab Step-by-Step to create a demo tenant
 
 This is a beginner level lab for you to get hands on experience with ALM accelerator for Microsoft Power Platform (AA4PP). 
 
