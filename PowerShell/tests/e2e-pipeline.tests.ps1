@@ -123,18 +123,18 @@ Describe 'E2E-Pipeline-Test' {
                 }
             }
             templateParameters = @{
-                Branch            = $SourceBranch
-                BranchToCreate    = $BranchToCreate
-                CommitMessage     = $CommitMessage
-                Data              = $Data
-                Email             = $Email
-                Project           = $Project
-                Repo              = $Repo
+                Branch                = $SourceBranch
+                BranchToCreate        = $BranchToCreate
+                CommitMessage         = $CommitMessage
+                Data                  = $Data
+                Email                 = $Email
+                Project               = $Project
+                Repo                  = $Repo
                 ServiceConnectionName = $ServiceConnection
-                ServiceConnectionUrl = $ServiceConnection
-                SolutionName      = $SolutionName
-                UserName          = $UserName
-                PipelineId        = 0
+                ServiceConnectionUrl  = $ServiceConnection
+                SolutionName          = $SolutionName
+                UserName              = $UserName
+                PipelineId            = 0
             } 
         }
         [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $body)
@@ -162,17 +162,17 @@ Describe 'E2E-Pipeline-Test' {
                 }
             }
             templateParameters = @{
-                Branch            = $branchToUse
-                CommitMessage     = $CommitMessage + " existing branch"
-                Data              = $Data
-                Email             = $Email
-                Project           = $Project
-                Repo              = $Repo
+                Branch                = $branchToUse
+                CommitMessage         = $CommitMessage + " existing branch"
+                Data                  = $Data
+                Email                 = $Email
+                Project               = $Project
+                Repo                  = $Repo
                 ServiceConnectionName = $ServiceConnection
-                ServiceConnectionUrl = $ServiceConnection
-                SolutionName      = $SolutionName
-                UserName          = $UserName
-                PipelineId        = 0
+                ServiceConnectionUrl  = $ServiceConnection
+                SolutionName          = $SolutionName
+                UserName              = $UserName
+                PipelineId            = 0
             } 
         }
     
