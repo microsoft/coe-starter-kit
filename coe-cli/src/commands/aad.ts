@@ -113,7 +113,7 @@ class AADCommand {
 
             if (app.length == 0) {
                 this.logger?.info(`Creating application ${args.azureActiveDirectoryServicePrincipal}`)
-                let createCommand = `az ad app create --display-name "${args.azureActiveDirectoryServicePrincipal}" --available-to-other-tenants false --required-resource-accesses "${manifest}"`
+                let createCommand = `az ad app create --display-name "${args.azureActiveDirectoryServicePrincipal}" --sign-in-audience AzureADMyOrg --required-resource-accesses "${manifest}"`
                 let appCreateText = this.runCommand(createCommand, false)
                 let appCreate = JSON.parse(appCreateText)
                 if ( typeof appCreate.Error !== "undefined") {
@@ -181,7 +181,7 @@ class AADCommand {
 
                 if ( app[0].replyUrls.length == 0 || match == 0) {
                     this.logger?.debug('Adding reply url https://global.consent.azure-apim.net/redirect')
-                    this.runCommand(`az ad app update --id ${app[0].appId} --reply-urls https://global.consent.azure-apim.net/redirect`, true)
+                    this.runCommand(`az ad app update --id ${app[0].appId} --web-redirect-uris https://global.consent.azure-apim.net/redirect`, true)
                 }
             } else {
                 this.logger?.info(`Application ${args.azureActiveDirectoryServicePrincipal} not found`)
@@ -229,16 +229,16 @@ class AADCommand {
                     }
                 });
                 if (match > 0) {
-                    suffix = `-${match + 1}`
+                    suffix = `-${(match + 1).toString()}`
                 }
 
                 if (args.createSecret) {
                     this.logger?.info(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
 
                     name = name.replace('-', '')
-                    let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substr(0,15) : name
+                    let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substring(0,15) : name
                     this.logger?.info(`Creating secret for ${newName}`)
-                    let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --credential-description ${newName}`, false))
+                    let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --display-name ${newName}`, false))
                     result.clientSecret = creds.password
                     result.tenantId = creds.tenant
                 }
