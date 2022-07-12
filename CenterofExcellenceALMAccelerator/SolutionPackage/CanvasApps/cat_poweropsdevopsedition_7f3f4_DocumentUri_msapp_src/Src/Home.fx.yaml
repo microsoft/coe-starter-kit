@@ -250,6 +250,14 @@ Home As screen:
                     DefaultEnvironmentToLoad
                 )
             );
+        
+            Set(currentSolution, LookUp(Solutions, Name = SolutionName)); // get current Solution
+            Set(currentCanvasApp, LookUp('Canvas Apps', name = AppName)); // get current Canvas App
+            Set(canvasAppLayers, Filter('Component Layers', 'Solution Name' = "Active", msdyn_solutioncomponentname = "CanvasApp", msdyn_componentid = Text(currentCanvasApp.CanvasAppId))); // get Canvas App solution layers
+            Set(isClean, IsEmpty(canvasAppLayers)); // Does Canvas App have unmanaged solution layers?
+            Set(solutionVersion, currentSolution.Version); // Version of currentSolution
+            Set(isManaged, currentSolution.ismanaged); // Is current solution managed?    
+        
             Select(tmrCheckBuildAndPullRequestStatuses);
             
         );
@@ -277,7 +285,7 @@ Home As screen:
         lblCurrentSettings As label:
             Align: =Align.Center
             Text: |-
-                ="ALM Accelerator Environment: " & LookUp(AllEnvironments, name = ExecutingEnvironment.tags.environmentName).properties.linkedEnvironmentMetadata.friendlyName & " ◾ " & "Maker Environment: " & glrlEnvironments.Selected.lblEnvironments.Text
+                ="Accelerator Environment: " & LookUp(AllEnvironments, name = ExecutingEnvironment.tags.environmentName).properties.linkedEnvironmentMetadata.friendlyName & " ◾ " & "Accelerator Version: " & solutionVersion & "(" & isManaged & If(isClean, "", "!") & ")" & " ◾ " & "Maker Environment: " & glrlEnvironments.Selected.lblEnvironments.Text 
             Width: =1880
             ZIndex: =1
 
@@ -724,12 +732,12 @@ Home As screen:
                 Reset(txtBranchToCreate);
                 Reset(drpAdoBranches);
                 Reset(tglCreateBranch);
-                UpdateContext(
-                    {
-                        promoteStage: "PREPARE",
-                        showCommitDialog: true
-                    }
+                If(
+                    IsBlankOrError(DeploymentUserSetting) Or (IsBlankOrError(DeploymentUserSetting.'Bypass Prepare Default') Or DeploymentUserSetting.'Bypass Prepare Default' = 'A Yes or No boolean'.Allowed) Or (IsBlankOrError(DeploymentUserSetting.'Deployment Configuration') Or DeploymentUserSetting.'Deployment Configuration' = 'A Yes or No boolean'.'Not Allowed'),
+                    UpdateContext({promoteStage: promoteSolutionLabel}),
+                    UpdateContext({promoteStage: "PREPARE"})
                 );
+                UpdateContext({showCommitDialog: true});
             PressedBorderColor: =btnCommitAndPush.Fill
             PressedColor: =btnCommitAndPush.Fill
             PressedFill: =btnCommitAndPush.Color
@@ -1324,6 +1332,12 @@ Home As screen:
             Size: =12
             Text: ="Configure Deployment Settings"
             Underline: =true
+            Visible: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Deployment Configuration') Or DeploymentUserSetting.'Deployment Configuration' = 'A Yes or No boolean'.Allowed,
+                    true,
+                    false
+                )
             Width: =230
             X: =130
             Y: =42
@@ -1360,6 +1374,12 @@ Home As screen:
             PressedBorderColor: =ColorFade(icoConfigureDeployment.BorderColor, -20%)
             PressedColor: =ColorFade(icoConfigureDeployment.Color, -20%)
             PressedFill: =ColorFade(icoConfigureDeployment.Fill, -20%)
+            Visible: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Deployment Configuration') Or DeploymentUserSetting.'Deployment Configuration' = 'A Yes or No boolean'.Allowed,
+                    true,
+                    false
+                )
             Width: =220
             X: =130
             Y: =39
@@ -2610,6 +2630,12 @@ Home As screen:
 
         tglPublishBypassPrepare As toggleSwitch:
             AccessibleLabel: ="Bypass Prepare"
+            Default: |-
+                =If(
+                    IsBlankOrError(DeploymentUserSetting) Or (IsBlankOrError(DeploymentUserSetting.'Bypass Prepare Default') Or DeploymentUserSetting.'Bypass Prepare Default' = 'A Yes or No boolean'.'Not Allowed'),
+                    false,
+                    true
+                )
             FalseFill: =RGBA(237, 237, 237, 1)
             FalseHoverFill: =ColorFade(tglPublishBypassPrepare.FalseFill, 20%)
             FalseText: ="Bypass Prepare"
@@ -2628,7 +2654,7 @@ Home As screen:
             TrueText: ="Bypass Prepare"
             Visible: |-
                 =If(
-                    IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Bypass Prepare') Or DeploymentUserSetting.'Bypass Prepare' = 'A Yes or No boolean'.Allowed,
+                    IsBlankOrError(DeploymentUserSetting) Or (IsBlankOrError(DeploymentUserSetting.'Bypass Prepare') Or DeploymentUserSetting.'Bypass Prepare' = 'A Yes or No boolean'.Allowed) And (DeploymentUserSetting.'Deployment Configuration' <> 'A Yes or No boolean'.'Not Allowed'),
                     true,
                     false
                 )
@@ -3197,6 +3223,8 @@ Home As screen:
             HoverColor: =ColorFade(drpPullRequestSourceBranches.Color, 20%)
             HoverFill: =ColorFade(drpPullRequestSourceBranches.SelectionFill, 20%)
             Items: =SortByColumns(SelectedRepoBranches, "DisplayName", Ascending)
+            OnChange: |-
+                =UpdateContext({activePRExists: false});
             PressedBorderColor: =drpPullRequestSourceBranches.HoverBorderColor
             PressedColor: =drpPullRequestSourceBranches.Fill
             PressedFill: =drpPullRequestSourceBranches.Color
@@ -3230,6 +3258,8 @@ Home As screen:
             HoverColor: =ColorFade(drpPullRequestTargetBranches.Color, 20%)
             HoverFill: =ColorFade(drpPullRequestTargetBranches.SelectionFill, 20%)
             Items: =SortByColumns(SelectedRepoBranches, "DisplayName", Ascending)
+            OnChange: |-
+                =UpdateContext({activePRExists: false});
             PressedBorderColor: =drpPullRequestTargetBranches.HoverBorderColor
             PressedColor: =drpPullRequestTargetBranches.Fill
             PressedFill: =drpPullRequestTargetBranches.Color
@@ -3354,7 +3384,15 @@ Home As screen:
                                         }
                                     ).pullRequestId,
                                     UpdateContext({errorMessage: FirstError.Message});
-                                    Notify("Error running pipeline: " & errorMessage);
+                                    If(
+                                        IsMatch(
+                                            errorMessage,
+                                            "An active pull request",
+                                            Contains & IgnoreCase
+                                        ),
+                                        Notify("There is already an active " & deploySolutionLabel & " request for this solution. Please check the status on the home page or on the status page for more information."),
+                                        Notify("Error running pipeline: " & errorMessage);
+                                    );
                                 )
                             }
                         );
@@ -3596,7 +3634,7 @@ Home As screen:
             HoverBorderColor: =ColorFade(drpDeploymentSteps.BorderColor, 20%)
             HoverColor: =ColorFade(drpDeploymentSteps.Color, 20%)
             HoverFill: =ColorFade(drpDeploymentSteps.SelectionFill, 20%)
-            Items: =Filter(glrSolutions.Selected.deploymentprofile.'Deployment Steps', Deployable <> 'A Yes or No boolean'.'Not Allowed')
+            Items: =Filter(glrSolutions.Selected.deploymentprofile.'Deployment Steps', cat_deployable <> 'A Yes or No boolean'.'Not Allowed')
             OnChange: =
             PressedBorderColor: =drpDeploymentSteps.HoverBorderColor
             PressedColor: =drpDeploymentSteps.Fill
@@ -4054,7 +4092,7 @@ Home As screen:
         "glrDeploymentEnvironments As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Environments"
             Height: =340
-            Items: =Sort(Filter('Deployment Steps', 'Deployment Profile'.'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile'), 'Step Number')
+            Items: =Sort(Filter('Deployment Steps', cat_DeploymentProfileId.'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile'), cat_stepnumber)
             Layout: =Layout.Vertical
             TemplatePadding: =0
             TemplateSize: =110
@@ -4085,7 +4123,7 @@ Home As screen:
                 PaddingRight: =0
                 PaddingTop: =0
                 Size: =14
-                Text: =ThisItem.'Deployment Environment'.Name
+                Text: =ThisItem.cat_DeploymentEnvironmentId.cat_name
                 VerticalAlign: =VerticalAlign.Top
                 Width: =460
                 X: =57
@@ -4153,7 +4191,7 @@ Home As screen:
                 ZIndex: =8
 
             txtDeploymentEnvironmentUrl As text:
-                Default: =ThisItem.'Deployment Environment'.URL
+                Default: =ThisItem.cat_DeploymentEnvironmentId.cat_url
                 DisplayMode: |-
                     =If(
                         IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Profile Updates') Or DeploymentUserSetting.'Profile Updates' = 'A Yes or No boolean'.Allowed,
