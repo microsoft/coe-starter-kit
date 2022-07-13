@@ -234,11 +234,9 @@ class AADCommand {
 
                 if (args.createSecret) {
                     this.logger?.info(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
-
-                    name = name.replace('-', '')
-                    let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substring(0,15) : name
-                    this.logger?.info(`Creating secret for ${newName}`)
-                    let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --display-name ${newName}`, false))
+                    name = `${name}${suffix}`
+                    this.logger?.info(`Creating secret for ${name}`)
+                    let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --display-name ${name}`, false))
                     result.clientSecret = creds.password
                     result.tenantId = creds.tenant
                 }
