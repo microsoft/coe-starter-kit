@@ -112,7 +112,7 @@ describe('Install - AAD User', () => {
                 return accountList
             }
             if (command.startsWith("az ad app list")) {
-                return '[{"appId":"123", "replyUrls":[]}]'
+                return '[{"appId":"123", "web":{"redirectUris":[]}}]'
             }
             
             if (command.startsWith("az ad app permission list-grants")) {

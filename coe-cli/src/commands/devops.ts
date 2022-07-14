@@ -1052,7 +1052,7 @@ class DevOpsCommand {
         if (!refName.startsWith("refs/heads/")) {
             throw Error("The ref name should have started with 'refs/heads/' but it didn't.");
         }
-        return refName.substring("refs/heads/".length, refName.length - "refs/heads/".length);
+        return refName.substr("refs/heads/".length, refName.length - "refs/heads/".length);
     }
 
     /**

@@ -125,7 +125,7 @@ class EbookCommand {
                         // Change to unix like path
                         relativeFile = relativeFile.replace(/\\/g,'/')
                         if (relativeFile.startsWith('/')) {
-                            relativeFile = relativeFile.substring(1)
+                            relativeFile = relativeFile.substr(1)
                         }
 
                         let newReference = ""
@@ -167,7 +167,7 @@ class EbookCommand {
                             // Try remove new common path folder
                             relativePath = relativePath.replace(commonPath,"")
                             if ( relativePath.startsWith('/')) {
-                                relativePath = relativePath.substring(1)
+                                relativePath = relativePath.substr(1)
                             }
                         }
 
