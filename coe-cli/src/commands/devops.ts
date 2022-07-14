@@ -581,6 +581,7 @@ class DevOpsCommand {
                 }
             }
 
+            this.logger?.info(`Creating variable group ${variableGroupName}`)
             variableGroup = await taskApi.addVariableGroup(parameters)
         }
 

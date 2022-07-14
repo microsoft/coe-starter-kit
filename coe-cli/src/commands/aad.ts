@@ -35,7 +35,7 @@ class AADCommand {
         let groups = <any[]>JSON.parse(json)
 
         if (groups.length == 1) {
-            return groups[0].objectId
+            return groups[0].id
         }
 
         return null
@@ -56,7 +56,7 @@ class AADCommand {
         if ( group === null) {
             this.logger?.info(`Creating ${args.azureActiveDirectoryMakersGroup} group`)
             let createJson = this.runCommand(`az ad group create --display-name "${args.azureActiveDirectoryMakersGroup}" --description "Application Lifecycle Management Accelerator for Makers" --mail-nickname="null"`, false)
-            group = JSON.parse(createJson).objectId
+            group = JSON.parse(createJson).id
         } else {
             this.logger?.info(`Group ${args.azureActiveDirectoryMakersGroup} exists`)
         }
@@ -173,13 +173,13 @@ class AADCommand {
                 }
 
                 let match = 0
-                app[0].replyUrls?.forEach( (u:string) => {
+                app[0].web.redirectUris?.forEach( (u:string) => {
                     if ( u == "https://global.consent.azure-apim.net/redirect") {
                         match++
                     }
                 })
 
-                if ( app[0].replyUrls.length == 0 || match == 0) {
+                if ( app[0].web.redirectUris.length == 0 || match == 0) {
                     this.logger?.debug('Adding reply url https://global.consent.azure-apim.net/redirect')
                     this.runCommand(`az ad app update --id ${app[0].appId} --web-redirect-uris https://global.consent.azure-apim.net/redirect`, true)
                 }

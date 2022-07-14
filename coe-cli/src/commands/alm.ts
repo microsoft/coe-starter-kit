@@ -73,7 +73,7 @@ class ALMCommand {
    */
   async install(args: ALMInstallArguments) : Promise<void> { 
     try {
-      this.logger.info("Install started")
+      this.logger.info("Installing ${args.components} started")
 
       args.accessTokens = await this.getAccessTokens(args)
       this.logger.info("Access tokens loaded")
@@ -91,6 +91,7 @@ class ALMCommand {
       }
     } catch (error) {
       this.logger?.error(error)
+      this.logger?.error(error.stack)
       throw error
   }
 }
