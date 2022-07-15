@@ -429,6 +429,8 @@ class DevOpsCommand {
         } else {
             this.logger.info(`Pipeline repository ${args.pipelineRepositoryName}`)
         }
+
+        return repo;
     }
 
     private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi, repositoryName: string): Promise<GitRepository> {
@@ -458,7 +460,7 @@ class DevOpsCommand {
      * @param connection The authenticated connection
      * @param repo The pipeline repo to a create builds for
      */
-    async createMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository): Promise<void> {
+    async createMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository): Promise<GitRepository> {
         connection = await this.createConnectionIfExists(args, connection)
 
         if (repo == null) {
