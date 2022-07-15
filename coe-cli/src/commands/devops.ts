@@ -370,62 +370,7 @@ class DevOpsCommand {
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
             await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
-
-            this.logger?.debug(`Getting latest templates from release`)
-
-            let github = this.createGitHubCommand();
-            let gitHubArguments = new GitHubReleaseArguments();
-            gitHubArguments.type = 'alm'
-            gitHubArguments.asset = 'Source Code (zip)'
-            gitHubArguments.settings = {}
-            let sourceZipLocation = await github.getRelease(gitHubArguments, 'coe-alm-accelerator-templates')
-    
-            let response = await axios({
-                method: "get",
-                url: sourceZipLocation,
-                responseType: 'arraybuffer'
-            })
-    
-            const zip = new AdmZip(response.data);
-            const entries = zip.getEntries();
-            let changes: GitChange[] = []
-            let topLevelDir = entries[0].entryName
-            for(let entry of entries) {
-                if(!entry.isDirectory) {
-                    let commit = <GitChange>{}
-                    commit.changeType = VersionControlChangeType.Edit
-                    commit.item = <GitItem>{}
-                    commit.item.path = entry.entryName.replace(topLevelDir, '')
-                    commit.newContent = <ItemContent>{}
-                    commit.newContent.content = entry.getData().toString("utf-8")
-                    commit.newContent.contentType = ItemContentType.RawText
-                    changes.push(commit)                
-                }
-            }
-            refs = await gitApi.getRefs(repo.id, args.projectName)
-     
-            if (refs.length > 0) {
-                let sourceRef = refs.filter(f => f.name == "refs/heads/main")
-                if(sourceRef.length > 0) {
-                    let newRef = <GitRefUpdate>{};
-                    newRef.repositoryId = repo.id
-                    newRef.oldObjectId = sourceRef[0].objectId
-                    newRef.name = "refs/heads/main"
-        
-                    let newGitCommit = <GitCommitRef>{}
-                    newGitCommit.comment = "Add DevOps Pipelines"
-                    newGitCommit.changes = changes
-        
-                    let gitPush = <GitPush>{}
-                    gitPush.repository = repo
-                    gitPush.refUpdates = [newRef]
-                    gitPush.commits = [newGitCommit]
-        
-                    this.logger?.debug(`Pushing latest pipelines ${repo.name} (${repo.id}) to ${args.projectName} main with ${gitPush?.commits[0]?.changes.length} changes`)
-                    await gitApi.createPush(gitPush, repo.id, args.projectName)
-                }
-            }
-    
+            this.logger.info(`Pipeline repository ${args.pipelineRepositoryName} imported`)
         } else {
             this.logger.info(`Pipeline repository ${args.pipelineRepositoryName}`)
         }
