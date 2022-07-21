@@ -34,7 +34,7 @@ class AADCommand {
         let json = this.runCommand(`az ad group list --display-name "${args.azureActiveDirectoryMakersGroup}"`, false)
         let groups = <any[]>JSON.parse(json)
 
-        if (groups.length == 1) {
+        if (groups.length > 0) {
             return groups[0].id
         }
 
@@ -66,7 +66,7 @@ class AADCommand {
     getAADApplication(args: IAADApplicationArguments): string {
         let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
-        if (app.length == 1) {
+        if (app.length > 0) {
             return app[0].appId
         }
 
@@ -124,7 +124,7 @@ class AADCommand {
                 this.runCommand(`az ad sp create --id ${app[0].appId}`, false)
             }
 
-            if (app.length == 1) {
+            if (app.length > 0) {
                 this.logger.info("Application exists")
 
                 let permissions : any[]
@@ -218,13 +218,13 @@ class AADCommand {
 
             let apps = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
-            if (apps.length == 1) {
+            if (apps.length > 0) {
                 result.clientId = apps[0].appId
 
                 let suffix = ''
                 let match = 0;
                 apps[0].passwordCredentials?.forEach( (element:any) => {
-                    if (element.customKeyIdentifier?.startsWith(name)) {
+                    if (element.displayName?.startsWith(name)) {
                         match++
                     }
                 });
