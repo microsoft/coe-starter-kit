@@ -111,6 +111,7 @@ class PowerPlatformCommand {
      * @returns 
      */
     async importSolution(args: PowerPlatformImportSolutionArguments): Promise<void> {
+        this.logger?.info(`Importing Solution via ${args.importMethod}`)
         switch (args.importMethod) {
             case 'api': {
                 await this.importViaApi(args)
@@ -341,7 +342,7 @@ class PowerPlatformCommand {
 
                 // Based on work of paconn update (see below)
                 let url = `${powerAppsUrl}providers/Microsoft.PowerApps/apis/${connectorName}/?$filter=environment eq '${environment}'&api-version=2016-11-01`
-                let secret = await aad.addSecret(addInstallArgs, "Custom")
+                let secret = await aad.addSecret(addInstallArgs, "AzDOCustomConnector")
 
                 let getConnection: AxiosResponse<any>
                 try {
@@ -716,12 +717,10 @@ class PowerPlatformCommand {
 
             this.logger?.debug("Searching for permissions")
             let url = `${powerAppsUrl}providers/Microsoft.PowerApps/apps/${appName}/permissions?$expand=permissions($filter=environment eq '${environment}')&api-version=2020-06-01`
-            let permssionsRequest = await this.getAxios().get(url, powerAppsConfig)
-            let permissions = <ComponentPermissions[]>permssionsRequest.data.value
+            let permissionsRequest = await this.getAxios().get(url, powerAppsConfig)
+            let permissions = <ComponentPermissions[]>permissionsRequest.data.value
 
             if (permissions.filter((p: ComponentPermissions) => { return p.properties.principal.displayName == args.azureActiveDirectoryMakersGroup }).length == 0) {
-
-
 
                 let apiInvokeConfig = {
                     headers: {
@@ -733,19 +732,21 @@ class PowerPlatformCommand {
 
                 this.logger?.info(`Adding CanView permissions for group ${args.azureActiveDirectoryMakersGroup}`)
                 url = `${powerAppsUrl}api/invoke`
-                let response = await this.getAxios().post(url, {
-                    put: [{
+                this.getAxios().post(url, {
+                    put: [
+                    {
                         properties: {
-                            roleName: "CanView",
+                            NotifyShareTargetOption: "DoNotNotify",
                             principal: {
                                 email: args.azureActiveDirectoryMakersGroup,
                                 id: aadGroupId,
-                                "type": "Group", "tenantId": null
-                            }, "NotifyShareTargetOption": "DoNotNotify"
+                                tenantId: null,
+                                type: "Group"
+                            },
+                            roleName: "CanView"
                         }
                     }]
                 }, apiInvokeConfig)
-                this.logger?.verbose(response.data)
             }
         } else {
             this.logger?.error(`Unable to find ${makeCanvasApp}`)
