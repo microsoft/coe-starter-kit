@@ -191,9 +191,10 @@ describe('Install Build', () => {
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
 
         // Act
-        await command.createMakersBuildPipelines(args, mockDevOpsWebApi, repo)
+        repo = await command.createMakersBuildPipelines(args, mockDevOpsWebApi, repo)
 
         // Assert
+        expect(repo).not.toBeNull()
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
         expect(mockBuildApi.createDefinition.mock.calls[0][0].name).toBe('export-solution-to-git')
         expect(mockBuildApi.createDefinition.mock.calls[0][0].queue.id).toBe(1)

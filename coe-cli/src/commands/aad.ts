@@ -34,8 +34,8 @@ class AADCommand {
         let json = this.runCommand(`az ad group list --display-name "${args.azureActiveDirectoryMakersGroup}"`, false)
         let groups = <any[]>JSON.parse(json)
 
-        if (groups.length == 1) {
-            return groups[0].objectId
+        if (groups.length > 0) {
+            return groups[0].id
         }
 
         return null
@@ -56,7 +56,7 @@ class AADCommand {
         if ( group === null) {
             this.logger?.info(`Creating ${args.azureActiveDirectoryMakersGroup} group`)
             let createJson = this.runCommand(`az ad group create --display-name "${args.azureActiveDirectoryMakersGroup}" --description "Application Lifecycle Management Accelerator for Makers" --mail-nickname="null"`, false)
-            group = JSON.parse(createJson).objectId
+            group = JSON.parse(createJson).id
         } else {
             this.logger?.info(`Group ${args.azureActiveDirectoryMakersGroup} exists`)
         }
@@ -66,7 +66,7 @@ class AADCommand {
     getAADApplication(args: IAADApplicationArguments): string {
         let app = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
-        if (app.length == 1) {
+        if (app.length > 0) {
             return app[0].appId
         }
 
@@ -113,7 +113,7 @@ class AADCommand {
 
             if (app.length == 0) {
                 this.logger?.info(`Creating application ${args.azureActiveDirectoryServicePrincipal}`)
-                let createCommand = `az ad app create --display-name "${args.azureActiveDirectoryServicePrincipal}" --available-to-other-tenants false --required-resource-accesses "${manifest}"`
+                let createCommand = `az ad app create --display-name "${args.azureActiveDirectoryServicePrincipal}" --sign-in-audience AzureADMyOrg --required-resource-accesses "${manifest}"`
                 let appCreateText = this.runCommand(createCommand, false)
                 let appCreate = JSON.parse(appCreateText)
                 if ( typeof appCreate.Error !== "undefined") {
@@ -124,7 +124,7 @@ class AADCommand {
                 this.runCommand(`az ad sp create --id ${app[0].appId}`, false)
             }
 
-            if (app.length == 1) {
+            if (app.length > 0) {
                 this.logger.info("Application exists")
 
                 let permissions : any[]
@@ -173,15 +173,15 @@ class AADCommand {
                 }
 
                 let match = 0
-                app[0].replyUrls?.forEach( (u:string) => {
+                app[0].web.redirectUris?.forEach( (u:string) => {
                     if ( u == "https://global.consent.azure-apim.net/redirect") {
                         match++
                     }
                 })
 
-                if ( app[0].replyUrls.length == 0 || match == 0) {
+                if ( app[0].web.redirectUris.length == 0 || match == 0) {
                     this.logger?.debug('Adding reply url https://global.consent.azure-apim.net/redirect')
-                    this.runCommand(`az ad app update --id ${app[0].appId} --reply-urls https://global.consent.azure-apim.net/redirect`, true)
+                    this.runCommand(`az ad app update --id ${app[0].appId} --web-redirect-uris https://global.consent.azure-apim.net/redirect`, true)
                 }
             } else {
                 this.logger?.info(`Application ${args.azureActiveDirectoryServicePrincipal} not found`)
@@ -218,27 +218,25 @@ class AADCommand {
 
             let apps = <any[]>JSON.parse(this.runCommand(`az ad app list --filter "displayName eq '${args.azureActiveDirectoryServicePrincipal}'"`, false))
 
-            if (apps.length == 1) {
+            if (apps.length > 0) {
                 result.clientId = apps[0].appId
 
                 let suffix = ''
                 let match = 0;
                 apps[0].passwordCredentials?.forEach( (element:any) => {
-                    if (element.customKeyIdentifier?.startsWith(name)) {
+                    if (element.displayName?.startsWith(name)) {
                         match++
                     }
                 });
                 if (match > 0) {
-                    suffix = `-${match + 1}`
+                    suffix = `-${(match + 1).toString()}`
                 }
 
                 if (args.createSecret) {
                     this.logger?.info(`Creating AAD password for ${args.azureActiveDirectoryServicePrincipal}`)
-
-                    name = name.replace('-', '')
-                    let newName = `${name}${suffix}`.length > (15) ? `${name}${suffix}`.substr(0,15) : name
-                    this.logger?.info(`Creating secret for ${newName}`)
-                    let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --credential-description ${newName}`, false))
+                    name = `${name}${suffix}`
+                    this.logger?.info(`Creating secret for ${name}`)
+                    let creds = JSON.parse(this.runCommand(`az ad app credential reset --id ${apps[0].appId} --append --display-name ${name}`, false))
                     result.clientSecret = creds.password
                     result.tenantId = creds.tenant
                 }

@@ -72,23 +72,29 @@ class ALMCommand {
    * @param args {ALMInstallArguments} - The install parameters
    */
   async install(args: ALMInstallArguments) : Promise<void> { 
-    this.logger.info("Install started")
+    try {
+      this.logger.info("Installing ${args.components} started")
 
-    args.accessTokens = await this.getAccessTokens(args)
-    this.logger.info("Access tokens loaded")
+      args.accessTokens = await this.getAccessTokens(args)
+      this.logger.info("Access tokens loaded")
 
-    if (args.components?.filter(a => a == "all" || a == "aad").length > 0) {
-      await this.installAADApplication(args)
-    }
+      if (args.components?.filter(a => a == "all" || a == "aad").length > 0) {
+        await this.installAADApplication(args)
+      }
 
-    if (args.components?.filter(a => a == "all" || a == "devops").length > 0) {
-      await this.installDevOpsComponents(args)
-    }
+      if (args.components?.filter(a => a == "all" || a == "devops").length > 0) {
+        await this.installDevOpsComponents(args)
+      }
 
-    if (args.components?.filter(a => a == "all" || a == "environment").length > 0) {
-      await this.installPowerPlatformComponents(args)
-    }
+      if (args.components?.filter(a => a == "all" || a == "environment").length > 0) {
+        await this.installPowerPlatformComponents(args)
+      }
+    } catch (error) {
+      this.logger?.error(error)
+      this.logger?.error(error.stack)
+      throw error
   }
+}
 
   /**
    * Create the service principal required to manage solutions between Azure DevOps and the Power Platform environments
