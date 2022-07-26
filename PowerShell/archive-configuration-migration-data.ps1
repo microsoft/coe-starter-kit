@@ -1,4 +1,10 @@
-function Invoke-ArchiveConfigurationMigrationData($buildSourceDirectory, $artifactStagingDirectory, $repo, $solutionName) {
+function Invoke-ArchiveConfigurationMigrationData {
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory, 
+        [Parameter(Mandatory)] [String]$artifactStagingDirectory,
+        [Parameter(Mandatory)] [String]$repo, 
+        [Parameter(Mandatory)] [String]$solutionName
+    )
     $path = "$buildSourceDirectory\$repo\$solutionName\config\ConfigurationMigrationData"
     if(Test-Path $path) {
         $compress = @{

@@ -1,4 +1,11 @@
-﻿function Set-EnableDisableSolutionFlows($buildSourceDirectory, $repo, $solutionName, $disableAllFlows, $activateFlowConfigJson) {
+﻿function Set-EnableDisableSolutionFlows {
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [String]$disableAllFlows,
+        [Parameter(Mandatory)] [String]$activateFlowConfigJson
+    )
     if ($disableAllFlows -eq 'true') {
         Get-ChildItem -Path "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\Workflows" -Recurse -Filter *.xml | 
         ForEach-Object {

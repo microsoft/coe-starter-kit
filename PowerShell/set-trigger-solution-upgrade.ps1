@@ -1,5 +1,17 @@
-function Set-TriggerSolutionUpgrade($triggerSolutionUpgrade, $orgUrl, $projectid, $buildRepositoryName, $buildRepositoryProvider, $buildSourceVersion, $buildReason, $gitHubRepo, $gitHubPat)
+function Set-TriggerSolutionUpgrade
 {
+    param (
+        [Parameter(Mandatory)] [String]$triggerSolutionUpgrade,
+        [Parameter(Mandatory)] [String]$orgUrl,
+        [Parameter(Mandatory)] [String]$projectid,
+        [Parameter(Mandatory)] [String]$buildRepositoryName,
+        [Parameter(Mandatory)] [String]$buildRepositoryProvider,
+        [Parameter(Mandatory)] [String]$buildSourceVersion,
+        [Parameter(Mandatory)] [String]$buildReason,
+        [Parameter(Mandatory)] [String]$gitHubRepo,
+        [Parameter(Mandatory)] [String]$gitHubPat
+    )
+
   Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]false"
   $solutionUpgradeLabel = "solution-upgrade"
 

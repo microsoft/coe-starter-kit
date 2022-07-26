@@ -1,4 +1,9 @@
-﻿function Invoke-CanvasUnpackPack($packOrUnpack, $source, $destination) {
+﻿function Invoke-CanvasUnpackPack {
+    param (
+        [Parameter(Mandatory)] [String]$packOrUnpack,
+        [Parameter(Mandatory)] [String]$source,
+        [Parameter(Mandatory)] [String]$destination
+    )
     Write-Host "Loading Assemblies"
     Get-ChildItem -Path "..\PowerAppsLanguageTooling\" -Recurse -Filter *.dll | 
     ForEach-Object {

@@ -1,5 +1,12 @@
 # Testable outside of agent
-function Set-CanvasTestAutomationURLs ($token, $url, $solutionName, $canvasAppsPath, $environmentId) {
+function Set-CanvasTestAutomationURLs {
+    param (
+        [Parameter(Mandatory)] [String]$token,
+        [Parameter(Mandatory)] [String]$url,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [String]$canvasAppsPath,
+        [Parameter(Mandatory)] [String]$environmentId
+    )
     $filter = ".meta.xml"
     [System.Collections.ArrayList]$testUrls = @()
     $testUrlsObject = New-Object -TypeName PSObject
@@ -45,7 +52,12 @@ function Set-CanvasTestAutomationURLs ($token, $url, $solutionName, $canvasAppsP
     Get-Content -Path "CanvasTestAutomationURLs.json"
 }
 
-function Get-CanvasAppPlayUrl ($token, $hostUrl, $canvasName) {
+function Get-CanvasAppPlayUrl {
+    param (
+        [Parameter(Mandatory)] [String]$token,
+        [Parameter(Mandatory)] [String]$hostUrl,
+        [Parameter(Mandatory)] [String]$canvasName
+    )
     $odataQuery = 'canvasapps?$filter=name eq ''' + $canvasName + '''&$select=appopenuri'
     $response = Invoke-DataverseHttpGet $token $hostUrl $odataQuery
     return $response.value[0].appopenuri

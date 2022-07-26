@@ -1,5 +1,25 @@
-﻿function Set-DeploymentSettingsConfiguration($buildSourceDirectory, $buildRepositoryName, $cdsBaseConnectionString, $xrmDataPowerShellVersion, $microsoftXrmDataPowerShellModule, $orgUrl, $projectId, $projectName, $repo, $azdoAuthType, $serviceConnection, $solutionName, $generateEnvironmentVariables, $generateConnectionReferences, $generateFlowConfig, $generateCanvasSharingConfig, $generateAADGroupTeamConfig, $generateCustomConnectorConfig)
+﻿function Set-DeploymentSettingsConfiguration
 {
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$buildRepositoryName,
+        [Parameter(Mandatory)] [String]$cdsBaseConnectionString,
+        [Parameter(Mandatory)] [String]$xrmDataPowerShellVersion,
+        [Parameter(Mandatory)] [String]$microsoftXrmDataPowerShellModule,
+        [Parameter(Mandatory)] [String]$orgUrl,
+        [Parameter(Mandatory)] [String]$projectId,
+        [Parameter(Mandatory)] [String]$projectName,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$azdoAuthType,
+        [Parameter(Mandatory)] [String]$serviceConnection,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter()] [String]$generateEnvironmentVariables,
+        [Parameter()] [String]$generateConnectionReferences,
+        [Parameter()] [String]$generateFlowConfig,
+        [Parameter()] [String]$generateCanvasSharingConfig,
+        [Parameter()] [String]$generateAADGroupTeamConfig,
+        [Parameter()] [String]$generateCustomConnectorConfig
+    )
     $configurationData = $env:DEPLOYMENT_SETTINGS | ConvertFrom-Json
     Write-Host (ConvertTo-Json -Depth 10 $configurationData)
     #Generate Deployment Settings
@@ -31,28 +51,8 @@
         $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
         Set-Content -Path $customDeploymentSettingsFilePath -Value $json
 
-        Write-Host "Retrieving maker deployment configuration data..."
-        $deploymentConfigurationData = [System.Collections.ArrayList]@()
-        #If configuration data was passed in use this to set the pipeline variable values
-        $newConfigurationData = [System.Collections.ArrayList]@()
+        $secretEnvironmentVariables = [System.Collections.ArrayList]@()
 
-        #The configuration data will point to the records in Dataverse that store the JSON to set pipeline variables. Try/Catch for invalid json
-
-        if($configurationData.length -gt 0) {
-            $userSettings = $configurationData.UserSettings
-            Write-Host ConvertTo-Json -Depth 10 $userSettings
-            if($null -ne $userSettings) {
-                foreach($newEnvironmentConfig in $userSettings) {
-                    foreach($variableConfigurationJson in $newEnvironmentConfig.DeploymentConfiguration) {
-                        Write-Host ConvertTo-Json -Depth 10 $newEnvironmentConfig.DeploymentConfiguration
-                        #Convert the JSON in the DeploymentConfiguration field to an object
-                        $variableConfiguration = ConvertFrom-Json $variableConfigurationJson
-                        $deploymentConfigurationData.AddRange($variableConfiguration)
-                    }
-                }
-            }
-        }
-        
         $solutionComponentDefinitionsResults =  Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponentdefinition -FilterAttribute "primaryentityname" -FilterOperator "eq" -FilterValue "connectionreference" -Fields objecttypecode
         #There are extra characters being introduced in specific locales. The regex replace on the objecttypecode below is to remove it.
         $connectionReferenceTypeCode = [int] ($solutionComponentDefinitionsResults.CrmRecords[0].objecttypecode -replace '\D','')
@@ -112,12 +112,14 @@
                   #  "Value": "#{environmentvariable.cat_ConnectorHostUrl}#"
                   #}
                 #]
-                $envVarResult =  Get-CrmRecord -conn $conn -EntityLogicalName environmentvariabledefinition -Id $solutionComponent.objectid -Fields schemaname
+                $envVarResult =  Get-CrmRecord -conn $conn -EntityLogicalName environmentvariabledefinition -Id $solutionComponent.objectid -Fields schemaname, type
                 $envVar = $null
                 $envVarName = $envVarResult.schemaname
-
                 $envVarConfigVariable = "#{environmentvariable." + $envVarName + "}#"
-                $envVar = [PSCustomObject]@{"SchemaName"="$envVarName"; "Value"="$envVarConfigVariable" }
+                $envVar = [PSCustomObject]@{"SchemaName"="$envVarName"; "Value"="$envVarConfigVariable"}
+                if($envVarResult.type_Property.Value.Value -eq 100000005) {
+                    $secretEnvironmentVariables.Add($envVarName)
+                }
                 $cofigurationVariables.Add($envVarConfigVariable)
                 $environmentVariables.Add($envVar)
             }
@@ -205,9 +207,6 @@
         $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
         Set-Content -Path $customDeploymentSettingsFilePath -Value $json
 
-        if("$generateAADGroupTeamConfig" -ne "false") {
-            Set-EnvironmentDeploymentSettingsConfiguration $buildSourceDirectory $repo $solutionName $newCustomConfiguration $newConfigurationData
-        }
         #Update / Create Deployment Pipelines
         New-DeploymentPipelines "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$solutionName" $configurationData
 
@@ -243,23 +242,41 @@
                     $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariable -Value @{value = ''}
                 }
 
-                $variable = $deploymentConfigurationData | Where-Object { $_.Build -eq $buildDefinitionResult.name -and $_.Name -eq $configurationVariable } | Select-Object -First 1
-                # Set the value to the value passed in on the configuration data
-                if($null -eq $variable -or $null -eq $variable.Value -or [string]::IsNullOrWhiteSpace($variable.Value)) {
-                    $newBuildDefinitionVariables.$configurationVariable.value = ''
-                }
-                else {
-                    $newBuildDefinitionVariables.$configurationVariable.value = $variable.Value
+                if($configurationData.length -gt 0) {
+                    if($null -ne $configurationData) {
+                        $configurationDataEnvironment = $configurationData | Where-Object { $_.BuildName -eq $buildDefinitionResult.name } | Select-Object -First 1
+                        if($null -ne $configurationDataEnvironment -and $null -ne $configurationDataEnvironment.UserSettings) {
+                            $variable = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq $configurationVariable } | Select-Object -First 1
+                            # Set the value to the value passed in on the configuration data
+                            if($null -eq $variable -or $null -eq $variable.Value -or [string]::IsNullOrWhiteSpace($variable.Value)) {
+                                $newBuildDefinitionVariables.$configurationVariable.value = ''
+                            }
+                            else {
+                                $newBuildDefinitionVariables.$configurationVariable.value = $variable.Value
+                            }
+                        }
+                    }
                 }
             }
 
             Set-BuildDefinitionVariables $orgUrl $projectId $azdoAuthType $buildDefinitionResult $definitionId $newBuildDefinitionVariables
         }
+        Set-EnvironmentDeploymentSettingsConfiguration $buildSourceDirectory $repo $solutionName $newConfiguration $newCustomConfiguration $configurationData $secretEnvironmentVariables
     }
 }
 
-function New-DeploymentPipelines($buildRepositoryName, $orgUrl, $projectName, $repo, $azdoAuthType, $solutionName, $configurationData)
+function New-DeploymentPipelines
 {
+    param (
+        [Parameter(Mandatory)] [String]$buildRepositoryName,
+        [Parameter(Mandatory)] [String]$orgUrl,
+        [Parameter(Mandatory)] [String]$projectName,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$azdoAuthType,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [System.Object[]]$configurationData
+    )
+
     if($null -ne $configurationData -and $configurationData.length -gt 0) {
         Write-Host "Retrieved " $configurationData.length " deployment environments"
         #Update / Create Deployment Pipelines
@@ -344,9 +361,17 @@ function New-DeploymentPipelines($buildRepositoryName, $orgUrl, $projectName, $r
     }
 }
 
-function Set-BuildDefinitionVariables($orgUrl, $projectId, $azdoAuthType, $buildDefinitionResult, $definitionId, $newBuildDefinitionVariables) {
+function Set-BuildDefinitionVariables {
+    param (
+        [Parameter(Mandatory)] [String]$orgUrl,
+        [Parameter(Mandatory)] [String]$projectId,
+        [Parameter(Mandatory)] [String]$azdoAuthType,
+        [Parameter(Mandatory)] [PSCustomObject]$buildDefinitionResult,
+        [Parameter(Mandatory)] [String]$definitionId,
+        [Parameter(Mandatory)] [PSCustomObject]$newBuildDefinitionVariables
+    )
     #Set the build definition variables to the newly created list
-    $buildDefinitionResult.variables = $newBuildDefinitionVariables
+    ([pscustomobject]$buildDefinitionResult.variables) = ([pscustomobject]$newBuildDefinitionVariables)
     $buildDefinitionResourceUrl = "$orgUrl$projectId/_apis/build/definitions/" + $definitionId + "?api-version=6.0"
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Authorization", "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN")
@@ -356,46 +381,74 @@ function Set-BuildDefinitionVariables($orgUrl, $projectId, $azdoAuthType, $build
     $body = $body -replace "`t", ""
     Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null   
 }
-function Set-EnvironmentDeploymentSettingsConfiguration($buildSourceDirectory, $repo, $solutionName, $newCustomConfiguration, $newConfigurationData) {
-    foreach($newEnvironmentConfig in $newConfigurationData) {
-        $groupTeams = [System.Collections.ArrayList]@()
-        $environmentName = ""
-        foreach($variableConfigurationJson in $newEnvironmentConfig.DeploymentConfiguration) {
-            #Convert the JSON in the DeploymentConfiguration field to an object
-            $variableConfiguration = ConvertFrom-Json $variableConfigurationJson
-            foreach($variable in $variableConfiguration) {
-                $environmentName = $variable.Environment
-                if(-Not [string]::IsNullOrWhiteSpace($environmentName)) {
-                    if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName") {
-                        Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName" -Recurse -Force
-                    }
-                }
 
-                $variableName = $variable.Name
-                if($variableName.Contains("groupTeam.")) {
-                    $teamGroupConfigVariable = "#{$variableName}#"
-    
-                    $teamName = $variable.Name.split('.')[-1]
-                    $teamGroupRoles = $variable.Data.split(',')
-    
-                    $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadSecurityGroupId"="$teamGroupConfigVariable"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
-                    $cofigurationVariables.Add($teamGroupConfigVariable)
-                    $groupTeams.Add($groupTeamConfig)
-                }
+function Set-EnvironmentDeploymentSettingsConfiguration {
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter()] [PSCustomObject]$newConfiguration,
+        [Parameter()] [PSCustomObject]$newCustomConfiguration,
+        [Parameter()] [PSCustomObject]$configurationData,
+        [Parameter()] [PSCustomObject]$secretEnvironmentVariables
+    )
+    foreach($newEnvironmentConfig in $configurationData) {
+        $groupTeams = [System.Collections.ArrayList]@()
+        $secretsRemoved = [System.Collections.ArrayList]@()
+        $environmentName = $newEnvironmentConfig.DeploymentEnvironmentName
+        if(-Not [string]::IsNullOrWhiteSpace($environmentName)) {
+            if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\") {
+                Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\*eploymentSettings.json" -Force
+            }
+        }
+        foreach($variableConfiguration in $newEnvironmentConfig.UserSettings) {
+            $variableName = $variableConfiguration.Name
+            if($variableName.Contains("groupTeam.")) {
+                $teamGroupConfigVariable = "#{$variableName}#"
+
+                $teamName = $variableConfiguration.Name.split('.')[-1]
+                $teamGroupRoles = $variableConfiguration.Data.split(',')
+
+                $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadSecurityGroupId"="$teamGroupConfigVariable"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
+                $cofigurationVariables.Add($teamGroupConfigVariable)
+                $groupTeams.Add($groupTeamConfig)
             }
         }
 
+        $secretsRemoved = $false
+        foreach($secretVariable in $secretEnvironmentVariables) {
+            $variable = $newEnvironmentConfig.UserSettings | Where-Object { $_.Name.Contains($secretVariable) } | Select-Object -First 1
+            if($null -eq $variable -or $null -eq $variable.Value -or $variable.Value -eq "") {
+
+                $configVariable = $newConfiguration.EnvironmentVariables | Where-Object { $_.SchemaName -eq $secretVariable } | Select-Object -First 1
+                $newConfiguration.EnvironmentVariables.Remove($configVariable)
+                $secretsRemoved = $true
+            }
+        }
+
+
         if(-Not [string]::IsNullOrWhiteSpace($environmentName)) {
-            $newCustomConfiguration.AadGroupTeamConfiguration = $groupTeams
+            ([pscustomobject]$newCustomConfiguration.AadGroupTeamConfiguration) = $groupTeams
             if($groupTeams.Count -gt 0) {
                 if(!(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName")) {
                     New-Item "$buildSourceDirectory\$repo\$solutionName\config" -Name "$environmentName" -ItemType "directory"
                 }
-        
 
                 #Convert the updated configuration to json and store in customDeploymentSettings.json
-                $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
+                $json = ConvertTo-Json -Depth 10 ([pscustomobject]$newCustomConfiguration)
                 Set-Content -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\customDeploymentSettings.json" -Value $json
+            }
+            Write-Host "Checking for secrets removed"
+            if($secretsRemoved) {
+                Write-Host "Secrets removed creating deploymentConfiguration for $environmentName"
+                if(!(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName")) {
+                    New-Item "$buildSourceDirectory\$repo\$solutionName\config" -Name "$environmentName" -ItemType "directory"
+                }
+
+                #Convert the updated configuration to json and store in customDeploymentSettings.json
+                $json = ConvertTo-Json -Depth 10 $newConfiguration
+                Set-Content -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\deploymentSettings.json" -Value $json
+
             }
         }
     }

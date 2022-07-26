@@ -1,5 +1,11 @@
 # Testable outside of agent
-function Grant-AccessToWorkflow ($token, $dataverseHost, $teamName, $workflowId) {
+function Grant-AccessToWorkflow {
+    param (
+        [Parameter(Mandatory)] [String]$token,
+        [Parameter(Mandatory)] [String]$dataverseHost,
+        [Parameter(Mandatory)] [String]$teamName,
+        [Parameter(Mandatory)] [String]$workflowId
+    )
     $teamId = Get-TeamId $token $dataverseHost $teamName
     if($teamId -ne '') {
         $body = "{
@@ -21,7 +27,13 @@ function Grant-AccessToWorkflow ($token, $dataverseHost, $teamName, $workflowId)
     }
 }
 
-function Grant-AccessToConnector ($token, $dataverseHost, $teamName, $connectorId) {
+function Grant-AccessToConnector {
+    param (
+        [Parameter(Mandatory)] [String]$token,
+        [Parameter(Mandatory)] [String]$dataverseHost,
+        [Parameter(Mandatory)] [String]$teamName,
+        [Parameter(Mandatory)] [String]$connectorId
+    )
     $teamId = Get-TeamId $token $dataverseHost $teamName
     if($teamId -ne '') {
         $body = "{
@@ -43,7 +55,12 @@ function Grant-AccessToConnector ($token, $dataverseHost, $teamName, $connectorI
     }
 }
 
-function Get-TeamId ($token, $dataverseHost, $teamName) {
+function Get-TeamId {
+    param (
+        [Parameter(Mandatory)] [String]$token,
+        [Parameter(Mandatory)] [String]$dataverseHost,
+        [Parameter(Mandatory)] [String]$teamName
+    )
     $teamId = ''
     $odataQuery = 'teams?$filter=name eq ' + "'$teamName'" + '&$select=teamid'
     $response = Invoke-DataverseHttpGet $token $dataverseHost $odataQuery

@@ -1,5 +1,10 @@
-function Invoke-SetDeploymentVariable($deploymentSettingsPath, $deploymentSettingsNode)
+function Invoke-SetDeploymentVariable
 {
+    param (
+        [Parameter(Mandatory)] [String]$deploymentSettingsPath,
+        [Parameter(Mandatory)] [String]$deploymentSettingsNode
+    )
+
     if($deploymentSettingsPath -ne '')
     {
         $deploymentSettings = Get-Content $deploymentSettingsPath | ConvertFrom-Json
