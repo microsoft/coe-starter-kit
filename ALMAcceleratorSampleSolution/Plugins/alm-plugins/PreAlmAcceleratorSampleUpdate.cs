@@ -36,15 +36,15 @@ namespace Alm.Plugins
             try
             {
                 // The InputParameters collection contains all the data passed in the message request.  
-                if (context != null && context.InputParameters.Contains("Target") && context.InputParameters["Target"] is Entity)
+                if (context != null && context.InputParameters.Contains("Target") && context.InputParameters["Target"] is Entity entity)
                 {
                     // Obtain the target entity from the input parameters.  
-                    Entity targetAlmAcceleratorSampleCreate = (Entity)context.InputParameters["Target"];
+                    Entity targetAlmAcceleratorSampleCreate = entity;
 
                     // Obtain the preimage entity from the PreEntityImages parameters.  
-                    if (context.PreEntityImages.Contains("preImage") && context.PreEntityImages["preImage"] is Entity)
+                    if (context.PreEntityImages.Contains("preImage") && context.PreEntityImages["preImage"] is Entity preImageEntity)
                     {
-                        preImageAlmAcceleratorSampleCreate = (Entity)context.PreEntityImages["preImage"];
+                        preImageAlmAcceleratorSampleCreate = preImageEntity;
                     }
 
                     string strDetails = string.Empty;

@@ -32,10 +32,10 @@ namespace Alm.Plugins
             IPluginExecutionContext context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
 
             // The InputParameters collection contains all the data passed in the message request.  
-            if (context != null && context.InputParameters.Contains("Target") && context.InputParameters["Target"] is Entity)
+            if (context != null && context.InputParameters.Contains("Target") && context.InputParameters["Target"] is Entity entity)
             {
                 // Obtain the target entity from the input parameters.  
-                Entity targetAlmAcceleratorSampleCreate = (Entity)context.InputParameters["Target"];
+                Entity targetAlmAcceleratorSampleCreate = entity;
 
                 try
                 {
