@@ -1,4 +1,4 @@
-﻿if($args.count -eq 4) {
+﻿if($args.count -eq 4 -and $null -ne $args[0] -and $args[0] -ne 'undefined' -and $null -ne $args[1] -and $args[1] -ne 'undefined' -and $null -ne $args[2] -and $args[2] -ne 'undefined' -and $null -ne $args[3] -and $args[3] -ne 'undefined' ) {
     if(Test-Path -Path "./coe-alm-accelerator-templates-latest") {
         Remove-Item "./coe-alm-accelerator-templates-latest" -Force -Recurse
     }
