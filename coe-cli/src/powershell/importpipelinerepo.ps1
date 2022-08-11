@@ -7,10 +7,10 @@
     Set-Location "./coe-alm-accelerator-templates-latest"
     git clone https://github.com/microsoft/coe-alm-accelerator-templates.git
     Set-Location "./coe-alm-accelerator-templates"
-    $TagArray = git tag --sort=-creatordate -l CenterofExcellenceALMAccelerator*
-    $AppVersion = $TagArray[0]
+    $tagArray = git tag --sort=-creatordate -l CenterofExcellenceALMAccelerator*
+    $appVersion = $tagArray[0]
 
-    git checkout tags/$AppVersion -b $AppVersion
+    git checkout tags/$appVersion -b $appVersion
 
     Set-Location "../../"
 
@@ -38,7 +38,7 @@
     Copy-Item -Force -Recurse "./coe-alm-accelerator-templates-latest/coe-alm-accelerator-templates/*" "./coe-alm-accelerator-templates-local/$pipelineRepo/" -Exclude ".git"
     Set-Location "./coe-alm-accelerator-templates-local/$pipelineRepo/"
     git add --all
-    git commit -m "Importing templates from $AppVersion"
+    git commit -m "Importing templates from $appVersion"
 
     git -c http.extraHeader="AUTHORIZATION: bearer $accessToken" push
     $mainExistsInRemote = git ls-remote --heads origin main
