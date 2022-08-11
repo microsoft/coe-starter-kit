@@ -33,6 +33,7 @@ import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionMa
 import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
 
+const {spawnSync} = require("child_process");
 /**
 * Azure DevOps Commands
 */
@@ -334,6 +335,7 @@ class DevOpsCommand {
     }
 
     async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) {
+        
         let gitApi = await connection.getGitApi()
 
         this.logger.info(`Checking pipeline repository ${args.pipelineRepositoryName}`)
@@ -342,38 +344,27 @@ class DevOpsCommand {
         if (repo == null) {
             return Promise.resolve(null)
         }
-        this.logger?.info(`Importing ${repo.name}`)
 
-        let refs = await gitApi.getRefs(repo.id, args.projectName)
+        let command = `./src/powershell/importpipelinerepo.ps1 "${args.organizationName}" "${args.projectName}" "${args.pipelineRepositoryName}" "${args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]}"`
 
-        if (refs.length == 0) {
-            this.logger?.debug(`Importing ${args.pipelineRepositoryName}`)
-            repo.defaultBranch = "refs/heads/main"
-            let importRequest = await gitApi.createImportRequest(<GitImportRequest>{
-                parameters: <GitImportRequestParameters>{ gitSource: <GitImportGitSource>{ url: "https://github.com/microsoft/coe-alm-accelerator-templates.git" } },
-                repository: repo
-            }, args.projectName, repo.id)
-
-            while (true) {
-                let requests = await gitApi.queryImportRequests(args.projectName, repo.id)
-                let current = requests.filter(r => r.importRequestId == importRequest.importRequestId)[0]
-                if (current.status == GitAsyncOperationStatus.Completed || current.status == GitAsyncOperationStatus.Abandoned || current.status == GitAsyncOperationStatus.Failed) {
-                    break;
-                }
-                await this.sleep(500)
-            }
-
-            this.logger?.debug('Setting default branch')
-            let headers = <IHeaders>{};
-            headers["Content-Type"] = "application/json"
-
-            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
-
-            await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
-            this.logger.info(`Pipeline repository ${args.pipelineRepositoryName} imported`)
-        } else {
-            this.logger.info(`Pipeline repository ${args.pipelineRepositoryName}`)
+        const child = spawnSync('pwsh', ["-File", command], {
+            shell: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ...{},
+        });
+        
+        this.logger.info(`Output: ${child.stdout.toString()}`);
+        if(child.statusCode != 0) {
+            this.logger.info(`Error message: ${child.stderr.toString()}`);
         }
+
+        this.logger?.debug('Setting default branch')
+        let headers = <IHeaders>{};
+        headers["Content-Type"] = "application/json"
+
+        let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
+        await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
+        this.logger.info(`Pipeline repository ${args.pipelineRepositoryName} imported`)
 
         return repo;
     }
