@@ -45,6 +45,17 @@ parameters:
   type: string
   default: ''
 steps:
+- template: set-spn-token.yml
+  parameters:
+    serviceConnection: '${{parameters.serviceConnectionUrl}}'
+
+- pwsh: |
+    . "$env:POWERSHELLPATH/load-save-pipeline-parameters.ps1"
+    Write-Export-Pipeline-Parameters "$(Agent.BuildDirectory)\export-pipeline-parameters.json" '${{ parameters.gitAccessUrl }}' '${{ parameters.project }}' '${{ parameters.repo }}' '${{ parameters.branch }}' '${{ parameters.branchToCreate }}' '${{ parameters.commitMessage }}' '${{ parameters.email }}' '${{ parameters.serviceConnectionName }}' '${{ parameters.serviceConnectionUrl }}' '${{ parameters.solutionName }}' '${{ parameters.userName }}'
+  env:
+    DEPLOYMENT_SETTINGS: ${{parameters.configurationData}}
+  displayName: 'Saving Export Pipeline Parameters'
+
 - template: Hooks\export-solution-pre-hook.yml
 
 - template: set-service-connection-url.yml
@@ -52,9 +63,6 @@ steps:
     serviceConnectionName: '${{parameters.serviceConnectionName}}'
     serviceConnectionUrl: '${{parameters.serviceConnectionUrl}}'
 
-- template: set-spn-token.yml
-  parameters:
-    serviceConnection: '${{parameters.serviceConnectionUrl}}'
 # Set pipeline vars for tools paths.
 - template: set-tools-paths.yml
 
@@ -273,6 +281,14 @@ steps:
     generateAADGroupTeamConfig: $(DeploymentSettings.GenerateAADGroupTeam)
     generateCustomConnectorConfig: $(DeploymentSettings.GenerateCustomConnectorConfig)
 
+# Set deployment variable for Activate Flow Configuration
+- template: set-deployment-variable.yml
+  parameters:
+    variableName: 'outActivateFlows'
+    deploymentSettingsPath: $(CustomDeploymentSettingsPath)
+    deploymentSettingsNode: 'ActivateFlowConfiguration'
+    displayName: 'Retrieve Flow Activation Config for Export'
+
 # Enabled or Disable Flows in the Solution based on configuration
 - template: enable-disable-solution-flows.yml
   parameters:
@@ -291,8 +307,8 @@ steps:
     displayName: 'Retrieve Default Environment Variable Config for Export'
 
 - pwsh: |
-   if('$(outDefaultEnvironmentVariables)' -ne '') {
-       $config = ConvertFrom-Json '$(outDefaultEnvironmentVariables)'
+   if($(outDefaultEnvironmentVariables) -ne '') {
+       $config = Get-Content $(outDefaultEnvironmentVariables) | ConvertFrom-Json
        foreach ($c in $config) {
            $envVariableName = $c[0]
            Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 

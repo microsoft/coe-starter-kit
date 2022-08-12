@@ -11,11 +11,6 @@
 # -Add test for brand new solution
 # Document how to setup inner loop / personal files for local testing in the PowerShell/Ignore folder
 
-# param(
-#     $Org, $Project, $BranchToTest, $SourceBranch, $BranchToCreate, $CommitMessage, $Data, 
-#     $Email, $Repo, $ServiceConnectionName, $ServiceConnectionUrl, $SolutionName, $UserName
-# )
-
 param(
     $Org, $Project, $BranchToTest, $SourceBranch, $BranchToCreate, $CommitMessage, $Data, 
     $Email, $Repo, $ServiceConnection, $SolutionName, $UserName
@@ -66,8 +61,8 @@ class Helper {
         $body = ConvertTo-Json -Depth 10 $body -Compress
 
         $requestUrl = "$org/$project/_apis/pipelines/$pipelineId/runs$apiVersion"
-        # Write-Host $requestUrl
-        # Write-Host $body
+        Write-Host $requestUrl
+        Write-Host $body
         $response = Invoke-RestMethod $requestUrl -Method 'POST' -Headers $headers -Body $body
         $response | ConvertTo-Json -Depth 10
 

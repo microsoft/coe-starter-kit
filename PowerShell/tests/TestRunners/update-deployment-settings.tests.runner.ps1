@@ -1,0 +1,39 @@
+﻿#Run in Windows Powershell
+function Invoke-DeploymentSettingsConfiguration-Test()
+{
+    Set-Location -Path "..\"
+
+    $testConfig = Get-Content ".\TestData\update-deployment-settings-test.config.json" | ConvertFrom-Json
+    $testDeploymentConfig = Get-Content ".\TestData\update-deployment-settings-test-deployment.json"
+
+    $pat = $testConfig.accessToken
+    $token = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes(":$($pat)"))
+
+    $path = './update-deployment-settings.tests.ps1'
+    $data = @{
+        DeploymentConfig                    = $testDeploymentConfig
+        AccessToken                         = $token
+        BuildSourceDirectory                = $testConfig.buildSourceDirectory
+        BuildRepositoryName                 = $testConfig.buildRepositoryName
+        CdsBaseConnectionString             = $testConfig.cdsBaseConnectionString
+        XrmDataPowerShellVersion            = $testConfig.xrmDataPowerShellVersion
+        MicrosoftXrmDataPowerShellModule    = $testConfig.microsoftXrmDataPowerShellModule
+        OrgUrl                              = $testConfig.orgUrl
+        ProjectId                           = $testConfig.projectId
+        ProjectName                         = $testConfig.projectName
+        Repo                                = $testConfig.repo
+        AuthType                            = "Basic"
+        ServiceConnection                   = $testConfig.serviceConnection
+        SolutionName                        = $testConfig.solutionName
+        GenerateEnvironmentVariables        = $testConfig.generateEnvironmentVariables
+        GenerateConnectionReferences        = $testConfig.generateConnectionReferences
+        GenerateFlowConfig                  = $testConfig.generateFlowConfig
+        GenerateCanvasSharingConfig         = $testConfig.generateCanvasSharingConfig
+        GenerateAADGroupTeamConfig          = $testConfig.generateAADGroupTeamConfig
+        GenerateCustomConnectorConfig       = $testConfig.generateCustomConnectorConfig
+    }    
+    $container = New-PesterContainer -Path $path -Data $data
+    Invoke-Pester -Container $container
+}
+
+Invoke-DeploymentSettingsConfiguration-Test

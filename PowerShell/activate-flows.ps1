@@ -11,9 +11,9 @@ function Invoke-ActivateFlows {
         [Parameter(Mandatory)] [String]$clientSecret, 
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$environmentId, 
-        [Parameter(Mandatory)] [String]$solutionComponentOwnershipConfiguration,
-        [Parameter(Mandatory)] [String]$connectionReferences, 
-        [Parameter(Mandatory)] [String]$activateFlowConfiguration
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionComponentOwnershipConfiguration,
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$connectionReferences, 
+        [Parameter(Mandatory)] [String][AllowEmptyString()]$activateFlowConfiguration
     )
 
     Write-Host "Importing PowerShell Module: $microsoftPowerAppsAdministrationPowerShellModule - $powerAppsAdminModuleVersion"
@@ -38,6 +38,7 @@ function Invoke-ActivateFlows {
     $flowsActivatedThisPass = $false
     $throwOnComplete = $false
     do {
+        $throwOnComplete = $false
         $flowsActivatedThisPass = $false
         foreach ($flowToActivate in $flowsToActivate) {
             try {
@@ -68,7 +69,7 @@ function Get-ActivationConfigurations {
     )
     $activationConfigs = $null
     if ($activateFlowConfiguration -ne "") {
-        $activationConfigs = ConvertFrom-Json $activateFlowConfiguration
+        $activationConfigs = Get-Content $activateFlowConfiguration | ConvertFrom-Json
         $activationConfigs | ForEach-Object { if ($_.sortOrder -match '^\d+$') { $_.sortOrder = [int]$_.sortOrder } else { $_.sortOrder = [int]::MaxValue } }
     }
     return $activationConfigs
@@ -120,8 +121,8 @@ function Get-UserConfiguredFlowActivations {
 
 function Get-ConnectionReferenceFlowActivations {
     param (
-        [Parameter(Mandatory)] [String]$connectionReferences,
-        [Parameter(Mandatory)] [String]$activateFlowConfiguration,
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$connectionReferences,
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration,
         [Parameter(Mandatory)] [Microsoft.Xrm.Tooling.Connector.CrmServiceClient]$conn,
         [Parameter(Mandatory)] [System.Collections.ArrayList] [AllowEmptyCollection()]$flowsToActivate
     )
@@ -134,7 +135,7 @@ function Get-ConnectionReferenceFlowActivations {
         $solutionComponents = $result.CrmRecords
 
         $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
-        $config = ConvertFrom-Json $connectionReferences
+        $config = Get-Content $connectionReferences | ConvertFrom-Json
 
         foreach ($connectionRefConfig in $config) {
             if ($connectionRefConfig.LogicalName -ne '' -and $connectionRefConfig.ConnectionId -ne '') {
@@ -182,7 +183,9 @@ function Get-ConnectionReferenceFlowActivations {
                                             if ($null -ne $activationConfigs) {
                                                 $activationConfig = $activationConfigs | Where-Object { $_.solutionComponentUniqueName -eq $solutionComponent.objectid } | Select-Object -First 1
                                                 if ($null -ne $activationConfig) {
-                                                    $sortOrder = $activationConfig.sortOrder
+                                                    if($activationConfig.sortOrder -ne '') {
+                                                        $sortOrder = $activationConfig.sortOrder
+                                                    }
                                                     $activateFlow = $activationConfig.activate
                                                 }
                                             }
@@ -219,12 +222,12 @@ function Get-ConnectionReferenceFlowActivations {
 
 function Get-OwnerFlowActivations {
     param (
-        [Parameter(Mandatory)] [String]$solutionComponentOwnershipConfiguration,
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionComponentOwnershipConfiguration,
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration,
         [Parameter(Mandatory)] [Microsoft.Xrm.Tooling.Connector.CrmServiceClient]$conn,
         [Parameter(Mandatory)] [System.Collections.ArrayList] [AllowEmptyCollection()]$flowsToActivate
     )
-    $config = ConvertFrom-Json $solutionComponentOwnershipConfiguration
+    $config = Get-Content $solutionComponentOwnershipConfiguration | ConvertFrom-Json
     $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
 
     foreach ($ownershipConfig in $config) {
@@ -254,7 +257,9 @@ function Get-OwnerFlowActivations {
                             Write-Host "Retrieving activation config"
                             $activationConfig = $activationConfigs | Where-Object { $_.solutionComponentUniqueName -eq $solutionComponent.objectid } | Select-Object -First 1
                             if ($null -ne $activationConfig) {
-                                $sortOrder = $activationConfig.sortOrder
+                                if($activationConfig.sortOrder -ne '') {
+                                    $sortOrder = $activationConfig.sortOrder
+                                }
                                 $activateFlow = $activationConfig.activate
                             }
                         }
