@@ -19,6 +19,10 @@ Home As screen:
                     GetEnvironmentId.Run()
                 )
             );
+            Set( 
+                dsRegion,
+                ""
+            );
             Set(
                 gblUser,
                 User()
@@ -31,13 +35,13 @@ Home As screen:
                 )
             );
             ClearCollect(
-                DeploymentUserSettings,
-                AddColumns(
-                    'Deployment User Settings',
-                    "DisplayName",
-                    Name
-                )
-            );
+                        DeploymentUserSettings,
+                        AddColumns(
+                            'Deployment User Settings',
+                            "DisplayName",
+                            Name
+                        )
+                    );
             If(
                 CountRows(DeploymentUserSettings) = 0,
                 Patch(
@@ -3475,7 +3479,41 @@ Home As screen:
                                     );
                                 )
                             }
+                        );        
+                
+                        Set(    
+                            gblAzureDevOpsUserId,    
+                            First(        
+                                CustomAzureDevOps.GetIdentities(            
+                                    drpPRDeploymentProfiles.Selected.'AzDO Organization',
+                                    {                
+                                        searchFilter: "MailAddress",                
+                                        filterValue: gblUser.Email            
+                                    }        
+                                ).value    
+                            ).id);
+                
+                        If(tglCompletePR.Value,
+                            UpdateContext(
+                                {
+                                    pullRequestStatus: IfError(
+                                        CustomAzureDevOps.UpdatePullRequest(
+                                            drpPRDeploymentProfiles.Selected.'AzDO Organization',
+                                            drpPRDeploymentProfiles.Selected.'AzDO Project',
+                                            drpPRDeploymentProfiles.Selected.'Repository ID',                        
+                                            pullRequestId,
+                                            {
+                                                autoCompleteSetBy: {id: gblAzureDevOpsUserId},
+                                                completionOptions: {deleteSourceBranch: false,bypassPolicy: false}
+                                            }
+                                        ),
+                                        UpdateContext({errorMessage: FirstError.Message});
+                                        Notify("Error completing pull request: " & errorMessage)
+                                    )                                    
+                                }
+                            );
                         );
+                
                         Patch(
                             'Deployment Requests',
                             {
@@ -3819,6 +3857,30 @@ Home As screen:
             X: =330
             Y: =971
             ZIndex: =24
+
+        tglCompletePR As toggleSwitch:
+            AccessibleLabel: ="Complete Pull Request up on Merge"
+            FalseFill: =RGBA(237, 237, 237, 1)
+            FalseHoverFill: =ColorFade(tglCompletePR.FalseFill, 20%)
+            FalseText: ="Complete Pull Request up on Merge"
+            FontWeight: =FontWeight.Semibold
+            HandleFill: =If(tglCompletePR.Value, PrimaryColor1Value, PrimaryColor2Value)
+            Height: =34
+            HoverBorderColor: =ColorFade(tglCompletePR.BorderColor, 20%)
+            OnChange: =
+            PressedBorderColor: =ColorFade(tglCompletePR.BorderColor, -20%)
+            TrueHoverFill: =ColorFade(tglCompletePR.TrueFill, 20%)
+            TrueText: ="Complete Pull Request up on Merge"
+            Visible: |-
+                =If(
+                    tglPRAdvancedSettings.Value && (IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Complete Pull Request') Or DeploymentUserSetting.'Complete Pull Request' = 'A Yes or No boolean'.Allowed),
+                    true,
+                    false
+                )
+            Width: =430
+            X: =32
+            Y: =665
+            ZIndex: =25
 
     grpImportSolution As group:
         Height: =5
@@ -4568,7 +4630,7 @@ Home As screen:
                 ChevronHoverBackground: =ColorFade(cmbDeploymentEnvironmentUrl.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(cmbDeploymentEnvironmentUrl.ChevronFill, 20%)
                 DefaultSelectedItems: =First(Filter(AllEnvironments, LookUp('Deployment Environments', 'Deployment Environment' = ThisItem.'Deployment Environment'.'Deployment Environment').URL in Url))
-                DisplayFields: =["DisplayName","Url"]
+                DisplayFields: =["id","Url"]
                 DisplayMode: |-
                     =If(
                         IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Profile Updates') Or DeploymentUserSetting.'Profile Updates' = 'A Yes or No boolean'.Allowed,
@@ -4585,8 +4647,8 @@ Home As screen:
                 NoSelectionText: ="Select a Deployment Environment"
                 OnChange: =true
                 PressedBorderColor: =cmbDeploymentEnvironmentUrl.HoverBorderColor
-                SearchFields: =["DisplayName"]
-                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"DisplayName")
+                SearchFields: =["id"]
+                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"id")
                 SelectMultiple: =false
                 Template: =ListItemTemplate.Double
                 Tooltip: ="Select the deployment environment for this deployment stage"
@@ -6125,10 +6187,14 @@ Home As screen:
             HoverColor: =ColorFade(icoManageSolutions.Color, 20%)
             HoverFill: =ColorFade(icoManageSolutions.Fill, 20%)
             Icon: =Icon.DetailList
-            OnSelect: |
+            OnSelect: |-
                 =If(
-                    !IsBlank(SelectedEnvironment),
-                    Launch("https://make.powerapps.com/environments/" & SelectedEnvironment.name & "/solutions")
+                    !IsBlank(SelectedEnvironment) && !IsBlank(SelectedEnvironment.Url),
+                    If(
+                        (!IsBlank(Find("crm9.dynamics.com",SelectedEnvironment.Url)) Or !IsBlank(Find("crm.microsoftdynamics.us",SelectedEnvironment.Url))),
+                        Launch("https://make.gov.powerapps.us/environments/" & SelectedEnvironment.name & "/solutions"),
+                        Launch("https://make.powerapps.com/environments/" & SelectedEnvironment.name & "/solutions")
+                    );
                 );
             PaddingBottom: =8
             PaddingLeft: =8
