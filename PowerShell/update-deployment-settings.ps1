@@ -45,7 +45,7 @@
         $flowActivationUsers = [System.Collections.ArrayList]@()
         $flowSharings = [System.Collections.ArrayList]@()
         $groupTeams = [System.Collections.ArrayList]@()
-        $cofigurationVariables = [System.Collections.ArrayList]@()
+        $configurationVariables = [System.Collections.ArrayList]@()
 
         #Convert the updated configuration to json and store in customDeploymentSettings.json
         $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
@@ -78,8 +78,8 @@
                 $connnectionConfigVariable = "#{connectionreference." + $connRefName + "}#"
                 $connnectionOwnerConfigVariable = "#{connectionreference.user." + $connRefName + "}#"
                 $connRef = [PSCustomObject]@{"LogicalName"="$connRefName"; "ConnectionId"="$connnectionConfigVariable"; "ConnectorId"= "$connectorId"; "ConnectionOwner"="$connnectionOwnerConfigVariable" }
-                $cofigurationVariables.Add($connnectionConfigVariable)
-                $cofigurationVariables.Add($connnectionOwnerConfigVariable)
+                $configurationVariables.Add($connnectionConfigVariable)
+                $configurationVariables.Add($connnectionOwnerConfigVariable)
                 $connectionReferences.Add($connRef)
             }
             #Custom Connector Variable Definition
@@ -96,7 +96,7 @@
                 #Create the flow sharing deployment settings
                 $sharingConfigVariable = "#{connector.teamname." + $placeholdername + "}#"
                 $connectorSharingConfig = [PSCustomObject]@{"solutionComponentName"=$connectorResult.name; "solutionComponentUniqueName"=$solutionComponent.objectid; "aadGroupTeamName"="$sharingConfigVariable"}
-                $cofigurationVariables.Add($sharingConfigVariable)
+                $configurationVariables.Add($sharingConfigVariable)
                 $customConnectorSharings.Add($connectorSharingConfig)
             }
 
@@ -120,7 +120,7 @@
                 if($envVarResult.type_Property.Value.Value -eq 100000005) {
                     $secretEnvironmentVariables.Add($envVarName)
                 }
-                $cofigurationVariables.Add($envVarConfigVariable)
+                $configurationVariables.Add($envVarConfigVariable)
                 $environmentVariables.Add($envVar)
             }
             #Canvas App
@@ -139,8 +139,8 @@
                 $aadGroupConfigVariable = "#{canvasshare.aadGroupId." + $canvasName + "}#"
                 $groupRoleConfigVariable = "#{canvasshare.roleName." + $canvasName + "}#"
                 $canvasConfig = [PSCustomObject]@{"aadGroupId"="$aadGroupConfigVariable"; "canvasNameInSolution"=$canvasName; "canvasDisplayName"= $canvasAppResult.displayname; "roleName"="$groupRoleConfigVariable"}
-                $cofigurationVariables.Add($aadGroupConfigVariable)
-                $cofigurationVariables.Add($groupRoleConfigVariable)
+                $configurationVariables.Add($aadGroupConfigVariable)
+                $configurationVariables.Add($groupRoleConfigVariable)
                 $canvasApps.Add($canvasConfig)
             }
             #Workflow
@@ -168,13 +168,13 @@
                 $ownerConfigVariable = "#{owner.ownerEmail." + $placeholdername + "}#"
                 #Create the flow owner deployment settings
                 $flowConfig = [PSCustomObject]@{"solutionComponentType"=$solutioncomponent.componenttype_Property.Value.Value; "solutionComponentName"=$flowResult.name; "solutionComponentUniqueName"=$workflowName; "ownerEmail"="$ownerConfigVariable"}
-                $cofigurationVariables.Add($ownerConfigVariable)
+                $configurationVariables.Add($ownerConfigVariable)
                 $flowOwnerships.Add($flowConfig)
 
                 #Create the flow sharing deployment settings
                 $sharingConfigVariable = "#{flow.sharing." + $placeholdername + "}#"
                 $flowSharingConfig = [PSCustomObject]@{"solutionComponentName"=$flowResult.name; "solutionComponentUniqueName"=$workflowName; "aadGroupTeamName"="$sharingConfigVariable"}
-                $cofigurationVariables.Add($sharingConfigVariable)
+                $configurationVariables.Add($sharingConfigVariable)
                 $flowSharings.Add($flowSharingConfig)
 
                 #Create the flow activation user deployment settings
@@ -182,9 +182,9 @@
                 $activateConfigVariable = "#{activateflow.activate." + $placeholdername + "}#"
                 $activateUserConfigVariable = "#{activateflow.activateas." + $placeholdername + "}#"
                 $flowActivationUserConfig = [PSCustomObject]@{"solutionComponentName"=$flowResult.name; "solutionComponentUniqueName"=$workflowName; "activateAsUser"="$activateUserConfigVariable"; "sortOrder"="$sortOrderConfigVariable"; "activate"="$activateConfigVariable"}
-                $cofigurationVariables.Add($sortOrderConfigVariable)
-                $cofigurationVariables.Add($activateConfigVariable)
-                $cofigurationVariables.Add($activateUserConfigVariable)
+                $configurationVariables.Add($sortOrderConfigVariable)
+                $configurationVariables.Add($activateConfigVariable)
+                $configurationVariables.Add($activateUserConfigVariable)
                 $flowActivationUsers.Add($flowActivationUserConfig)
             }
         }
@@ -225,7 +225,7 @@
             $newBuildDefinitionVariables = $buildDefinitionResult.variables
             #Loop through each of the tokens stored above and find an associated variable in the configuration data passed in from AA4AM
 
-            foreach($configurationVariable in $cofigurationVariables) {
+            foreach($configurationVariable in $configurationVariables) {
                 $found = $false
                 $configurationVariable = $configurationVariable.replace('#{', '')
                 $configurationVariable = $configurationVariable.replace('}#', '')
@@ -255,6 +255,46 @@
                                 $newBuildDefinitionVariables.$configurationVariable.value = $variable.Value
                             }
                         }
+                    }
+                }
+            }
+
+            $buildName = $buildDefinitionResult.name.ToLower()
+            # Declare Solution Upgrade Tags; By default is 'update'
+            $solutionUpgradeInputValue = $false
+            $pipelineVariableName =  "TriggerSolutionUpgrade"
+            if($null -ne $configurationData) 
+            {
+                foreach($deploymentEnvironment in $configurationData) 
+                {
+                    $deploymentBuildName = $deploymentEnvironment.BuildName.ToLower()
+                    if($deploymentBuildName -eq $buildName)
+                    {
+                        $solutionUpgradeTag = $deploymentEnvironment.UserSettings | Where-Object { $_.Name -eq $pipelineVariableName }
+                        if($null -ne $solutionUpgradeTag -and $null -ne $solutionUpgradeTag.Value)
+                        {
+                            if($solutionUpgradeTag.Value -eq "true")
+                            {
+                                $solutionUpgradeInputValue = $true
+                            }
+                            Write-Host "solutionUpgradeInputValue for  $deploymentBuildName - $solutionUpgradeInputValue"
+
+                            $found = $false
+                            #See if the variable already exists
+                            foreach($buildVariable in $newBuildDefinitionVariables.PSObject.Properties) {
+                                if($buildVariable.Name -eq $pipelineVariableName) {
+                                    $found = $true
+                                    break
+                                }
+                            }
+                            #If the variable was not found create it 
+                            if(!$found) {
+                                $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $pipelineVariableName -Value @{value = ''}
+                            }
+                            # Set the value to the value passed in on the configuration data
+                            $newBuildDefinitionVariables.$pipelineVariableName.value = $solutionUpgradeInputValue
+                        }
+                     break;
                     }
                 }
             }
@@ -410,7 +450,7 @@ function Set-EnvironmentDeploymentSettingsConfiguration {
                 $teamGroupRoles = $variableConfiguration.Data.split(',')
 
                 $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadSecurityGroupId"="$teamGroupConfigVariable"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
-                $cofigurationVariables.Add($teamGroupConfigVariable)
+                $configurationVariables.Add($teamGroupConfigVariable)
                 $groupTeams.Add($groupTeamConfig)
             }
         }
