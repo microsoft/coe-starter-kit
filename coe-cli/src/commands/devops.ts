@@ -907,8 +907,15 @@ class DevOpsCommand {
 
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
-                newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
-
+                if(typeof args.settings["Environments"] === "string") {
+                   let names = args.settings["Environments"].split('|').map(element => {
+                        return element.toLowerCase();
+                   })
+                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, names)
+                }
+                else {
+                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
+                }
                 let gitPush = <GitPush>{}
                 gitPush.refUpdates = [newRef]
                 gitPush.commits = [newGitCommit]
@@ -1035,12 +1042,12 @@ class DevOpsCommand {
         let source = args.sourceBuildName
         let destination = args.destinationBranch
 
-        var destinationBuildName = util.format("deploy-%s-%s", environmentName, destination);
+        var destinationBuildName = util.format("deploy-%s-%s", environmentName.toLowerCase(), destination);
         var destinationBuilds = pipelines.filter(p => p.name == destinationBuildName);
         let destinationBuild = destinationBuilds.length > 0 ? await client.getDefinition(destinationBuilds[0].project.name, destinationBuilds[0].id) : null
         let sourceBuild = null
         if (typeof (source) != "undefined" && (source.length != 0)) {
-            var sourceBuildName = util.format("deploy-%s-%s", environmentName, source);
+            var sourceBuildName = util.format("deploy-%s-%s", environmentName.toLowerCase(), source);
             var sourceBuilds = pipelines.filter(p => p.name == sourceBuildName);
 
             sourceBuild = sourceBuilds.length > 0 ? await client.getDefinition(sourceBuilds[0].project?.name, sourceBuilds[0].id) : null
@@ -1086,7 +1093,7 @@ class DevOpsCommand {
 
             let environmentUrl = typeof (args.settings[environmentName.toLowerCase()] === "string") ? args.settings[environmentName.toLowerCase()] : ""
 
-            serviceConnectionName = args.settings[`${environmentName}-scname`]
+            serviceConnectionName = args.settings[`${environmentName.toLowerCase()}-scname`]
             serviceConnectionUrl = Environment.getEnvironmentUrl(environmentUrl, args.settings)
             //Fall back to using the service connection url supplied as the service connection name if no name was supplied
             if (typeof serviceConnectionName === "undefined" || serviceConnectionName == '') {
