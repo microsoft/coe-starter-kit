@@ -1,7 +1,7 @@
 ﻿#Run in Windows Powershell
-function Invoke-DeploymentSettingsConfiguration-Test()
+function Invoke-DeploymentSettingsConfiguration-Test($usePlaceholders, $path)
 {
-    Set-Location -Path "..\"
+    Set-Location -Path $path
 
     $testConfig = Get-Content ".\TestData\update-deployment-settings-test.config.json" | ConvertFrom-Json
     $testDeploymentConfig = Get-Content ".\TestData\update-deployment-settings-test-deployment.json"
@@ -25,15 +25,11 @@ function Invoke-DeploymentSettingsConfiguration-Test()
         AuthType                            = "Basic"
         ServiceConnection                   = $testConfig.serviceConnection
         SolutionName                        = $testConfig.solutionName
-        GenerateEnvironmentVariables        = $testConfig.generateEnvironmentVariables
-        GenerateConnectionReferences        = $testConfig.generateConnectionReferences
-        GenerateFlowConfig                  = $testConfig.generateFlowConfig
-        GenerateCanvasSharingConfig         = $testConfig.generateCanvasSharingConfig
-        GenerateAADGroupTeamConfig          = $testConfig.generateAADGroupTeamConfig
-        GenerateCustomConnectorConfig       = $testConfig.generateCustomConnectorConfig
+        UsePlaceholders                     = $usePlaceholders
     }    
     $container = New-PesterContainer -Path $path -Data $data
     Invoke-Pester -Container $container
 }
 
-Invoke-DeploymentSettingsConfiguration-Test
+Invoke-DeploymentSettingsConfiguration-Test $false '../'
+Invoke-DeploymentSettingsConfiguration-Test $true './tests'
