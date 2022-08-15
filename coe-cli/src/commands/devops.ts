@@ -824,7 +824,7 @@ class DevOpsCommand {
      */
     async branch(args: DevOpsBranchArguments): Promise<void> {
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
-        let authHandler = azdev.getBearerHandler(args.accessToken);
+        let authHandler = azdev.getHandlerFromToken(args.accessToken);
         let connection = this.createWebApi(devOpsOrgUrl, authHandler);
 
         let core = await connection.getCoreApi()
@@ -839,7 +839,6 @@ class DevOpsCommand {
 
             if (repo != null) {
                 await this.createBuildForBranch(args, project, repo, connection);
-
                 await this.setBranchPolicy(args, repo, connection);
             }
         }
@@ -908,10 +907,9 @@ class DevOpsCommand {
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
                 if(typeof args.settings["Environments"] === "string") {
-                   let names = args.settings["Environments"].split('|').map(element => {
+                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, args.settings["Environments"].split('|').map(element => {
                         return element.toLowerCase();
-                   })
-                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, names)
+                   }))
                 }
                 else {
                     newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
