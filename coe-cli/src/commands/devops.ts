@@ -906,13 +906,11 @@ class DevOpsCommand {
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
                 if(typeof args.settings["Environments"] === "string") {
-                    this.logger?.info("Calling getGitCommitChanges with Environments")
                     newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, args.settings["Environments"].split('|').map(element => {
                         return element.toLowerCase();
                    }))
                 }
                 else {
-                    this.logger?.info("Calling getGitCommitChanges with defaults")
                     newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
                 }
                 let gitPush = <GitPush>{}
@@ -1174,12 +1172,8 @@ class DevOpsCommand {
             commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
 
             let variableGroup = args.settings[names[i] + "-variablegroup"]
-            this.logger?.info(util.format("Variable Group %s", variableGroup))
-            if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                this.logger?.info("Updating variable group")
-                this.logger?.info(commit.newContent.content)
+             if (typeof variableGroup !== "undefined" && variableGroup != '') {
                 commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
-                this.logger?.info(commit.newContent.content)
             }
 
             commit.newContent.contentType = ItemContentType.RawText
