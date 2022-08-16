@@ -906,11 +906,13 @@ class DevOpsCommand {
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
                 if(typeof args.settings["Environments"] === "string") {
+                    this.logger?.info("Calling getGitCommitChanges with Environments")
                     newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, args.settings["Environments"].split('|').map(element => {
                         return element.toLowerCase();
                    }))
                 }
                 else {
+                    this.logger?.info("Calling getGitCommitChanges with defaults")
                     newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
                 }
                 let gitPush = <GitPush>{}
