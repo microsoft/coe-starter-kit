@@ -3,7 +3,7 @@ import * as azdev from "azure-devops-node-api"
 import { IHeaders, IRequestHandler } from "azure-devops-node-api/interfaces/common/VsoBaseInterfaces";
 import util from "util"
 import * as CoreInterfaces from 'azure-devops-node-api/interfaces/CoreInterfaces';
-import { GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus } from 'azure-devops-node-api/interfaces/GitInterfaces';
+import { GitVersionDescriptor, GitVersionType, GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus } from 'azure-devops-node-api/interfaces/GitInterfaces';
 import * as gitm from "azure-devops-node-api/GitApi"
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces';
 import { GitHubCommand, GitHubReleaseArguments } from './github';
@@ -1166,7 +1166,10 @@ class DevOpsCommand {
         try {
             for (let i = 0; i < names.length; i++) {
                 this.logger?.info(util.format("Getting changes for %s", names[i]));
-                let response = await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName)
+                let version: GitVersionDescriptor = <GitVersionDescriptor>{};
+                version.versionType = GitVersionType.Branch;
+                version.version = "main";
+                let response = await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName,null, null, null,null, null, version)
                 let content = await response.read()
                 this.logger?.info(util.format("Content %s", content))
                 if(content) {
