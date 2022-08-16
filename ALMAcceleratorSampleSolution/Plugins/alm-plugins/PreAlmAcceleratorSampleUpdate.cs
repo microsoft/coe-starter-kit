@@ -18,19 +18,31 @@ namespace Alm.Plugins
     /// <summary>
     /// Sync plugin on Pre update event.
     /// </summary>
-    public class PreAlmAcceleratorSampleUpdate : IPlugin
+    public class PreAlmAcceleratorSampleUpdate : PluginBase
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PreAlmAcceleratorSampleUpdate" /> class
+        /// </summary>
+        /// <param name="unsecureConfiguration">Unsecure Configuration</param>
+        /// <param name="secureConfiguration">Secure Configuration</param>
+        public PreAlmAcceleratorSampleUpdate(string unsecureConfiguration, string secureConfiguration)
+            : base(typeof(PreAlmAcceleratorSampleUpdate))
+        {
+            // TODO: Implement your custom configuration handling
+        }
+
         /// <summary>
         /// Default Execute Method
         /// </summary>
-        /// <param name="serviceProvider">Service Provider</param>
-        public void Execute(IServiceProvider serviceProvider)
+        /// <param name="localPluginContext">Local Plugin Context</param>
+        protected override void ExecuteCdsPlugin(ILocalPluginContext localPluginContext)
         {
-            // Obtain the tracing service
-            ITracingService tracingService = (ITracingService)serviceProvider.GetService(typeof(ITracingService));
+            if (localPluginContext == null)
+            {
+                throw new ArgumentNullException(nameof(localPluginContext));
+            }
 
-            // Obtain the execution context from the service provider.  
-            IPluginExecutionContext context = (IPluginExecutionContext)serviceProvider.GetService(typeof(IPluginExecutionContext));
+            var context = localPluginContext.PluginExecutionContext;
 
             Entity preImageAlmAcceleratorSampleCreate = null;
             try
@@ -66,6 +78,7 @@ namespace Alm.Plugins
                     }
 
                     var strName = "Quote";
+
                     // Set 'Name' as { Quote - 'Details' column data }
                     targetAlmAcceleratorSampleCreate["cat_name"] = string.IsNullOrEmpty(strDetails) ? strName : strName + " - " + strDetails;
                 }
@@ -76,7 +89,7 @@ namespace Alm.Plugins
             }
             catch (Exception ex)
             {
-                tracingService.Trace("PreAlmAcceleratorSampleCreate: {0}", ex.ToString());
+                localPluginContext.Trace("PreAlmAcceleratorSampleCreate: {0}", ex.ToString());
                 throw;
             }
         }
