@@ -1165,6 +1165,7 @@ class DevOpsCommand {
         let results: GitChange[] = []
         try {
             for (let i = 0; i < names.length; i++) {
+                this.logger?.info(util.format("Getting changes for %s", names[i]));
                 let response = await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName)
                 let content = await response.read() as string
                 this.logger?.info(util.format("Content %s", content))
