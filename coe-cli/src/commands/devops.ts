@@ -32,6 +32,7 @@ import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionMa
 
 import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
+import { StringMappingType } from "typescript";
 
 const {spawnSync} = require("child_process");
 /**
@@ -553,9 +554,7 @@ class DevOpsCommand {
             } else {
                 this.logger?.error(`Role for ${securityContext.almGroup.displayName} not assigned to ${variableGroupName}`)
             }
-
         }
-
     }
 
     async createMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi, setupEnvironmentConnections: boolean = true) {
@@ -1026,26 +1025,26 @@ class DevOpsCommand {
         if(typeof args.settings["Environments"] === "string") {
             for (const environment of args.settings["Environments"].split('|')) {
                 this.logger?.info(`Creating build for environment ${environment}`)
-                await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, environment, args.destinationBranch, defaultAgentQueue);
+                await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, environment, environment.toLowerCase(), args.destinationBranch, defaultAgentQueue);
             }
         } else{
-            await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "validation", args.destinationBranch, defaultAgentQueue);
-            await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "test", args.destinationBranch, defaultAgentQueue);
-            await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "prod", args.destinationBranch, defaultAgentQueue);
+            await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Validation", "validation", args.destinationBranch, defaultAgentQueue);
+            await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Test", "test", args.destinationBranch, defaultAgentQueue);
+            await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Production", "prod", args.destinationBranch, defaultAgentQueue);
         }
     }
 
-    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, environmentName: string, createInBranch: string, defaultQueue: TaskAgentQueue): Promise<void> {
+    async cloneBuildSettings(pipelines: BuildInterfaces.BuildDefinitionReference[], client: IBuildApi, project: CoreInterfaces.TeamProject, repo: GitRepository, baseUrl: string, args: DevOpsBranchArguments, environmentName: string, buildName: string, createInBranch: string, defaultQueue: TaskAgentQueue): Promise<void> {
 
         let source = args.sourceBuildName
         let destination = args.destinationBranch
 
-        var destinationBuildName = util.format("deploy-%s-%s", environmentName.toLowerCase(), destination);
+        var destinationBuildName = util.format("deploy-%s-%s", buildName, destination);
         var destinationBuilds = pipelines.filter(p => p.name == destinationBuildName);
         let destinationBuild = destinationBuilds.length > 0 ? await client.getDefinition(destinationBuilds[0].project.name, destinationBuilds[0].id) : null
         let sourceBuild = null
         if (typeof (source) != "undefined" && (source.length != 0)) {
-            var sourceBuildName = util.format("deploy-%s-%s", environmentName.toLowerCase(), source);
+            var sourceBuildName = util.format("deploy-%s-%s", buildName, source);
             var sourceBuilds = pipelines.filter(p => p.name == sourceBuildName);
 
             sourceBuild = sourceBuilds.length > 0 ? await client.getDefinition(sourceBuilds[0].project?.name, sourceBuilds[0].id) : null
@@ -1075,7 +1074,7 @@ class DevOpsCommand {
 
         if (sourceBuild == null) {
             defaultSettings = true
-            this.logger?.debug(`Matching ${environmentName} build not found, will apply default settings`)
+            this.logger?.debug(`Matching ${buildName} build not found, will apply default settings`)
             this.logger?.debug(`Applying default service connection. You will need to update settings with you environment teams`)
             sourceBuild = <BuildInterfaces.BuildDefinition>{};
             sourceBuild.repository = <BuildInterfaces.BuildRepository>{}
@@ -1089,9 +1088,9 @@ class DevOpsCommand {
             let environmentClientId = ''
             let environmentSecret = ''
 
-            let environmentUrl = typeof (args.settings[environmentName.toLowerCase()] === "string") ? args.settings[environmentName.toLowerCase()] : ""
+            let environmentUrl = typeof (args.settings[buildName] === "string") ? args.settings[environmentName.toLowerCase()] : ""
 
-            serviceConnectionName = args.settings[`${environmentName.toLowerCase()}-scname`]
+            serviceConnectionName = args.settings[`${buildName}-scname`]
             serviceConnectionUrl = Environment.getEnvironmentUrl(environmentUrl, args.settings)
             //Fall back to using the service connection url supplied as the service connection name if no name was supplied
             if (typeof serviceConnectionName === "undefined" || serviceConnectionName == '') {
@@ -1157,6 +1156,7 @@ class DevOpsCommand {
     async getGitCommitChanges(args: DevOpsBranchArguments, destinationBranch: string, defaultBranch: string, templatesRepository: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         for (let i = 0; i < names.length; i++) {
+            args.pipelineRepository
             let url = util.format("https://raw.githubusercontent.com/microsoft/coe-alm-accelerator-templates/main/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]);
 
             let response = await this.getUrl(url)
@@ -1172,8 +1172,12 @@ class DevOpsCommand {
             commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
 
             let variableGroup = args.settings[names[i] + "-variablegroup"]
+            this.logger?.info(util.format("Variable Group %s", variableGroup))
             if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                this.logger?.info("Updating variable group")
+                this.logger?.info(commit.newContent.content)
                 commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                this.logger?.info(commit.newContent.content)
             }
 
             commit.newContent.contentType = ItemContentType.RawText
