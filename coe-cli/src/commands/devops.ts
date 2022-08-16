@@ -1088,10 +1088,11 @@ class DevOpsCommand {
             let environmentClientId = ''
             let environmentSecret = ''
 
-            let environmentUrl = typeof (args.settings[buildName] === "string") ? args.settings[environmentName.toLowerCase()] : ""
-
+            let environmentUrl = typeof (args.settings[buildName] === "string") ? args.settings[buildName] : ""
+            this.logger?.info(`Environment URL: ${environmentUrl}`)
             serviceConnectionName = args.settings[`${buildName}-scname`]
             serviceConnectionUrl = Environment.getEnvironmentUrl(environmentUrl, args.settings)
+            this.logger?.info(`Service Connection URL: ${serviceConnectionUrl}`)
             //Fall back to using the service connection url supplied as the service connection name if no name was supplied
             if (typeof serviceConnectionName === "undefined" || serviceConnectionName == '') {
                 serviceConnectionName = serviceConnectionUrl
