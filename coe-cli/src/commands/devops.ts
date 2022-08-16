@@ -33,6 +33,7 @@ import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionMa
 import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
 import { StringMappingType } from "typescript";
+import { pipeline } from "stream";
 
 const {spawnSync} = require("child_process");
 /**
@@ -859,7 +860,13 @@ class DevOpsCommand {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
-
+        let pipelineRepo = null
+        for (let i = 0; i < repos.length; i++) {
+            if (repos[i].name.toLowerCase() == args.pipelineRepository.toLowerCase()) {
+                pipelineRepo = repos[i]
+                break
+            }
+        }
         let foundRepo = false
         for (let i = 0; i < repos.length; i++) {
             let repo = repos[i]
@@ -906,12 +913,12 @@ class DevOpsCommand {
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
                 if(typeof args.settings["environments"] === "string") {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, args.settings["environments"].split('|').map(element => {
+                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.settings["environments"].split('|').map(element => {
                         return element.toLowerCase();
                    }))
                 }
                 else {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, ['validation', 'test', 'prod'])
+                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
                 }
                 let gitPush = <GitPush>{}
                 gitPush.refUpdates = [newRef]
@@ -937,7 +944,7 @@ class DevOpsCommand {
 
     /**
      * 
-     * @param args Set the default vlidation branch policy to a branch
+     * @param args Set the default validation branch policy to a branch
      * @param repo The repository that the branch belongs to
      * @param connection The authentcated connection to the Azure DevOps WebApi
      */
@@ -1022,7 +1029,6 @@ class DevOpsCommand {
         let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
         this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."}`)
 
-        this.logger?.info(`Environments: ${args.settings["environments"]}`)
         if(typeof args.settings["environments"] === "string") {
             for (const environment of args.settings["environments"].split('|')) {
                 this.logger?.info(`Creating build for environment ${environment}`)
@@ -1155,32 +1161,31 @@ class DevOpsCommand {
         }
     }
 
-    async getGitCommitChanges(args: DevOpsBranchArguments, destinationBranch: string, defaultBranch: string, templatesRepository: string, names: string[]): Promise<GitChange[]> {
+    async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         for (let i = 0; i < names.length; i++) {
-            args.pipelineRepository
-            let url = util.format("https://raw.githubusercontent.com/microsoft/coe-alm-accelerator-templates/main/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]);
-
-            let response = await this.getUrl(url)
-
-            let commit = <GitChange>{}
-            commit.changeType = VersionControlChangeType.Add
-            commit.item = <GitItem>{}
-            commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
-            commit.newContent = <ItemContent>{}
-
-            commit.newContent.content = (response)?.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-            commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, templatesRepository)
-            commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-
-            let variableGroup = args.settings[names[i] + "-variablegroup"]
-             if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+            let response = await gitApi.getItemContent(pipelineRepo.id, util.format("build-deploy-%s-SampleSolution.yml", names[i]), "main")
+            let content = await response.read() as string
+            if(content) {
+                let commit = <GitChange>{}
+                commit.changeType = VersionControlChangeType.Add
+                commit.item = <GitItem>{}
+                commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+                commit.newContent = <ItemContent>{}
+    
+                commit.newContent.content = content.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, pipelineRepo.name)
+                commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+    
+                let variableGroup = args.settings[names[i] + "-variablegroup"]
+                 if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                    commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                }
+    
+                commit.newContent.contentType = ItemContentType.RawText
+    
+                results.push(commit)
             }
-
-            commit.newContent.contentType = ItemContentType.RawText
-
-            results.push(commit)
         }
         return results;
     }
