@@ -1167,7 +1167,7 @@ class DevOpsCommand {
             for (let i = 0; i < names.length; i++) {
                 this.logger?.info(util.format("Getting changes for %s", names[i]));
                 let response = await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName)
-                let content = await response.read() as string
+                let content = await response.read()
                 this.logger?.info(util.format("Content %s", content))
                 if(content) {
                     let commit = <GitChange>{}
@@ -1176,7 +1176,7 @@ class DevOpsCommand {
                     commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                     commit.newContent = <ItemContent>{}
         
-                    commit.newContent.content = content.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
                     commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, pipelineRepo.name)
                     commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
         
