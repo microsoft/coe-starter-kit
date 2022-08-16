@@ -1163,29 +1163,34 @@ class DevOpsCommand {
 
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
-        for (let i = 0; i < names.length; i++) {
-            let response = await gitApi.getItemContent(pipelineRepo.id, util.format("Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName, "main")
-            let content = await response.read() as string
-            if(content) {
-                let commit = <GitChange>{}
-                commit.changeType = VersionControlChangeType.Add
-                commit.item = <GitItem>{}
-                commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
-                commit.newContent = <ItemContent>{}
-    
-                commit.newContent.content = content.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, pipelineRepo.name)
-                commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-    
-                let variableGroup = args.settings[names[i] + "-variablegroup"]
-                 if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                    commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+        try {
+            for (let i = 0; i < names.length; i++) {
+                let response = await gitApi.getItemContent(pipelineRepo.id, util.format("Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName, "main")
+                let content = await response.read() as string
+                if(content) {
+                    let commit = <GitChange>{}
+                    commit.changeType = VersionControlChangeType.Add
+                    commit.item = <GitItem>{}
+                    commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+                    commit.newContent = <ItemContent>{}
+        
+                    commit.newContent.content = content.replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, pipelineRepo.name)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+        
+                    let variableGroup = args.settings[names[i] + "-variablegroup"]
+                    if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                        commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                    }
+        
+                    commit.newContent.contentType = ItemContentType.RawText
+        
+                    results.push(commit)
                 }
-    
-                commit.newContent.contentType = ItemContentType.RawText
-    
-                results.push(commit)
             }
+        }
+        catch (error) {
+            this.logger?.info(error)
         }
         return results;
     }
