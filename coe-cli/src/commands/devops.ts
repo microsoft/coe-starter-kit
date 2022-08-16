@@ -1164,6 +1164,10 @@ class DevOpsCommand {
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         try {
+            this.logger?.info(util.format("Getting changes for %s", names[0]));
+            this.logger?.info(util.format("Getting changes for %s", names[1]));
+            this.logger?.info(util.format("Getting changes for %s", names[2]));
+            this.logger?.info(util.format("Getting changes for %s", names[3]));
             for (let i = 0; i < names.length; i++) {
                 this.logger?.info(util.format("Getting changes for %s", names[i]));
                 let response = await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName)
