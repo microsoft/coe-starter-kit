@@ -10,6 +10,9 @@ parameters:
 - name: DraftRelease
   type: boolean
   default: true
+- name: HotfixReleaseNumber
+  type: number
+  default: 0
 
 trigger: none
 pr: none
@@ -162,6 +165,16 @@ steps:
     }
     Compress-Archive @compress
 
+    $templateTag = 'CenterofExcellenceALMAccelerator-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}}'
+    $templateTitle = 'ALM Accelerator For Power Platform $(ReleaseMonthName) ${{parameters.ReleaseYearNumber}}'
+    if(${{parameters.HotfixReleaseNumber}} -ne 0) {
+        $templateTag = 'CenterofExcellenceALMAccelerator-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}}-HF${{parameters.HotfixReleaseNumber}}'
+        $templateTitle = 'ALM Accelerator For Power Platform $(ReleaseMonthName) ${{parameters.ReleaseYearNumber}} - Hotfix ${{parameters.HotfixReleaseNumber}}'
+    }
+
+    Write-Host "##vso[task.setvariable variable=TemplateTag]$templateTag"
+    Write-Host "##vso[task.setvariable variable=TemplateTitle]$templateTitle"
+
   displayName: 'Prepare sample release assets'
 
 - template: Pipelines\Templates\create-release-github.yml@PipelineRepo
@@ -177,6 +190,7 @@ steps:
     closeIssues: ${{parameters.CloseMilestoneIssues}}
     isDraft: ${{parameters.DraftRelease}}
     isPreRelease: false
+    hotfixReleaseNumber: ${{parameters.HotfixReleaseNumber}}
 
 - task: GitHubRelease@1
   inputs:
@@ -184,11 +198,12 @@ steps:
     repositoryName: 'microsoft/coe-alm-accelerator-templates'
     target: main
     tagSource: 'userSpecifiedTag'
-    tag: 'CenterofExcellenceALMAccelerator-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}}'
-    title: 'ALM Accelerator For Power Platform $(ReleaseMonthName) ${{parameters.ReleaseYearNumber}}'
+    tag: $(TemplateTag)
+    title: $(TemplateTitle)
     releaseNotesSource: 'inline'
     releaseNotesInline: 'Public preview release of the ALM Accelerator For Power Platform.<br />See https://github.com/microsoft/coe-starter-kit/releases/tag/CoEStarterKit-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}} for details.'
     addChangeLog: false #The OOB changelog doesn't allow for filtering based on milestone so we created our own changelog above
     isDraft: ${{parameters.DraftRelease}} #Always mark as draft for someone to review before publishing
     isPreRelease: false
   displayName: 'Create ALM Accelerator For Power Platform Template Release'
+  condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Branch'))
