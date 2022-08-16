@@ -1169,9 +1169,11 @@ class DevOpsCommand {
                 let version: GitVersionDescriptor = <GitVersionDescriptor>{};
                 version.versionType = GitVersionType.Branch;
                 version.version = "main";
-                let response = await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName,null, null, null,null, null, version)
-                let content = await response.read()
-                this.logger?.info(util.format("Content %s", content))
+                let content = null
+                await gitApi.getItemContent(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName,null, null, null,null, null, version)
+                    .then(response => {content = response.read(); this.logger?.info(util.format("Content %s", content))})
+                    .catch(error => {this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error})
+                
                 if(content) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
