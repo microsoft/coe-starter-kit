@@ -272,7 +272,7 @@ describe('Branch', () => {
         settings["validation-scname"] = "Validation Service Connection"
         settings["test-scname"] = "Test Service Connection"
         settings["production-scname"] = "Prod Service Connection"
-        settings["Environments"] = "Validation|Test|Production"
+        settings["environments"] = "Validation|Test|Production"
         args.settings = settings
         // Act
         await command.branch(args)
@@ -498,7 +498,7 @@ describe('Branch', () => {
         settings["validation"] = "https://foo.validation.com/"
         settings["test"] = "https://foo.test.com/"
         settings["production"] = "https://foo.prod.com/"
-        settings["Environments"] = "Validation|Test|Production"
+        settings["environments"] = "Validation|Test|Production"
 
         args.settings = settings
         let project = <CoreInterfaces.TeamProject>{}
@@ -691,7 +691,7 @@ describe('Build', () => {
         args.settings["validation-variablegroup"] = "validation-variable-group"
         args.settings["test-variablegroup"] = "test-variable-group"
         args.settings["production-variablegroup"] = "production-variable-group"
-        args.settings["Environments"] = "Validation|Test|Production"
+        args.settings["environments"] = "Validation|Test|Production"
         gitMock.getRepositories.mockResolvedValue([repo])
         gitMock.getRefs.mockResolvedValue([refSource])
         // Act

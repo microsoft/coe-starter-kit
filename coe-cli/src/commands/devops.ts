@@ -905,8 +905,8 @@ class DevOpsCommand {
 
                 let newGitCommit = <GitCommitRef>{}
                 newGitCommit.comment = "Add DevOps Pipeline"
-                if(typeof args.settings["Environments"] === "string") {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, args.settings["Environments"].split('|').map(element => {
+                if(typeof args.settings["environments"] === "string") {
+                    newGitCommit.changes = await this.getGitCommitChanges(args, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.pipelineRepository, args.settings["environments"].split('|').map(element => {
                         return element.toLowerCase();
                    }))
                 }
@@ -1022,8 +1022,9 @@ class DevOpsCommand {
         let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
         this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."}`)
 
-        if(typeof args.settings["Environments"] === "string") {
-            for (const environment of args.settings["Environments"].split('|')) {
+        this.logger?.info(`Environments: ${args.settings["environments"]}`)
+        if(typeof args.settings["environments"] === "string") {
+            for (const environment of args.settings["environments"].split('|')) {
                 this.logger?.info(`Creating build for environment ${environment}`)
                 await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, environment, environment.toLowerCase(), args.destinationBranch, defaultAgentQueue);
             }
