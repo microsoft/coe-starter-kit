@@ -1174,7 +1174,10 @@ class DevOpsCommand {
                 }
         
                 const config = {
-                    headers: {Authorization: "Basic " + args.accessToken}
+                    headers: {
+                        'Authorization': 'Bearer ' + args.accessToken,
+                        'Content-Type': 'application/text'
+                    }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
                 this.logger?.info(`ContentUrl: ${contentUrl}`)
