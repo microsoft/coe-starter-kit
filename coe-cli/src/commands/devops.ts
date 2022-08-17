@@ -1173,7 +1173,10 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
-                let content: string = await this.getUrl(`${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`)
+                const config = {
+                    headers: {Authorization: "Bearer " + args.accessToken}
+                }
+                let content: string = await axios.get(`${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`, config)
                 this.logger?.info(`Content: ${content}`)
                 if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
                     let commit = <GitChange>{}
