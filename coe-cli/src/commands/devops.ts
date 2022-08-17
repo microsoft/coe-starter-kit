@@ -1171,11 +1171,14 @@ class DevOpsCommand {
                 if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
-                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName,null, null, null,null, null, version)
+                
+                await gitApi.getItemText(pipelineRepo.id, templatePath, args.projectName,null, null, null,null, null, version)
                 .then(function(response) 
                 {
                     response.on('data', function(chunk) {
+                        this.logger?.info(`Content Downloaded: ${content}`)
                         content += chunk;
+                        this.logger?.info(`Content Downloaded: ${content}`)
                     });
                     response.on('end', function() {
                         this.logger?.info(`Content Downloaded: ${content}`)
