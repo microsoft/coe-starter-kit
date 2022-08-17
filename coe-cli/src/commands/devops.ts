@@ -34,8 +34,9 @@ import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
 import { StringMappingType } from "typescript";
 import { pipeline } from "stream";
+import { ReadableStream } from "stream/web";
 
-const {spawnSync} = require("child_process");
+const { spawnSync } = require("child_process");
 /**
 * Azure DevOps Commands
 */
@@ -316,11 +317,11 @@ class DevOpsCommand {
         let extensionsApi = await connection.getExtensionManagementApi()
 
         this.logger.info(`Retrieving Extensions`)
-        try{
+        try {
             let extensions = await extensionsApi.getInstalledExtensions()
             for (let i = 0; i < args.extensions.length; i++) {
                 let extension = args.extensions[i]
-    
+
                 let match = extensions.filter((e: InstalledExtension) => e.extensionId == extension.name && e.publisherId == extension.publisher)
                 if (match.length == 0) {
                     this.logger.info(`Installing ${extension.name} by ${extension.publisher}`)
@@ -330,19 +331,19 @@ class DevOpsCommand {
                 }
             }
         } catch (err) {
-          this.logger?.error(err)
-          throw err
+            this.logger?.error(err)
+            throw err
         }
 
     }
 
     async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) {
-        
+
         let gitApi = await connection.getGitApi()
 
         this.logger.info(`Checking pipeline repository ${args.pipelineRepositoryName}`)
         let repo = await this.getRepository(args, gitApi, args.pipelineRepositoryName)
- 
+
         if (repo == null) {
             return Promise.resolve(null)
         }
@@ -354,9 +355,9 @@ class DevOpsCommand {
             stdio: ['pipe', 'pipe', 'pipe'],
             ...{},
         });
-        
+
         this.logger.info(`Output: ${child.stdout.toString()}`);
-        if(child.statusCode != 0) {
+        if (child.statusCode != 0) {
             this.logger.info(`Error message: ${child.stderr.toString()}`);
         }
 
@@ -909,10 +910,10 @@ class DevOpsCommand {
 
                     let newGitCommit = <GitCommitRef>{}
                     newGitCommit.comment = "Add DevOps Pipeline"
-                    if(typeof args.settings["environments"] === "string") {
+                    if (typeof args.settings["environments"] === "string") {
                         newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.settings["environments"].split('|').map(element => {
                             return element.toLowerCase();
-                    }))
+                        }))
                     }
                     else {
                         newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
@@ -1026,12 +1027,12 @@ class DevOpsCommand {
         let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
         this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."}`)
 
-        if(typeof args.settings["environments"] === "string") {
+        if (typeof args.settings["environments"] === "string") {
             for (const environment of args.settings["environments"].split('|')) {
                 this.logger?.info(`Creating build for environment ${environment}`)
                 await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, environment, environment.toLowerCase(), args.destinationBranch, defaultAgentQueue);
             }
-        } else{
+        } else {
             await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Validation", "validation", args.destinationBranch, defaultAgentQueue);
             await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Test", "test", args.destinationBranch, defaultAgentQueue);
             await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Production", "prod", args.destinationBranch, defaultAgentQueue);
@@ -1158,6 +1159,15 @@ class DevOpsCommand {
         }
     }
 
+    async streamToString(stream: NodeJS.ReadableStream) {
+        const chunks: any = [];
+        return new Promise((resolve, reject) => {
+            stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+            stream.on('error', (err) => reject(err));
+            stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+        })
+    }
+
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         try {
@@ -1168,31 +1178,31 @@ class DevOpsCommand {
                 version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
                 let content: string | Buffer = null
                 let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
-                if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
+                if (typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
-                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName,null, null, null,null, null, version)
-                    .then(response => {content = response.read(); this.logger?.info(util.format("Content %s", content))})
-                    .catch(error => {this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error})
-                
-                if(content) {
+                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, null, version)
+                    .then(function (response) { content = this.streamToString(response); this.logger?.info(util.format("Content %s", content)) })
+                    .catch(error => { this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error })
+
+                if (content) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
                     commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                     commit.newContent = <ItemContent>{}
-        
+
                     commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
                     commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
                     commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-        
+
                     let variableGroup = args.settings[names[i] + "-variablegroup"]
                     if (typeof variableGroup !== "undefined" && variableGroup != '') {
                         commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
                     }
-        
+
                     commit.newContent.contentType = ItemContentType.RawText
-        
+
                     results.push(commit)
                 }
             }
