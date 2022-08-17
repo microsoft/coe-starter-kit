@@ -1173,9 +1173,15 @@ class DevOpsCommand {
                 }
 
                 await gitApi.getItemText(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName, null, null, null, null, null, version)
-                    .then(response => { content = response.read(); this.logger?.info(util.format("Content %s", content)) })
-                    .catch(error => { this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error })
+                    .then(function (response)
+                    {
+                        response.on('end', function () {
+                            content = response.read();
+                        });
 
+                    })
+                    .catch(error => { this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error })
+                this.logger?.info(util.format("Content %s", content))
 
                 if(content) {
                     let commit = <GitChange>{}
