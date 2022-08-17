@@ -1176,7 +1176,6 @@ class DevOpsCommand {
                     .then(function (response)
                     {
                         content = response.read();
-                        this.logger?.info(util.format("Content %s", content))
                     })
                     .catch(error => { this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error })
                 this.logger?.info(util.format("Content %s", content))
