@@ -32,8 +32,9 @@ import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionMa
 
 import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
-import { StringMappingType } from "typescript";
+import { setTokenSourceMapRange, StringMappingType } from "typescript";
 import { pipeline } from "stream";
+import { threadId } from "worker_threads";
 
 const {spawnSync} = require("child_process");
 /**
@@ -1176,6 +1177,11 @@ class DevOpsCommand {
                 await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, null, version)
                 .then (stream => {
                     let chunk
+                    //Wait for readable
+                    while(!stream.readable) { 
+                        setTimeout(function(){}, 100) 
+                    }
+
                     while (null !== (chunk = stream.read())) {
                         if (chunk) {
                             content += chunk.toString()
