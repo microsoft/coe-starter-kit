@@ -860,85 +860,82 @@ class DevOpsCommand {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
-        let pipelineRepo = null
-        for (let i = 0; i < repos.length; i++) {
-            if (repos[i].name.toLowerCase() == args.pipelineRepository.toLowerCase()) {
-                pipelineRepo = repos[i]
-                break
-            }
-        }
-        let foundRepo = false
-        for (let i = 0; i < repos.length; i++) {
-            let repo = repos[i]
+        let pipelineRepo = repos.find((repo) => {
+            return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
+        });
+        if (pipelineRepo) {
+            let foundRepo = false
+            for (let i = 0; i < repos.length; i++) {
+                let repo = repos[i]
 
-            if (repo.name.toLowerCase() == repositoryName.toLowerCase()) {
-                foundRepo = true
-                matchingRepo = repo
+                if (repo.name.toLowerCase() == repositoryName.toLowerCase()) {
+                    foundRepo = true
+                    matchingRepo = repo
 
-                this.logger?.debug(`Found matching repo ${repositoryName}`)
+                    this.logger?.debug(`Found matching repo ${repositoryName}`)
 
-                let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
+                    let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
 
-                if (refs.length == 0) {
-                    this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
-                    return Promise.resolve(null)
-                }
-
-                let sourceBranch = args.sourceBranch;
-                if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
-                    sourceBranch = this.withoutRefsPrefix(repo.defaultBranch)
-                }
-
-                let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
-                if (sourceRef.length == 0) {
-                    this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
-                    this.logger?.debug('Existing branches')
-                    for (var refIndex = 0; refIndex < refs.length; refIndex++) {
-                        this.logger?.debug(refs[refIndex].name)
+                    if (refs.length == 0) {
+                        this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
+                        return Promise.resolve(null)
                     }
-                    return matchingRepo;
-                }
 
-                let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
-                if (destinationRef.length > 0) {
-                    this.logger?.error("Destination branch already exists")
-                    return matchingRepo;
-                }
+                    let sourceBranch = args.sourceBranch;
+                    if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
+                        sourceBranch = this.withoutRefsPrefix(repo.defaultBranch)
+                    }
 
-                let newRef = <GitRefUpdate>{};
-                newRef.repositoryId = repo.id
-                newRef.oldObjectId = sourceRef[0].objectId
-                newRef.name = util.format("refs/heads/%s", args.destinationBranch)
+                    let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
+                    if (sourceRef.length == 0) {
+                        this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
+                        this.logger?.debug('Existing branches')
+                        for (var refIndex = 0; refIndex < refs.length; refIndex++) {
+                            this.logger?.debug(refs[refIndex].name)
+                        }
+                        return matchingRepo;
+                    }
 
-                let newGitCommit = <GitCommitRef>{}
-                newGitCommit.comment = "Add DevOps Pipeline"
-                if(typeof args.settings["environments"] === "string") {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.settings["environments"].split('|').map(element => {
-                        return element.toLowerCase();
-                   }))
-                }
-                else {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
-                }
-                let gitPush = <GitPush>{}
-                gitPush.refUpdates = [newRef]
-                gitPush.commits = [newGitCommit]
+                    let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
+                    if (destinationRef.length > 0) {
+                        this.logger?.error("Destination branch already exists")
+                        return matchingRepo;
+                    }
 
-                this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
-                await gitApi.createPush(gitPush, repo.id, project.name)
+                    let newRef = <GitRefUpdate>{};
+                    newRef.repositoryId = repo.id
+                    newRef.oldObjectId = sourceRef[0].objectId
+                    newRef.name = util.format("refs/heads/%s", args.destinationBranch)
+
+                    let newGitCommit = <GitCommitRef>{}
+                    newGitCommit.comment = "Add DevOps Pipeline"
+                    if(typeof args.settings["environments"] === "string") {
+                        newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.settings["environments"].split('|').map(element => {
+                            return element.toLowerCase();
+                    }))
+                    }
+                    else {
+                        newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
+                    }
+                    let gitPush = <GitPush>{}
+                    gitPush.refUpdates = [newRef]
+                    gitPush.commits = [newGitCommit]
+
+                    this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
+                    await gitApi.createPush(gitPush, repo.id, project.name)
+                }
+            }
+
+            if (!foundRepo && repositoryName?.length > 0) {
+                this.logger?.info(util.format("Repo %s not found", repositoryName))
+                this.logger?.info('Did you mean?')
+                repos.forEach(repo => {
+                    if (repo.name.startsWith(repositoryName[0])) {
+                        this.logger?.info(repo.name)
+                    }
+                });
             }
         }
-
-        if (!foundRepo && repositoryName?.length > 0) {
-            this.logger?.info(util.format("Repo %s not found", repositoryName))
-            this.logger?.info('Did you mean?')
-            repos.forEach(repo => {
-                if (repo.name.startsWith(repositoryName[0])) {
-                    this.logger?.info(repo.name)
-                }
-            });
-        }
-
         return matchingRepo;
     }
 
@@ -1168,10 +1165,10 @@ class DevOpsCommand {
                 this.logger?.info(util.format("Getting changes for %s", names[i]));
                 let version: GitVersionDescriptor = <GitVersionDescriptor>{};
                 version.versionType = GitVersionType.Branch;
-                version.version = "main";
+                version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
                 let content: string | Buffer = null
                 let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
-                if(typeof args.settings[`${names[i]}-buildtemplate`] === "string")) {
+                if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
                 await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName,null, null, null,null, null, version)
@@ -1186,7 +1183,7 @@ class DevOpsCommand {
                     commit.newContent = <ItemContent>{}
         
                     commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, pipelineRepo.name)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
                     commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
         
                     let variableGroup = args.settings[names[i] + "-variablegroup"]
