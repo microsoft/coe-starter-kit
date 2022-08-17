@@ -1173,9 +1173,10 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
+                let encodedAuth = Buffer.from(args.accessToken, 'base64').toString()
                 const config = {
                     headers: {
-                        'Authorization': 'Basic ' + Buffer.from(args.accessToken, 'base64'),
+                        'Authorization': 'Basic ' + encodedAuth,
                         'Accept': '*/*'
                     }
                 }
