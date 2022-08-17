@@ -1176,7 +1176,7 @@ class DevOpsCommand {
                 const config = {
                     headers: {
                         'Authorization': 'Basic ' + args.accessToken,
-                        'Accept': 'application/text'
+                        'Accept': '*/*'
                     }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
