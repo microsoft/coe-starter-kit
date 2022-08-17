@@ -1175,7 +1175,7 @@ class DevOpsCommand {
         
                 const config = {
                     headers: {
-                        'Authorization': 'Basic ' + args.accessToken,
+                        'Authorization': 'Bearer ' + args.accessToken,
                         'Content-Type': 'application/text'
                     }
                 }
