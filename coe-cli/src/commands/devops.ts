@@ -1161,45 +1161,49 @@ class DevOpsCommand {
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
         try {
-            for (let i = 0; i < names.length; i++) {
+
+            for(var i = 0; i < names.length; i++) {
                 this.logger?.info(util.format("Getting changes for %s", names[i]));
                 let version: GitVersionDescriptor = <GitVersionDescriptor>{};
                 version.versionType = GitVersionType.Branch;
                 version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
-                let content: string | Buffer = null
+                let content: string = ""
                 let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
                 if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
-
-                await gitApi.getItemText(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, null, version)
-                    .then(function (response)
-                    {
-                        content = response.read();
-                    })
-                    .catch(error => { this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error })
-                this.logger?.info(util.format("Content %s", content))
-
-                if(content) {
-                    let commit = <GitChange>{}
-                    commit.changeType = VersionControlChangeType.Add
-                    commit.item = <GitItem>{}
-                    commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
-                    commit.newContent = <ItemContent>{}
         
-                    commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
-                    commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-        
-                    let variableGroup = args.settings[names[i] + "-variablegroup"]
-                    if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                        commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, null, version)
+                .then (stream => {
+                    let chunk
+                    while (null !== (chunk = stream.read())) {
+                        if (chunk) {
+                            content += chunk.toString()
+                        }
                     }
-        
-                    commit.newContent.contentType = ItemContentType.RawText
-        
-                    results.push(commit)
-                }
+                    this.logger?.info(util.format("Content %s", content))
+            
+                    if(content != "") {
+                        let commit = <GitChange>{}
+                        commit.changeType = VersionControlChangeType.Add
+                        commit.item = <GitItem>{}
+                        commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+                        commit.newContent = <ItemContent>{}
+            
+                        commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                        commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
+                        commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+            
+                        let variableGroup = args.settings[names[i] + "-variablegroup"]
+                        if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                            commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                        }
+            
+                        commit.newContent.contentType = ItemContentType.RawText
+            
+                        results.push(commit)
+                    }
+                })
             }
         }
         catch (error) {
