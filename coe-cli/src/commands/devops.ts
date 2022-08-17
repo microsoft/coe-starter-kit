@@ -1168,47 +1168,36 @@ class DevOpsCommand {
                 let version: GitVersionDescriptor = <GitVersionDescriptor>{};
                 version.versionType = GitVersionType.Branch;
                 version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
-                let content: string = ""
                 let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
                 if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
-                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, true, version, true)
-                .then (stream => {
-                    let chunk
-
-                    while (null !== (chunk = stream.read())) {
-                        if (chunk) {
-                            this.logger?.info(util.format("Content %s", chunk.toString()))
-                            content += chunk.toString()
-                        }
+                let content: string = await this.getUrl(`${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`)
+                this.logger?.info(`Content: ${content}`)
+                if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
+                    let commit = <GitChange>{}
+                    commit.changeType = VersionControlChangeType.Add
+                    commit.item = <GitItem>{}
+                    commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+                    commit.newContent = <ItemContent>{}
+        
+                    commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+        
+                    let variableGroup = args.settings[names[i] + "-variablegroup"]
+                    if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                        commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
                     }
-            
-                    if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
-                        let commit = <GitChange>{}
-                        commit.changeType = VersionControlChangeType.Add
-                        commit.item = <GitItem>{}
-                        commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
-                        commit.newContent = <ItemContent>{}
-            
-                        commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                        commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
-                        commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-            
-                        let variableGroup = args.settings[names[i] + "-variablegroup"]
-                        if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                            commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
-                        }
-            
-                        commit.newContent.contentType = ItemContentType.RawText
-            
-                        results.push(commit)
-                    } else {
-                        this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${content}`)
-                        throw content
-                    }
-                })
+        
+                    commit.newContent.contentType = ItemContentType.RawText
+        
+                    results.push(commit)
+                } else {
+                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${content}`)
+                    throw content
+                }
             }
         }
         catch (error) {
