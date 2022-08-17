@@ -1172,7 +1172,7 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
 
-                await gitApi.getItemText(pipelineRepo.id, util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i]), args.projectName, null, null, null, null, null, version)
+                await gitApi.getItemText(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, null, version)
                     .then(function (response)
                     {
                         content = response.read();
