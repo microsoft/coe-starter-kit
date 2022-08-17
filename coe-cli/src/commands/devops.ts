@@ -1174,6 +1174,7 @@ class DevOpsCommand {
                 }
         
                 let encodedAuth = Buffer.from(args.accessToken, 'base64').toString()
+                this.logger?.info(`Auth: ${encodedAuth})
                 const config = {
                     headers: {
                         'Authorization': 'Basic ' + encodedAuth,
