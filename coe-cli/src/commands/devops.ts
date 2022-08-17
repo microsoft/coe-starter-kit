@@ -1174,20 +1174,16 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
-                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, null, version)
+                await gitApi.getItemContent(pipelineRepo.id, templatePath, args.projectName, null, null, null, null, true, version, true)
                 .then (stream => {
                     let chunk
-                    //Wait for readable
-                    while(!stream.readable) { 
-                        setTimeout(function(){}, 100) 
-                    }
 
                     while (null !== (chunk = stream.read())) {
                         if (chunk) {
+                            this.logger?.info(util.format("Content %s", chunk.toString()))
                             content += chunk.toString()
                         }
                     }
-                    this.logger?.info(util.format("Content %s", content))
             
                     if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
                         let commit = <GitChange>{}
