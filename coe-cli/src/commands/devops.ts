@@ -1178,7 +1178,7 @@ class DevOpsCommand {
                         content += chunk;
                     });
                     response.on('end', function() {
-                        // all data has been downloaded
+                        this.logger?.info(`Content Downloaded: ${content}`)
                     });                        
                 })
                 .catch(error => {this.logger?.error(util.format("Error getting pipeline file %s", error)); throw error})
