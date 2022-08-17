@@ -1173,12 +1173,10 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
-                if(args.accessToken != null && args.accessToken != '') {
-                    const config = {
-                        headers: {
-                            'Authorization': 'Basic ' + Buffer.from(args.accessToken, 'base64'),
-                            'Accept': '*/*'
-                        }
+                const config = {
+                    headers: {
+                        'Authorization': 'Basic ' + Buffer.from(args.accessToken, 'base64'),
+                        'Accept': '*/*'
                     }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
