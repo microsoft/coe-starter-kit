@@ -1183,7 +1183,7 @@ class DevOpsCommand {
                     }
                     this.logger?.info(util.format("Content %s", content))
             
-                    if(content != "") {
+                    if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
                         let commit = <GitChange>{}
                         commit.changeType = VersionControlChangeType.Add
                         commit.item = <GitItem>{}
@@ -1202,6 +1202,8 @@ class DevOpsCommand {
                         commit.newContent.contentType = ItemContentType.RawText
             
                         results.push(commit)
+                    } else {
+                        throw content
                     }
                 })
             }
