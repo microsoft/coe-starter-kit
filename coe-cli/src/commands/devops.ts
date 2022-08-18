@@ -104,7 +104,7 @@ class DevOpsCommand {
             }
         }
 
-        let authHandler = azdev.getHandlerFromToken(typeof args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] !== "undefined" ? args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] : args.accessToken);
+        let authHandler: IRequestHandler = azdev.getHandlerFromToken(typeof args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] !== "undefined" ? args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] : args.accessToken);
         let connection = this.createWebApi(orgUrl, authHandler);
 
         await this.installExtensions(args, connection)
@@ -1174,12 +1174,14 @@ class DevOpsCommand {
             }
 
             let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
+            this.logger?.info(util.format("Setting Bearer %s", accessToken));
             let config = {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
             }
             if (accessToken.length === 52) {
+                this.logger?.info(util.format("Using PAT %s", accessToken));
                 config = {
                     headers: {
                         'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
