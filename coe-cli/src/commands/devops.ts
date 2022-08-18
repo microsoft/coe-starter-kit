@@ -43,7 +43,6 @@ const {spawnSync} = require("child_process");
 class DevOpsCommand {
     createWebApi: (orgUrl: string, authHandler: IRequestHandler) => azdev.WebApi
     createAADCommand: () => AADCommand
-    getUrl: (url: string) => Promise<string>
     runCommand: (command: string, displayOutput: boolean) => string
     deleteIfExists: (name: string, type: string) => Promise<void>
     writeFile: (name: string, data: Buffer) => Promise<void>
@@ -68,9 +67,6 @@ class DevOpsCommand {
             }
         }
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
-        this.getUrl = async (url: string) => {
-            return (await (axios.get<string>(url))).data
-        }
         this.runCommand = (command: string, displayOutput: boolean) => {
             if (displayOutput) {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
@@ -1188,7 +1184,7 @@ class DevOpsCommand {
                 this.logger?.info(`Config: ${JSON.stringify(config)}`)
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
                 let content = (await (axios.get<string>(contentUrl, config))).data
-                this.logger?.info(`Content: ${content}`)
+                this.logger?.info(`Content: ${typeof content}`)
                 if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
