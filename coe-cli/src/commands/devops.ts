@@ -1187,7 +1187,7 @@ class DevOpsCommand {
                 }
                 this.logger?.info(`Config: ${JSON.stringify(config)}`)
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
-                let content = await axios.get(contentUrl, config)
+                let content = (await (axios.get<string>(contentUrl, config))).data
                 this.logger?.info(`Content: ${content}`)
                 let data = content.data.toString()
                 this.logger?.info(`Data: ${data.toString()}`)
