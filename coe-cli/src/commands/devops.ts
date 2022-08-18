@@ -1187,9 +1187,10 @@ class DevOpsCommand {
                 }
                 this.logger?.info(`Config: ${JSON.stringify(config)}`)
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
-                let content: string = (await axios.get(contentUrl, config)).data
-                this.logger?.info(`Content: ${content}`)
-                if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
+                let content = await axios.get(contentUrl, config)
+                let data = content.data
+                this.logger?.info(`Content: ${data}`)
+                if(data != "" && data.indexOf("GitItemNotFoundException") == -1) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
@@ -1209,7 +1210,7 @@ class DevOpsCommand {
         
                     results.push(commit)
                 } else {
-                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${content}`)
+                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${data}`)
                     throw content
                 }
             }
