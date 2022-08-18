@@ -1181,7 +1181,7 @@ class DevOpsCommand {
                 if (args.accessToken.length === 52) {
                     config = {
                         headers: {
-                            'Authorization': `Basic ${Buffer.from(":$" + args.accessToken).toString('base64')}`
+                            'Authorization': `Basic ${Buffer.from(":$(" + args.accessToken + ")").toString('base64')}`
                         }
                     }
                 }
