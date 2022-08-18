@@ -1181,7 +1181,7 @@ class DevOpsCommand {
                         }
                     }
                 }
-                let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
+                let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
                 let content = (await (axios.get<string>(contentUrl, config))).data
                 this.logger?.info(`Content: ${JSON.stringify(content)}`)
                 if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
