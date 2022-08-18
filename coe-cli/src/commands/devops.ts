@@ -1172,13 +1172,17 @@ class DevOpsCommand {
                 if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
-        
-                let encodedAuth = Buffer.from(args.accessToken, 'base64').toString()
-                this.logger?.info(`Auth: ${encodedAuth}`)
-                const config = {
+
+               let config = {
                     headers: {
-                        'Authorization': `Basic ${Buffer.from(`PAT:${args.accessToken}`).toString('base64')}`;
-                        'Accept': '*/*'
+                        'Authorization': `Bearer ${args.accessToken}`
+                    }
+                }
+                if (args.accessToken.length === 52) {
+                    config = {
+                        headers: {
+                            'Authorization': `Basic ${Buffer.from(`PAT:${args.accessToken}`).toString('base64')}`
+                        }
                     }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
