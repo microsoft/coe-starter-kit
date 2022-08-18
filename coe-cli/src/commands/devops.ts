@@ -1169,38 +1169,31 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
 
+                let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
                 let config = {
                     headers: {
-                        'Authorization': `Bearer ${args.accessToken}`
+                        'Authorization': `Bearer ${accessToken}`
                     }
                 }
-                if (args.accessToken.length === 52) {
+                if (accessToken.length === 52) {
                     config = {
                         headers: {
-                            'Authorization': `Basic ${Buffer.from(":" + args.accessToken).toString('base64')}`
+                            'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
                         }
                     }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
 
-                let content: any = null
-
-                try {
-                    content = (await (axios.get<string>(contentUrl, config)))
-
-                } catch (error) {
-                    this.logger?.info(util.format("Error getting content for %s", templatePath));
-                    throw error
-                }
-                this.logger?.info(`Content: ${content.data.content}`)
-                if(content?.data?.content != null) {
+                let response: any = (await (axios.get<string>(contentUrl, config)))
+                this.logger?.info(`Content: ${response.data.content}`)
+                if(response?.data?.content != null) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
                     commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                     commit.newContent = <ItemContent>{}
         
-                    commit.newContent.content = content?.data?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = response?.data?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
                     commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
                     commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
         
@@ -1213,7 +1206,7 @@ class DevOpsCommand {
         
                     results.push(commit)
                 } else {
-                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${content}`)
+                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${response}`)
                     throw content
                 }
             }
