@@ -1188,8 +1188,9 @@ class DevOpsCommand {
                 this.logger?.info(`Config: ${JSON.stringify(config)}`)
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
                 let content = await axios.get(contentUrl, config)
-                let data = content.data
-                this.logger?.info(`Content: ${data}`)
+                this.logger?.info(`Content: ${content}`)
+                let data = content.data.toString()
+                this.logger?.info(`Data: ${data.toString()}`)
                 if(data != "" && data.indexOf("GitItemNotFoundException") == -1) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
