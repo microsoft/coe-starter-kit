@@ -108,7 +108,7 @@ class DevOpsCommand {
             }
         }
 
-        let authHandler = azdev.getBearerHandler(typeof args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] !== "undefined" ? args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] : args.accessToken);
+        let authHandler = azdev.getHandlerFromToken(typeof args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] !== "undefined" ? args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"] : args.accessToken);
         let connection = this.createWebApi(orgUrl, authHandler);
 
         await this.installExtensions(args, connection)
@@ -782,7 +782,7 @@ class DevOpsCommand {
 
     private async createConnectionIfExists(args: DevOpsInstallArguments, connection: azdev.WebApi): Promise<azdev.WebApi> {
         if (connection == null) {
-            let authHandler = azdev.getBearerHandler(args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"], true);
+            let authHandler = azdev.getHandlerFromToken(args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"], true);
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
             return this.createWebApi(devOpsOrgUrl, authHandler);
         }
@@ -1173,9 +1173,11 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
+                let encodedAuth = Buffer.from(args.accessToken, 'base64').toString()
+                this.logger?.info(`Auth: ${encodedAuth}`)
                 const config = {
                     headers: {
-                        'Authorization': 'Basic ' + "OmYyNWh2NXh3bzZ6dHNzZjQzcjJmejY2bHZycTR1ZHhnYnNld3lwMmNjYjU3YmFwcG9lNmE=",
+                        'Authorization': `Basic ${Buffer.from(`PAT:${args.accessToken}`).toString('base64')}`;
                         'Accept': '*/*'
                     }
                 }
