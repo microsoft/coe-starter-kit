@@ -1182,16 +1182,16 @@ class DevOpsCommand {
                     }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
-                let content = (await (axios.get<string>(contentUrl, config))).data
-                this.logger?.info(`Content: ${JSON.stringify(content)}`)
-                if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
+                let content: any = (await (axios.get<string>(contentUrl, config))).data
+                this.logger?.info(`Content: ${content.content}`)
+                if(content?.content != null {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
                     commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                     commit.newContent = <ItemContent>{}
         
-                    commit.newContent.content = content?.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = content?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
                     commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
                     commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
         
