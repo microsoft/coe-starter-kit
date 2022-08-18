@@ -1189,9 +1189,7 @@ class DevOpsCommand {
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
                 let content = (await (axios.get<string>(contentUrl, config))).data
                 this.logger?.info(`Content: ${content}`)
-                let data = content.data.toString()
-                this.logger?.info(`Data: ${data.toString()}`)
-                if(data != "" && data.indexOf("GitItemNotFoundException") == -1) {
+                if(content != "" && content.indexOf("GitItemNotFoundException") == -1) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
@@ -1211,7 +1209,7 @@ class DevOpsCommand {
         
                     results.push(commit)
                 } else {
-                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${data}`)
+                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${content}`)
                     throw content
                 }
             }
