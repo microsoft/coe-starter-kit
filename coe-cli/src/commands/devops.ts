@@ -1173,11 +1173,10 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
         
-                let encodedAuth = Buffer.from(args.accessToken, 'base64').toString()
-                this.logger?.info(`Auth: ${encodedAuth})
+                this.logger?.info(`Auth: ${encodedAuth}`)
                 const config = {
                     headers: {
-                        'Authorization': 'Basic ' + encodedAuth,
+                        'Authorization': 'Basic ' + "OmYyNWh2NXh3bzZ6dHNzZjQzcjJmejY2bHZycTR1ZHhnYnNld3lwMmNjYjU3YmFwcG9lNmE=",
                         'Accept': '*/*'
                     }
                 }
