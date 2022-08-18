@@ -34,7 +34,7 @@ namespace Alm.Plugins
         /// Default Execute Method
         /// </summary>
         /// <param name="localPluginContext">Local Plugin Context</param>
-        protected override void ExecuteCdsPlugin(ILocalPluginContext localPluginContext)
+        protected override void ExecuteDataversePlugin(ILocalPluginContext localPluginContext)
         {
             if (localPluginContext == null)
             {

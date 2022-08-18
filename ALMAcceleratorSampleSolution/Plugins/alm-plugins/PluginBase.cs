@@ -55,7 +55,7 @@ namespace Alm.Plugins
             try
             {
                 // Invoke the custom implementation
-                ExecuteCdsPlugin(localPluginContext);
+                ExecuteDataversePlugin(localPluginContext);
 
                 // Now exit - if the derived plugin has incorrectly registered overlapping event registrations, guard against multiple executions.
                 return;
@@ -76,7 +76,7 @@ namespace Alm.Plugins
         /// Placeholder for a custom plug-in implementation.
         /// </summary>
         /// <param name="localPluginContext">Context for the current plug-in.</param>
-        protected virtual void ExecuteCdsPlugin(ILocalPluginContext localPluginContext)
+        protected virtual void ExecuteDataversePlugin(ILocalPluginContext localPluginContext)
         {
             // Do nothing.
         }
