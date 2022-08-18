@@ -820,24 +820,30 @@ class DevOpsCommand {
      *
      */
     async branch(args: DevOpsBranchArguments): Promise<void> {
-        let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
-        let authHandler = azdev.getHandlerFromToken(args.accessToken);
-        let connection = this.createWebApi(devOpsOrgUrl, authHandler);
+        try {
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
+            let authHandler = azdev.getHandlerFromToken(args.accessToken);
+            let connection = this.createWebApi(devOpsOrgUrl, authHandler);
 
-        let core = await connection.getCoreApi()
-        let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
+            let core = await connection.getCoreApi()
+            let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
 
-        if (typeof project !== "undefined") {
-            this.logger?.info(util.format("Found project %s", project.name))
+            if (typeof project !== "undefined") {
+                this.logger?.info(util.format("Found project %s", project.name))
 
-            let gitApi = await connection.getGitApi()
+                let gitApi = await connection.getGitApi()
 
-            let repo = await this.createBranch(args, project, gitApi);
+                let repo = await this.createBranch(args, project, gitApi);
 
-            if (repo != null) {
-                await this.createBuildForBranch(args, project, repo, connection);
-                await this.setBranchPolicy(args, repo, connection);
+                if (repo != null) {
+                    await this.createBuildForBranch(args, project, repo, connection);
+                    await this.setBranchPolicy(args, repo, connection);
+                }
             }
+        }
+        catch (error) {
+            this.logger?.info(`An error occurred while creating the branch: ${error}`)
+            throw error
         }
     }
 
