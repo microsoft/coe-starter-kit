@@ -1184,7 +1184,7 @@ class DevOpsCommand {
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
                 let content: any = (await (axios.get<string>(contentUrl, config))).data
                 this.logger?.info(`Content: ${content.content}`)
-                if(content?.content != null {
+                if(content?.content != null) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
