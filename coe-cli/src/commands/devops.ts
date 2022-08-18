@@ -1174,14 +1174,12 @@ class DevOpsCommand {
             }
 
             let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
-            this.logger?.info(util.format("Setting Bearer %s", accessToken));
             let config = {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
             }
             if (accessToken.length === 52) {
-                this.logger?.info(util.format("Using PAT %s", accessToken));
                 config = {
                     headers: {
                         'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
@@ -1191,7 +1189,6 @@ class DevOpsCommand {
             let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
 
             let response: any = (await (axios.get<string>(contentUrl, config)))
-            this.logger?.info(`Content: ${response.data.content}`)
             if (response?.data?.content != null) {
                 let commit = <GitChange>{}
                 commit.changeType = VersionControlChangeType.Add
