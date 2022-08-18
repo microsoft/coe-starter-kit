@@ -1182,16 +1182,25 @@ class DevOpsCommand {
                     }
                 }
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
-                let content: any = (await (axios.get<string>(contentUrl, config))).data
-                this.logger?.info(`Content: ${content.content}`)
-                if(content?.content != null) {
+
+                let content: any = null
+
+                try {
+                    content = (await (axios.get<string>(contentUrl, config)))
+
+                } catch (error) {
+                    this.logger?.info(util.format("Error getting content for %s", templatePath));
+                    throw error
+                }
+                this.logger?.info(`Content: ${content.data.content}`)
+                if(content?.data?.content != null) {
                     let commit = <GitChange>{}
                     commit.changeType = VersionControlChangeType.Add
                     commit.item = <GitItem>{}
                     commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                     commit.newContent = <ItemContent>{}
         
-                    commit.newContent.content = content?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = content?.data?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
                     commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
                     commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
         
