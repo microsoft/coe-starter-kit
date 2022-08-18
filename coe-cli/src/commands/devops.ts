@@ -1157,62 +1157,56 @@ class DevOpsCommand {
 
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let results: GitChange[] = []
-        try {
+        for(var i = 0; i < names.length; i++) {
+            this.logger?.info(util.format("Getting changes for %s", names[i]));
+            let version: GitVersionDescriptor = <GitVersionDescriptor>{};
+            version.versionType = GitVersionType.Branch;
+            version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
+            let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
+            if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
+                templatePath = args.settings[`${names[i]}-buildtemplate`]
+            }
 
-            for(var i = 0; i < names.length; i++) {
-                this.logger?.info(util.format("Getting changes for %s", names[i]));
-                let version: GitVersionDescriptor = <GitVersionDescriptor>{};
-                version.versionType = GitVersionType.Branch;
-                version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
-                let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
-                if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
-                    templatePath = args.settings[`${names[i]}-buildtemplate`]
-                }
-
-                let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
-                let config = {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`
-                    }
-                }
-                if (accessToken.length === 52) {
-                    config = {
-                        headers: {
-                            'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
-                        }
-                    }
-                }
-                let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
-
-                let response: any = (await (axios.get<string>(contentUrl, config)))
-                this.logger?.info(`Content: ${response.data.content}`)
-                if(response?.data?.content != null) {
-                    let commit = <GitChange>{}
-                    commit.changeType = VersionControlChangeType.Add
-                    commit.item = <GitItem>{}
-                    commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
-                    commit.newContent = <ItemContent>{}
-        
-                    commit.newContent.content = response?.data?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
-                    commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-        
-                    let variableGroup = args.settings[names[i] + "-variablegroup"]
-                    if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                        commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
-                    }
-        
-                    commit.newContent.contentType = ItemContentType.RawText
-        
-                    results.push(commit)
-                } else {
-                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${response}`)
-                    throw response
+            let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
+            let config = {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
                 }
             }
-        }
-        catch (error) {
-            this.logger?.info(error.message)
+            if (accessToken.length === 52) {
+                config = {
+                    headers: {
+                        'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
+                    }
+                }
+            }
+            let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
+
+            let response: any = (await (axios.get<string>(contentUrl, config)))
+            this.logger?.info(`Content: ${response.data.content}`)
+            if (response?.data?.content != null) {
+                let commit = <GitChange>{}
+                commit.changeType = VersionControlChangeType.Add
+                commit.item = <GitItem>{}
+                commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+                commit.newContent = <ItemContent>{}
+
+                commit.newContent.content = response?.data?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
+                commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+
+                let variableGroup = args.settings[names[i] + "-variablegroup"]
+                if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                    commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                }
+
+                commit.newContent.contentType = ItemContentType.RawText
+
+                results.push(commit)
+            } else {
+                this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${response}`)
+                throw response
+            }
         }
         return results;
     }
