@@ -1173,7 +1173,7 @@ class DevOpsCommand {
                     templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
 
-               let config = {
+                let config = {
                     headers: {
                         'Authorization': `Bearer ${args.accessToken}`
                     }
@@ -1185,6 +1185,7 @@ class DevOpsCommand {
                         }
                     }
                 }
+                this.logger?.info(`Config: ${JSON.stringify(config)}`)
                 let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&api-version=5.0`
                 let content: string = (await axios.get(contentUrl, config)).data
                 this.logger?.info(`Content: ${content}`)
