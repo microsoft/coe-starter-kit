@@ -1178,6 +1178,7 @@ class DevOpsCommand {
     }
 
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
+        let pipelineProject = args.pipelineProject?.length > 0 ? args.pipelineProject : args.projectName
         let results: GitChange[] = []
         for(var i = 0; i < names.length; i++) {
             this.logger?.info(util.format("Getting changes for %s", names[i]));
@@ -1202,7 +1203,8 @@ class DevOpsCommand {
                     }
                 }
             }
-            let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
+            let contentUrl = `${args.organizationName}/${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
+            this.logger?.info(util.format("Getting content from %s", contentUrl));
 
             let response: any = await this.getUrl(contentUrl, config)
             if (response?.data?.content != null) {
