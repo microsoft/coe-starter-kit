@@ -1229,7 +1229,7 @@ class DevOpsCommand {
 
                 results.push(commit)
             } else {
-                this.logger?.info(`Error creating new pipeline definition for ${names[i]}: JSON.stringify(${response})`);
+                this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${JSON.stringify(response)}`);
                 throw response
             }
         }
