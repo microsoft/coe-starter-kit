@@ -1199,13 +1199,12 @@ class DevOpsCommand {
             this.logger?.info(util.format("Getting changes for %s", names[i]));
             let version: GitVersionDescriptor = <GitVersionDescriptor>{};
             version.versionType = GitVersionType.Branch;
-            version.version = this.withoutRefsPrefix(pipelineRepo.defaultBranch);
             let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
             if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                 templatePath = args.settings[`${names[i]}-buildtemplate`]
             }
 
-            let contentUrl = `${args.organizationName}/${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
+            let contentUrl = `${args.organizationName}/${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&versionDescriptor.version=${this.withoutRefsPrefix(pipelineRepo.defaultBranch)}&versionDescriptor.versionType=branch&api-version=5.0`
             this.logger?.info(util.format("Getting content from %s", contentUrl));
 
             let response: any = await this.getUrl(contentUrl, config)
