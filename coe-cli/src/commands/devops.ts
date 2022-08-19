@@ -1209,14 +1209,14 @@ class DevOpsCommand {
             this.logger?.info(util.format("Getting content from %s", contentUrl));
 
             let response: any = await this.getUrl(contentUrl, config)
-            if (response?.data?.content != null) {
+            if (response?.content != null) {
                 let commit = <GitChange>{}
                 commit.changeType = VersionControlChangeType.Add
                 commit.item = <GitItem>{}
                 commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                 commit.newContent = <ItemContent>{}
 
-                commit.newContent.content = response?.data?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                commit.newContent.content = response?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
                 commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
                 commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
 
