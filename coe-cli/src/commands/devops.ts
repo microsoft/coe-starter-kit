@@ -878,7 +878,7 @@ class DevOpsCommand {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
-
+        this.logger?.info(`Searching for repository ${args.pipelineRepository.toLowerCase()}`)
         let pipelineRepo = repos.find((repo) => {
             return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
         });
@@ -891,7 +891,7 @@ class DevOpsCommand {
                     foundRepo = true
                     matchingRepo = repo
 
-                    this.logger?.debug(`Found matching repo ${repositoryName}`)
+                    this.logger?.info(`Found matching repo ${repositoryName}`)
 
                     let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
 
