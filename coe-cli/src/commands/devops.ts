@@ -836,13 +836,14 @@ class DevOpsCommand {
      */
     async branch(args: DevOpsBranchArguments): Promise<void> {
         try {
+            let pipelineProjectName = args.pipelineProject?.length > 0 ? args.pipelineProject : args.projectName
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
             let authHandler = azdev.getHandlerFromToken(args.accessToken);
             let connection = this.createWebApi(devOpsOrgUrl, authHandler);
 
             let core = await connection.getCoreApi()
             let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
-            let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(args.pipelineProject)
+            let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(pipelineProjectName)
 
             if (typeof project !== "undefined") {
                 this.logger?.info(util.format("Found project %s", project.name))
@@ -874,13 +875,12 @@ class DevOpsCommand {
         var pipelineRepos = await gitApi.getRepositories(pipelineProject.id);
         var repos = await gitApi.getRepositories(project.id);
         var matchingRepo: GitRepository;
-
         let repositoryName = args.repositoryName
         if (typeof repositoryName === "undefined" || repositoryName?.length == 0) {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
-        this.logger?.info(`Searching for repository ${args.pipelineRepository.toLowerCase()}`)
+        this.logger?.info(`Searching for repository ${pipelineProject.name} ${args.pipelineRepository.toLowerCase()}`)
         let pipelineRepo = pipelineRepos.find((repo) => {
             return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
         });
@@ -888,7 +888,7 @@ class DevOpsCommand {
             let foundRepo = false
             for (let i = 0; i < repos.length; i++) {
                 let repo = repos[i]
-
+                this.logger?.info(`Searching for repository ${project.name} ${repositoryName.toLowerCase()}`)
                 if (repo.name.toLowerCase() == repositoryName.toLowerCase()) {
                     foundRepo = true
                     matchingRepo = repo
