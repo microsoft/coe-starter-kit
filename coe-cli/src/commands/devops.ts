@@ -836,6 +836,7 @@ class DevOpsCommand {
      */
     async branch(args: DevOpsBranchArguments): Promise<void> {
         try {
+            this.logger?.info(`Pipeline Project: ${args.pipelineProject}`)
             let pipelineProjectName = args.pipelineProject?.length > 0 ? args.pipelineProject : args.projectName
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
             let authHandler = azdev.getHandlerFromToken(args.accessToken);
