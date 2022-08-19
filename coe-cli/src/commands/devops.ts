@@ -51,6 +51,7 @@ class DevOpsCommand {
     logger: winston.Logger
     readFile: (path: fs.PathLike | FileHandle, options: { encoding: BufferEncoding, flag?: fs.OpenMode } | BufferEncoding) => Promise<string>
     createGitHubCommand: () => GitHubCommand
+    getUrl: (url: string, config: any) => Promise<string>
 
     constructor(logger: winston.Logger, defaultFs: any = null) {
         this.logger = logger
@@ -67,6 +68,14 @@ class DevOpsCommand {
             }
         }
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
+        this.getUrl = async (url: string, config: any = null) => {
+            if(config == null) {
+                return (await (axios.get<string>(url))).data
+            }
+            else{
+                return (await (axios.get<string>(url, config))).data
+            }
+        }
         this.runCommand = (command: string, displayOutput: boolean) => {
             if (displayOutput) {
                 return execSync(command, <ExecSyncOptionsWithStringEncoding>{ stdio: 'inherit', encoding: 'utf8' })
@@ -863,6 +872,7 @@ class DevOpsCommand {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
+
         let pipelineRepo = repos.find((repo) => {
             return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
         });
@@ -1188,7 +1198,7 @@ class DevOpsCommand {
             }
             let contentUrl = `${args.organizationName}/${args.projectName}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
 
-            let response: any = (await (axios.get<string>(contentUrl, config)))
+            let response: any = await this.getUrl(contentUrl, config)
             if (response?.data?.content != null) {
                 let commit = <GitChange>{}
                 commit.changeType = VersionControlChangeType.Add

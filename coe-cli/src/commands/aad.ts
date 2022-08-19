@@ -135,8 +135,8 @@ class AADCommand {
                         break
                     }
                     try {
-                        permissions= <any[]>JSON.parse(this.runCommand(`az ad app permission list-grants --id ${app[0].appId}`, false))
-                        if (permissions.length >= 0) {
+                        permissions = <any[]>JSON.parse(this.runCommand(`az ad app permission list-grants --id ${app[0].appId}`, false))
+                        if (permissions?.length >= 0) {
                             break
                         }
                     } catch {
@@ -166,7 +166,7 @@ class AADCommand {
                     }
                 } 
                 
-                if (permissions?.length == 3) {
+                if (permissions?.length >= 3) {
                     this.logger?.info("Admin permissions granted")
                 } else {
                     this.logger.info("Unable to verify that Administration permissions set")
