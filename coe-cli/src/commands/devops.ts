@@ -842,13 +842,14 @@ class DevOpsCommand {
 
             let core = await connection.getCoreApi()
             let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
+            let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(args.pipelineProject)
 
             if (typeof project !== "undefined") {
                 this.logger?.info(util.format("Found project %s", project.name))
 
                 let gitApi = await connection.getGitApi()
 
-                let repo = await this.createBranch(args, project, gitApi);
+                let repo = await this.createBranch(args, pipelineProject, project, gitApi);
 
                 if (repo != null) {
                     await this.createBuildForBranch(args, project, repo, connection);
@@ -869,7 +870,8 @@ class DevOpsCommand {
      * @param gitApi The open git API connection to create the 
      * @returns 
      */
-    async createBranch(args: DevOpsBranchArguments, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi): Promise<GitRepository> {
+    async createBranch(args: DevOpsBranchArguments, pipelineProject: CoreInterfaces.TeamProject, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi): Promise<GitRepository> {
+        var pipelineRepos = await gitApi.getRepositories(pipelineProject.id);
         var repos = await gitApi.getRepositories(project.id);
         var matchingRepo: GitRepository;
 
@@ -879,7 +881,7 @@ class DevOpsCommand {
             repositoryName = args.projectName
         }
         this.logger?.info(`Searching for repository ${args.pipelineRepository.toLowerCase()}`)
-        let pipelineRepo = repos.find((repo) => {
+        let pipelineRepo = pipelineRepos.find((repo) => {
             return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
         });
         if (pipelineRepo) {
