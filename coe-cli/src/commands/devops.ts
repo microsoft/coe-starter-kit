@@ -345,15 +345,15 @@ class DevOpsCommand {
     async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) {
         
         let gitApi = await connection.getGitApi()
-
-        this.logger.info(`Checking pipeline repository ${args.pipelineRepositoryName}`)
-        let repo = await this.getRepository(args, gitApi, args.pipelineRepositoryName)
+        let pipelineProject = (args.pipelineProjectName?.length > 0) ? args.pipelineProjectName : args.projectName
+        this.logger.info(`Checking pipeline repository ${pipelineProject} ${args.pipelineRepositoryName}`)
+        let repo = await this.getRepository(args, gitApi, pipelineProject, args.pipelineRepositoryName)
  
         if (repo == null) {
             return Promise.resolve(null)
         }
 
-        let command = `./src/powershell/importpipelinerepo.ps1 "${args.organizationName}" "${args.projectName}" "${args.pipelineRepositoryName}" "${args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]}"`
+        let command = `./src/powershell/importpipelinerepo.ps1 "${args.organizationName}" "${pipelineProject}" "${args.pipelineRepositoryName}" "${args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]}"`
 
         const child = spawnSync('pwsh', ["-File", command], {
             shell: true,
@@ -372,22 +372,22 @@ class DevOpsCommand {
 
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
         await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
-        this.logger.info(`Pipeline repository ${args.pipelineRepositoryName} imported`)
+        this.logger.info(`Pipeline repository ${pipelineProject} ${args.pipelineRepositoryName} imported`)
 
         return repo;
     }
 
-    private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi, repositoryName: string): Promise<GitRepository> {
-        let repos = await gitApi.getRepositories(args.projectName);
+    private async getRepository(args: DevOpsInstallArguments, gitApi: gitm.IGitApi, projectName: string, repositoryName: string): Promise<GitRepository> {
+        let repos = await gitApi.getRepositories(projectName);
 
         if (repos == null) {
-            this.logger?.error(`${args.projectName} not found`)
+            this.logger?.error(`${projectName} not found`)
             return Promise.resolve(null)
         }
 
         if (repos?.filter(r => r.name == repositoryName).length == 0) {
             this.logger?.info(`Creating repository ${repositoryName}`)
-            return await gitApi.createRepository(<GitRepositoryCreateOptions>{ name: repositoryName }, args.projectName)
+            return await gitApi.createRepository(<GitRepositoryCreateOptions>{ name: repositoryName }, projectName)
         } else {
             this.logger?.info(`Found repository ${repositoryName}`)
             return repos.filter(r => r.name == repositoryName)[0]
@@ -405,11 +405,12 @@ class DevOpsCommand {
      * @param repo The pipeline repo to a create builds for
      */
     async createMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository): Promise<GitRepository> {
+        let pipelineProject = args.pipelineProjectName?.length > 0 ? args.pipelineProjectName : args.projectName
         connection = await this.createConnectionIfExists(args, connection)
 
         if (repo == null) {
             let gitApi = await connection.getGitApi()
-            repo = await this.getRepository(args, gitApi, args.repositoryName)
+            repo = await this.getRepository(args, gitApi, pipelineProject, args.repositoryName)
         }
 
         let buildApi = await connection.getBuildApi();
@@ -421,18 +422,18 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
         let core = await connection.getCoreApi()
-        let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
+        let project: CoreInterfaces.TeamProject = await core.getProject(pipelineProject)
 
         if (typeof project !== "undefined") {
             this.logger?.info(util.format("Found project %s", project.name))
 
             this.logger?.info(`Retrieving default Queue`)
-            let defaultQueue = (await taskApi?.getAgentQueues(args.projectName))?.filter(p => p.name == "Azure Pipelines")
+            let defaultQueue = (await taskApi?.getAgentQueues(pipelineProject))?.filter(p => p.name == "Azure Pipelines")
 
             let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
             this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
 
-            let builds = await buildApi.getDefinitions(args.projectName)
+            let builds = await buildApi.getDefinitions(pipelineProject)
 
             let buildNames = ['export-solution-to-git', 'import-unmanaged-to-dev-environment', 'delete-unmanaged-solution-and-components']
 
@@ -443,7 +444,7 @@ class DevOpsCommand {
                     this.logger?.debug(`Creating build ${buildNames[i]}`)
                     await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentQueue)
                 } else {
-                    let build = await buildApi.getDefinition(args.projectName, exportBuild[0].id)
+                    let build = await buildApi.getDefinition(pipelineProject, exportBuild[0].id)
                     let changes = false
 
                     if (typeof build.queue === "undefined") {
@@ -454,7 +455,7 @@ class DevOpsCommand {
 
                     if (changes) {
                         this.logger?.debug(`Updating ${build.name}`)
-                        await buildApi.updateDefinition(build, args.projectName, exportBuild[0].id)
+                        await buildApi.updateDefinition(build, pipelineProject, exportBuild[0].id)
                     } else {
                         this.logger?.debug(`No changes to ${buildNames[i]}`)
                     }
@@ -464,102 +465,107 @@ class DevOpsCommand {
         }
     }
 
-    async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) {
-        connection = await this.createConnectionIfExists(args, connection)
+    async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) 
+    {
+        let projects = [args.projectName, args.pipelineProjectName]
+        for(let i = 0; i < projects.length; i++)
+        {
+            connection = await this.createConnectionIfExists(args, connection)
 
-        let taskApi = await connection.getTaskAgentApi()
+            let taskApi = await connection.getTaskAgentApi()
 
-        let groups = await taskApi?.getVariableGroups(args.projectName);
+            let groups = await taskApi?.getVariableGroups(projects[i]);
 
-        let variableGroupName = "alm-accelerator-variable-group"
-        let global = groups?.filter(g => g.name == variableGroupName)
-        let variableGroup = global?.length == 1 ? global[0] : null
-        if (global?.length == 0) {
-            let aadCommand = this.createAADCommand()
+            let variableGroupName = "alm-accelerator-variable-group"
+            let global = groups?.filter(g => g.name == variableGroupName)
+            let variableGroup = global?.length == 1 ? global[0] : null
+            if (global?.length == 0) {
+                let aadCommand = this.createAADCommand()
 
-            let aadArgs = new AADAppInstallArguments()
-            aadArgs.subscription = args.subscription
-            aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
-            aadArgs.createSecret = args.createSecretIfNoExist
-            aadArgs.accessTokens = args.accessTokens
-            aadArgs.endpoint = args.endpoint
-            aadArgs.settings = args.settings
+                let aadArgs = new AADAppInstallArguments()
+                aadArgs.subscription = args.subscription
+                aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+                aadArgs.createSecret = args.createSecretIfNoExist
+                aadArgs.accessTokens = args.accessTokens
+                aadArgs.endpoint = args.endpoint
+                aadArgs.settings = args.settings
 
-            let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-ALM")
+                let secretInfo = await aadCommand.addSecret(aadArgs, "CoE-ALM")
 
-            let aadHost = Environment.getAzureADAuthEndpoint(aadArgs.settings).replace("https://", "")
-            if (!aadArgs.createSecret) {
-                this.logger?.warn('Client secret not added for variable group alm-accelerator-variable-group it wil need to be added manually')
-            }
-
-            let buildApi = await connection.getBuildApi();
-            let builds = await buildApi.getDefinitions(args.projectName)
-            let exportBuild = builds.filter(b => b.name == "export-solution-to-git")
-            let buildId = exportBuild.length == 1 ? exportBuild[0].id.toString() : ""
-
-            let parameters = <VariableGroupParameters>{}
-            parameters.variableGroupProjectReferences = [
-                <VariableGroupProjectReference>{
-                    name: variableGroupName,
-                    projectReference: <ProjectReference>{
-                        name: args.projectName,
-                    }
-                }]
-            parameters.name = variableGroupName
-            parameters.description = 'ALM Accelerator for Power Platform'
-
-            parameters.variables = {
-                "AADHost": <VariableValue>{
-                    value: aadHost
-                },
-                "CdsBaseConnectionString": <VariableValue>{
-                    value: "AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
-                },
-                "ClientId": <VariableValue>{
-                    value: secretInfo.clientId
-                },
-                "ClientSecret": <VariableValue>{
-                    isSecret: true,
-                    value: secretInfo.clientSecret
-                },
-                "TenantID": <VariableValue>{
-                    value: secretInfo.tenantId
+                let aadHost = Environment.getAzureADAuthEndpoint(aadArgs.settings).replace("https://", "")
+                if (!aadArgs.createSecret) {
+                    this.logger?.warn('Client secret not added for variable group alm-accelerator-variable-group it wil need to be added manually')
                 }
+
+                let buildApi = await connection.getBuildApi();
+                let builds = await buildApi.getDefinitions(projects[i])
+                let exportBuild = builds.filter(b => b.name == "export-solution-to-git")
+                let buildId = exportBuild.length == 1 ? exportBuild[0].id.toString() : ""
+
+                let parameters = <VariableGroupParameters>{}
+                parameters.variableGroupProjectReferences = [
+                    <VariableGroupProjectReference>{
+                        name: variableGroupName,
+                        projectReference: <ProjectReference>{
+                            name: projects[i],
+                        }
+                    }]
+                parameters.name = variableGroupName
+                parameters.description = 'ALM Accelerator for Power Platform'
+
+                parameters.variables = {
+                    "AADHost": <VariableValue>{
+                        value: aadHost
+                    },
+                    "CdsBaseConnectionString": <VariableValue>{
+                        value: "AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
+                    },
+                    "ClientId": <VariableValue>{
+                        value: secretInfo.clientId
+                    },
+                    "ClientSecret": <VariableValue>{
+                        isSecret: true,
+                        value: secretInfo.clientSecret
+                    },
+                    "TenantID": <VariableValue>{
+                        value: secretInfo.tenantId
+                    }
+                }
+
+                this.logger?.info(`Creating variable group ${variableGroupName}`)
+                variableGroup = await taskApi.addVariableGroup(parameters)
             }
 
-            this.logger?.info(`Creating variable group ${variableGroupName}`)
-            variableGroup = await taskApi.addVariableGroup(parameters)
-        }
+            this.logger?.debug("Searching for existing role assignements")
 
-        this.logger?.debug("Searching for existing role assignements")
+            let variableGroupId = `${securityContext.projectId}%24${variableGroup.id}`
 
-        let variableGroupId = `${securityContext.projectId}%24${variableGroup.id}`
+            let client = this.getHttpClient(connection)
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
-        let client = this.getHttpClient(connection)
-        let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
+            let variableGroupUrl = `${devOpsOrgUrl}_apis/securityroles/scopes/distributedtask.variablegroup/roleassignments/resources/${variableGroupId}?api-version=6.1-preview.1`
+            let roleRequest = await client.get(variableGroupUrl)
+            let roleJson = await roleRequest.readBody()
+            let roleAssignmentsResponse = JSON.parse(roleJson)
 
-        let variableGroupUrl = `${devOpsOrgUrl}_apis/securityroles/scopes/distributedtask.variablegroup/roleassignments/resources/${variableGroupId}?api-version=6.1-preview.1`
-        let roleRequest = await client.get(variableGroupUrl)
-        let roleJson = await roleRequest.readBody()
-        let roleAssignmentsResponse = JSON.parse(roleJson)
+            let roleAssignments = <RoleAssignment[]>roleAssignmentsResponse.value
 
-        let roleAssignments = <RoleAssignment[]>roleAssignmentsResponse.value
+            if (roleAssignments.filter((r: RoleAssignment) => r.identity.id == securityContext.almGroup.originId).length == 0) {
+                this.logger?.debug(`Adding User role for Group ${securityContext.almGroup.displayName}`)
 
-        if (roleAssignments.filter((r: RoleAssignment) => r.identity.id == securityContext.almGroup.originId).length == 0) {
-            this.logger?.debug(`Adding User role for Group ${securityContext.almGroup.displayName}`)
+                let headers = <IHeaders>{};
+                headers["Content-Type"] = "application/json"
 
-            let headers = <IHeaders>{};
-            headers["Content-Type"] = "application/json"
+                let updateRequest = await client.put(variableGroupUrl, JSON.stringify([{ "roleName": "User", "userId": securityContext.almGroup.originId }]), headers)
+                let newRoleAssignmentJson = await updateRequest.readBody();
+                let newRoleAssignmentResult = JSON.parse(newRoleAssignmentJson)
 
-            let updateRequest = await client.put(variableGroupUrl, JSON.stringify([{ "roleName": "User", "userId": securityContext.almGroup.originId }]), headers)
-            let newRoleAssignmentJson = await updateRequest.readBody();
-            let newRoleAssignmentResult = JSON.parse(newRoleAssignmentJson)
-
-            if (newRoleAssignmentResult.value?.length == 1) {
-                let newRoleAssignment = <RoleAssignment>newRoleAssignmentResult.value[0]
-                this.logger?.info(`Added new role assignnment ${newRoleAssignment.identity.displayName} for variable group ${variableGroupName}`)
-            } else {
-                this.logger?.error(`Role for ${securityContext.almGroup.displayName} not assigned to ${variableGroupName}`)
+                if (newRoleAssignmentResult.value?.length == 1) {
+                    let newRoleAssignment = <RoleAssignment>newRoleAssignmentResult.value[0]
+                    this.logger?.info(`Added new role assignnment ${newRoleAssignment.identity.displayName} for variable group ${variableGroupName}`)
+                } else {
+                    this.logger?.error(`Role for ${securityContext.almGroup.displayName} not assigned to ${variableGroupName}`)
+                }
             }
         }
     }
@@ -1340,6 +1346,11 @@ class DevOpsInstallArguments {
     repositoryName: string
 
     /**
+     * The name of project that the Accelerator pipeline has been deployed to or will be deployed to
+     */
+    pipelineProjectName: string
+
+    /**
      * The name of repository that the Accelerator pipeline has been deployed to or will be deployed to
      */
     pipelineRepositoryName: string
@@ -1439,6 +1450,11 @@ class DevOpsBranchArguments {
      * The name of repository that the Accelerator has been deployed to or will be deployed to
      */
     repositoryName: string
+
+    /**
+     * The name of pipeline templates repository that the Accelerator has been imported
+     */
+    pipelineProject: string
 
     /**
      * The name of pipeline templates repository that the Accelerator has been imported

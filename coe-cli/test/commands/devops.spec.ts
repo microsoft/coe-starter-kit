@@ -849,7 +849,7 @@ describe('Build Variables', () => {
         expect("ClientSecret" in inParameters.variables).toBeTruthy();
         expect("TenantID" in inParameters.variables).toBeTruthy();
 
-        expect(mockAADCommand.addSecret).toBeCalledTimes(1)
+        expect(mockAADCommand.addSecret).toBeCalledTimes(2)
     })
 });
 
