@@ -846,8 +846,9 @@ class DevOpsCommand {
             let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
             let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(pipelineProjectName)
 
-            if (typeof project !== "undefined") {
-                this.logger?.info(util.format("Found project %s", project.name))
+            this.logger?.info(util.format("Found project %s", project?.name))
+            this.logger?.info(util.format("Found pipeline project %s", pipelineProject?.name))
+            if (typeof project !== "undefined" && typeof pipelineProject !== "undefined") {
 
                 let gitApi = await connection.getGitApi()
 
