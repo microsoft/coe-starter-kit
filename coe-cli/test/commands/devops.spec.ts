@@ -238,7 +238,7 @@ describe('Branch', () => {
 
         command.createWebApi = (org: string, handler: IRequestHandler) => mockDevOpsWebApi;
         command.getUrl = (url: string) => Promise.resolve('123')
-        command.createBranch = (args: DevOpsBranchArguments, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi) => Promise.resolve(<GitRepository>{})
+        command.createBranch = (args: DevOpsBranchArguments, pipelineProject: CoreInterfaces.TeamProject, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi) => Promise.resolve(<GitRepository>{})
         mockTaskAgentApi.getAgentQueues.mockResolvedValue(mockQueues)
 
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
@@ -328,7 +328,7 @@ describe('Branch', () => {
         let mockGitApi = mock<gitm.IGitApi>();
         let mockBuildApi = mock<IBuildApi>();
         
-        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(`{"data": {"content": "[SampleSolutionName][BranchContainingTheBuildTemplates][RepositoryContainingTheBuildTemplates][SampleSolutionName][alm-accelerator-variable-group]"}}`))
+        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(`{"content": "[SampleSolutionName][BranchContainingTheBuildTemplates][RepositoryContainingTheBuildTemplates][SampleSolutionName][alm-accelerator-variable-group]"}`))
             
         let mockRepo = mock<GitInterfaces.GitRepository>()
         let pipelineRepo = mock<GitInterfaces.GitRepository>()
@@ -661,11 +661,11 @@ describe('Build', () => {
         project.name = 'test'
 
         command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(
-`{"data": {"content": "[SampleSolutionName]
+`{"content": "[SampleSolutionName]
 -[BranchContainingTheBuildTemplates]
 -[RepositoryContainingTheBuildTemplates]
 -[SampleSolutionName]
--[alm-accelerator-variable-group]"}}`            
+-[alm-accelerator-variable-group]"}`
         ))
             
         args.projectName = 'DevOpsProject'
@@ -687,7 +687,7 @@ describe('Build', () => {
         mockGitApi.getRefs.mockResolvedValue([])
 
         // Act
-        await command.createBranch(args, project, mockGitApi)
+        await command.createBranch(args, project, project, mockGitApi)
 
         // Assert
         expect(mockGitApi.createPush).toBeCalledTimes(0)
@@ -702,7 +702,7 @@ describe('Build', () => {
         let mockGitApi = mock<gitm.GitApi>()
         project.name = 'test'
 
-        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(`{"data": {"content": "[SampleSolutionName][BranchContainingTheBuildTemplates][RepositoryContainingTheBuildTemplates][SampleSolutionName][alm-accelerator-variable-group]"}}`))
+        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(`{"content": "[SampleSolutionName][BranchContainingTheBuildTemplates][RepositoryContainingTheBuildTemplates][SampleSolutionName][alm-accelerator-variable-group]"}`))
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
@@ -731,7 +731,7 @@ describe('Build', () => {
         mockGitApi.getRepositories.mockResolvedValue([repo, pipelineRepo])
         mockGitApi.getRefs.mockResolvedValue([refSource])
         // Act
-        await command.createBranch(args, project, mockGitApi)
+        await command.createBranch(args, project, project, mockGitApi)
 
         expect(mockGitApi.createPush).toHaveBeenCalled()
         expect(mockGitApi.createPush.mock.calls[0][0].commits[0].changes.length).toBe(3)
