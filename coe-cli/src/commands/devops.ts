@@ -1219,7 +1219,7 @@ class DevOpsCommand {
                 commit.newContent = <ItemContent>{}
 
                 commit.newContent.content = response?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${args.projectName}/${pipelineRepo.name}`)
+                commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${pipelineProject}/${pipelineRepo.name}`)
                 commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
 
                 let variableGroup = args.settings[names[i] + "-variablegroup"]
