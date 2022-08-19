@@ -1180,6 +1180,21 @@ class DevOpsCommand {
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let pipelineProject = args.pipelineProject?.length > 0 ? args.pipelineProject : args.projectName
         let results: GitChange[] = []
+
+        let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
+        let config = {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        }
+        if (accessToken.length === 52) {
+            config = {
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
+                }
+            }
+        }
+                
         for(var i = 0; i < names.length; i++) {
             this.logger?.info(util.format("Getting changes for %s", names[i]));
             let version: GitVersionDescriptor = <GitVersionDescriptor>{};
@@ -1190,19 +1205,6 @@ class DevOpsCommand {
                 templatePath = args.settings[`${names[i]}-buildtemplate`]
             }
 
-            let accessToken = args.accessToken?.length > 0 ? args.accessToken : args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]
-            let config = {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`
-                }
-            }
-            if (accessToken.length === 52) {
-                config = {
-                    headers: {
-                        'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
-                    }
-                }
-            }
             let contentUrl = `${args.organizationName}/${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&api-version=5.0`
             this.logger?.info(util.format("Getting content from %s", contentUrl));
 
