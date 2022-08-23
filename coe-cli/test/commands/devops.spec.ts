@@ -813,13 +813,15 @@ describe('Build Variables', () => {
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
+        args.pipelineProjectName = 'pipelines'
+        args.pipelineRepositoryName = 'pipelines'
         args.createSecretIfNoExist = true
 
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskApi)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
 
         mockTaskApi.getVariableGroups.mockResolvedValue([])
-        let inParameters: VariableGroupParameters = null
+        let inParameters: VariableGroupParameters
         mockTaskApi.addVariableGroup.mockImplementation((parameters: VariableGroupParameters) => {
             inParameters = parameters 
             return Promise.resolve({id:1})
