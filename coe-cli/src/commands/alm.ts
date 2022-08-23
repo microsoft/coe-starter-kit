@@ -73,7 +73,7 @@ class ALMCommand {
    */
   async install(args: ALMInstallArguments) : Promise<void> { 
     try {
-      this.logger.info("Installing ${args.components} started")
+      this.logger.info(`Installing ${args.components} started`)
 
       args.accessTokens = await this.getAccessTokens(args)
       this.logger.info("Access tokens loaded")
