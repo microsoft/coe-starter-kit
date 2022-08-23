@@ -78,7 +78,7 @@ describe('Install', () => {
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
 
-        mockCoreApi.getProjects.mockResolvedValue([<TeamProjectReference>{id:"1"}])
+        mockCoreApi.getProjects.mockResolvedValue([<TeamProjectReference>{id:"1", name:"Test"}, {id:"2", name:"Pipeline Test"}])
         mockGitApi.getRepositories.mockResolvedValue([])
         mockGitApi.getRefs.mockResolvedValue([])
         mockGitApi.createRepository.mockResolvedValue(<GitRepository>{id:"123"})
@@ -87,6 +87,8 @@ describe('Install', () => {
         httpClient.patch.mockResolvedValue(null)
         let args = new DevOpsInstallArguments();
         args.accessToken = "token"
+        args.pipelineProjectName = "Pipeline Test"
+        args.projectName = "Test"
         mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "alm-accelerator-variable-group"}])
         
         // Act

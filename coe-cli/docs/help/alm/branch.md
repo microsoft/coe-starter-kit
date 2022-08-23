@@ -29,10 +29,7 @@ The value can be in the format https://dev.azure.com/contoso or contoso. If the 
 
 #### -p, --project
 
-The Azure DevOps project name. The project must already be created in your Azure DevOps organization. This value will be used to:
- - Create Variable Group
- - Import Azure DevOps pipeline templates
- - Create Azure DevOps pipelines to import, export and delete solutions in the Power Platform environments
+The Azure DevOps project name to create the branch in.
 
 The default value is **alm-sandbox**
 
@@ -43,6 +40,10 @@ The destination solution branch name to create
 #### -r, --repository
 
 The Azure DevOps repository to create the branch in. If the name of the repository is not supplied then it will be assumed to be the name of the project.
+
+#### --pipelineProject
+
+The Azure DevOps project name where the pipeline source code is stored. The project must already be created in your Azure DevOps organization. This value will be used to:
 
 ##### --pipelineRepository
 
@@ -64,7 +65,4 @@ The source build to copy build variable from. If not supplied the process will
 
 #### -s, --settings
 
-The optional settings. Can be used to set the service connections for the build pipelines **validation**, **test** and **prod**
-
-
-
+The optional settings. Can be used to set the service connections for the build pipelines **validation**, **test** and **prod** as well as specify build templates to use and the name of the global variable group.

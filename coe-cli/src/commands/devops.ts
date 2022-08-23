@@ -6,7 +6,7 @@ import * as CoreInterfaces from 'azure-devops-node-api/interfaces/CoreInterfaces
 import { GitVersionDescriptor, GitVersionType, GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus } from 'azure-devops-node-api/interfaces/GitInterfaces';
 import * as gitm from "azure-devops-node-api/GitApi"
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces';
-import { GitHubCommand, GitHubReleaseArguments } from './github';
+import { GitHubCommand } from './github';
 
 import axios from 'axios';
 import open = require('open');
@@ -16,7 +16,6 @@ import { PolicyConfiguration } from "azure-devops-node-api/interfaces/PolicyInte
 
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import path = require('path');
-const AdmZip = require('adm-zip');
 import * as fs from 'fs';
 import { FileHandle } from 'fs/promises';
 import httpm = require('typed-rest-client/HttpClient');
@@ -32,9 +31,6 @@ import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionMa
 
 import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
-import { setTokenSourceMapRange, StringMappingType } from "typescript";
-import { pipeline } from "stream";
-import { threadId } from "worker_threads";
 
 const {spawnSync} = require("child_process");
 /**
@@ -438,13 +434,13 @@ class DevOpsCommand {
             let buildNames = ['export-solution-to-git', 'import-unmanaged-to-dev-environment', 'delete-unmanaged-solution-and-components']
 
             for (var i = 0; i < buildNames.length; i++) {
-                let exportBuild = builds.filter(b => b.name == buildNames[i])
+                let filteredBuilds = builds.filter(b => b.name == buildNames[i])
 
-                if (exportBuild.length == 0) {
+                if (filteredBuilds.length == 0) {
                     this.logger?.debug(`Creating build ${buildNames[i]}`)
                     await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentQueue)
                 } else {
-                    let build = await buildApi.getDefinition(pipelineProject, exportBuild[0].id)
+                    let build = await buildApi.getDefinition(pipelineProject, filteredBuilds[0].id)
                     let changes = false
 
                     if (typeof build.queue === "undefined") {
@@ -455,11 +451,10 @@ class DevOpsCommand {
 
                     if (changes) {
                         this.logger?.debug(`Updating ${build.name}`)
-                        await buildApi.updateDefinition(build, pipelineProject, exportBuild[0].id)
+                        await buildApi.updateDefinition(build, pipelineProject, filteredBuilds[0].id)
                     } else {
                         this.logger?.debug(`No changes to ${buildNames[i]}`)
                     }
-
                 }
             }
         }
@@ -467,7 +462,11 @@ class DevOpsCommand {
 
     async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) 
     {
-        let projects = [args.projectName, args.pipelineProjectName]
+        let projects = [args.projectName]
+        if (args.pipelineProjectName?.length > 0) {
+            projects.push(args.pipelineProjectName)
+        }
+        
         for(let i = 0; i < projects.length; i++)
         {
             connection = await this.createConnectionIfExists(args, connection)
@@ -571,127 +570,133 @@ class DevOpsCommand {
     }
 
     async createMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi, setupEnvironmentConnections: boolean = true) {
-        connection = await this.createConnectionIfExists(args, connection)
-
-        let endpoints = await this.getServiceConnections(args, connection)
-        let coreApi = await connection.getCoreApi();
-
-        let projects = await coreApi.getProjects()
-        let project = projects.filter(p => p.name?.toLowerCase() == args.projectName?.toLowerCase())
-
-        if (project.length == 0) {
-            this.logger?.error(`Azure DevOps project ${args.projectName} not found`)
-            return Promise.resolve();
+        let projectNames = [args.projectName]
+        if(args.pipelineProjectName != args.projectName) {
+            projectNames.push(args.pipelineProjectName)
         }
-
-        let aadCommand = this.createAADCommand()
-        let aadArgs = new AADAppInstallArguments()
-        aadArgs.subscription = args.subscription
-        aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
-        aadArgs.createSecret = args.createSecretIfNoExist
-        aadArgs.accessTokens = args.accessTokens
-        aadArgs.endpoint = args.endpoint
-
-        let keys = Object.keys(args.environments)
-
-        let environments: string[] = []
-
-        if (args.environment?.length > 0) {
-            environments.push(args.environment)
-        }
-
-        let mapping: { [id: string]: string } = {}
-
-        if (setupEnvironmentConnections) {
-            for (var i = 0; i < keys.length; i++) {
-                let environmentName = args.environments[keys[i]]
-                mapping[environmentName] = keys[i]
-                if (environments.filter((e: string) => e == environmentName).length == 0) {
-                    environments.push(environmentName)
-                }
+        for(let projectIndex = 0; projectIndex < projectNames.length; projectIndex++) {
+            connection = await this.createConnectionIfExists(args, connection)
+    
+            let endpoints = await this.getServiceConnections(args, connection)
+            let coreApi = await connection.getCoreApi();
+    
+            let projects = await coreApi.getProjects()
+            let project = projects.filter(p => p.name?.toLowerCase() == projectNames[projectIndex].toLowerCase())
+    
+            if (project.length == 0) {
+                this.logger?.error(`Azure DevOps project ${projectNames[projectIndex]} not found`)
+                return Promise.resolve();
             }
-
-            if (Array.isArray(args.settings["installEnvironments"])) {
-                for (var i = 0; i < args.settings["installEnvironments"].length; i++) {
-                    let environmentName = args.settings["installEnvironments"][i]
-                    if (typeof args.settings[environmentName] === "string" && environments.filter((e: string) => e == args.settings[environmentName]).length == 0) {
-                        environments.push(args.settings[environmentName])
+    
+            let aadCommand = this.createAADCommand()
+            let aadArgs = new AADAppInstallArguments()
+            aadArgs.subscription = args.subscription
+            aadArgs.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
+            aadArgs.createSecret = args.createSecretIfNoExist
+            aadArgs.accessTokens = args.accessTokens
+            aadArgs.endpoint = args.endpoint
+    
+            let keys = Object.keys(args.environments)
+    
+            let environments: string[] = []
+    
+            if (args.environment?.length > 0) {
+                environments.push(args.environment)
+            }
+    
+            let mapping: { [id: string]: string } = {}
+    
+            if (setupEnvironmentConnections) {
+                for (var i = 0; i < keys.length; i++) {
+                    let environmentName = args.environments[keys[i]]
+                    mapping[environmentName] = keys[i]
+                    if (environments.filter((e: string) => e == environmentName).length == 0) {
+                        environments.push(environmentName)
+                    }
+                }
+    
+                if (Array.isArray(args.settings["installEnvironments"])) {
+                    for (var i = 0; i < args.settings["installEnvironments"].length; i++) {
+                        let environmentName = args.settings["installEnvironments"][i]
+                        if (typeof args.settings[environmentName] === "string" && environments.filter((e: string) => e == args.settings[environmentName]).length == 0) {
+                            environments.push(args.settings[environmentName])
+                        }
                     }
                 }
             }
-        }
-
-        for (var i = 0; i < environments.length; i++) {
-            let environmentName = environments[i]
-            let endpointUrl = Environment.getEnvironmentUrl(environmentName, args.settings)
-
-            let secretName = environmentName
-            try {
-                let environmentUrl = new url.URL(secretName)
-                secretName = environmentUrl.hostname.split(".")[0]
-            } catch {
-
-            }
-
-            let secretInfo = await aadCommand.addSecret(aadArgs, secretName)
-
-            if (endpoints.filter(e => e.name == endpointUrl).length == 0) {
-                let ep = <ServiceEndpoint>{
-                    authorization: <EndpointAuthorization>{
-                        parameters: {
-                            tenantId: secretInfo.tenantId,
-                            clientSecret: secretInfo.clientSecret,
-                            applicationId: secretInfo.clientId
-                        },
-                        scheme: "None"
-                    },
-                    name: endpointUrl,
-                    type: "powerplatform-spn",
-                    url: endpointUrl,
-                    description: typeof mapping[environmentName] !== "undefined" ? `Environment ${mapping[environmentName]}` : '',
-                    serviceEndpointProjectReferences: [
-                        {
-                            projectReference: <ProjectReference>{
-                                id: project[0].id,
-                                name: args.projectName
+    
+            for (var i = 0; i < environments.length; i++) {
+                let environmentName = environments[i]
+                let endpointUrl = Environment.getEnvironmentUrl(environmentName, args.settings)
+    
+                let secretName = environmentName
+                try {
+                    let environmentUrl = new url.URL(secretName)
+                    secretName = environmentUrl.hostname.split(".")[0]
+                } catch {
+    
+                }
+    
+                let secretInfo = await aadCommand.addSecret(aadArgs, secretName)
+    
+                if (endpoints.filter(e => e.name == endpointUrl).length == 0) {
+                    let ep = <ServiceEndpoint>{
+                        authorization: <EndpointAuthorization>{
+                            parameters: {
+                                tenantId: secretInfo.tenantId,
+                                clientSecret: secretInfo.clientSecret,
+                                applicationId: secretInfo.clientId
                             },
-                            name: endpointUrl
-                        }
-                    ]
-                }
-
-                let headers = <IHeaders>{};
-                headers["Content-Type"] = "application/json"
-                let webClient = this.getHttpClient(connection);
-
-                let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
-
-                // https://docs.microsoft.com/rest/api/azure/devops/serviceendpoint/endpoints/create?view=azure-devops-rest-6.0
-                let create = await webClient.post(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
-
-                let serviceConnection: any
-                serviceConnection = JSON.parse(await create.readBody())
-                if (create.message.statusCode != 200) {
-                    return Promise.resolve()
+                            scheme: "None"
+                        },
+                        name: endpointUrl,
+                        type: "powerplatform-spn",
+                        url: endpointUrl,
+                        description: typeof mapping[environmentName] !== "undefined" ? `Environment ${mapping[environmentName]}` : '',
+                        serviceEndpointProjectReferences: [
+                            {
+                                projectReference: <ProjectReference>{
+                                    id: project[0].id,
+                                    name: projectNames[projectIndex]
+                                },
+                                name: endpointUrl
+                            }
+                        ]
+                    }
+    
+                    let headers = <IHeaders>{};
+                    headers["Content-Type"] = "application/json"
+                    let webClient = this.getHttpClient(connection);
+    
+                    let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
+    
+                    // https://docs.microsoft.com/rest/api/azure/devops/serviceendpoint/endpoints/create?view=azure-devops-rest-6.0
+                    let create = await webClient.post(`${devOpsOrgUrl}${projectNames[projectIndex]}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
+    
+                    let serviceConnection: any
+                    serviceConnection = JSON.parse(await create.readBody())
+                    if (create.message.statusCode != 200) {
+                        return Promise.resolve()
+                    } else {
+                        this.logger?.info(`Created service connection ${endpointUrl}`)
+                    }
+    
+                    await this.assignUserToServiceConnector(project[0], serviceConnection, args, connection)
                 } else {
-                    this.logger?.info(`Created service connection ${endpointUrl}`)
+                    await this.assignUserToServiceConnector(project[0], endpointUrl, args, connection)
                 }
-
-                await this.assignUserToServiceConnector(project[0], serviceConnection, args, connection)
-            } else {
-                await this.assignUserToServiceConnector(project[0], endpointUrl, args, connection)
             }
-
         }
     }
 
     async assignUserToServiceConnector(project: CoreInterfaces.TeamProjectReference, endpoint: ServiceConnectorReference, args: DevOpsInstallArguments, connection: azdev.WebApi) {
         if (args.user?.length > 0) {
+
             let webClient = this.getHttpClient(connection);
             let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
 
             if (typeof endpoint === "string") {
-                let results = await webClient.get(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`);
+                let results = await webClient.get(`${devOpsOrgUrl}${project.name}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`);
                 let endpointJson = await results.readBody()
                 this.logger?.debug(endpointJson)
                 let endpoints = <any[]>(JSON.parse(endpointJson).value)
@@ -783,9 +788,10 @@ class DevOpsCommand {
      * @returns 
      */
     async getServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi): Promise<ServiceEndpoint[]> {
+        let pipelineProjectName = args.pipelineProjectName?.length > 0 ? args.pipelineProjectName : args.projectName
         let webClient = this.getHttpClient(connection);
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
-        let request = await webClient.get(`${devOpsOrgUrl}${args.projectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
+        let request = await webClient.get(`${devOpsOrgUrl}${pipelineProjectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
         let data = await request.readBody()
         this.logger?.debug(data)
         return <ServiceEndpoint[]>(JSON.parse(data).value)

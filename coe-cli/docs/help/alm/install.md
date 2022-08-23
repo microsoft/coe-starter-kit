@@ -67,7 +67,7 @@ The value can be in the format https://dev.azure.com/contoso or contoso. If the 
 
 ##### -p, --project
 
-The Azure DevOps project name. The project must already be created in your Azure DevOps organization. This value will be used to:
+The Azure DevOps project name where the solution source code will be stored. The project must already be created in your Azure DevOps organization. This value will be used to:
  - Create Variable Group
  - Import Azure DevOps pipeline templates
  - Create Azure DevOps pipelines to import, export and delete solutions in the Power Platform environments
@@ -76,9 +76,16 @@ The default value is **alm-sandbox**
 
 ##### -r, --repository
 
-The Azure DevOps repository where Azure DevOps solutions will be installed
+The Azure DevOps repository where Azure DevOps solutions will be stored
 
 The default value is **alm-sandbox**
+
+##### --pipelineProject
+
+The Azure DevOps project name where the pipeline source code will be stored and where the default pipelines will be created. The project must already be created in your Azure DevOps organization. This value will be used to:
+ - Create Variable Group
+ - Import Azure DevOps pipeline templates
+ - Create Azure DevOps pipelines to import, export and delete solutions in the Power Platform environments
 
 ##### --pipelineRepository
 
