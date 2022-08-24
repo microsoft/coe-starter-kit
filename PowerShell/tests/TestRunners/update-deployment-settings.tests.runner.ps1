@@ -12,24 +12,25 @@ function Invoke-DeploymentSettingsConfiguration-Test($usePlaceholders, $path)
     $path = './update-deployment-settings.tests.ps1'
     $data = @{
         DeploymentConfig                    = $testDeploymentConfig
-        AccessToken                         = $token
         BuildSourceDirectory                = $testConfig.buildSourceDirectory
+        BuildProjectName                    = $testConfig.buildProjectName
         BuildRepositoryName                 = $testConfig.buildRepositoryName
         CdsBaseConnectionString             = $testConfig.cdsBaseConnectionString
         XrmDataPowerShellVersion            = $testConfig.xrmDataPowerShellVersion
         MicrosoftXrmDataPowerShellModule    = $testConfig.microsoftXrmDataPowerShellModule
         OrgUrl                              = $testConfig.orgUrl
-        ProjectId                           = $testConfig.projectId
         ProjectName                         = $testConfig.projectName
         Repo                                = $testConfig.repo
         AuthType                            = "Basic"
         ServiceConnection                   = $testConfig.serviceConnection
         SolutionName                        = $testConfig.solutionName
         UsePlaceholders                     = $usePlaceholders
+        AccessToken                         = $token
+        Pat                                 = $pat
     }    
     $container = New-PesterContainer -Path $path -Data $data
     Invoke-Pester -Container $container
 }
 
-Invoke-DeploymentSettingsConfiguration-Test $false '../'
-Invoke-DeploymentSettingsConfiguration-Test $true './tests'
+Invoke-DeploymentSettingsConfiguration-Test 'false' '../'
+Invoke-DeploymentSettingsConfiguration-Test 'true' './tests'

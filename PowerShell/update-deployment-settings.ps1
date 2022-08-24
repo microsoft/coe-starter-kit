@@ -2,18 +2,19 @@
 {
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [String]$buildRepositoryName,
         [Parameter(Mandatory)] [String]$cdsBaseConnectionString,
         [Parameter(Mandatory)] [String]$xrmDataPowerShellVersion,
         [Parameter(Mandatory)] [String]$microsoftXrmDataPowerShellModule,
         [Parameter(Mandatory)] [String]$orgUrl,
-        [Parameter(Mandatory)] [String]$projectId,
         [Parameter(Mandatory)] [String]$projectName,
         [Parameter(Mandatory)] [String]$repo,
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [String]$serviceConnection,
         [Parameter(Mandatory)] [String]$solutionName,
-        [Parameter()] [String]$usePlaceholders
+        [Parameter()] [String]$usePlaceholders = "true",
+        [Parameter()] [String]$pat = "" # Azure DevOps Personal Access Token only required for running local tests
     )
     $configurationData = $env:DEPLOYMENT_SETTINGS | ConvertFrom-Json
     $reservedVariables = @("TriggerSolutionUpgrade")
@@ -30,21 +31,15 @@
     }
 
     #Update / Create Deployment Pipelines
-    New-DeploymentPipelines "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$solutionName" $configurationData
-
-    $buildDefinitionResourceUrl = "$orgUrl$projectId/_apis/build/definitions?name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"
-
-    $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
-        Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
-    }
-    $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+    New-DeploymentPipelines "$buildProjectName" "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$pat" "$solutionName" $configurationData
 
     Write-Host "Importing PowerShell Module: $microsoftXrmDataPowerShellModule - $xrmDataPowerShellVersion"
     Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $xrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
     $conn = Get-CrmConnection -ConnectionString "$cdsBaseConnectionString$serviceConnection"
 
+    Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
     #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
-    foreach($buildDefinitionResult in $buildDefinitionResponseResults)
+    foreach($configurationDataEnvironment in $configurationData)
     {
         $connectionReferences = [System.Collections.ArrayList]@()
         $environmentVariables = [System.Collections.ArrayList]@()
@@ -55,10 +50,18 @@
         $flowSharings = [System.Collections.ArrayList]@()
         $groupTeams = [System.Collections.ArrayList]@()
         #Getting the build definition id and variables to be updated
-        $definitionId = $buildDefinitionResult.id
-        $newBuildDefinitionVariables = $buildDefinitionResult.variables
-        $configurationDataEnvironment = $configurationData | Where-Object { $_.BuildName -eq $buildDefinitionResult.name } | Select-Object -First 1
+        $buildName = $configurationDataEnvironment.BuildName
+        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?name=$buildName&includeAllProperties=true&api-version=6.0"
+        Write-Host $buildDefinitionResourceUrl
+        $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
+            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
+        }
+        $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
 
+        $newBuildDefinitionVariables = $null
+        if($buildDefinitionResponseResults.length -gt 0) {
+            $newBuildDefinitionVariables = $buildDefinitionResponseResults[0].variables
+        }
         if($null -ne $configurationDataEnvironment -and $null -ne $configurationDataEnvironment.UserSettings) {
             foreach($configurationVariable in $configurationDataEnvironment.UserSettings) {
                 $configurationVariableName = $configurationVariable.Name
@@ -171,41 +174,45 @@
                 }
 
                 #See if the variable already exists
-                $found = $false
-                foreach($buildVariable in $newBuildDefinitionVariables.PSObject.Properties) {
-                    if($buildVariable.Name -eq $configurationVariableName) {
-                        $found = $true
-                        break
-                    }
-                }                
-                #Add the configuration variable to the list of pipeline variables if usePlaceholders is not false
-                if($usePlaceholders.ToLower() -ne 'false') {
-                    #If the variable was not found create it 
-                    if(!$found) { 
-                        $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariableName -Value @{value = ''}
-                    }
+                if($null -ne $newBuildDefinitionVariables) {
+                    $found = $false
+                    foreach($buildVariable in $newBuildDefinitionVariables.PSObject.Properties) {
+                        if($buildVariable.Name -eq $configurationVariableName) {
+                            $found = $true
+                            break
+                        }
+                    }                
+                    #Add the configuration variable to the list of pipeline variables if usePlaceholders is not false
+                    if($usePlaceholders.ToLower() -ne 'false') {
+                        #If the variable was not found create it 
+                        if(!$found) { 
+                            $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariableName -Value @{value = ''}
+                        }
 
-                    # Set the value to the value passed in on the configuration data
-                    if($null -eq $configurationVariableValue -or [string]::IsNullOrWhiteSpace($configurationVariableValue)) {
-                        $newBuildDefinitionVariables.$configurationVariableName.value = ''
-                    } else {
+                        # Set the value to the value passed in on the configuration data
+                        if($null -eq $configurationVariableValue -or [string]::IsNullOrWhiteSpace($configurationVariableValue)) {
+                            $newBuildDefinitionVariables.$configurationVariableName.value = ''
+                        } else {
+                            $newBuildDefinitionVariables.$configurationVariableName.value = $configurationVariableValue
+                        }
+                    }
+                    elseif($reservedVariables -contains $configurationVariableName) {
+                        #If the variable is in the reserved variables list then set the value to the value passed in on the configuration data
+                        if(!$found) { 
+                            $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariableName -Value @{value = ''}
+                        }
                         $newBuildDefinitionVariables.$configurationVariableName.value = $configurationVariableValue
                     }
-                }
-                elseif($reservedVariables -contains $configurationVariableName) {
-                    #If the variable is in the reserved variables list then set the value to the value passed in on the configuration data
-                    if(!$found) { 
-                        $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariableName -Value @{value = ''}
-                    }
-                    $newBuildDefinitionVariables.$configurationVariableName.value = $configurationVariableValue
                 }
             }
 
             $environmentName = $configurationDataEnvironment.DeploymentEnvironmentName
             if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\") {
+                Write-Host "Deleting $buildSourceDirectory\$repo\$solutionName\config\$environmentName\*eploymentSettings.json"
                 Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\*eploymentSettings.json" -Force
             }
             else {
+                Write-Host "Creating $buildSourceDirectory\$repo\$solutionName\config" -Name "$environmentName" -ItemType "directory"
                 New-Item "$buildSourceDirectory\$repo\$solutionName\config" -Name "$environmentName" -ItemType "directory"
             }
 
@@ -215,6 +222,7 @@
             $newConfiguration | Add-Member -MemberType NoteProperty -Name 'EnvironmentVariables' -Value $environmentVariables
             $newConfiguration | Add-Member -MemberType NoteProperty -Name 'ConnectionReferences' -Value $connectionReferences
 
+            Write-Host "Creating deployment settings"
             $json = ConvertTo-Json -Depth 10 $newConfiguration
             Set-Content -Path $deploymentSettingsFilePath -Value $json
 
@@ -228,11 +236,12 @@
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupCanvasConfiguration' -Value $canvasApps
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupTeamConfiguration' -Value $groupTeams
             #Convert the updated configuration to json and store in customDeploymentSettings.json
+            Write-Host "Creating custom deployment settings"
             $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
             Set-Content -Path $customDeploymentSettingsFilePath -Value $json
 
             #Set the build variables
-            Set-BuildDefinitionVariables $orgUrl $projectId $azdoAuthType $buildDefinitionResult $definitionId $newBuildDefinitionVariables
+            Set-BuildDefinitionVariables $orgUrl $projectName $azdoAuthType $buildDefinitionResponseResults[0] $buildDefinitionResponseResults[0].id $newBuildDefinitionVariables
         }
     }
 }
@@ -240,27 +249,39 @@
 function New-DeploymentPipelines
 {
     param (
+        [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [String]$buildRepositoryName,
         [Parameter(Mandatory)] [String]$orgUrl,
         [Parameter(Mandatory)] [String]$projectName,
         [Parameter(Mandatory)] [String]$repo,
         [Parameter(Mandatory)] [String]$azdoAuthType,
+        [Parameter(Mandatory)] [String] [AllowEmptyString()] $pat,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [System.Object[]]$configurationData
     )
-
     if($null -ne $configurationData -and $configurationData.length -gt 0) {
         Write-Host "Retrieved " $configurationData.length " deployment environments"
+        $branchResourceUrl = "$orgUrl$projectName/_apis/git/repositories/$repo/refs?filter=heads/$solutionName&api-version=6.0"
+        Write-Host $branchResourceUrl
+        $branchResourceResponse = Invoke-RestMethod $branchResourceUrl -Method Get -Headers @{
+            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
+        }
+        $branchResourceResults = $branchResourceResponse.value
+        Write-Host "Retrieved " $branchResourceResults.length " branch"
+
         #Update / Create Deployment Pipelines
-        $buildDefinitionResourceUrl = "$orgUrl$projectId/_apis/build/definitions?name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"
+        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"
         Write-Host $buildDefinitionResourceUrl
         $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
             Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
-        Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds" $env:SYSTEM_ACCESSTOKEN
+        Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
 
-        if($buildDefinitionResponseResults.length -lt $configurationData.length) {
+        $deploymentConfigurationData = $configurationData | Where-Object -FilterScript { [string]::IsNullOrWhiteSpace($_.StepType) -or $_.StepType -ne 809060000 }
+        Write-Host "Retrieved " $deploymentConfigurationData.length " deployment configurations"
+
+        if($branchResourceResults.length -eq 0 -or $buildDefinitionResponseResults.length -lt $deploymentConfigurationData.length) {
             $currentPath = Get-Location
             if(Test-Path -Path "../cli") {
                 Remove-Item "../cli" -Force -Recurse
@@ -273,12 +294,18 @@ function New-DeploymentPipelines
             npm run build
             npm link
             $settings= ""
-            foreach($deploymentEnvironment in $configurationData) {
+            $environmentNames = ""
+            foreach($deploymentEnvironment in $deploymentConfigurationData) {
                 if(-Not [string]::IsNullOrWhiteSpace($settings)) {
                     $settings = $settings + ","
                 }
 
+                if(-Not [string]::IsNullOrWhiteSpace($environmentNames)) {
+                    $environmentNames = $environmentNames + "|"
+                }
+
                 if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentUrl) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
+                    $environmentNames = $environmentNames + $deploymentEnvironment.DeploymentEnvironmentName
                     $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "=" + $deploymentEnvironment.DeploymentEnvironmentUrl
                 }
 
@@ -289,38 +316,36 @@ function New-DeploymentPipelines
                     $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-scname=" + $deploymentEnvironment.ServiceConnectionName
                 }
 
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.TenantId) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-tenantid=" + $deploymentEnvironment.TenantId
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.ClientId) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-clientid=" + $deploymentEnvironment.ClientId
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.ClientSecret) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-clientsecret=" + $deploymentEnvironment.ClientSecret
-                }
-
                 if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.VariableGroup) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
                     if(-Not [string]::IsNullOrWhiteSpace($settings)) {
                         $settings = $settings + ","
                     }
                     $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-variablegroup=" + $deploymentEnvironment.VariableGroup
                 }
+
+                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildName) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildName)) {
+                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+                        $settings = $settings + ","
+                    }
+                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-buildname=" + $deploymentEnvironment.BuildName
+                }
+
+                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildTemplate) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildTemplate)) {
+                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+                        $settings = $settings + ","
+                    }
+                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-buildtemplate=" + $deploymentEnvironment.BuildTemplate
+                }
             }
             if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                Write-Host "Environments: " $settings
-                coe alm branch --pipelineRepository $buildRepositoryName -o $orgUrl -p "$projectName" -r "$repo" -d "$solutionName" -a  $env:SYSTEM_ACCESSTOKEN -s $settings
+                $settings = $settings + ",environments=" + $environmentNames
+                Write-Host "environments: " $settings
+                if([string]::IsNullOrWhiteSpace($pat)) {
+                    coe alm branch --pipelineProject $buildProjectName --pipelineRepository $buildRepositoryName -o $orgUrl -p "$projectName" -r "$repo" -d "$solutionName" -a $env:SYSTEM_ACCESSTOKEN -s $settings
+                }
+                else {
+                    coe alm branch --pipelineProject $buildProjectName --pipelineRepository $buildRepositoryName -o $orgUrl -p "$projectName" -r "$repo" -d "$solutionName" -a $pat -s $settings
+                }
             }
 
             Set-Location $currentPath
@@ -331,20 +356,23 @@ function New-DeploymentPipelines
 function Set-BuildDefinitionVariables {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
-        [Parameter(Mandatory)] [String]$projectId,
+        [Parameter(Mandatory)] [String]$projectName,
         [Parameter(Mandatory)] [String]$azdoAuthType,
-        [Parameter(Mandatory)] [PSCustomObject]$buildDefinitionResult,
-        [Parameter(Mandatory)] [String]$definitionId,
-        [Parameter(Mandatory)] [PSCustomObject]$newBuildDefinitionVariables
+        [Parameter()] [PSCustomObject]$buildDefinitionResult,
+        [Parameter()] [String]$definitionId,
+        [Parameter()] [PSCustomObject]$newBuildDefinitionVariables
     )
-    #Set the build definition variables to the newly created list
-    ([pscustomobject]$buildDefinitionResult.variables) = ([pscustomobject]$newBuildDefinitionVariables)
-    $buildDefinitionResourceUrl = "$orgUrl$projectId/_apis/build/definitions/" + $definitionId + "?api-version=6.0"
-    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-    $headers.Add("Authorization", "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN")
-    $headers.Add("Content-Type", "application/json")
-    $body = ConvertTo-Json -Depth 10 $buildDefinitionResult
-    #remove tab charcters from the body
-    $body = $body -replace "`t", ""
-    Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null   
+    if($null -ne $newBuildDefinitionVariables) {
+        #Set the build definition variables to the newly created list
+        ([pscustomobject]$buildDefinitionResult.variables) = ([pscustomobject]$newBuildDefinitionVariables)
+        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions/" + $definitionId + "?api-version=6.0"
+        $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+        $headers.Add("Authorization", "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN")
+        $headers.Add("Content-Type", "application/json")
+        $body = ConvertTo-Json -Depth 10 $buildDefinitionResult
+        #remove tab charcters from the body
+        $body = $body -replace "`t", ""
+        Write-Host $buildDefinitionResourceUrl
+        Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null   
+    }
 }

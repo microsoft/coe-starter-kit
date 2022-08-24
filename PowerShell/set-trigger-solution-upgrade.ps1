@@ -12,14 +12,14 @@ function Set-TriggerSolutionUpgrade
         [Parameter(Mandatory)] [String]$gitHubPat
     )
 
-  Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]false"
+  Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;]false"
   $solutionUpgradeLabel = "solution-upgrade"
 
   $triggerSolutionUpgradeVariableSupplied = !$triggerSolutionUpgrade.Contains("TriggerSolutionUpgrade")
 
   # If the TriggerSolutionUpgrade variable is set at queue time, then override the logic to determine solution upgrade based on PR label of solution-upgrade
   if ($triggerSolutionUpgradeVariableSupplied) {
-    Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]$triggerSolutionUpgrade"
+    Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;]$triggerSolutionUpgrade"
   }
   else {
     # In order to determine if we need to perform a Solution Upgrade, we see if the Pull Request has a label of solution-upgrade on it.
@@ -59,7 +59,7 @@ function Set-TriggerSolutionUpgrade
           if ($pullRequestLabelQueryResponseValue.Count -gt 0) {
             $triggerSolutionUpgrade = $pullRequestLabelQueryResponseValue.name.Contains($solutionUpgradeLabel).ToString().ToLower()
             Write-Host "Post Label Fetch; triggerSolutionUpgrade - " $triggerSolutionUpgrade
-            Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]$triggerSolutionUpgrade"
+            Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;]$triggerSolutionUpgrade"
           }
         }
       }
@@ -82,7 +82,7 @@ function Set-TriggerSolutionUpgrade
             
           if ($issuesResponse.labels.Count -gt 0) {
             $triggerSolutionUpgrade = $issuesResponse.labels.name.Contains($solutionUpgradeLabel).ToString().ToLower()
-            Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;isOutput=true]$triggerSolutionUpgrade"
+            Write-Output "##vso[task.setvariable variable=TriggerSolutionUpgrade;]$triggerSolutionUpgrade"
           }
         }
       }

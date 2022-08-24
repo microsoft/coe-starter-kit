@@ -25,6 +25,12 @@ parameters:
 - name: isPreRelease
   type: boolean
   default: false
+- name: hotfixReleaseNumber
+  type: number
+  default: 0
+- name: queryHeadingDelimited
+  type: string
+  default: "|"
 
 steps:
 
@@ -61,7 +67,7 @@ steps:
     $headers.Add("Authorization", "Bearer $(GitHubPAT)")
 
     #Find the milestone for this release e.g. 'CoE Starter Kit - July 2021
-    $milestoneRequest = "${{ parameters.gitHubApiUrl }}/milestones?sort=due_on&direction=desc"
+    $milestoneRequest = "https://api.github.com/repos/${{ parameters.gitHubApiUrl }}/milestones?sort=due_on&direction=desc"
     $milestoneResponse = Invoke-RestMethod $milestoneRequest -Method 'GET' -Headers $headers
     $currentMilestone = $null
     $milestoneName = '${{ parameters.solutionDisplayName }} - ' + $releaseMonthName + ' ' + ${{ parameters.releaseYear }}
@@ -71,32 +77,56 @@ steps:
             break
         }
     }
+    #Set the tag and title for the release
+    $tag = '${{ parameters.solutionName }}-$(ReleaseMonthName)${{ parameters.releaseYear }}'
+    $title = '${{ parameters.solutionDisplayName }} $(ReleaseMonthName) ${{ parameters.releaseYear }}'
+    if(${{parameters.HotfixReleaseNumber}} -ne 0) {
+        $tag = '${{ parameters.solutionName }}-$(ReleaseMonthName)${{ parameters.releaseYear }}-HF${{parameters.HotfixReleaseNumber}}'
+        $title = '${{ parameters.solutionDisplayName }} $(ReleaseMonthName) ${{ parameters.releaseYear }} - Hotfix ${{parameters.HotfixReleaseNumber}}'
+    }
 
+    Write-Host "##vso[task.setvariable variable=Tag]$tag"
+    Write-Host "##vso[task.setvariable variable=Title]$title"
+
+    #Build the release notes
     if($currentMilestone -ne $null){
-        $issuesRequestUrl = "${{ parameters.gitHubApiUrl }}/issues?state=all&filter=all&per_page=100&sort=created&direction=asc&milestone=" + $currentMilestone.number #only retrieve closed issues in this milestone
-        $issueResponse = Invoke-RestMethod $issuesRequestUrl -Method 'GET' -Headers $headers
-        foreach($issue in $issueResponse){
-            if("${{ parameters.closeIssues }}" -eq "True") {
-                if('${{ parameters.issueClosingComment }}' -ne '') {
-                    # Add the comment to the issue
-                    # /repos/{owner}/{repo}/issues/{issue_number}/comments
-                    $commentRequestUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
-                    $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
-                    $commentBody = "{`"body`": `"$commentFormatted`"}"
-                    Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
-                }
-
-                # Close the issue if not closed
-                if($issue.state -ne 'closed') {
-                    #/repos/{owner}/{repo}/issues/{issue_number}
-                    $issueRequestClosingUrl = "${{ parameters.gitHubApiUrl }}/issues/" + $issue.number
-                    $closeRequestBody = "{`"state`": `"closed`"}"
-                    Invoke-RestMethod $issueRequestClosingUrl -Method 'PATCH' -Headers $headers -Body $closeRequestBody
-                }
+        $queryHeadings = "${{parameters.queryHeadingDelimited}}".split('|')
+        for ($i = 0; $i -lt $queryHeadings.Length; $i = $i+2) {
+            #Only retrieve closed issues in this milestone
+            $issuesRequestUrl = 'https://api.github.com/search/issues?per_page=100&sort=created&order=asc&q=is:issue repo:${{ parameters.gitHubApiUrl }} milestone:"' + $currentMilestone.title + '"'
+            if(-not [string]::IsNullOrWhiteSpace($queryHeadings[$i])) {
+                $issuesRequestUrl = $issuesRequestUrl + " " + $queryHeadings[$i]
             }
-            $releaseNotes = $releaseNotes + [Environment]::NewLine + "  - #" + $issue.number + "-" + $issue.title #Add a line for each issue with number and title. Add more here as necessary
+            Write-Host $issuesRequestUrl
+            $issueResponse = Invoke-RestMethod $issuesRequestUrl -Method 'GET' -Headers $headers
+
+            if($issueResponse.items.Length -gt 0 -and -not [string]::IsNullOrWhiteSpace($queryHeadings[$i + 1])) {
+                $releaseNotes = [Environment]::NewLine + $releaseNotes + [Environment]::NewLine + $queryHeadings[$i + 1] + " (" + $issueResponse.items.Length + ")"
+            }
+            foreach($issue in $issueResponse.items){
+                if("${{ parameters.closeIssues }}" -eq "True") {
+                    if('${{ parameters.issueClosingComment }}' -ne '') {
+                        # Add the comment to the issue
+                        # /repos/{owner}/{repo}/issues/{issue_number}/comments
+                        $commentRequestUrl = "https://api.github.com/repos/${{ parameters.gitHubApiUrl }}/issues/" + $issue.number + "/comments"
+                        $commentFormatted = "@" + $issue.user.login + " ${{ parameters.issueClosingComment }}"
+                        $commentBody = "{`"body`": `"$commentFormatted`"}"
+                        Invoke-RestMethod $commentRequestUrl -Method 'POST' -Headers $headers -Body $commentBody
+                    }
+
+                    # Close the issue if not closed
+                    if($issue.state -ne 'closed') {
+                        #/repos/{owner}/{repo}/issues/{issue_number}
+                        $issueRequestClosingUrl = "https://api.github.com/repos/${{ parameters.gitHubApiUrl }}/issues/" + $issue.number
+                        $closeRequestBody = "{`"state`": `"closed`"}"
+                        Invoke-RestMethod $issueRequestClosingUrl -Method 'PATCH' -Headers $headers -Body $closeRequestBody
+                    }
+                }
+                $releaseNotes = $releaseNotes + [Environment]::NewLine + "  - #" + $issue.number + "-" + $issue.title #Add a line for each issue with number and title. Add more here as necessary
+            }
         }
         Set-Content -Path $fullReleaseNotesPath -Value $releaseNotes
+
         exit 0
     }
   displayName: Build Release Notes from Milestone
@@ -105,8 +135,8 @@ steps:
   inputs:
     gitHubConnection: ${{ parameters.connectionName }}
     tagSource: 'userSpecifiedTag'
-    tag: '${{ parameters.solutionName }}-$(ReleaseMonthName)${{ parameters.releaseYear }}'
-    title: '${{ parameters.solutionDisplayName }} $(ReleaseMonthName) ${{ parameters.releaseYear }}'
+    tag: $(Tag)
+    title: $(Title)
     releaseNotesFilePath: '$(ReleaseNotesPath)'
     addChangeLog: false #The OOB changelog doesn't allow for filtering based on milestone so we created our own changelog above
     isDraft: ${{ parameters.isDraft }}
