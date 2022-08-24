@@ -73,7 +73,7 @@ class ALMCommand {
    */
   async install(args: ALMInstallArguments) : Promise<void> { 
     try {
-      this.logger.info("Installing ${args.components} started")
+      this.logger.info(`Installing ${args.components} started`)
 
       args.accessTokens = await this.getAccessTokens(args)
       this.logger.info("Access tokens loaded")
@@ -127,6 +127,7 @@ class ALMCommand {
     devOpsInstall.organizationName = args.organizationName
     devOpsInstall.projectName = args.project
     devOpsInstall.repositoryName = args.repository
+    devOpsInstall.pipelineProjectName = args.pipelineProject
     devOpsInstall.pipelineRepositoryName = args.pipelineRepository
     devOpsInstall.accessTokens = args.accessTokens
     devOpsInstall.azureActiveDirectoryServicePrincipal = args.azureActiveDirectoryServicePrincipal
@@ -372,6 +373,7 @@ class ALMCommand {
       branchArgs.organizationName = args.organizationName;
       branchArgs.projectName = args.projectName;
       branchArgs.repositoryName = args.repositoryName;
+      branchArgs.pipelineProject = args.pipelineProject;
       branchArgs.pipelineRepository = args.pipelineRepository;
       branchArgs.sourceBuildName = args.sourceBuildName;
       branchArgs.destinationBranch = args.destinationBranch;
@@ -471,6 +473,11 @@ class ALMCommand {
    * The name of the Azure DevOps solution repository
    */
   repository: string
+
+  /**
+  * The name of the Azure DevOps pipeline repository
+  */
+  pipelineProject: string
 
   /**
    * The name of the Azure DevOps pipeline repository
@@ -616,60 +623,65 @@ class ALMBranchArguments {
     this.settings = {}
   }
 
-  /**
-   * The name of the configuration file to read from
-   */
-  configFile: string
-  /**
-   * The client id to authenticate with
-   */
-  clientId: string
+    /**
+    * The name of the configuration file to read from
+    */
+    configFile: string
+    /**
+    * The client id to authenticate with
+    */
+    clientId: string
 
-  auth: string
-  /**
-   * The name of the Azure DevOps Organization
-   */
-  organizationName: string
+    auth: string
+    /**
+    * The name of the Azure DevOps Organization
+    */
+    organizationName: string
 
-  /**
-   * The Azure DevOps project name that ALM installed ot
-   */
-  projectName: string
+    /**
+    * The Azure DevOps project name that ALM installed ot
+    */
+    projectName: string
 
-  /**
-   * The Azure repo name that ALM installed to
-   */
-  repositoryName: string;
+    /**
+    * The Azure repo name that ALM installed to
+    */
+    repositoryName: string;
 
-   /**
-   * The Azure repo name that contains ALM pipeline templates
-   */
-  pipelineRepository: string
+    /**
+    * The Azure repo name that contains ALM pipeline templates
+    */
+    pipelineProject: string
 
-  /**
-   * The source branch to copy from
-   */
-  sourceBranch: string
+    /**
+    * The Azure repo name that contains ALM pipeline templates
+    */
+    pipelineRepository: string
 
-  /**
-   * The source build name to copy setup from> if not defained will create initial values that will need to be updated
-   */
-  sourceBuildName: string
+    /**
+    * The source branch to copy from
+    */
+    sourceBranch: string
 
-  /**
-   * The destination branch that will be copied to
-   */
-  destinationBranch: string
+    /**
+    * The source build name to copy setup from> if not defained will create initial values that will need to be updated
+    */
+    sourceBuildName: string
 
-  /**
-   * The destination branch that will be copied to
-   */
-  accessToken: string
+    /**
+    * The destination branch that will be copied to
+    */
+    destinationBranch: string
 
-  /**
+    /**
+    * The destination branch that will be copied to
+    */
+    accessToken: string
+
+    /**
     * Optional settings
     */
-  settings:  { [id: string] : string }
+    settings:  { [id: string] : string }
 }
 
 export { 

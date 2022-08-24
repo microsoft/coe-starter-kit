@@ -27,7 +27,8 @@ import { RoleAssignment } from 'azure-devops-node-api/interfaces/SecurityRolesIn
 import { IdentityRef } from 'azure-devops-node-api/interfaces/common/VSSInterfaces';
 import { GraphGroup } from 'azure-devops-node-api/interfaces/GraphInterfaces';
 import { VariableGroupParameters, TaskAgentQueue } from "azure-devops-node-api/interfaces/TaskAgentInterfaces";
-
+const { Readable } = require("stream")
+    
 describe('Install', () => {
     test('Import Repo', async () => {
         // Arrange
@@ -77,7 +78,7 @@ describe('Install', () => {
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
 
-        mockCoreApi.getProjects.mockResolvedValue([<TeamProjectReference>{id:"1"}])
+        mockCoreApi.getProjects.mockResolvedValue([<TeamProjectReference>{id:"1", name:"Test"}, {id:"2", name:"Pipeline Test"}])
         mockGitApi.getRepositories.mockResolvedValue([])
         mockGitApi.getRefs.mockResolvedValue([])
         mockGitApi.createRepository.mockResolvedValue(<GitRepository>{id:"123"})
@@ -85,7 +86,9 @@ describe('Install', () => {
         mockGitApi.queryImportRequests.mockResolvedValue([<GitInterfaces.GitImportRequest>{importRequestId: 1, status: GitAsyncOperationStatus.Completed}])
         httpClient.patch.mockResolvedValue(null)
         let args = new DevOpsInstallArguments();
-
+        args.accessToken = "token"
+        args.pipelineProjectName = "Pipeline Test"
+        args.projectName = "Test"
         mockTaskAgentApi.getVariableGroups.mockResolvedValue([{id:1, name: "alm-accelerator-variable-group"}])
         
         // Act
@@ -147,6 +150,7 @@ describe('Install', () => {
         let args = new DevOpsInstallArguments();
         args.repositoryName = "pipeline"
         args.projectName = "test1"
+        args.accessToken = "token"
 
         command.createWebApi = () => mockDevOpsWebApi
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
@@ -229,13 +233,14 @@ describe('Branch', () => {
         let mockBuildApi = mock<IBuildApi>();
         
         let mockRepo = mock<GitInterfaces.GitRepository>()
+        let mockPipelineRepo = mock<GitInterfaces.GitRepository>()
         let mockSourceRef = mock<GitInterfaces.GitRef>()
 
         let mockSourceBuildRef = mock<BuildDefinitionReference>();
 
         command.createWebApi = (org: string, handler: IRequestHandler) => mockDevOpsWebApi;
         command.getUrl = (url: string) => Promise.resolve('123')
-        command.createBranch = (args: DevOpsBranchArguments, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi) => Promise.resolve(<GitRepository>{})
+        command.createBranch = (args: DevOpsBranchArguments, pipelineProject: CoreInterfaces.TeamProject, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi) => Promise.resolve(<GitRepository>{})
         mockTaskAgentApi.getAgentQueues.mockResolvedValue(mockQueues)
 
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
@@ -245,7 +250,7 @@ describe('Branch', () => {
 
         mockCoreApi.getProject.mockResolvedValue(mockProject)
 
-        mockGitApi.getRepositories.mockResolvedValue([mockRepo])
+        mockGitApi.getRepositories.mockResolvedValue([mockRepo, mockPipelineRepo])
         mockGitApi.getRefs.mockResolvedValue([mockSourceRef])
 
         mockBuildApi.getDefinitions.mockResolvedValue([])
@@ -253,6 +258,7 @@ describe('Branch', () => {
         mockProject.name = 'alm-sandbox'
         mockRepo.name = 'repo1'
         mockRepo.defaultBranch = 'refs/heads/main'
+        mockPipelineRepo.name = 'templates'
         mockSourceRef.name = 'refs/heads/main'
 
 
@@ -261,17 +267,18 @@ describe('Branch', () => {
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "NewSolution"        
-        args.pipelineRepository = "templates"
+        args.pipelineRepository = "pipelines"
         args.sourceBranch = "main"  
         args.destinationBranch = "NewSolution"  
 
         let settings : { [id: string] : string } = {}
         settings["validation"] = "https://validation.crm.dynamics.com"
         settings["test"] = "https://test.crm.dynamics.com"
-        settings["prod"] = "https://production.crm.dynamics.com"
+        settings["production"] = "https://production.crm.dynamics.com"
         settings["validation-scname"] = "Validation Service Connection"
         settings["test-scname"] = "Test Service Connection"
-        settings["prod-scname"] = "Prod Service Connection"
+        settings["production-scname"] = "Prod Service Connection"
+        settings["environments"] = "Validation|Test|Production"
         args.settings = settings
         // Act
         await command.branch(args)
@@ -299,14 +306,14 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[1][0].variables["ServiceConnectionUrl"].value).toBe("https://test.crm.dynamics.com/")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[1][0].process).yamlFilename).toBe('/NewSolution/deploy-test-NewSolution.yml')
 
-        expect(mockBuildApi.createDefinition.mock.calls[2][0].name).toBe('deploy-prod-NewSolution')
+        expect(mockBuildApi.createDefinition.mock.calls[2][0].name).toBe('deploy-production-NewSolution')
         expect(mockBuildApi.createDefinition.mock.calls[2][0].queue.id).toBe(1)
         expect(mockBuildApi.createDefinition.mock.calls[2][0].triggers.length).toBe(1)
         expect(mockBuildApi.createDefinition.mock.calls[2][0].triggers[0].triggerType).toBe(2)
         expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["EnvironmentName"].value).toBe("Production")
         expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["ServiceConnection"].value).toBe("Prod Service Connection")
         expect(mockBuildApi.createDefinition.mock.calls[2][0].variables["ServiceConnectionUrl"].value).toBe("https://production.crm.dynamics.com/")
-        expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[2][0].process).yamlFilename).toBe('/NewSolution/deploy-prod-NewSolution.yml')
+        expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[2][0].process).yamlFilename).toBe('/NewSolution/deploy-production-NewSolution.yml')
 
     })
 
@@ -323,29 +330,35 @@ describe('Branch', () => {
         let mockGitApi = mock<gitm.IGitApi>();
         let mockBuildApi = mock<IBuildApi>();
         
+        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(`{"content": "[SampleSolutionName][BranchContainingTheBuildTemplates][RepositoryContainingTheBuildTemplates][SampleSolutionName][alm-accelerator-variable-group]"}`))
+            
         let mockRepo = mock<GitInterfaces.GitRepository>()
+        let pipelineRepo = mock<GitInterfaces.GitRepository>()
         let mockSourceRef = mock<GitInterfaces.GitRef>()
         let mockSourceBuildRef = mock<BuildDefinitionReference>();
         command.createWebApi = (org: string, handler: IRequestHandler) => mockDevOpsWebApi;
-        command.getUrl = (url: string) => Promise.resolve('123')
         mockDevOpsWebApi.getCoreApi.mockResolvedValue(mockCoreApi)
         mockDevOpsWebApi.getGitApi.mockResolvedValue(mockGitApi)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskAgentApi)
         mockCoreApi.getProject.mockResolvedValue(mockProject)
-        mockGitApi.getRepositories.mockResolvedValue([mockRepo])
+        mockGitApi.getRepositories.mockResolvedValue([mockRepo, pipelineRepo])
         mockGitApi.getRefs.mockResolvedValue([mockSourceRef])
         mockBuildApi.getDefinitions.mockResolvedValue([])
         mockProject.name = 'alm-sandbox'
         mockRepo.name = 'RePo1'
         mockRepo.defaultBranch = 'refs/heads/main'
+
+        pipelineRepo.name = "pipelines"
+        pipelineRepo.defaultBranch = 'refs/heads/main'
         mockSourceRef.name = 'refs/heads/main'
+
         let args = new DevOpsBranchArguments();
         args.accessToken = "FOO"
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "REPO1"
-        args.pipelineRepository = "templates"        
+        args.pipelineRepository = "pipelines"        
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
@@ -369,7 +382,7 @@ describe('Branch', () => {
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "repo1"
-        args.pipelineRepository = "templates"        
+        args.pipelineRepository = "pipelines"        
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
@@ -418,15 +431,20 @@ describe('Branch', () => {
 
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
 
-        let repo = <GitRepository>{}
-        
+        let mockGitApi = mock<gitm.IGitApi>();
+
+        let mockRepo = mock<GitInterfaces.GitRepository>()
+        let mockPipelineRepo = mock<GitInterfaces.GitRepository>()
+
+        mockPipelineRepo.name = 'templates'
+        mockGitApi.getRepositories.mockResolvedValue([mockRepo, mockPipelineRepo])        
         // Act
-        await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
+        await command.createBuildForBranch(args, project, mockRepo, mockDevOpsWebApi);
 
         // Assert
         expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(1)
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(mockRepo.name)
     })
 
     test('Clone existing source build - validation', async () => {
@@ -441,7 +459,7 @@ describe('Branch', () => {
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "repo1"
-        args.pipelineRepository = "templates"        
+        args.pipelineRepository = "pipelines"        
         args.sourceBranch = "main"  
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
@@ -490,13 +508,15 @@ describe('Branch', () => {
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "repo1"
-        args.pipelineRepository = "templates"        
+        args.pipelineRepository = "pipelines"        
         args.sourceBranch = "main"  
         args.destinationBranch = "NewSolution"  
         let settings : { [id: string] : string } = {}
         settings["validation"] = "https://foo.validation.com/"
         settings["test"] = "https://foo.test.com/"
-        settings["prod"] = "https://foo.prod.com/"
+        settings["production"] = "https://foo.prod.com/"
+        settings["environments"] = "Validation|Test|Production"
+
         args.settings = settings
         let project = <CoreInterfaces.TeamProject>{}
         project.name = 'test'
@@ -519,10 +539,15 @@ describe('Branch', () => {
         mockBuildApi.getDefinition.mockResolvedValue(sourceValidationBuild)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
 
-        let repo = <GitRepository>{}
-        
+        let mockGitApi = mock<gitm.IGitApi>();
+
+        let mockRepo = mock<GitInterfaces.GitRepository>()
+        let mockPipelineRepo = mock<GitInterfaces.GitRepository>()
+
+        mockPipelineRepo.name = 'templates'
+        mockGitApi.getRepositories.mockResolvedValue([mockRepo, mockPipelineRepo])          
         // Act
-        await command.createBuildForBranch(args, project, repo, mockDevOpsWebApi);
+        await command.createBuildForBranch(args, project, mockRepo, mockDevOpsWebApi);
 
         // Assert
 
@@ -542,7 +567,7 @@ describe('Branch', () => {
         expect(mockBuildApi.createDefinition.mock.calls[2][0].variables.Foo).toBeUndefined()
 
         expect(mockBuildApi.createDefinition).toHaveBeenCalled()
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(mockRepo.name)
         expect(mockBuildApi.updateDefinition).toHaveBeenCalledTimes(0)
     })
 
@@ -560,7 +585,7 @@ describe('Branch', () => {
         args.organizationName = "org"
         args.projectName = "P1"
         args.repositoryName = "repo1"
-        args.pipelineRepository = "templates"        
+        args.pipelineRepository = "pipelines"        
         args.sourceBuildName = "TestSolution"
         args.destinationBranch = "NewSolution"  
 
@@ -596,16 +621,21 @@ describe('Branch', () => {
 
         command.getUrl = () => Promise.resolve("[SampleSolutionName]-[SampleSolutionName]")
 
-        let repo = <GitRepository>{}
-        
+        let mockGitApi = mock<gitm.IGitApi>();
+
+        let mockRepo = mock<GitInterfaces.GitRepository>()
+        let mockPipelineRepo = mock<GitInterfaces.GitRepository>()
+
+        mockPipelineRepo.name = 'templates'
+        mockGitApi.getRepositories.mockResolvedValue([mockRepo, mockPipelineRepo])          
         // Act
-        await command.createBuildForBranch(args, project,repo, mockDevOpsWebApi);
+        await command.createBuildForBranch(args, project, mockRepo, mockDevOpsWebApi);
 
         // Assert
         expect(mockBuildApi.createDefinition.mock.calls[0][0].name).toBe("deploy-validation-NewSolution")
         expect((<YamlProcess>mockBuildApi.createDefinition.mock.calls[0][0].process).yamlFilename).toBe("/NewSolution/deploy-validation-NewSolution.yml")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].path).toBe("/NewSolution")
-        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(repo.name)
+        expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.name).toBe(mockRepo.name)
         expect(mockBuildApi.createDefinition.mock.calls[0][0].repository.defaultBranch).toBe("NewSolution")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].variables.Foo.value).toBe("123")
         expect(mockBuildApi.createDefinition.mock.calls[0][0].queue.name).toBe("Test Pool")
@@ -628,32 +658,41 @@ describe('Build', () => {
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let args = new DevOpsBranchArguments();
         let project = <CoreInterfaces.TeamProject>{}
-        let gitMock = mock<gitm.GitApi>()
+        let mockGitApi = mock<gitm.GitApi>()
 
         project.name = 'test'
-        command.getUrl = () => Promise.resolve(`[SampleSolutionName]
+
+        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(
+`{"content": "[SampleSolutionName]
 -[BranchContainingTheBuildTemplates]
 -[RepositoryContainingTheBuildTemplates]
 -[SampleSolutionName]
--[alm-accelerator-variable-group]`)
-
+-[alm-accelerator-variable-group]"}`
+        ))
+            
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
         
         let repo = <GitRepository>{}
         repo.name = 'alm-sandbox'
 
+        let pipelineRepo = <GitRepository>{}
+        pipelineRepo.defaultBranch = 'refs/heads/main'
+        pipelineRepo.name = 'pipelines'
+
         args.projectName = 'test'
         args.destinationBranch = "New"
+        args.pipelineRepository = "pipelines"
+        args.accessToken = "FOO"
 
-        gitMock.getRepositories.mockResolvedValue([repo])
-        gitMock.getRefs.mockResolvedValue([])
+        mockGitApi.getRepositories.mockResolvedValue([repo, pipelineRepo])
+        mockGitApi.getRefs.mockResolvedValue([])
 
         // Act
-        await command.createBranch(args, project, gitMock)
+        await command.createBranch(args, project, project, mockGitApi)
 
         // Assert
-        expect(gitMock.createPush).toBeCalledTimes(0)
+        expect(mockGitApi.createPush).toBeCalledTimes(0)
     });
 
     test('Clone existing source build - validation using default', async () => {
@@ -662,56 +701,46 @@ describe('Build', () => {
         var command = new DevOpsCommand(logger, { readFile: () => Promise.resolve("[]" )});
         let args = new DevOpsBranchArguments();
         let project = <CoreInterfaces.TeamProject>{}
-        let gitMock = mock<gitm.GitApi>()
+        let mockGitApi = mock<gitm.GitApi>()
         project.name = 'test'
-        command.getUrl = () => Promise.resolve(`[SampleSolutionName]
--[BranchContainingTheBuildTemplates]
--[RepositoryContainingTheBuildTemplates]
--[SampleSolutionName]
--[alm-accelerator-variable-group]`)
+
+        command.getUrl  = (url: string, config: any) => Promise.resolve(JSON.parse(`{"content": "[SampleSolutionName][BranchContainingTheBuildTemplates][RepositoryContainingTheBuildTemplates][SampleSolutionName][alm-accelerator-variable-group]"}`))
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
-        
+        args.pipelineRepository = 'pipelines'
+        args.accessToken = 'FOO'
         let repo = <GitRepository>{}
         repo.defaultBranch = 'refs/heads/main'
         repo.name = 'alm-sandbox'
+
+        let pipelineRepo = <GitRepository>{}
+        pipelineRepo.defaultBranch = 'refs/heads/main'
+        pipelineRepo.name = 'pipelines'
 
         let refSource = <GitInterfaces.GitRef>{}
         refSource.name = "refs/heads/main"
 
         args.projectName = 'test'
         args.destinationBranch = "New"
-        args.pipelineRepository = "templates"
+        args.pipelineRepository = "pipelines"
 
         //Testing override of variable group
         args.settings["validation-variablegroup"] = "validation-variable-group"
         args.settings["test-variablegroup"] = "test-variable-group"
-        args.settings["prod-variablegroup"] = "prod-variable-group"
-
-        gitMock.getRepositories.mockResolvedValue([repo])
-        gitMock.getRefs.mockResolvedValue([refSource])
+        args.settings["production-variablegroup"] = "production-variable-group"
+        args.settings["environments"] = "Validation|Test|Production"
+        mockGitApi.getRepositories.mockResolvedValue([repo, pipelineRepo])
+        mockGitApi.getRefs.mockResolvedValue([refSource])
         // Act
-        await command.createBranch(args, project, gitMock)
+        await command.createBranch(args, project, project, mockGitApi)
 
-        expect(gitMock.createPush).toHaveBeenCalled()
-        expect(gitMock.createPush.mock.calls[0][0].commits[0].changes.length).toBe(3)
-        expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].item.path).toBe("/New/deploy-validation-New.yml")
-        expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[0].newContent.content).toBe(`[New]
--[main]
--[templates]
--[New]
--[validation-variable-group]`)
-        expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[1].newContent.content).toBe(`[New]
--[main]
--[templates]
--[New]
--[test-variable-group]`)
-expect(gitMock.createPush.mock.calls[0][0].commits[0].changes[2].newContent.content).toBe(`[New]
--[main]
--[templates]
--[New]
--[prod-variable-group]`)
+        expect(mockGitApi.createPush).toHaveBeenCalled()
+        expect(mockGitApi.createPush.mock.calls[0][0].commits[0].changes.length).toBe(3)
+        expect(mockGitApi.createPush.mock.calls[0][0].commits[0].changes[0].item.path).toBe("/New/deploy-validation-New.yml")
+        expect(mockGitApi.createPush.mock.calls[0][0].commits[0].changes[0].newContent.content).toBe(`[New][main][test/pipelines][New][validation-variable-group]`)
+        expect(mockGitApi.createPush.mock.calls[0][0].commits[0].changes[1].newContent.content).toBe(`[New][main][test/pipelines][New][test-variable-group]`)
+        expect(mockGitApi.createPush.mock.calls[0][0].commits[0].changes[2].newContent.content).toBe(`[New][main][test/pipelines][New][production-variable-group]`)
     })
 });
 
@@ -731,6 +760,7 @@ describe('Policy', () => {
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
         args.destinationBranch = 'Test1'
+        args.accessToken = 'FOO'
 
         mockDevOpsWebApi.getPolicyApi.mockResolvedValue(mockPolicyApi)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
@@ -783,13 +813,15 @@ describe('Build Variables', () => {
 
         args.projectName = 'DevOpsProject'
         args.repositoryName = 'alm-sandbox'
+        args.pipelineProjectName = 'pipelines'
+        args.pipelineRepositoryName = 'pipelines'
         args.createSecretIfNoExist = true
 
         mockDevOpsWebApi.getTaskAgentApi.mockResolvedValue(mockTaskApi)
         mockDevOpsWebApi.getBuildApi.mockResolvedValue(mockBuildApi)
 
         mockTaskApi.getVariableGroups.mockResolvedValue([])
-        let inParameters: VariableGroupParameters = null
+        let inParameters: VariableGroupParameters
         mockTaskApi.addVariableGroup.mockImplementation((parameters: VariableGroupParameters) => {
             inParameters = parameters 
             return Promise.resolve({id:1})
@@ -821,7 +853,7 @@ describe('Build Variables', () => {
         expect("ClientSecret" in inParameters.variables).toBeTruthy();
         expect("TenantID" in inParameters.variables).toBeTruthy();
 
-        expect(mockAADCommand.addSecret).toBeCalledTimes(1)
+        expect(mockAADCommand.addSecret).toBeCalledTimes(2)
     })
 });
 
@@ -835,6 +867,7 @@ describe('Extensions', () => {
         let mockDevOpsWebApi = mock<azdev.WebApi>(); 
         let mockExtensionManagementApi = mock<ExtensionManagementApi>(); 
 
+        args.accessToken = "token"
         args.extensions = []
         args.extensions.push(<DevOpsExtension> {
             name: 'test',

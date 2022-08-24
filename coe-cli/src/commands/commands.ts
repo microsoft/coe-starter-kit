@@ -390,8 +390,9 @@ class CoeCliCommands {
             .option('-a, --aad <name>', 'The azure active directory service principal application. Will be created if not exists', 'ALMAcceleratorServicePrincipal')
             .option('-g, --group <name>', 'The azure active directory servicemaker group. Will be created if not exists', 'ALMAcceleratorForMakers')
             .option('-o, --devOpsOrganization <organization>', 'The Azure DevOps organization to install into')
-            .option('-p, --project <name>', 'The Azure DevOps project name. Must already exist', 'alm-sandbox')
-            .option('-r, --repository <name>', 'The Azure DevOps solution repository. Will be created if not exists', "alm-sandbox")
+            .option('-p, --project <name>', 'The Azure DevOps solution source code project name. Must already exist', 'alm-sandbox')
+            .option('-r, --repository <name>', 'The Azure DevOps solution source code repository. Will be created if not exists', "alm-sandbox")
+            .option('--pipelineProject <name>', 'The Azure DevOps pipeline project. Must already exist', 'alm-sandbox')
             .option('--pipelineRepository <name>', 'The Azure DevOps pipeline repository. Will be created if not exists', "pipelines")
             .option('-e, --environments <environments>', 'The Power Platform environment to install Managed solution to')
             .addOption(settingsOption)
@@ -454,6 +455,7 @@ class CoeCliCommands {
                     args.organizationName = options.devOpsOrganization
                     args.project = options.project
                     args.repository = options.repository
+                    args.pipelineProject = options.pipelineProject
                     args.pipelineRepository = options.pipelineRepository
                     if (options.environments?.length > 0 && options.environments?.indexOf('=')>0) {
                         args.environments = this.parseSettings(options.environments)
@@ -634,6 +636,7 @@ class CoeCliCommands {
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .requiredOption('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
+            .option('--pipelineProject <name>', 'The Azure DevOps pipelines project name', 'alm-sandbox')
             .option('--pipelineRepository <name>', 'The Azure DevOps pipelines temaples name', 'pipelines')
             .requiredOption('-d, --destination <name>', 'The branch to create')
             .option('--source <name>', 'The source branch to copy from')
@@ -647,6 +650,7 @@ class CoeCliCommands {
                 let args = new ALMBranchArguments();
                 args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
+                args.pipelineProject = options.pipelineProject
                 args.pipelineRepository = options.pipelineRepository
                 args.projectName = options.project
                 args.sourceBranch = options.source
