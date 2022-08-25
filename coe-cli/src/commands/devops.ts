@@ -368,7 +368,7 @@ class DevOpsCommand {
 
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
         await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
-        this.logger.info(`Pipeline repository ${pipelineProject} ${args.pipelineRepositoryName} imported`)
+        this.logger.info(`Pipeline repository ${pipelineProjectName} ${args.pipelineRepositoryName} imported`)
 
         return repo;
     }
