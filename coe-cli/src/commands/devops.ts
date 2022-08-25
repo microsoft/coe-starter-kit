@@ -341,15 +341,15 @@ class DevOpsCommand {
     async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) {
         
         let gitApi = await connection.getGitApi()
-        let pipelineProject = (args.pipelineProjectName?.length > 0) ? args.pipelineProjectName : args.projectName
-        this.logger.info(`Checking pipeline repository ${pipelineProject} ${args.pipelineRepositoryName}`)
-        let repo = await this.getRepository(args, gitApi, pipelineProject, args.pipelineRepositoryName)
+        let pipelineProjectName = (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName?.length > 0) ? args.pipelineProjectName : args.projectName
+        this.logger.info(`Checking pipeline repository ${pipelineProjectName} ${args.pipelineRepositoryName}`)
+        let repo = await this.getRepository(args, gitApi, pipelineProjectName, args.pipelineRepositoryName)
  
         if (repo == null) {
             return Promise.resolve(null)
         }
 
-        let command = `./src/powershell/importpipelinerepo.ps1 "${args.organizationName}" "${pipelineProject}" "${args.pipelineRepositoryName}" "${args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]}"`
+        let command = `./src/powershell/importpipelinerepo.ps1 "${args.organizationName}" "${pipelineProjectName}" "${args.pipelineRepositoryName}" "${args.accessTokens["499b84ac-1321-427f-aa17-267ca6975798"]}"`
 
         const child = spawnSync('pwsh', ["-File", command], {
             shell: true,
@@ -368,7 +368,7 @@ class DevOpsCommand {
 
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
         await this.getHttpClient(connection).patch(`${devOpsOrgUrl}${args.projectName}/_apis/git/repositories/${repo.id}?api-version=6.0`, '{"defaultBranch":"refs/heads/main"}', headers)
-        this.logger.info(`Pipeline repository ${pipelineProject} ${args.pipelineRepositoryName} imported`)
+        this.logger.info(`Pipeline repository ${pipelineProjectName} ${args.pipelineRepositoryName} imported`)
 
         return repo;
     }
@@ -401,12 +401,12 @@ class DevOpsCommand {
      * @param repo The pipeline repo to a create builds for
      */
     async createMakersBuildPipelines(args: DevOpsInstallArguments, connection: azdev.WebApi, repo: GitRepository): Promise<GitRepository> {
-        let pipelineProject = args.pipelineProjectName?.length > 0 ? args.pipelineProjectName : args.projectName
+        let pipelineProjectName = (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName?.length > 0) ? args.pipelineProjectName : args.projectName
         connection = await this.createConnectionIfExists(args, connection)
 
         if (repo == null) {
             let gitApi = await connection.getGitApi()
-            repo = await this.getRepository(args, gitApi, pipelineProject, args.repositoryName)
+            repo = await this.getRepository(args, gitApi, pipelineProjectName, args.repositoryName)
         }
 
         let buildApi = await connection.getBuildApi();
@@ -418,18 +418,18 @@ class DevOpsCommand {
 
         let taskApi = await connection.getTaskAgentApi()
         let core = await connection.getCoreApi()
-        let project: CoreInterfaces.TeamProject = await core.getProject(pipelineProject)
+        let project: CoreInterfaces.TeamProject = await core.getProject(pipelineProjectName)
 
         if (typeof project !== "undefined") {
             this.logger?.info(util.format("Found project %s", project.name))
 
             this.logger?.info(`Retrieving default Queue`)
-            let defaultQueue = (await taskApi?.getAgentQueues(pipelineProject))?.filter(p => p.name == "Azure Pipelines")
+            let defaultQueue = (await taskApi?.getAgentQueues(pipelineProjectName))?.filter(p => p.name == "Azure Pipelines")
 
             let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
             this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "undefined"}`)
 
-            let builds = await buildApi.getDefinitions(pipelineProject)
+            let builds = await buildApi.getDefinitions(pipelineProjectName)
 
             let buildNames = ['export-solution-to-git', 'import-unmanaged-to-dev-environment', 'delete-unmanaged-solution-and-components']
 
@@ -440,7 +440,7 @@ class DevOpsCommand {
                     this.logger?.debug(`Creating build ${buildNames[i]}`)
                     await this.createBuild(buildApi, repo, buildNames[i], `/Pipelines/${buildNames[i]}.yml`, defaultAgentQueue)
                 } else {
-                    let build = await buildApi.getDefinition(pipelineProject, filteredBuilds[0].id)
+                    let build = await buildApi.getDefinition(pipelineProjectName, filteredBuilds[0].id)
                     let changes = false
 
                     if (typeof build.queue === "undefined") {
@@ -451,7 +451,7 @@ class DevOpsCommand {
 
                     if (changes) {
                         this.logger?.debug(`Updating ${build.name}`)
-                        await buildApi.updateDefinition(build, pipelineProject, filteredBuilds[0].id)
+                        await buildApi.updateDefinition(build, pipelineProjectName, filteredBuilds[0].id)
                     } else {
                         this.logger?.debug(`No changes to ${buildNames[i]}`)
                     }
@@ -463,7 +463,7 @@ class DevOpsCommand {
     async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) 
     {
         let projects = [args.projectName]
-        if (args.pipelineProjectName?.length > 0) {
+        if (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName?.length > 0) {
             projects.push(args.pipelineProjectName)
         }
         
@@ -788,7 +788,7 @@ class DevOpsCommand {
      * @returns 
      */
     async getServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi): Promise<ServiceEndpoint[]> {
-        let pipelineProjectName = args.pipelineProjectName?.length > 0 ? args.pipelineProjectName : args.projectName
+        let pipelineProjectName = (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName?.length > 0) ? args.pipelineProjectName : args.projectName
         let webClient = this.getHttpClient(connection);
         let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args, args.settings)
         let request = await webClient.get(`${devOpsOrgUrl}${pipelineProjectName}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`)
@@ -852,8 +852,8 @@ class DevOpsCommand {
             let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
             let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(pipelineProjectName)
 
-            this.logger?.info(util.format("Found project %s", project?.name))
-            this.logger?.info(util.format("Found pipeline project %s", pipelineProject?.name))
+            this.logger?.info(util.format("Found project %s %s", project?.name, args.projectName))
+            this.logger?.info(util.format("Found pipeline project %s %s", pipelineProject?.name, pipelineProjectName))
             if (typeof project !== "undefined" && typeof pipelineProject !== "undefined") {
 
                 let gitApi = await connection.getGitApi()

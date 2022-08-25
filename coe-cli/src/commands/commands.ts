@@ -636,7 +636,7 @@ class CoeCliCommands {
             .requiredOption('-o, --devOpsOrganization <name>', 'The Azure DevOps Organization name')
             .requiredOption('-p, --project <name>', 'The Azure DevOps name')
             .option('-r, --repository <name>', 'The Azure DevOps name')
-            .option('--pipelineProject <name>', 'The Azure DevOps pipelines project name', 'alm-sandbox')
+            .option('--pipelineProject <name>', 'The Azure DevOps pipelines project name')
             .option('--pipelineRepository <name>', 'The Azure DevOps pipelines temaples name', 'pipelines')
             .requiredOption('-d, --destination <name>', 'The branch to create')
             .option('--source <name>', 'The source branch to copy from')
