@@ -80,14 +80,13 @@ class AADCommand {
      */
     addUserToGroup(user: string, azureActiveDirectoryMakersGroup: string) {
         let userInfo = JSON.parse(this.runCommand(`az ad user show --id ${user}`, false))
-
-        if (typeof userInfo === "object" && typeof userInfo.objectId === "string") {
-            let result = JSON.parse(this.runCommand(`az ad group member check --group ${azureActiveDirectoryMakersGroup} --member-id ${userInfo.objectId}`, false))
+        if (typeof userInfo === "object" && typeof userInfo.id === "string") {
+            let result = JSON.parse(this.runCommand(`az ad group member check --group ${azureActiveDirectoryMakersGroup} --member-id ${userInfo.id}`, false))
             let exists : Boolean = (result.value == true)
 
             if (!exists) {
-                this.logger?.info(`Add ${userInfo.objectId} to ${azureActiveDirectoryMakersGroup}`)
-                this.runCommand(`az ad group member add --group ${azureActiveDirectoryMakersGroup} --member-id ${userInfo.objectId}`, false)
+                this.logger?.info(`Add ${userInfo.id} to ${azureActiveDirectoryMakersGroup}`)
+                this.runCommand(`az ad group member add --group ${azureActiveDirectoryMakersGroup} --member-id ${userInfo.id}`, false)
             } else {
                 this.logger?.info(`User exists in ${azureActiveDirectoryMakersGroup}`)
             }

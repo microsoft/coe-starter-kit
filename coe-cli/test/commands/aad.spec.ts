@@ -19,7 +19,7 @@ describe('Install - Group', () => {
             }
 
             if (command.startsWith("az ad group create")) {
-                return '{ "objectId": "O123" }'
+                return '{ "id": "O123" }'
             }
             
             return "{}"
@@ -38,7 +38,7 @@ describe('User Group', () => {
         var command = new AADCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
             if (command.indexOf('az ad user show')) {
-                return '{"objectId":"123"}'
+                return '{"id":"123"}'
             }
 
             if (command.indexOf('az ad group member check')) {
@@ -57,7 +57,7 @@ describe('User Group', () => {
         var command = new AADCommand(logger);
         command.runCommand = (command: string, displayOutput: boolean) => {
             if (command.indexOf('az ad user show')) {
-                return '{"objectId":"123"}'
+                return '{"id":"123"}'
             }
 
             if (command.indexOf('az ad group member check')) {
