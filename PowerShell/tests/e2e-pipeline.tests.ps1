@@ -13,7 +13,7 @@
 
 param(
     $Org, $Project, $BranchToTest, $SourceBranch, $BranchToCreate, $CommitMessage, $Data, 
-    $Email, $Repo, $ServiceConnection, $SolutionName, $UserName
+    $Email, $Repo, $ServiceConnection, $SolutionName, $UserName, $PortalSiteName
 )
 
 class Helper {
@@ -130,6 +130,7 @@ Describe 'E2E-Pipeline-Test' {
                 SolutionName          = $SolutionName
                 UserName              = $UserName
                 PipelineId            = 0
+                PortalSiteName        = $PortalSiteName
             } 
         }
         [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $body)
@@ -168,6 +169,7 @@ Describe 'E2E-Pipeline-Test' {
                 SolutionName          = $SolutionName
                 UserName              = $UserName
                 PipelineId            = 0
+                PortalSiteName        = $PortalSiteName
             } 
         }
     

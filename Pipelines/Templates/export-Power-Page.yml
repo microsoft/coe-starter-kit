@@ -1,0 +1,43 @@
+#We are going to set websiteId as a pipeline variable only if there is a Power Page in the Dataverse
+
+parameters:
+- name: websiteId
+  type: string
+- name: repo
+  type: string
+- name: serviceConnectionUrl
+  type: string
+- name: serviceConnectionName
+  type: string
+- name: solutionName
+  type: string
+- name: websiteName
+  type: string
+
+steps:
+# ALM Accelerator currently supports ALM of single website.
+# PowerPages folder contain one subfolder at depth 1, which is the unpacked WebSite folder.
+- pwsh: |
+    . "$env:POWERSHELLPATH/portal-functions.ps1"
+    $websiteName = Get-Website-Name "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}"
+    echo "##vso[task.setvariable variable=WebsiteName]$websiteName"
+    Write-Host "websiteName - $websiteName"
+  displayName: "Fetch Portal Website Name"
+  condition: and(succeeded(), ne(variables['websiteId'], 'NA'))
+
+#TODO Because the override flag is not exposed yet in tools, so we need to clear the folder manually
+- pwsh: |
+    . "$env:POWERSHELLPATH/portal-functions.ps1"
+    Clean-Website-Folder "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}" "$(WebsiteName)"
+  displayName: 'Clear Download Folder'
+  condition: and(succeeded(), ne(variables['websiteId'], 'NA'))
+
+- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.download-paportal.PowerPlatformDownloadPaportal@2
+  displayName: 'Export Power Page ${{parameters.solutionName}} from ${{parameters.serviceConnectionUrl}}'
+  inputs:
+    authenticationType: PowerPlatformSPN
+    PowerPlatformSPN: '${{parameters.serviceConnectionName}}'
+    Environment: '${{parameters.serviceConnectionUrl}}'
+    DownloadPath: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\PowerPages\'
+    WebsiteId: ${{parameters.websiteId}}
+  condition: and(succeeded(), ne(variables['websiteId'], 'NA'))
