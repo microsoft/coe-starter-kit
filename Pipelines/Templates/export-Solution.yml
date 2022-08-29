@@ -124,6 +124,19 @@ steps:
     SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip'
     Managed: true
 
+- pwsh: |
+    # Default to true when no variable is set on the pipeline
+    if ('$(ProcessCanvasApps)'.Contains("ProcessCanvasApps")){
+      echo '##vso[task.setvariable variable=localProcessCanvasApps]true'
+    }
+    else {
+      echo '##vso[task.setvariable variable=localProcessCanvasApps]$(ProcessCanvasApps)'
+    }    
+    if(Test-Path '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\CanvasApps') {
+        Remove-Item '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\CanvasApps' -Force -Recurse
+    }
+  displayName: 'Set localProcessCanvasApps variable'
+
 - template: Hooks\export-solution-unpack-pre-hook.yml
 
 # Unpack contents of solution to make the contents source control friendly 
@@ -133,6 +146,8 @@ steps:
     SolutionInputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
     SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage'
     SolutionType: Both
+    OverwriteFiles: true
+    ProcessCanvasApps: $(localProcessCanvasApps)
 
 - template: Hooks\export-solution-manipulate-pre-hook.yml
 
@@ -144,58 +159,6 @@ steps:
         Out-File $_.FullName
    }
   displayName: 'Update Solution XML with Build Number'
-
-- pwsh: |
-    #Set variable to continue on unpack error for use in the next two steps
-    if('$(ContinueOnCanvasUnpackError)'.Contains("ContinueOnCanvasUnpackError")) {
-        Write-Host "##vso[task.setvariable variable=ContinueOnCanvasUnpackError]false"
-    }
-  displayName: Check for Continue on Canvas Unpack Error
-
-
-# Unpack source files into a folder
-- pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
-   ForEach-Object {
-        $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
-        #Temporarily unpacking with latest version of Power Apps Language Tooling
-        Write-Host "Unpacking via PowerShell"
-        . "$env:POWERSHELLPATH/canvas-unpack-pack.ps1"
-        Invoke-CanvasUnpackPack "unpack" $_.FullName $unpackedPath
-       
-        del $_.FullName
-   }
-  displayName: 'Unpack msapp files fail on error'
-  enabled: true
-  workingDirectory: $(PowerShellPath)
-  condition: and(succeeded(), ne(variables.ContinueOnCanvasUnpackError, 'true'))
-
-# Unpack source files into a folder
-- pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}" -Recurse -Filter *.msapp | 
-   ForEach-Object {
-        $unpackedPath = $_.FullName.Replace(".msapp", "_msapp_src")
-        #Temporarily unpacking with latest version of Power Apps Language Tooling
-        Write-Host "Unpacking via PowerShell"
-        . "$env:POWERSHELLPATH/canvas-unpack-pack.ps1"
-        Invoke-CanvasUnpackPack "unpack" $_.FullName $unpackedPath
-
-        if( -not $?)
-        {
-            $msg = $Error[0].Exception.Message
-            Write-Host "##vso[task.logissue type=warning]Failed to unpack $_.FullName. The msapp file will be preserved until this issue is resolved."
-        }
-        else
-        {
-            del $_.FullName
-        }
-   }
-  displayName: 'Unpack msapp files continue on error'
-  enabled: true
-  continueOnError: true
-  workingDirectory: $(PowerShellPath)
-  condition: and(succeeded(), eq(variables.ContinueOnCanvasUnpackError, 'true'))
-
 
 # TEMPORARY until Solution export supports not exporting custom connector configurations
 # We need to clear out the contents of any *_connectionparameters.json file.  This is to ensure those valuse
@@ -353,6 +316,8 @@ steps:
     # Workaround for git Filename too long issue 
     git config --system core.longpaths true
     git add --all
+    # Workaround for git Filename too long issue 
+    git config --system core.longpaths true
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   displayName: 'Add Changes to Git Branch'
 
