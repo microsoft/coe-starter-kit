@@ -979,10 +979,6 @@ class DevOpsCommand {
         let policyTypes = await policyApi.getPolicyTypes(args.projectName)
         let buildTypes = policyTypes.filter(p => { if (p.displayName == 'Build') { return true } })
 
-        let buildApi = await connection.getBuildApi();
-        let builds = await buildApi.getDefinitions(args.projectName)
-        let buildMatch = builds.filter(b => { if (b.name == `deploy-validation-${args.destinationBranch}`) { return true } })
-
         if (buildTypes.length > 0) {
             let existingConfigurations = await policyApi.getPolicyConfigurations(args.projectName);
 
@@ -1002,23 +998,31 @@ class DevOpsCommand {
                     await policyApi.deletePolicyConfiguration(args.projectName, existingPolices[i].id)
                 }
             }
-            let newPolicy = <PolicyConfiguration>{}
-            newPolicy.settings = {}
-            newPolicy.settings.buildDefinitionId = buildMatch[0].id
-            newPolicy.settings.displayName = 'Build Validation'
-            newPolicy.settings.filenamePatterns = [`/${args.destinationBranch}/*`]
-            newPolicy.settings.manualQueueOnly = false
-            newPolicy.settings.queueOnSourceUpdateOnly = false
-            newPolicy.settings.validDuration = 0
-            let repoRef = { refName: `refs/heads/${args.destinationBranch}`, matchKind: 'Exact', repositoryId: repo.id }
-            newPolicy.settings.scope = [repoRef]
-            newPolicy.type = buildTypes[0]
-            newPolicy.isBlocking = true
-            newPolicy.isEnabled = true
-            newPolicy.isEnterpriseManaged = false
 
-            this.logger?.info('Checking branch policy')
-            await policyApi.createPolicyConfiguration(newPolicy, args.projectName)
+            let buildApi = await connection.getBuildApi();
+            let builds = await buildApi.getDefinitions(args.projectName)
+            let buildMatch = builds.filter(b => { if (b.name == `deploy-validation-${args.destinationBranch}`) { return true } })
+
+            if (buildMatch.length > 0) {
+                this.logger?.info(util.format("Found policy build %s", buildMatch[0].name))
+                let newPolicy = <PolicyConfiguration>{}
+                newPolicy.settings = {}
+                newPolicy.settings.buildDefinitionId = buildMatch[0].id
+                newPolicy.settings.displayName = 'Build Validation'
+                newPolicy.settings.filenamePatterns = [`/${args.destinationBranch}/*`]
+                newPolicy.settings.manualQueueOnly = false
+                newPolicy.settings.queueOnSourceUpdateOnly = false
+                newPolicy.settings.validDuration = 0
+                let repoRef = { refName: `refs/heads/${args.destinationBranch}`, matchKind: 'Exact', repositoryId: repo.id }
+                newPolicy.settings.scope = [repoRef]
+                newPolicy.type = buildTypes[0]
+                newPolicy.isBlocking = true
+                newPolicy.isEnabled = true
+                newPolicy.isEnterpriseManaged = false
+
+                this.logger?.info('Creating branch policy')
+                await policyApi.createPolicyConfiguration(newPolicy, args.projectName)
+            }
         }
     }
 
