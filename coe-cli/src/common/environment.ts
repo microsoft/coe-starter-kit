@@ -152,9 +152,13 @@ export abstract class Environment {
         let orgName = typeof args === "string" ? args : args.organizationName
         try {
             let urlOrg = new url.URL(orgName)
+            let legacyUrlOrgMatch;
             
             if ( urlOrg.hostname.toLowerCase() == "dev.azure.com") {
                 orgName = urlOrg.pathname.split('/')[1]
+            }
+            else if (legacyUrlOrgMatch = urlOrg.hostname.match(/^(?<orgName>[^\.]+)\.visualstudio\.com$/iu)) {
+                ({ orgName } = legacyUrlOrgMatch.groups);
             }
         } catch {
 
