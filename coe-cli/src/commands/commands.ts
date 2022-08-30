@@ -647,9 +647,7 @@ class CoeCliCommands {
             .action(async (options: any) : Promise<void> => {
                 this.setupLogger(options)
                 this.logger?.info("Branch start")
-                this.logger?.info("Branch start 2")
                 let args = new ALMBranchArguments();
-                this.logger?.info("Args")
                 args.organizationName = options.devOpsOrganization
                 args.repositoryName = options.repository
                 args.pipelineProject = options.pipelineProject
@@ -660,9 +658,7 @@ class CoeCliCommands {
                 args.destinationBranch = options.destination
                 args.settings = this.parseSettings(options.settings)
                 args.accessToken = options.accessToken
-                this.logger?.info("Create Command")
                 let command = this.createALMCommand()
-                this.logger?.info("Call Command")
                 await command.branch(args)
 
                 this.logger?.info("Branch end")

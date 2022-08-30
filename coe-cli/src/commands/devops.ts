@@ -847,7 +847,9 @@ class DevOpsCommand {
             let connection = this.createWebApi(devOpsOrgUrl, authHandler);
 
             let core = await connection.getCoreApi()
+            this.logger?.info(`Getting Project`)
             let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
+            this.logger?.info(`Getting Pipeline Project`)
             let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(pipelineProjectName)
 
             this.logger?.info(util.format("Found project %s %s", project?.name, args.projectName))
@@ -879,94 +881,87 @@ class DevOpsCommand {
      */
     async createBranch(args: DevOpsBranchArguments, pipelineProject: CoreInterfaces.TeamProject, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi): Promise<GitRepository> {
         var pipelineRepos = await gitApi.getRepositories(pipelineProject.id);
-        var repos = await gitApi.getRepositories(project.id);
-        var matchingRepo: GitRepository;
+        var projectRepos = await gitApi.getRepositories(project.id);
         let repositoryName = args.repositoryName
         if (typeof repositoryName === "undefined" || repositoryName?.length == 0) {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
-        this.logger?.info(`Found ${repos.length} repositories`)
         this.logger?.info(`Found ${pipelineRepos.length} pipeline repositories`)
         this.logger?.info(`Searching for repository ${pipelineProject.name} ${args.pipelineRepository.toLowerCase()}`)
         let pipelineRepo = pipelineRepos.find((repo) => {
             return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
         });
-        let repo = pipelineRepos.find((repo) => {
+        this.logger?.info(`Found pipeline repository ${pipelineRepo?.name}`)
+        this.logger?.info(`Searching for repository ${project.name} ${repositoryName.toLowerCase()}`)
+        let projectRepo = projectRepos.find((repo) => {
             return repo.name.toLowerCase() == repositoryName.toLowerCase();
         });
+        this.logger?.info(`Found project repository ${projectRepo?.name}`)
 
-        if (pipelineRepo && repo) {
-            let foundRepo = false
-            this.logger?.info(`Searching for repository ${project.name} ${repositoryName.toLowerCase()}`)
-            if (repo.name.toLowerCase() == repositoryName.toLowerCase()) {
-                foundRepo = true
-                matchingRepo = repo
+        if (pipelineRepo && projectRepo) {
+            this.logger?.info(`Found matching repo ${repositoryName}`)
 
-                this.logger?.info(`Found matching repo ${repositoryName}`)
+            let refs = await gitApi.getRefs(projectRepo.id, undefined, "heads/");
 
-                let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
-
-                if (refs.length == 0) {
-                    this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
-                    return Promise.resolve(null)
-                }
-
-                let sourceBranch = args.sourceBranch;
-                if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
-                    sourceBranch = this.withoutRefsPrefix(repo.defaultBranch)
-                }
-
-                let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
-                if (sourceRef.length == 0) {
-                    this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
-                    this.logger?.debug('Existing branches')
-                    for (var refIndex = 0; refIndex < refs.length; refIndex++) {
-                        this.logger?.debug(refs[refIndex].name)
-                    }
-                    return matchingRepo;
-                }
-
-                let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
-                if (destinationRef.length > 0) {
-                    this.logger?.error("Destination branch already exists")
-                    return matchingRepo;
-                }
-
-                let newRef = <GitRefUpdate>{};
-                newRef.repositoryId = repo.id
-                newRef.oldObjectId = sourceRef[0].objectId
-                newRef.name = util.format("refs/heads/%s", args.destinationBranch)
-
-                let newGitCommit = <GitCommitRef>{}
-                newGitCommit.comment = "Add DevOps Pipeline"
-                if (typeof args.settings["environments"] === "string") {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.settings["environments"].split('|').map(element => {
-                        return element.toLowerCase();
-                    }))
-                }
-                else {
-                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
-                }
-                let gitPush = <GitPush>{}
-                gitPush.refUpdates = [newRef]
-                gitPush.commits = [newGitCommit]
-
-                this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
-                await gitApi.createPush(gitPush, repo.id, project.name)
+            if (refs.length == 0) {
+                this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
+                return Promise.resolve(null)
             }
 
-            if (!foundRepo && repositoryName?.length > 0) {
+            let sourceBranch = args.sourceBranch;
+            if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
+                sourceBranch = this.withoutRefsPrefix(projectRepo.defaultBranch)
+            }
+
+            let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
+            if (sourceRef.length == 0) {
+                this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
+                this.logger?.debug('Existing branches')
+                for (var refIndex = 0; refIndex < refs.length; refIndex++) {
+                    this.logger?.debug(refs[refIndex].name)
+                }
+                return projectRepo;
+            }
+
+            let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
+            if (destinationRef.length > 0) {
+                return projectRepo;
+            }
+
+            let newRef = <GitRefUpdate>{};
+            newRef.repositoryId = projectRepo.id
+            newRef.oldObjectId = sourceRef[0].objectId
+            newRef.name = util.format("refs/heads/%s", args.destinationBranch)
+
+            let newGitCommit = <GitCommitRef>{}
+            newGitCommit.comment = "Add DevOps Pipeline"
+            if (typeof args.settings["environments"] === "string") {
+                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), args.settings["environments"].split('|').map(element => {
+                    return element.toLowerCase();
+                }))
+            }
+            else {
+                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), ['validation', 'test', 'prod'])
+            }
+            let gitPush = <GitPush>{}
+            gitPush.refUpdates = [newRef]
+            gitPush.commits = [newGitCommit]
+
+            this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
+            await gitApi.createPush(gitPush, projectRepo.id, project.name)
+
+            if (repositoryName?.length > 0) {
                 this.logger?.info(util.format("Repo %s not found", repositoryName))
                 this.logger?.info('Did you mean?')
-                repos.forEach(repo => {
+                projectRepos.forEach(repo => {
                     if (repo.name.startsWith(repositoryName[0])) {
                         this.logger?.info(repo.name)
                     }
                 });
             }
         }
-        return matchingRepo;
+        return projectRepo;
     }
 
     /**
