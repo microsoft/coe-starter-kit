@@ -1214,7 +1214,8 @@ class DevOpsCommand {
                 templatePath = args.settings[`${names[i]}-buildtemplate`]
             }
 
-            let contentUrl = `${args.organizationName}/${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&versionDescriptor.version=${this.withoutRefsPrefix(pipelineRepo.defaultBranch)}&versionDescriptor.versionType=branch&api-version=5.0`
+            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args);
+            let contentUrl = `${devOpsOrgUrl}${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&versionDescriptor.version=${this.withoutRefsPrefix(pipelineRepo.defaultBranch)}&versionDescriptor.versionType=branch&api-version=5.0`
             this.logger?.info(util.format("Getting content from %s", contentUrl));
 
             let response: any = await this.getUrl(contentUrl, config)
