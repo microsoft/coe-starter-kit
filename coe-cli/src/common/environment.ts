@@ -157,7 +157,7 @@ export abstract class Environment {
             if ( urlOrg.hostname.toLowerCase() == "dev.azure.com") {
                 orgName = urlOrg.pathname.split('/')[1]
             }
-            else if (legacyUrlOrgMatch = urlOrg.hostname.match(/^(?<orgName>\w+)\.visualstudio\.com$/iu)) {
+            else if (legacyUrlOrgMatch = urlOrg.hostname.match(/^(?<orgName>[^\.]+)\.visualstudio\.com$/iu)) {
                 ({ orgName } = legacyUrlOrgMatch.groups);
             }
         } catch {
