@@ -37,13 +37,13 @@ class Helper {
         Write-Host "$timestamp - Running $testName..."
     }
 
-    static [bool]QueueExportToGit($org, $project, $body) {        
+    static [bool]QueueExportToGit($org, $project, $solutionName, $body) {        
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
         $token = [Helper]::AccessToken
         $headers.Add("Authorization", "Bearer $token")
         $headers.Add("Content-Type", "application/json")
-        $apiVersion = "?api-version=7.0"
 
+        $apiVersion = "?api-version=7.0"
         $requestUrl = "$org/$project/_apis/pipelines$apiVersion"
         $response = Invoke-RestMethod $requestUrl -Method 'GET' -Headers $headers
         $response | ConvertTo-Json -Depth 10
@@ -108,6 +108,18 @@ Describe 'E2E-Pipeline-Test' {
     # TODO: Investigate why pester doesn't like it when it's a variable and come up with a better way to do this.
     It 'ExportToGitNewBranch' -Tag 'ExportToGitNewBranch' {
         [Helper]::WriteTestMessageToHost('ExportToGitNewBranch')        
+        
+        #Delete the existing pipelines to validate the creation of new pipelines during export.
+        $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+        $token = [Helper]::AccessToken
+        $headers.Add("Authorization", "Bearer $token")
+        $headers.Add("Content-Type", "application/json")
+
+        $apiVersion = "?api-version=6.0-preview.2"
+        $requestUrl = "$Org/$Project/_apis/build/folders$apiVersion&path=$SolutionName"
+        $response = Invoke-RestMethod $requestUrl -Method 'DELETE' -Headers $headers
+        $response | ConvertTo-Json -Depth 10
+
 
         $body = @{
             resources          = @{
@@ -133,7 +145,7 @@ Describe 'E2E-Pipeline-Test' {
                 PortalSiteName        = $PortalSiteName
             } 
         }
-        [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $body)
+        [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $body)
         [Helper]::ExportToGitNewBranchSucceeded | Should -BeTrue
     }    
 
@@ -173,7 +185,7 @@ Describe 'E2E-Pipeline-Test' {
             } 
         }
     
-        [Helper]::ExportToGitExistingBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $body)
+        [Helper]::ExportToGitExistingBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $body)
         [Helper]::ExportToGitExistingBranchSucceeded | Should -BeTrue
     }
     

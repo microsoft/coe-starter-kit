@@ -2,6 +2,7 @@
 {
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$pipelineSourceDirectory,
         [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [String]$buildRepositoryName,
         [Parameter(Mandatory)] [String]$cdsBaseConnectionString,
@@ -13,6 +14,7 @@
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [String]$serviceConnection,
         [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter()] [String]$agentOS = "",
         [Parameter()] [String]$usePlaceholders = "true",
         [Parameter()] [String]$pat = "" # Azure DevOps Personal Access Token only required for running local tests
     )
@@ -31,13 +33,12 @@
     }
 
     #Update / Create Deployment Pipelines
-    New-DeploymentPipelines "$buildProjectName" "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$pat" "$solutionName" $configurationData
+    New-DeploymentPipelines "$pipelineSourceDirectory" "$buildProjectName" "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$pat" "$solutionName" $configurationData $agentOS
 
     Write-Host "Importing PowerShell Module: $microsoftXrmDataPowerShellModule - $xrmDataPowerShellVersion"
     Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $xrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
     $conn = Get-CrmConnection -ConnectionString "$cdsBaseConnectionString$serviceConnection"
 
-    Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
     #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
     foreach($configurationDataEnvironment in $configurationData)
     {
@@ -57,6 +58,7 @@
             Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
+        Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
 
         $newBuildDefinitionVariables = $null
         if($buildDefinitionResponseResults.length -gt 0) {
@@ -249,6 +251,7 @@
 function New-DeploymentPipelines
 {
     param (
+        [Parameter(Mandatory)] [String]$pipelineSourceDirectory,
         [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [String]$buildRepositoryName,
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -257,7 +260,8 @@ function New-DeploymentPipelines
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [String] [AllowEmptyString()] $pat,
         [Parameter(Mandatory)] [String]$solutionName,
-        [Parameter(Mandatory)] [System.Object[]]$configurationData
+        [Parameter(Mandatory)] [System.Object[]]$configurationData,
+        [Parameter()] [String]$agentOS
     )
     if($null -ne $configurationData -and $configurationData.length -gt 0) {
         Write-Host "Retrieved " $configurationData.length " deployment environments"
@@ -282,17 +286,6 @@ function New-DeploymentPipelines
         Write-Host "Retrieved " $deploymentConfigurationData.length " deployment configurations"
 
         if($branchResourceResults.length -eq 0 -or $buildDefinitionResponseResults.length -lt $deploymentConfigurationData.length) {
-            $currentPath = Get-Location
-            if(Test-Path -Path "../cli") {
-                Remove-Item "../cli" -Force -Recurse
-            }
-            New-Item -ItemType "directory" -Name "../cli"
-            Set-Location ../cli
-            git clone -b "main" "https://github.com/microsoft/coe-starter-kit.git"
-            Set-Location coe-starter-kit\coe-cli
-            npm install
-            npm run build
-            npm link
             $settings= ""
             $environmentNames = ""
             foreach($deploymentEnvironment in $deploymentConfigurationData) {
@@ -340,15 +333,36 @@ function New-DeploymentPipelines
             if(-Not [string]::IsNullOrWhiteSpace($settings)) {
                 $settings = $settings + ",environments=" + $environmentNames
                 Write-Host "environments: " $settings
-                if([string]::IsNullOrWhiteSpace($pat)) {
-                    coe alm branch --pipelineProject $buildProjectName --pipelineRepository $buildRepositoryName -o $orgUrl -p "$projectName" -r "$repo" -d "$solutionName" -a $env:SYSTEM_ACCESSTOKEN -s $settings
+
+                $currentPath = Get-Location
+                Set-Location "$pipelineSourceDirectory"
+                if(Test-Path ".\combined.log") {
+                    Remove-Item ".\combined.log"
+                }
+                if ($agentOS -eq "Linux") {
+                    #NOTE: The ability to call the coe-cli in a Linux environment is here for reference. Currently, the ALM Accelerator Pipelines require Windows runners due to several
+                    #packages we use that are windows only. We are actively working toward support for Linux environments, but as of the time of this addition this is for reference only.
+                    if([string]::IsNullOrWhiteSpace($pat)) {
+                        .\Coe-Cli\linux\coe-cli alm branch --pipelineProject "$buildProjectName" --pipelineRepository "$buildRepositoryName" -o "$orgUrl" -p "$projectName" -r "$repo" -d "$solutionName" -a $env:SYSTEM_ACCESSTOKEN -s $settings
+                    }
+                    else {
+                        .\Coe-Cli\linux\coe-cli alm branch --pipelineProject "$buildProjectName" --pipelineRepository $buildRepositoryName -o "$orgUrl" -p "$projectName" -r "$repo" -d "$solutionName" -a $pat -s $settings
+                    }
                 }
                 else {
-                    coe alm branch --pipelineProject $buildProjectName --pipelineRepository $buildRepositoryName -o $orgUrl -p "$projectName" -r "$repo" -d "$solutionName" -a $pat -s $settings
+                    if([string]::IsNullOrWhiteSpace($pat)) {
+                        .\Coe-Cli\coe-cli.exe alm branch --pipelineProject "$buildProjectName" --pipelineRepository "$buildRepositoryName" -o "$orgUrl" -p "$projectName" -r "$repo" -d "$solutionName" -a $env:SYSTEM_ACCESSTOKEN -s $settings
+                    }
+                    else {
+                        .\Coe-Cli\coe-cli.exe alm branch --pipelineProject "$buildProjectName" --pipelineRepository "$buildRepositoryName" -o "$orgUrl" -p "$projectName" -r "$repo" -d "$solutionName" -a $pat -s $settings
+                    }
                 }
-            }
 
-            Set-Location $currentPath
+                if(Test-Path ".\combined.log") {
+                    Write-Host ((Get-Content ".\combined.log") -join "`n") 
+                }
+                Set-Location $currentPath
+            }
         }
     }
 }
