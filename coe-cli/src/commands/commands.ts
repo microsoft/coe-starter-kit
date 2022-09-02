@@ -14,6 +14,7 @@ import { FileHandle } from 'fs/promises';
 import { Environment } from '../common/environment';
 import * as marked from 'marked'
 import { ReadLineManagement } from '../common/readLineManagement'
+import { LIB_VERSION } from '../version';
 
 interface TextParseFunction {
     parse: (text:string) => { [id: string] : string } | string | string[]
@@ -73,7 +74,7 @@ class CoeCliCommands {
      */
     async execute(argv: string[]) : Promise<void> {
         const program = new Command();
-        program.version('0.0.1');
+        program.version(LIB_VERSION);
 
         this.AddHelpCommands(program)
         this.AddALMAcceleratorForMakerCommands(program);
