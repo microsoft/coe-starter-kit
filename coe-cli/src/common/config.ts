@@ -14,7 +14,16 @@ export class Config {
     
         if ( Object.keys(Config.data).length == 0) {
             let configFile = path.resolve(path.join(__dirname, "..", "..", "..", "config", "config.json"))
-            Config.data = JSON.parse(fs.readFileSync(configFile, "utf-8"))
+            if (fs.existsSync(configFile)) {
+              Config.data = JSON.parse(fs.readFileSync(configFile, "utf-8"))
+            }
+            else {
+              //Set minimal config in absence of config file
+              Config.data = {
+                "pat": "",
+                "upgrade": false
+              }
+            }
         }
         
         let configDevFile = path.resolve(path.join(__dirname, "..", "..", "..", "config", "config.dev.json"))

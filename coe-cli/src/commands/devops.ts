@@ -32,7 +32,7 @@ import { InstalledExtension } from "azure-devops-node-api/interfaces/ExtensionMa
 import url from 'url';
 import { RoleAssignment } from "azure-devops-node-api/interfaces/SecurityRolesInterfaces";
 
-const {spawnSync} = require("child_process");
+const { spawnSync } = require("child_process");
 /**
 * Azure DevOps Commands
 */
@@ -65,10 +65,10 @@ class DevOpsCommand {
         }
         this.writeFile = async (name: string, data: Buffer) => fs.promises.writeFile(name, data, 'binary')
         this.getUrl = async (url: string, config: any = null) => {
-            if(config == null) {
+            if (config == null) {
                 return (await (axios.get<string>(url))).data
             }
-            else{
+            else {
                 return (await (axios.get<string>(url, config))).data
             }
         }
@@ -318,11 +318,11 @@ class DevOpsCommand {
         let extensionsApi = await connection.getExtensionManagementApi()
 
         this.logger.info(`Retrieving Extensions`)
-        try{
+        try {
             let extensions = await extensionsApi.getInstalledExtensions()
             for (let i = 0; i < args.extensions.length; i++) {
                 let extension = args.extensions[i]
-    
+
                 let match = extensions.filter((e: InstalledExtension) => e.extensionId == extension.name && e.publisherId == extension.publisher)
                 if (match.length == 0) {
                     this.logger.info(`Installing ${extension.name} by ${extension.publisher}`)
@@ -332,19 +332,19 @@ class DevOpsCommand {
                 }
             }
         } catch (err) {
-          this.logger?.error(err)
-          throw err
+            this.logger?.error(err)
+            throw err
         }
 
     }
 
     async importPipelineRepository(args: DevOpsInstallArguments, connection: azdev.WebApi) {
-        
+
         let gitApi = await connection.getGitApi()
         let pipelineProjectName = (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName?.length > 0) ? args.pipelineProjectName : args.projectName
         this.logger.info(`Checking pipeline repository ${pipelineProjectName} ${args.pipelineRepositoryName}`)
         let repo = await this.getRepository(args, gitApi, pipelineProjectName, args.pipelineRepositoryName)
- 
+
         if (repo == null) {
             return Promise.resolve(null)
         }
@@ -356,9 +356,9 @@ class DevOpsCommand {
             stdio: ['pipe', 'pipe', 'pipe'],
             ...{},
         });
-        
+
         this.logger.info(`Output: ${child.stdout.toString()}`);
-        if(child.statusCode != 0) {
+        if (child.statusCode != 0) {
             this.logger.info(`Error message: ${child.stderr.toString()}`);
         }
 
@@ -460,15 +460,13 @@ class DevOpsCommand {
         }
     }
 
-    async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) 
-    {
+    async createMakersBuildVariables(args: DevOpsInstallArguments, connection: azdev.WebApi, securityContext: DevOpsProjectSecurityContext) {
         let projects = [args.projectName]
         if (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName?.length > 0) {
             projects.push(args.pipelineProjectName)
         }
-        
-        for(let i = 0; i < projects.length; i++)
-        {
+
+        for (let i = 0; i < projects.length; i++) {
             connection = await this.createConnectionIfExists(args, connection)
 
             let taskApi = await connection.getTaskAgentApi()
@@ -571,23 +569,23 @@ class DevOpsCommand {
 
     async createMakersServiceConnections(args: DevOpsInstallArguments, connection: azdev.WebApi, setupEnvironmentConnections: boolean = true) {
         let projectNames = [args.projectName]
-        if(typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName != args.projectName) {
+        if (typeof args.pipelineProjectName !== "undefined" && args.pipelineProjectName != args.projectName) {
             projectNames.push(args.pipelineProjectName)
         }
-        for(let projectIndex = 0; projectIndex < projectNames.length; projectIndex++) {
+        for (let projectIndex = 0; projectIndex < projectNames.length; projectIndex++) {
             connection = await this.createConnectionIfExists(args, connection)
-    
+
             let endpoints = await this.getServiceConnections(args, connection)
             let coreApi = await connection.getCoreApi();
-    
+
             let projects = await coreApi.getProjects()
             let project = projects.filter(p => p.name?.toLowerCase() == projectNames[projectIndex].toLowerCase())
-    
+
             if (project.length == 0) {
                 this.logger?.error(`Azure DevOps project ${projectNames[projectIndex]} not found`)
                 return Promise.resolve();
             }
-    
+
             let aadCommand = this.createAADCommand()
             let aadArgs = new AADAppInstallArguments()
             aadArgs.subscription = args.subscription
@@ -595,17 +593,17 @@ class DevOpsCommand {
             aadArgs.createSecret = args.createSecretIfNoExist
             aadArgs.accessTokens = args.accessTokens
             aadArgs.endpoint = args.endpoint
-    
+
             let keys = Object.keys(args.environments)
-    
+
             let environments: string[] = []
-    
+
             if (args.environment?.length > 0) {
                 environments.push(args.environment)
             }
-    
+
             let mapping: { [id: string]: string } = {}
-    
+
             if (setupEnvironmentConnections) {
                 for (var i = 0; i < keys.length; i++) {
                     let environmentName = args.environments[keys[i]]
@@ -614,7 +612,7 @@ class DevOpsCommand {
                         environments.push(environmentName)
                     }
                 }
-    
+
                 if (Array.isArray(args.settings["installEnvironments"])) {
                     for (var i = 0; i < args.settings["installEnvironments"].length; i++) {
                         let environmentName = args.settings["installEnvironments"][i]
@@ -624,21 +622,21 @@ class DevOpsCommand {
                     }
                 }
             }
-    
+
             for (var i = 0; i < environments.length; i++) {
                 let environmentName = environments[i]
                 let endpointUrl = Environment.getEnvironmentUrl(environmentName, args.settings)
-    
+
                 let secretName = environmentName
                 try {
                     let environmentUrl = new url.URL(secretName)
                     secretName = environmentUrl.hostname.split(".")[0]
                 } catch {
-    
+
                 }
-    
+
                 let secretInfo = await aadCommand.addSecret(aadArgs, secretName)
-    
+
                 if (endpoints.filter(e => e.name == endpointUrl).length == 0) {
                     let ep = <ServiceEndpoint>{
                         authorization: <EndpointAuthorization>{
@@ -663,16 +661,16 @@ class DevOpsCommand {
                             }
                         ]
                     }
-    
+
                     let headers = <IHeaders>{};
                     headers["Content-Type"] = "application/json"
                     let webClient = this.getHttpClient(connection);
-    
+
                     let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args)
-    
+
                     // https://docs.microsoft.com/rest/api/azure/devops/serviceendpoint/endpoints/create?view=azure-devops-rest-6.0
                     let create = await webClient.post(`${devOpsOrgUrl}${projectNames[projectIndex]}/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4`, JSON.stringify(ep), headers)
-    
+
                     let serviceConnection: any
                     serviceConnection = JSON.parse(await create.readBody())
                     if (create.message.statusCode != 200) {
@@ -680,7 +678,7 @@ class DevOpsCommand {
                     } else {
                         this.logger?.info(`Created service connection ${endpointUrl}`)
                     }
-    
+
                     await this.assignUserToServiceConnector(project[0], serviceConnection, args, connection)
                 } else {
                     await this.assignUserToServiceConnector(project[0], endpointUrl, args, connection)
@@ -849,7 +847,9 @@ class DevOpsCommand {
             let connection = this.createWebApi(devOpsOrgUrl, authHandler);
 
             let core = await connection.getCoreApi()
+            this.logger?.info(`Getting Project`)
             let project: CoreInterfaces.TeamProject = await core.getProject(args.projectName)
+            this.logger?.info(`Getting Pipeline Project`)
             let pipelineProject: CoreInterfaces.TeamProject = await core.getProject(pipelineProjectName)
 
             this.logger?.info(util.format("Found project %s %s", project?.name, args.projectName))
@@ -881,91 +881,87 @@ class DevOpsCommand {
      */
     async createBranch(args: DevOpsBranchArguments, pipelineProject: CoreInterfaces.TeamProject, project: CoreInterfaces.TeamProject, gitApi: gitm.IGitApi): Promise<GitRepository> {
         var pipelineRepos = await gitApi.getRepositories(pipelineProject.id);
-        var repos = await gitApi.getRepositories(project.id);
-        var matchingRepo: GitRepository;
+        var projectRepos = await gitApi.getRepositories(project.id);
         let repositoryName = args.repositoryName
         if (typeof repositoryName === "undefined" || repositoryName?.length == 0) {
             // No repository defined assume it is the project name
             repositoryName = args.projectName
         }
+        this.logger?.info(`Found ${pipelineRepos.length} pipeline repositories`)
         this.logger?.info(`Searching for repository ${pipelineProject.name} ${args.pipelineRepository.toLowerCase()}`)
         let pipelineRepo = pipelineRepos.find((repo) => {
             return repo.name.toLowerCase() == args.pipelineRepository.toLowerCase();
         });
-        if (pipelineRepo) {
-            let foundRepo = false
-            for (let i = 0; i < repos.length; i++) {
-                let repo = repos[i]
-                this.logger?.info(`Searching for repository ${project.name} ${repositoryName.toLowerCase()}`)
-                if (repo.name.toLowerCase() == repositoryName.toLowerCase()) {
-                    foundRepo = true
-                    matchingRepo = repo
+        this.logger?.info(`Found pipeline repository ${pipelineRepo?.name}`)
+        this.logger?.info(`Searching for repository ${project.name} ${repositoryName.toLowerCase()}`)
+        let projectRepo = projectRepos.find((repo) => {
+            return repo.name.toLowerCase() == repositoryName.toLowerCase();
+        });
+        this.logger?.info(`Found project repository ${projectRepo?.name}`)
 
-                    this.logger?.info(`Found matching repo ${repositoryName}`)
+        if (pipelineRepo && projectRepo) {
+            this.logger?.info(`Found matching repo ${repositoryName}`)
 
-                    let refs = await gitApi.getRefs(repo.id, undefined, "heads/");
+            let refs = await gitApi.getRefs(projectRepo.id, undefined, "heads/");
 
-                    if (refs.length == 0) {
-                        this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
-                        return Promise.resolve(null)
-                    }
-
-                    let sourceBranch = args.sourceBranch;
-                    if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
-                        sourceBranch = this.withoutRefsPrefix(repo.defaultBranch)
-                    }
-
-                    let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
-                    if (sourceRef.length == 0) {
-                        this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
-                        this.logger?.debug('Existing branches')
-                        for (var refIndex = 0; refIndex < refs.length; refIndex++) {
-                            this.logger?.debug(refs[refIndex].name)
-                        }
-                        return matchingRepo;
-                    }
-
-                    let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
-                    if (destinationRef.length > 0) {
-                        this.logger?.error("Destination branch already exists")
-                        return matchingRepo;
-                    }
-
-                    let newRef = <GitRefUpdate>{};
-                    newRef.repositoryId = repo.id
-                    newRef.oldObjectId = sourceRef[0].objectId
-                    newRef.name = util.format("refs/heads/%s", args.destinationBranch)
-
-                    let newGitCommit = <GitCommitRef>{}
-                    newGitCommit.comment = "Add DevOps Pipeline"
-                    if(typeof args.settings["environments"] === "string") {
-                        newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), args.settings["environments"].split('|').map(element => {
-                            return element.toLowerCase();
-                    }))
-                    }
-                    else {
-                        newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(repo.defaultBranch), ['validation', 'test', 'prod'])
-                    }
-                    let gitPush = <GitPush>{}
-                    gitPush.refUpdates = [newRef]
-                    gitPush.commits = [newGitCommit]
-
-                    this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
-                    await gitApi.createPush(gitPush, repo.id, project.name)
-                }
+            if (refs.length == 0) {
+                this.logger.error("No commits to this repository yet. Initialize this repository before creating new branches")
+                return Promise.resolve(null)
             }
 
-            if (!foundRepo && repositoryName?.length > 0) {
+            let sourceBranch = args.sourceBranch;
+            if (typeof sourceBranch === "undefined" || args.sourceBranch?.length == 0) {
+                sourceBranch = this.withoutRefsPrefix(projectRepo.defaultBranch)
+            }
+
+            let sourceRef = refs.filter(f => f.name == util.format("refs/heads/%s", sourceBranch))
+            if (sourceRef.length == 0) {
+                this.logger?.error(util.format("Source branch [%s] not found", sourceBranch))
+                this.logger?.debug('Existing branches')
+                for (var refIndex = 0; refIndex < refs.length; refIndex++) {
+                    this.logger?.debug(refs[refIndex].name)
+                }
+                return projectRepo;
+            }
+
+            let destinationRef = refs.filter(f => f.name == util.format("refs/heads/%s", args.destinationBranch))
+            if (destinationRef.length > 0) {
+                return projectRepo;
+            }
+
+            let newRef = <GitRefUpdate>{};
+            newRef.repositoryId = projectRepo.id
+            newRef.oldObjectId = sourceRef[0].objectId
+            newRef.name = util.format("refs/heads/%s", args.destinationBranch)
+
+            let newGitCommit = <GitCommitRef>{}
+            newGitCommit.comment = "Add DevOps Pipeline"
+            if (typeof args.settings["environments"] === "string") {
+                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), args.settings["environments"].split('|').map(element => {
+                    return element.toLowerCase();
+                }))
+            }
+            else {
+                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), ['validation', 'test', 'prod'])
+            }
+            let gitPush = <GitPush>{}
+            gitPush.refUpdates = [newRef]
+            gitPush.commits = [newGitCommit]
+
+            this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
+            await gitApi.createPush(gitPush, projectRepo.id, project.name)
+
+            if (repositoryName?.length > 0) {
                 this.logger?.info(util.format("Repo %s not found", repositoryName))
                 this.logger?.info('Did you mean?')
-                repos.forEach(repo => {
+                projectRepos.forEach(repo => {
                     if (repo.name.startsWith(repositoryName[0])) {
                         this.logger?.info(repo.name)
                     }
                 });
             }
         }
-        return matchingRepo;
+        return projectRepo;
     }
 
     /**
@@ -983,10 +979,6 @@ class DevOpsCommand {
         let policyTypes = await policyApi.getPolicyTypes(args.projectName)
         let buildTypes = policyTypes.filter(p => { if (p.displayName == 'Build') { return true } })
 
-        let buildApi = await connection.getBuildApi();
-        let builds = await buildApi.getDefinitions(args.projectName)
-        let buildMatch = builds.filter(b => { if (b.name == `deploy-validation-${args.destinationBranch}`) { return true } })
-
         if (buildTypes.length > 0) {
             let existingConfigurations = await policyApi.getPolicyConfigurations(args.projectName);
 
@@ -994,12 +986,25 @@ class DevOpsCommand {
                 if (policy.settings.scope?.length == 1
                     && policy.settings.scope[0].refName == `refs/heads/${args.destinationBranch}`
                     && policy.settings.scope[0].repositoryId == repo.id
+                    && policy.settings.displayName == 'Build Validation'
                     && policy.type.id == buildTypes[0].id) {
                     return true
                 }
             })
 
-            if ((existingPolices.length == 0) && (buildMatch.length > 0)) {
+            if(existingPolices.length > 0) {
+                this.logger?.info(util.format("Policy for branch %s already exists. Deleting existing policy", args.destinationBranch))
+                for(let i = 0; i < existingPolices.length; i++) {
+                    await policyApi.deletePolicyConfiguration(args.projectName, existingPolices[i].id)
+                }
+            }
+
+            let buildApi = await connection.getBuildApi();
+            let builds = await buildApi.getDefinitions(args.projectName)
+            let buildMatch = builds.filter(b => { if (b.name == `deploy-validation-${args.destinationBranch}`) { return true } })
+
+            if (buildMatch.length > 0) {
+                this.logger?.info(util.format("Found policy build %s", buildMatch[0].name))
                 let newPolicy = <PolicyConfiguration>{}
                 newPolicy.settings = {}
                 newPolicy.settings.buildDefinitionId = buildMatch[0].id
@@ -1015,10 +1020,8 @@ class DevOpsCommand {
                 newPolicy.isEnabled = true
                 newPolicy.isEnterpriseManaged = false
 
-                this.logger?.info('Checking branch policy')
+                this.logger?.info('Creating branch policy')
                 await policyApi.createPolicyConfiguration(newPolicy, args.projectName)
-            } else {
-                this.logger?.info('Branch policy already created')
             }
         }
     }
@@ -1055,12 +1058,12 @@ class DevOpsCommand {
         let defaultAgentQueue = defaultQueue?.length > 0 ? defaultQueue[0] : undefined
         this.logger?.info(`Default Queue: ${defaultQueue?.length > 0 ? defaultQueue[0].name : "Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."}`)
 
-        if(typeof args.settings["environments"] === "string") {
+        if (typeof args.settings["environments"] === "string") {
             for (const environment of args.settings["environments"].split('|')) {
                 this.logger?.info(`Creating build for environment ${environment}`)
                 await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, environment, environment.toLowerCase(), args.destinationBranch, defaultAgentQueue);
             }
-        } else{
+        } else {
             await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Validation", "validation", args.destinationBranch, defaultAgentQueue);
             await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Test", "test", args.destinationBranch, defaultAgentQueue);
             await this.cloneBuildSettings(definitions, buildClient, project, repo, baseUrl, args, "Production", "prod", args.destinationBranch, defaultAgentQueue);
@@ -1204,13 +1207,13 @@ class DevOpsCommand {
                 }
             }
         }
-                
-        for(var i = 0; i < names.length; i++) {
+
+        for (var i = 0; i < names.length; i++) {
             this.logger?.info(util.format("Getting changes for %s", names[i]));
             let version: GitVersionDescriptor = <GitVersionDescriptor>{};
             version.versionType = GitVersionType.Branch;
             let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
-            if(typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
+            if (typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
                 templatePath = args.settings[`${names[i]}-buildtemplate`]
             }
 

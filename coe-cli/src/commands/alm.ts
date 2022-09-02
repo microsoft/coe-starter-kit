@@ -358,7 +358,6 @@ class ALMCommand {
   async branch(args: ALMBranchArguments) : Promise<void> {
     try{
       this.logger?.info("Setup branch")
-      this.logger?.verbose(JSON.stringify(args))
 
       let branchArgs = new DevOpsBranchArguments();
       if (args.accessToken === undefined || args.accessToken.length == 0) {
