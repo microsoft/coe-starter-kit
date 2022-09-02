@@ -74,6 +74,14 @@
             "schemaName": "admin_FullInventory",
             "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running "
           }
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+          }
         }
       },
       "triggers": {
@@ -98,7 +106,7 @@
         }
       },
       "actions": {
-        "Check_if_Environment_Deleted,_terminate_if_true": {
+        "Check_if_Environment_Deleted_or_Inventory_in_BYODL,_terminate_if_true": {
           "actions": {
             "Terminate_for_environments_marked_deleted": {
               "runAfter": {},
@@ -113,9 +121,19 @@
           },
           "runAfter": {},
           "expression": {
-            "equals": [
-              "@triggerOutputs()?['body/admin_environmentdeleted']",
-              "@true"
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+                  "@true"
+                ]
+              }
             ]
           },
           "metadata": {
@@ -1002,7 +1020,7 @@
         },
         "Initialize_DataverseConnectorGUID": {
           "runAfter": {
-            "Check_if_Environment_Deleted,_terminate_if_true": [
+            "Check_if_Environment_Deleted_or_Inventory_in_BYODL,_terminate_if_true": [
               "Succeeded"
             ]
           },
@@ -1878,6 +1896,84 @@
         },
         "Load_Arrays": {
           "actions": {
+            "Get_Apps_as_Admin": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "2510bbf9-b8b7-401a-99a2-ea1699a9ddb5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_powerappsforadmins",
+                  "operationId": "Get-AdminApps",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
+                },
+                "parameters": {
+                  "environment": "@triggerOutputs()?['body/admin_environmentname']",
+                  "api-version": "2020-07-01",
+                  "$top": 250
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "List_Connectors": {
+              "runAfter": {
+                "Get_Apps_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "4b170267-d5f5-4050-898c-f04b6e4db9cd"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_connectors",
+                  "$select": "admin_displayname, admin_id, admin_name"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Filter_Apps": {
+              "runAfter": {
+                "List_Connectors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "85da11bf-577e-48d0-86ac-242e6c05935f"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
+                "where": "@or(greater(item()?['properties/createdTime'], body('Get_past_time')), greater(item()?['properties/lastModifiedTime'], body('Get_past_time')), equals(item()?['properties/lastModifiedTime'], null))"
+              }
+            },
             "Apply_to_each_App": {
               "foreach": "@body('Filter_Apps')",
               "actions": {
@@ -2105,84 +2201,6 @@
                 "operationMetadataId": "f633dfa8-70b3-4b04-bf3c-6abd0d3cf798"
               },
               "type": "Foreach"
-            },
-            "Get_Apps_as_Admin": {
-              "runAfter": {
-                "List_Connectors": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "2510bbf9-b8b7-401a-99a2-ea1699a9ddb5"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_powerappsforadmins",
-                  "operationId": "Get-AdminApps",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
-                },
-                "parameters": {
-                  "environment": "@triggerOutputs()?['body/admin_environmentname']",
-                  "api-version": "2020-07-01",
-                  "$top": 250
-                },
-                "authentication": "@parameters('$authentication')",
-                "retryPolicy": {
-                  "type": "exponential",
-                  "count": 10,
-                  "interval": "PT10S"
-                }
-              },
-              "runtimeConfiguration": {
-                "paginationPolicy": {
-                  "minimumItemCount": 100000
-                }
-              }
-            },
-            "List_Connectors": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "4b170267-d5f5-4050-898c-f04b6e4db9cd"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_connectors",
-                  "$select": "admin_displayname, admin_id, admin_name"
-                },
-                "authentication": "@parameters('$authentication')",
-                "retryPolicy": {
-                  "type": "exponential",
-                  "count": 10,
-                  "interval": "PT10S"
-                }
-              },
-              "runtimeConfiguration": {
-                "paginationPolicy": {
-                  "minimumItemCount": 100000
-                }
-              }
-            },
-            "Filter_Apps": {
-              "runAfter": {
-                "Get_Apps_as_Admin": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "85da11bf-577e-48d0-86ac-242e6c05935f"
-              },
-              "type": "Query",
-              "inputs": {
-                "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
-                "where": "@or(greater(item()?['properties/createdTime'], body('Get_past_time')), greater(item()?['properties/lastModifiedTime'], body('Get_past_time')), equals(item()?['properties/lastModifiedTime'], null))"
-              }
             }
           },
           "runAfter": {
@@ -2412,7 +2430,7 @@
             }
           },
           "runAfter": {
-            "Initialize_PoliciesViolatedArray": [
+            "Initialize_SelectDLPFields": [
               "Succeeded"
             ]
           },
@@ -2425,111 +2443,6 @@
           "actions": {
             "App_DLP_Check": {
               "actions": {
-                "Check_for_newly_non-compliant_apps": {
-                  "actions": {
-                    "List_apps_compliant_per_inventory": {
-                      "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "9612cf5e-1cc0-4815-ab50-f369e85e2b55"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_commondataserviceforapps_2",
-                          "operationId": "ListRecords",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                        },
-                        "parameters": {
-                          "entityName": "admin_apps",
-                          "$select": "admin_appid, admin_displayname, admin_dlpevaluationstatus, admin_dlppoliciesviolated",
-                          "$filter": "_admin_appenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_dlpevaluationstatus eq 'Compliant' and admin_appdeleted ne true"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    },
-                    "Apply_to_each_non-compliant_app_in_tenant": {
-                      "foreach": "@variables('SelectNonCompliantFields')",
-                      "actions": {
-                        "See_if_no_longer_marked_complient": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "edfd0657-3500-439f-9863-f4f58fce72e8"
-                          },
-                          "type": "Query",
-                          "inputs": {
-                            "from": "@outputs('List_apps_compliant_per_inventory')?['body/value']",
-                            "where": "@equals(item()?['admin_appid'], items('Apply_to_each_non-compliant_app_in_tenant')?['appid'])"
-                          }
-                        },
-                        "If_no_longer_compliant_then_update": {
-                          "actions": {
-                            "Mark_as_no_longer_compliant": {
-                              "runAfter": {},
-                              "metadata": {
-                                "operationMetadataId": "46f2094a-5914-480a-9bd2-518d2c7b17c7"
-                              },
-                              "type": "OpenApiConnection",
-                              "inputs": {
-                                "host": {
-                                  "connectionName": "shared_commondataserviceforapps_2",
-                                  "operationId": "UpdateRecord",
-                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                },
-                                "parameters": {
-                                  "entityName": "admin_apps",
-                                  "recordId": "@first(body('See_if_no_longer_marked_complient'))?['appid']",
-                                  "item/admin_dlpevaluationstatus": "@first(body('See_if_no_longer_marked_complient'))?['dlpStatus']",
-                                  "item/admin_dlplastevaluationdate": "@first(body('See_if_no_longer_marked_complient'))?['dlpLastEvaluated']",
-                                  "item/admin_dlppoliciesviolated": "@first(body('See_if_no_longer_marked_complient'))?['dlpPoliciesViolated']\r\n",
-                                  "item/admin_dlpviolationdetails": "@first(body('See_if_no_longer_marked_complient'))?['dlpViolationErrorMessage']"
-                                },
-                                "authentication": "@parameters('$authentication')"
-                              }
-                            }
-                          },
-                          "runAfter": {
-                            "See_if_no_longer_marked_complient": [
-                              "Succeeded"
-                            ]
-                          },
-                          "expression": {
-                            "greater": [
-                              "@length(body('See_if_no_longer_marked_complient'))",
-                              0
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "13e5d9f4-80c2-4e6d-a9a3-a922786d26f4"
-                          },
-                          "type": "If"
-                        }
-                      },
-                      "runAfter": {
-                        "List_apps_compliant_per_inventory": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "52bd4186-79b0-43cb-9482-5253c99ede31"
-                      },
-                      "type": "Foreach",
-                      "runtimeConfiguration": {
-                        "concurrency": {
-                          "repetitions": 50
-                        }
-                      }
-                    }
-                  },
-                  "runAfter": {
-                    "Update_non-compliant_apps": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "6a3e8bd7-6791-4175-bfa3-c4f17466f0ba"
-                  },
-                  "type": "Scope"
-                },
                 "Get_DLP_Info_from_Tenant": {
                   "actions": {
                     "Filter_to_Compliant_Apps": {
@@ -2541,42 +2454,6 @@
                       "inputs": {
                         "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
                         "where": "@equals(item()?['properties/executionRestrictions/dataLossPreventionEvaluationResult/status'], 'Compliant')"
-                      }
-                    },
-                    "Filter_to_Non_Compliant_Apps": {
-                      "runAfter": {
-                        "Filter_to_Compliant_Apps": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "ddf4ddb4-f80c-478a-9aff-6422c794e65e"
-                      },
-                      "type": "Query",
-                      "inputs": {
-                        "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
-                        "where": "@not(equals(item()?['properties/executionRestrictions/dataLossPreventionEvaluationResult/status'], 'Compliant'))"
-                      }
-                    },
-                    "Select_Compliant_Fields": {
-                      "runAfter": {
-                        "Filter_to_Non_Compliant_Apps": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "f053f176-96c4-455c-b7d8-0c6d97d130db"
-                      },
-                      "type": "Select",
-                      "inputs": {
-                        "from": "@body('Filter_to_Compliant_Apps')",
-                        "select": {
-                          "appid": "@item()?['name']",
-                          "dlpStatus": "@item()?['properties/executionRestrictions/dataLossPreventionEvaluationResult/status']",
-                          "dlpViolationErrorMessage": "none",
-                          "dlpViolationsByPolicy": "@item()?['properties/executionRestrictions/dataLossPreventionEvaluationResult/violationsByPolicy']",
-                          "dlpLastEvaluated": "@item()?['properties/executionRestrictions/dataLossPreventionEvaluationResult/lastEvaluationDate']"
-                        }
                       }
                     },
                     "Apply_to_each_non_compliant_app": {
@@ -2630,7 +2507,7 @@
                           },
                           "type": "If"
                         },
-                        "Append_to_SelectNonCompliantFields": {
+                        "Append_to_SelectDLPFields": {
                           "runAfter": {
                             "Get_Policies_Violated": [
                               "Succeeded"
@@ -2641,19 +2518,19 @@
                           },
                           "type": "AppendToArrayVariable",
                           "inputs": {
-                            "name": "SelectNonCompliantFields",
+                            "name": "SelectDLPFields",
                             "value": {
-                              "appid": "@items('Apply_to_each_non_compliant_app')?['name']",
-                              "dlpStatus": "@items('Apply_to_each_non_compliant_app')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/status']",
-                              "dlpViolationErrorMessage": "@items('Apply_to_each_non_compliant_app')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/violationErrorMessage']",
-                              "dlpPoliciesViolated": "@union(variables('PoliciesViolatedArray'), variables('PoliciesViolatedArray'))",
-                              "dlpLastEvaluated": "@items('Apply_to_each_non_compliant_app')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/lastEvaluationDate']"
+                              "AppID": "@items('Apply_to_each_non_compliant_app')?['name']",
+                              "DLP_Status": "@items('Apply_to_each_non_compliant_app')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/status']",
+                              "DLP_ErrorDetails": "@items('Apply_to_each_non_compliant_app')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/violationErrorMessage']",
+                              "DLP_Policies": "@replace(string(union(variables('PoliciesViolatedArray'), variables('PoliciesViolatedArray'))), '\"', '')",
+                              "DLP_Last_Eval": "@split(items('Apply_to_each_non_compliant_app')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/lastEvaluationDate'], 'T')[0]"
                             }
                           }
                         }
                       },
                       "runAfter": {
-                        "Select_Compliant_Fields": [
+                        "Filter_to_Non_Compliant_Apps": [
                           "Succeeded"
                         ]
                       },
@@ -2666,6 +2543,110 @@
                           "repetitions": 50
                         }
                       }
+                    },
+                    "Parse_noncompliant_actual": {
+                      "runAfter": {
+                        "Apply_to_each_non_compliant_app": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1cb4df39-30e4-4641-965f-40c6a18e7aba"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@variables('SelectDLPFields')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "AppID": {
+                                "type": "string"
+                              },
+                              "DLP_Status": {
+                                "type": "string"
+                              },
+                              "DLP_ErrorDetails": {
+                                "type": "string"
+                              },
+                              "DLP_Policies": {
+                                "type": "string"
+                              },
+                              "DLP_Last_Eval": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "AppID",
+                              "DLP_Status",
+                              "DLP_ErrorDetails",
+                              "DLP_Policies",
+                              "DLP_Last_Eval"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "Parse_compliant_actual": {
+                      "runAfter": {
+                        "Select_compliant_actual": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1cb4df39-30e4-4641-965f-40c6a18e7aba"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_compliant_actual')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "AppID": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "AppID"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "Filter_to_Non_Compliant_Apps": {
+                      "runAfter": {
+                        "Parse_compliant_actual": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "ddf4ddb4-f80c-478a-9aff-6422c794e65e"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
+                        "where": "@not(equals(item()?['properties/executionRestrictions/dataLossPreventionEvaluationResult/status'], 'Compliant'))"
+                      }
+                    },
+                    "Select_compliant_actual": {
+                      "runAfter": {
+                        "Filter_to_Compliant_Apps": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f3455709-2b54-4314-929d-c7965ceb5cb5"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@body('Filter_to_Compliant_Apps')",
+                        "select": {
+                          "AppID": "@item()?['name']"
+                        }
+                      }
                     }
                   },
                   "runAfter": {},
@@ -2674,10 +2655,34 @@
                   },
                   "type": "Scope"
                 },
-                "Update_non-compliant_apps": {
+                "Get_DLP_Current_Inventory": {
                   "actions": {
-                    "List_non-compliant_apps": {
+                    "compliant_inventory": {
                       "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "9612cf5e-1cc0-4815-ab50-f369e85e2b55"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_apps",
+                          "$select": "admin_appid, admin_displayname, admin_dlpevaluationstatus, admin_dlplastevaluationdate, admin_dlppoliciesviolated, admin_dlpviolationdetails",
+                          "$filter": "_admin_appenvironment_value eq @{triggerBody()?['admin_environmentid']} and admin_dlpevaluationstatus eq 'Compliant' and admin_appdeleted ne true and admin_powerappstype ne 597910001 and admin_powerappstype ne 597910003"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "noncompliant_inventory": {
+                      "runAfter": {
+                        "Parse_compliant_inventory": [
+                          "Succeeded"
+                        ]
+                      },
                       "metadata": {
                         "operationMetadataId": "20af3e6e-975a-436c-bac1-d7f460f9760a"
                       },
@@ -2690,186 +2695,125 @@
                         },
                         "parameters": {
                           "entityName": "admin_apps",
-                          "$select": "admin_appid, admin_displayname, admin_dlpevaluationstatus, admin_dlppoliciesviolated",
-                          "$filter": "_admin_appenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_dlpevaluationstatus ne 'Compliant' and admin_appdeleted ne true"
+                          "$select": "admin_appid, admin_displayname, admin_dlpevaluationstatus, admin_dlplastevaluationdate, admin_dlppoliciesviolated, admin_dlpviolationdetails",
+                          "$filter": "_admin_appenvironment_value eq @{triggerBody()?['admin_environmentid']} and admin_dlpevaluationstatus ne 'Compliant' and admin_appdeleted ne true and admin_powerappstype ne 597910001 and admin_powerappstype ne 597910003"
                         },
                         "authentication": "@parameters('$authentication')"
                       }
                     },
-                    "For_each_previously_non-compliant_app": {
-                      "foreach": "@outputs('List_non-compliant_apps')?['body/value']",
-                      "actions": {
-                        "See_if_still_non-compliant": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "08dd8e79-ff3f-4b8c-b562-50c247876e3c"
-                          },
-                          "type": "Query",
-                          "inputs": {
-                            "from": "@variables('SelectNonCompliantFields')",
-                            "where": "@equals(item()?['appid'], items('For_each_previously_non-compliant_app')?['admin_appid'])"
-                          }
-                        },
-                        "If_still_non_compliant": {
-                          "actions": {
-                            "Current_DLP_status": {
-                              "runAfter": {},
-                              "metadata": {
-                                "operationMetadataId": "a9659132-2de0-4ea5-aade-f6402144e7ba"
-                              },
-                              "type": "Compose",
-                              "inputs": "@first(body('See_if_still_non-compliant'))?['dlpStatus']"
-                            },
-                            "DLP_evaluation_date": {
-                              "runAfter": {
-                                "Current_DLP_status": [
-                                  "Succeeded"
-                                ]
-                              },
-                              "metadata": {
-                                "operationMetadataId": "6de7b3ee-ec07-4a22-a1bb-32c36a33258c"
-                              },
-                              "type": "Compose",
-                              "inputs": "@first(body('See_if_still_non-compliant'))?['dlpLastEvaluated']"
-                            },
-                            "Update_DLP_status_details_ex_date": {
-                              "runAfter": {
-                                "DLP_evaluation_date": [
-                                  "Succeeded"
-                                ]
-                              },
-                              "metadata": {
-                                "operationMetadataId": "50539674-4517-4976-8092-f78805502c6a"
-                              },
-                              "type": "OpenApiConnection",
-                              "inputs": {
-                                "host": {
-                                  "connectionName": "shared_commondataserviceforapps_1",
-                                  "operationId": "UpdateRecord",
-                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                },
-                                "parameters": {
-                                  "entityName": "admin_apps",
-                                  "recordId": "@items('For_each_previously_non-compliant_app')?['admin_appid']",
-                                  "item/admin_dlpevaluationstatus": "@first(body('See_if_still_non-compliant'))?['dlpStatus']",
-                                  "item/admin_dlplastevaluationdate": "@first(body('See_if_still_non-compliant'))?['dlpLastEvaluated']",
-                                  "item/admin_dlppoliciesviolated": "@first(body('See_if_still_non-compliant'))?['dlpPoliciesViolated']",
-                                  "item/admin_dlpviolationdetails": "@first(body('See_if_still_non-compliant'))?['dlpViolationErrorMessage']"
-                                },
-                                "authentication": "@parameters('$authentication')"
-                              }
-                            }
-                          },
-                          "runAfter": {
-                            "See_if_still_non-compliant": [
-                              "Succeeded"
-                            ]
-                          },
-                          "else": {
-                            "actions": {
-                              "Find_newly_compliant_app": {
-                                "runAfter": {},
-                                "metadata": {
-                                  "operationMetadataId": "ef26a805-7981-49d7-90b5-c2373baf428f"
-                                },
-                                "type": "Query",
-                                "inputs": {
-                                  "from": "@body('Select_Compliant_Fields')",
-                                  "where": "@equals(item()?['appid'], items('For_each_previously_non-compliant_app')?['admin_appid'])"
-                                }
-                              },
-                              "If_found_in_newly_compliant_list": {
-                                "actions": {
-                                  "Mark_as_now_Compliant": {
-                                    "runAfter": {},
-                                    "metadata": {
-                                      "operationMetadataId": "2ad75072-410d-4722-9a8c-b3b13c58b4ef"
-                                    },
-                                    "type": "OpenApiConnection",
-                                    "inputs": {
-                                      "host": {
-                                        "connectionName": "shared_commondataserviceforapps_2",
-                                        "operationId": "UpdateRecord",
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                      },
-                                      "parameters": {
-                                        "entityName": "admin_apps",
-                                        "recordId": "@items('For_each_previously_non-compliant_app')?['admin_appid']",
-                                        "item/admin_dlpevaluationstatus": "@first(body('Find_newly_compliant_app'))?['dlpStatus']",
-                                        "item/admin_dlplastevaluationdate": "@first(body('Find_newly_compliant_app'))?['dlpLastEvaluated']",
-                                        "item/admin_dlppoliciesviolated": "@first(body('Find_newly_compliant_app'))?['dlpPoliciesViolated']",
-                                        "item/admin_dlpviolationdetails": "@first(body('Find_newly_compliant_app'))?['dlpViolationErrorMessage']"
-                                      },
-                                      "authentication": "@parameters('$authentication')"
-                                    }
-                                  }
-                                },
-                                "runAfter": {
-                                  "Find_newly_compliant_app": [
-                                    "Succeeded"
-                                  ]
-                                },
-                                "else": {
-                                  "actions": {
-                                    "Mark_Compliant": {
-                                      "runAfter": {},
-                                      "metadata": {
-                                        "operationMetadataId": "09b4dbc8-57e8-4d82-9be4-dcba7b011c47"
-                                      },
-                                      "type": "OpenApiConnection",
-                                      "inputs": {
-                                        "host": {
-                                          "connectionName": "shared_commondataserviceforapps_2",
-                                          "operationId": "UpdateRecord",
-                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                        },
-                                        "parameters": {
-                                          "entityName": "admin_apps",
-                                          "recordId": "@items('For_each_previously_non-compliant_app')?['admin_appid']",
-                                          "item/admin_dlpevaluationstatus": "Compliant"
-                                        },
-                                        "authentication": "@parameters('$authentication')"
-                                      }
-                                    }
-                                  }
-                                },
-                                "expression": {
-                                  "greater": [
-                                    "@length(body('Find_newly_compliant_app'))",
-                                    0
-                                  ]
-                                },
-                                "metadata": {
-                                  "operationMetadataId": "a4a970be-1a57-4f3f-8ad0-ade6b9a8204f"
-                                },
-                                "type": "If"
-                              }
-                            }
-                          },
-                          "expression": {
-                            "greater": [
-                              "@length(body('See_if_still_non-compliant'))",
-                              0
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "ff7fcc39-377f-479a-9682-ccb62555f635"
-                          },
-                          "type": "If"
-                        }
-                      },
+                    "Select_compliant_inventory": {
                       "runAfter": {
-                        "List_non-compliant_apps": [
+                        "compliant_inventory": [
                           "Succeeded"
                         ]
                       },
                       "metadata": {
-                        "operationMetadataId": "4e68745e-7ad5-4cea-b1ed-04d634459930"
+                        "operationMetadataId": "68bd3667-f020-4954-9b34-eeffdde6d4bb"
                       },
-                      "type": "Foreach",
-                      "runtimeConfiguration": {
-                        "concurrency": {
-                          "repetitions": 50
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('compliant_inventory')?['body/value']",
+                        "select": {
+                          "AppID": "@item()?['admin_appid']"
+                        }
+                      }
+                    },
+                    "Parse_compliant_inventory": {
+                      "runAfter": {
+                        "Select_compliant_inventory": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3c4ebfb1-a364-4cef-b583-7a7a42b16667"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_compliant_inventory')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "AppID": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "AppID"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "Select_noncompliant_inventory": {
+                      "runAfter": {
+                        "noncompliant_inventory": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "33350bce-aeba-4306-ac49-d52a45742a02"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('noncompliant_inventory')?['body/value']",
+                        "select": {
+                          "AppID": "@item()?['admin_appid']",
+                          "DLP_Status": "@item()?['admin_dlpevaluationstatus']",
+                          "DLP_ErrorDetails": "@item()?['admin_dlpviolationdetails']",
+                          "DLP_Policies": "@item()?['admin_dlppoliciesviolated']",
+                          "DLP_Last_Eval": "@if(equals(item()?['admin_dlplastevaluationdate'], null), '', split(item()?['admin_dlplastevaluationdate'], 'T')[0])"
+                        }
+                      }
+                    },
+                    "Parse_noncompliant_inventory": {
+                      "runAfter": {
+                        "Select_noncompliant_inventory": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3fd1d5b2-f957-49f3-8e5a-18d3aea5c97a"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_noncompliant_inventory')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "AppID": {
+                                "type": "string"
+                              },
+                              "DLP_Status": {
+                                "type": "string"
+                              },
+                              "DLP_Last_Eval": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "DLP_Policies": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "DLP_ErrorDetails": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "AppID",
+                              "DLP_Status"
+                            ]
+                          }
                         }
                       }
                     }
@@ -2880,7 +2824,129 @@
                     ]
                   },
                   "metadata": {
-                    "operationMetadataId": "4c7523ca-94e4-4fff-9c32-e5ff8debf2f8"
+                    "operationMetadataId": "1c8d18d7-3d9f-4d43-bc06-397e4e7c2249"
+                  },
+                  "type": "Scope"
+                },
+                "Update_the_Non_Compliant_Apps": {
+                  "actions": {
+                    "Update_non-compliant_list": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "67e26474-c577-4f02-bc7a-982190a0c5c0"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_noncompliant_actual')",
+                        "where": "@not(contains(body('Parse_noncompliant_inventory'), item()))"
+                      }
+                    },
+                    "Update_non-compliant_apps": {
+                      "foreach": "@body('Update_non-compliant_list')",
+                      "actions": {
+                        "Update_this_non-compliant_app": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "6152e06a-6b24-437d-8990-57951d9c02d6"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_apps",
+                              "recordId": "@items('Update_non-compliant_apps')?['AppID']",
+                              "item/admin_dlpevaluationstatus": "@items('Update_non-compliant_apps')?['DLP_Status']",
+                              "item/admin_dlplastevaluationdate": "@items('Update_non-compliant_apps')?['DLP_Last_Eval']",
+                              "item/admin_dlppoliciesviolated": "@items('Update_non-compliant_apps')?['DLP_Policies']",
+                              "item/admin_dlpviolationdetails": "@items('Update_non-compliant_apps')?['DLP_ErrorDetails']"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Update_non-compliant_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "5d3473bf-6160-49b8-be47-c8dd69ccc3e5"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_DLP_Current_Inventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "7961a64e-c09c-43bb-acf6-bc5e4c55bf24"
+                  },
+                  "type": "Scope"
+                },
+                "Update_the_Compliant_Apps": {
+                  "actions": {
+                    "Update_compliant_list": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "e1c28fe8-1361-4fe6-a33f-a9883c100610"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_compliant_actual')",
+                        "where": "@not(contains(body('Parse_compliant_inventory'), item()))"
+                      }
+                    },
+                    "Update_compliant_apps": {
+                      "foreach": "@body('Update_compliant_list')",
+                      "actions": {
+                        "Update_this_compliant_app": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "7f75dbeb-c560-45db-b5aa-63b172190c30"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_apps",
+                              "recordId": "@items('Update_compliant_apps')?['AppID']",
+                              "item/admin_dlpevaluationstatus": "Compliant",
+                              "item/admin_dlplastevaluationdate": "@null",
+                              "item/admin_dlppoliciesviolated": "@null",
+                              "item/admin_dlpviolationdetails": "@null"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Update_compliant_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "d4309ccf-c80b-4d3f-bfa6-972b0759d7e6"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Update_the_Non_Compliant_Apps": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "72db70e4-6de6-4331-aee6-a755cfd5d51a"
                   },
                   "type": "Scope"
                 }
@@ -3171,6 +3237,25 @@
             "variables": [
               {
                 "name": "PoliciesViolatedArray",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Initialize_SelectDLPFields": {
+          "runAfter": {
+            "Initialize_PoliciesViolatedArray": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5ef9affa-621e-46dd-924c-af73732ba73e"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "SelectDLPFields",
                 "type": "array"
               }
             ]
