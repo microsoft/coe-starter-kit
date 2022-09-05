@@ -1,0 +1,401 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_powerplatformforadmins": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdminsEnvRequest"
+        },
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        }
+      },
+      "shared_powerappsforadmins": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsAdmin"
+        },
+        "api": {
+          "name": "shared_powerappsforadmins"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Outlook"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Admin eMail (admin_AdminMail)": {
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdminMail",
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
+          }
+        },
+        "eMail Header Style (admin_eMailHeaderStyle)": {
+          "defaultValue": "<head>     <style>         body {             background-color: #efefef;             font-family: Segoe UI;             text-align: center;         }          #content {             border: 1px solid #742774;             background-color: #ffffff;             width: 650px;             margin-bottom: 50px;             display: inline-block;         }          #logo {             margin-left: 52px;             margin-top: 40px;             width: 60px;             height: 12px;         }          #header {             font-size: 24px;             margin-left: 50px;             margin-top: 20px;             margin-bottom: 20px;         }          #ribbon {             background-color: #742774;         }          #ribbonContent {             font-size: 20px;             padding-left: 30px;             padding-top: 10px;             padding-bottom: 20px;             color: white;             width: 100%;             padding-right: 10px;         }          #message>td {             font-size: 14px;             padding-left: 60px;             padding-right: 60px;             padding-top: 20px;             padding-bottom: 40px;         }          #footer>td {             font-size: 12px;             background-color: #cfcfcf;             height: 40px;             padding-top: 15px;             padding-left: 40px;             padding-bottom: 20px;         }          #form {             width: 100%;             border-collapse: collapse;         }          #app {             width: 60%;             font-size: 12px;         }          .label {             color: #5f5f5f         }          table {             border-collapse: collapse;             width: 100%;         }          th,         td {             padding: 8px;             text-align: left;             border-bottom: 1px solid #ddd;         }     </style> </head>",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_eMailHeaderStyle",
+            "description": "CSS/Style used for eMails"
+          }
+        },
+        "Delete Broken Connections Age (Days) (admin_DeleteBrokenConnectionsAgeDays)": {
+          "defaultValue": 30,
+          "type": "Int",
+          "metadata": {
+            "schemaName": "admin_DeleteBrokenConnectionsAgeDays",
+            "description": "Delete Broken Connections this many days since they were modified"
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1,
+            "startTime": "2022-08-05T16:00:00Z",
+            "schedule": {
+              "weekDays": [
+                "Sunday"
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "62dbf5ec-1bcc-46e4-a3db-cf152596e1cd"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Get_past_time": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "04136d5e-e7d8-4906-8f76-eea809ca801f"
+          },
+          "type": "Expression",
+          "kind": "GetPastTime",
+          "inputs": {
+            "interval": "@parameters('Delete Broken Connections Age (Days) (admin_DeleteBrokenConnectionsAgeDays)')",
+            "timeUnit": "Day"
+          }
+        },
+        "List_Environments_as_Admin": {
+          "runAfter": {
+            "Initialize_errorObject": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9120d36b-0841-4963-9cb3-aa208d0fbc2f"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins",
+              "connectionName": "shared_powerplatformforadmins",
+              "operationId": "Get-AdminEnvironment"
+            },
+            "parameters": {
+              "api-version": "2018-10-01"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Apply_to_each": {
+          "foreach": "@outputs('List_Environments_as_Admin')?['body/value']",
+          "actions": {
+            "Get_Connections_as_Admin": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "ca63b57d-965b-4847-af60-eabc3238140a"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                  "connectionName": "shared_powerappsforadmins",
+                  "operationId": "Get-AdminConnections"
+                },
+                "parameters": {
+                  "environment": "@items('Apply_to_each')?['name']",
+                  "api-version": "2016-11-01",
+                  "$top": 250
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Filter_to_Errors": {
+              "runAfter": {
+                "Select": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "5295fbd7-ea88-4cdb-bb9e-3e98dbffc5b8"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@body('Select')",
+                "where": "@not(equals(item()?['statuses'], 'Connected'))"
+              }
+            },
+            "Filter_to_Old": {
+              "runAfter": {
+                "Filter_to_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "92bf7808-55ea-437b-8787-0e159489a67c"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@body('Filter_to_Errors')",
+                "where": "@less(item()?['lastModified'], body('Get_past_time'))"
+              }
+            },
+            "Select": {
+              "runAfter": {
+                "Get_Connections_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "46479389-a526-4254-830f-802180a8ac1a"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@outputs('Get_Connections_as_Admin')?['body/value']",
+                "select": {
+                  "Status": "@item()?['properties/statuses'][0]?['status']",
+                  "lastModified": "@item()?['properties']?['lastModifiedTime']",
+                  "ConnectorGUID": "@item()?['name']",
+                  "ConnectorName": "@item()?['id']"
+                }
+              }
+            },
+            "Delete_Old_Broken_Connections": {
+              "foreach": "@body('Filter_to_Old')",
+              "actions": {
+                "connectorName": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "0165af17-0487-48f1-b62b-8fdfa4709fc5"
+                  },
+                  "type": "Compose",
+                  "inputs": "@split(split(items('Delete_Old_Broken_Connections')?['ConnectorName'], '/apis/')[1], '/connections/')[0]"
+                },
+                "AdminDeleteLogicFlowConnectionsNotAllowed": {
+                  "actions": {
+                    "Remove_Connection_as_Admin": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "e4db36cb-c000-42ec-b104-f9588644eb48"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins",
+                          "connectionName": "shared_powerappsforadmins",
+                          "operationId": "Remove-AdminConnection"
+                        },
+                        "parameters": {
+                          "environment": "@items('Apply_to_each')?['name']",
+                          "connectorName": "@outputs('connectorName')",
+                          "connectionName": "@items('Delete_Old_Broken_Connections')?['ConnectorGUID']",
+                          "api-version": "2016-11-01"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Set_errorObject": {
+                      "runAfter": {
+                        "Remove_Connection_as_Admin": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a229631e-5653-474f-ba7d-67c69945500b"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "errorObject",
+                        "value": {
+                          "environment": "@items('Apply_to_each')?['name']",
+                          "ConnectorName": "@items('Delete_Old_Broken_Connections')?['ConnectorName']",
+                          "ConnectionName": "@items('Delete_Old_Broken_Connections')?['ConnectorGUID']"
+                        }
+                      }
+                    },
+                    "Append_object_to_errorArray": {
+                      "runAfter": {
+                        "Set_errorObject": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3ee6d042-e196-4ef7-8267-e55e7bee5e3f"
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "errorArray",
+                        "value": "@variables('errorObject')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "connectorName": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@outputs('connectorName')",
+                        "shared_logicflows"
+                      ]
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "5547fe59-eb2c-45ad-a073-06588b6ffb5b"
+                  },
+                  "type": "If"
+                }
+              },
+              "runAfter": {
+                "Filter_to_Old": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2ae41e0b-5ef0-4e0b-824e-bfd840057aff"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "List_Environments_as_Admin": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "79ccf781-d39d-42a5-a68a-1bc6dc9ced91"
+          },
+          "type": "Foreach"
+        },
+        "Initialize_errorArray": {
+          "runAfter": {
+            "Get_past_time": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "2bf5fb3d-c2b3-4abe-9795-8eab4496f4f1"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "errorArray",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Initialize_errorObject": {
+          "runAfter": {
+            "Initialize_errorArray": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "14171a59-e033-42ab-ba7f-12efd580e59e"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "errorObject",
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "If_some_connections_cannot_be_deleted_send_to_admin": {
+          "actions": {
+            "Create_HTML_table": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "67381760-a80e-42e1-8c03-90778a8817c6"
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('errorArray')",
+                "format": "HTML"
+              }
+            },
+            "Send_an_email_(V2)": {
+              "runAfter": {
+                "Create_HTML_table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "cddbe7f0-30ba-4cf8-b5d6-ffb49a2bacba"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2"
+                },
+                "parameters": {
+                  "emailMessage/To": "@parameters('Admin eMail (admin_AdminMail)')",
+                  "emailMessage/Subject": "Some broken connections cannot be deleted by flow",
+                  "emailMessage/Body": "<p>@{parameters('eMail Header Style (admin_eMailHeaderStyle)')}<br>\n<br>\nSome connections could not be deleted by the <em><strong>Admin | Broken Connection Cleanup </strong></em>CoE Governance flow. These will need deleted via Power Shell if you would like to have them removed.<br>\n<br>\n@{body('Create_HTML_table')}<br>\n</p>",
+                  "emailMessage/Importance": "Normal"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Apply_to_each": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "greater": [
+              "@length(variables('errorArray'))",
+              0
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "4f5260c0-9f8d-4e0c-9033-b521df14522e"
+          },
+          "type": "If"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
