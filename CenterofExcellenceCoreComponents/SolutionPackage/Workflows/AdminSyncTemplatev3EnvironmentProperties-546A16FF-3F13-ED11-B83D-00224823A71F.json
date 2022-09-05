@@ -1,0 +1,571 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_powerplatformforadmins_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+          }
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "metadata": {
+            "operationMetadataId": "ebc3d62b-a8a5-4c5d-89f4-5df70afcf135"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filteringattributes": "admin_environmentqueriedon,admin_environmentmodifiedon,admin_environmentcreatedon"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Capacity_and_Addons": {
+          "actions": {
+            "List_capacity_for_Environment": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "cebf0044-5eb4-4697-9451-9ab46a7bbc5b"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_environmentcapacities",
+                  "$select": "admin_environmentcapacityid,admin_capacitytype",
+                  "$filter": "admin_Environment/admin_environmentid eq @{triggerOutputs()?['body/admin_environmentid']}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "List_addons_for_Environment": {
+              "runAfter": {
+                "Apply_to_each": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2f956a49-6a69-4a40-a8e2-f0f5de3be4a5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_environmentaddonses",
+                  "$select": "admin_environmentaddonsid,admin_addontype",
+                  "$filter": "admin_Environment/admin_environmentid eq @{triggerOutputs()?['body/admin_environmentid']}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Apply_to_each": {
+              "foreach": "@body('Filter_for_current_environment')",
+              "actions": {
+                "Apply_to_each_capacity": {
+                  "foreach": "@items('Apply_to_each')?['properties']?['capacity']",
+                  "actions": {
+                    "Filter_out_FinOps": {
+                      "actions": {
+                        "Check_if_Capacity_Type_already_exists_for_this_environment": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "b468d0e7-ed2b-4cfb-972c-28629111e523"
+                          },
+                          "type": "Query",
+                          "inputs": {
+                            "from": "@outputs('List_capacity_for_Environment')?['body/value']",
+                            "where": "@equals(item()?['admin_capacitytype'], items('Apply_to_each_capacity')?['capacityType'])"
+                          }
+                        },
+                        "If_Capacity_Type_exists,_update,_else_add_new": {
+                          "actions": {
+                            "Add_new_capacity": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "f3f2287e-414c-4512-94ee-483c7ac53383"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "CreateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_environmentcapacities",
+                                  "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
+                                  "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                  "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
+                                  "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                  "item/admin_ratedconsumption": "@items('Apply_to_each_capacity')?['ratedConsumption']"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Check_if_Capacity_Type_already_exists_for_this_environment": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "Update_capacity": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "b96c3d3e-cf54-4a7f-a1d9-d2c76ed7402a"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps_1",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_environmentcapacities",
+                                    "recordId": "@first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_environmentcapacityid']",
+                                    "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                    "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
+                                    "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
+                                    "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                                    "item/admin_ratedconsumption": "@items('Apply_to_each_capacity')?['ratedConsumption']"
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@length(body('Check_if_Capacity_Type_already_exists_for_this_environment'))",
+                              0
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "5378bbe8-6de1-4cd3-814c-59cd47606ead"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {},
+                      "expression": {
+                        "not": {
+                          "contains": [
+                            "@items('Apply_to_each_capacity')?['capacityType']",
+                            "FinOps"
+                          ]
+                        }
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2a6d39dc-ed9a-4e32-99c9-8d54a4dc4e58"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "6cb254a9-6732-4f9a-8467-d53cfe404872"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "List_capacity_for_Environment": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "55142167-ff6b-4a32-aad4-a672ed0a06c3"
+              },
+              "type": "Foreach"
+            },
+            "Apply_to_each_2": {
+              "foreach": "@body('Filter_for_current_environment')",
+              "actions": {
+                "Apply_to_each_addon": {
+                  "foreach": "@items('Apply_to_each_2')?['properties']?['addons']",
+                  "actions": {
+                    "Check_if_Addon_Type_already_exists_for_this_environment": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "35e38c11-64f6-4233-8b8f-c7ee686c10bc"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@outputs('List_addons_for_Environment')?['body/value']",
+                        "where": "@equals(item()?['admin_addontype'], items('Apply_to_each_addon')?['addonType'])"
+                      }
+                    },
+                    "If_Addon_Type_exists,_update,_else_add_new": {
+                      "actions": {
+                        "Add_a_new_row": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "98fba491-c1db-48a2-ae8b-7023586d81e4"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_1",
+                              "operationId": "CreateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environmentaddonses",
+                              "item/admin_addontype": "@items('Apply_to_each_addon')?['addonType']",
+                              "item/admin_allocated": "@items('Apply_to_each_addon')?['allocated']",
+                              "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Check_if_Addon_Type_already_exists_for_this_environment": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Update_a_row": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "f62d6f80-69a3-4db5-a543-cea4319b8af1"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_commondataserviceforapps_1",
+                                "operationId": "UpdateRecord",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                              },
+                              "parameters": {
+                                "entityName": "admin_environmentaddonses",
+                                "recordId": "@first(body('Check_if_Addon_Type_already_exists_for_this_environment'))['admin_environmentaddonsid']",
+                                "item/admin_addontype": "@items('Apply_to_each_addon')?['addonType']",
+                                "item/admin_allocated": "@items('Apply_to_each_addon')?['allocated']",
+                                "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})"
+                              },
+                              "authentication": "@parameters('$authentication')"
+                            }
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(body('Check_if_Addon_Type_already_exists_for_this_environment'))",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f41dc0b3-82c6-438e-a8a3-49c8773cab43"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "07b203a5-2872-475c-a437-95e3e49b5677"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "List_addons_for_Environment": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c2bd1f29-06f8-42c1-8f90-d3bcda4d0099"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "If_inventory_in_BYODL_get_tenant_wide_properties_here": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "30ebe4c3-7d1a-4f1d-bf08-121993361975"
+          },
+          "type": "Scope"
+        },
+        "List_Environments_as_Admin": {
+          "runAfter": {
+            "Initialize_systemMaker": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b60c7d2f-d5af-4aa2-8603-c3c1a476c658"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_powerplatformforadmins_1",
+              "operationId": "Get-AdminEnvironment",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+            },
+            "parameters": {
+              "api-version": "2021-03-01",
+              "$expand": "properties.capacity,properties.addons"
+            },
+            "authentication": "@parameters('$authentication')"
+          },
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          }
+        },
+        "Filter_for_current_environment": {
+          "runAfter": {
+            "List_Environments_as_Admin": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "13a3dd00-8386-499e-8e0b-26084fada7b9"
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@outputs('List_Environments_as_Admin')?['body/value']",
+            "where": "@contains(item()?['name'], triggerOutputs()?['body/admin_environmentid'])"
+          }
+        },
+        "Initialize_systemMaker": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "34322142-9050-4db3-bb27-b6a0060a81a5"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "systemMaker",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "If_inventory_in_BYODL_get_tenant_wide_properties_here": {
+          "actions": {
+            "Get_tenant_wide_properties": {
+              "actions": {
+                "Get_CoE_Envt_Name": {
+                  "actions": {
+                    "CoE_Envt": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "9d317ed4-37d6-4344-8ea1-6d850b008dc9"
+                      },
+                      "type": "Compose",
+                      "inputs": "@workflow()?['tags']['environmentName']"
+                    },
+                    "Compose": {
+                      "runAfter": {
+                        "CoE_Envt": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "db3a6e0f-d45c-49d9-85ab-680c015e46db"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(equals(outputs('CoE_Envt'), triggerOutputs()?['body/admin_environmentid']), true, false)"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "41f28676-ccb3-4f4a-927e-eb888de88ec5"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "5f28eab2-0a94-4df9-8802-9a77aaf315cd"
+              },
+              "type": "Scope"
+            },
+            "Update_Environment": {
+              "runAfter": {
+                "Get_tenant_wide_properties": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "bb0a93ca-53aa-4097-831e-797a2b8f8804"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_environments",
+                  "recordId": "@triggerOutputs()?['body/admin_environmentid']",
+                  "item/admin_iscoe": "@outputs('Compose')"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Filter_for_current_environment": [
+              "Succeeded"
+            ]
+          },
+          "else": {
+            "actions": {
+              "if_not_BYODL": {
+                "runAfter": {},
+                "metadata": {
+                  "operationMetadataId": "6daf04d5-d8a0-43e4-8162-ec2c47912d3d"
+                },
+                "type": "Compose",
+                "inputs": "then this information is gathered in Admin | Sync Template v3"
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+              "@true"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "54988332-a904-4fb7-b5b3-40e6a1ceba99"
+          },
+          "type": "If"
+        },
+        "Envt_Properties_fail_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "7222ae32-ae03-4e06-83c9-213a17b9649b"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3 (Environment Properties)",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "de137dd2-69d8-4fda-a821-624833a2fae9"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Envt Properties Failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Capacity_and_Addons": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5330f407-fe80-4deb-bcb6-e31fccde5e58"
+          },
+          "type": "Scope"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
