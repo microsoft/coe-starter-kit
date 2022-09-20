@@ -31,7 +31,18 @@ parameters:
 - name: TargetBranch
   type: string
   default: 'main'
-
+- name: AutoCompletePR
+  type: string
+  values:
+    - false
+    - true
+  default: false
+- name: DeleteSourceBranch
+  type: string
+  values:
+    - false
+    - true
+  default: false
 
 trigger: none
 pr: none
@@ -46,6 +57,17 @@ stages:
     steps:
       - checkout: self
         persistCredentials: true
+
+      - pwsh: |
+            echo "##vso[task.setvariable variable=syncTemplateRepo]$(TEMPLATE-REPO)"
+        displayName: 'Sync from $(TEMPLATE-REPO)'
+        condition: ne(variables['TEMPLATE-REPO'], '')
+
+      - pwsh: |
+            echo "##vso[task.setvariable variable=syncTemplateRepo]https://github.com/microsoft/coe-alm-accelerator-templates"
+        displayName: 'Sync from https://github.com/microsoft/coe-alm-accelerator-templates'
+        condition: eq(variables['TEMPLATE-REPO'], '')
+
 
         # add Azure DevOps extension
       - script: az extension add -n azure-devops
@@ -65,14 +87,14 @@ stages:
 
         # Add remote and fetch source branch
       - script: | 
-          git remote add template-repo $(TEMPLATE-REPO)
+          git remote add template-repo $(syncTemplateRepo)
           git fetch template-repo ${{parameters.SourceBranchOrTag}}
         displayName: 'Fetch branch from cloned repository'
         condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Branch'))
 
         # Add remote and fetch source tag
       - script: | 
-          git remote add template-repo $(TEMPLATE-REPO)
+          git remote add template-repo $(syncTemplateRepo)
           git fetch template-repo refs/tags/${{parameters.SourceBranchOrTag}}:refs/tags/${{parameters.SourceBranchOrTag}}
         displayName: 'Fetch tag from cloned repository'
         condition: and(succeeded(), eq('${{parameters.SyncFrom}}', 'Tag'))
@@ -96,5 +118,5 @@ stages:
         displayName: 'Set az devops defaults'
 
         # Create Pull Requests
-      - powershell: az repos pr create --source-branch ${{parameters.BranchToCreate}} --target-branch ${{parameters.TargetBranch}} --reviewers="$(Build.RequestedForEmail)" --title 'Sync from cloned repository'
+      - powershell: az repos pr create --source-branch ${{parameters.BranchToCreate}} --delete-source-branch ${{parameters.DeleteSourceBranch}} --auto-complete ${{parameters.autoCompletePR}} --target-branch ${{parameters.TargetBranch}} --reviewers="$(Build.RequestedForEmail)" --title 'Sync from cloned repository'
         displayName: 'Create PR - ${{parameters.BranchToCreate}} to ${{parameters.TargetBranch}}'
