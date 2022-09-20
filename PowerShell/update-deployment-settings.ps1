@@ -5,7 +5,7 @@
         [Parameter(Mandatory)] [String]$pipelineSourceDirectory,
         [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [String]$buildRepositoryName,
-        [Parameter(Mandatory)] [String]$cdsBaseConnectionString,
+        [Parameter(Mandatory)] [String]$dataverseConnectionString,
         [Parameter(Mandatory)] [String]$xrmDataPowerShellVersion,
         [Parameter(Mandatory)] [String]$microsoftXrmDataPowerShellModule,
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -37,7 +37,7 @@
 
     Write-Host "Importing PowerShell Module: $microsoftXrmDataPowerShellModule - $xrmDataPowerShellVersion"
     Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $xrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
-    $conn = Get-CrmConnection -ConnectionString "$cdsBaseConnectionString$serviceConnection"
+    $conn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
 
     #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
     foreach($configurationDataEnvironment in $configurationData)

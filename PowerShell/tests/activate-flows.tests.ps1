@@ -1,6 +1,6 @@
 ﻿param(
     $MicrosoftXrmDataPowerShellModule, $XrmDataPowerShellVersion, $MicrosoftPowerAppsAdministrationPowerShellModule, $PowerAppsAdminModuleVersion,
-    $ActivationConfigPath, $ComponentOwnerConfigPath, $ConnectionReferenceConfigPath, $CdsBaseConnectionString, $ServiceConnection, $TenantId,
+    $ActivationConfigPath, $ComponentOwnerConfigPath, $ConnectionReferenceConfigPath, $DataverseConnectionString, $ServiceConnection, $TenantId,
     $ClientId, $ClientSecret, $SolutionName, $EnvironmentId
 )
 
@@ -22,7 +22,7 @@ Describe 'Activate-Flows-Test' {
         Write-Host "Importing PowerShell Module: $MicrosoftXrmDataPowerShellModule - $XrmDataPowerShellVersion"
         Import-Module $MicrosoftXrmDataPowerShellModule -Force -RequiredVersion $XrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
     
-        $connectionString = $CdsBaseConnectionString + $ServiceConnection
+        $connectionString = $DataverseConnectionString
     
         $conn = Get-CrmConnection -ConnectionString $connectionString
         foreach ($activateConfig in $activationConfigs){
@@ -31,6 +31,6 @@ Describe 'Activate-Flows-Test' {
                 Set-CrmRecordState -conn $conn -EntityLogicalName workflow -Id $workflow.workflowid -StateCode 0 -StatusCode 1
             }
         }
-        Invoke-ActivateFlows $CdsBaseConnectionString $ServiceConnection $MicrosoftXrmDataPowerShellModule $XrmDataPowerShellVersion $MicrosoftPowerAppsAdministrationPowerShellModule $PowerAppsAdminModuleVersion $TenantId $ClientId $ClientSecret $SolutionName $EnvironmentId $componentOwnerConfig $connectionReferenceConfig $activationConfig
+        Invoke-ActivateFlows $DataverseConnectionString $ServiceConnection $MicrosoftXrmDataPowerShellModule $XrmDataPowerShellVersion $MicrosoftPowerAppsAdministrationPowerShellModule $PowerAppsAdminModuleVersion $TenantId $ClientId $ClientSecret $SolutionName $EnvironmentId $componentOwnerConfig $connectionReferenceConfig $activationConfig
     }
 }

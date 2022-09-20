@@ -5,7 +5,7 @@
 
     $path = './update-solution-component-owner.tests.ps1'
     $data = @{
-        CdsBaseConnectionString                         = $testConfig.cdsBaseConnectionString 
+        DataverseConnectionString                       = $testConfig.dataverseConnectionString 
         ServiceConnection                               = $testConfig.serviceConnection 
         MicrosoftXrmDataPowerShellModule                = $testConfig.microsoftXrmDataPowerShellModule 
         XrmDataPowerShellVersion                        = $testConfig.xrmDataPowerShellVersion 

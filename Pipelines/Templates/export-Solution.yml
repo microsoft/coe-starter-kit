@@ -48,9 +48,28 @@ parameters:
   type: string
   default: ''
 steps:
+- template: set-service-connection-url.yml
+  parameters:
+    serviceConnectionName: '${{parameters.serviceConnectionName}}'
+    serviceConnectionUrl: '${{parameters.serviceConnectionUrl}}'
+
+- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@2
+  displayName: 'Install Power Platform Build Tools'
+
+# Use set-connection-variables task to get values from AzDO Service Connection to be used in scripts that don't use tasks
+- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.set-connection-variables.PowerPlatformSetConnectionVariables@2
+  displayName: 'Set Connection Variables'
+  name: connectionVariables
+  inputs:
+    authenticationType: 'PowerPlatformSPN'
+    PowerPlatformSPN: '${{parameters.serviceConnectionName}}'
+
 - template: set-spn-token.yml
   parameters:
     serviceConnection: '${{parameters.serviceConnectionUrl}}'
+    tenantId: $(connectionVariables.BuildTools.TenantId)
+    clientId: $(connectionVariables.BuildTools.ApplicationId)
+    clientSecret: $(connectionVariables.BuildTools.ClientSecret)
 
 - pwsh: |
     . "$env:POWERSHELLPATH/load-save-pipeline-parameters.ps1"
@@ -60,11 +79,6 @@ steps:
   displayName: 'Saving Export Pipeline Parameters'
 
 - template: Hooks\export-solution-pre-hook.yml
-
-- template: set-service-connection-url.yml
-  parameters:
-    serviceConnectionName: '${{parameters.serviceConnectionName}}'
-    serviceConnectionUrl: '${{parameters.serviceConnectionUrl}}'
 
 # Set pipeline vars for tools paths.
 - template: set-tools-paths.yml
@@ -94,9 +108,6 @@ steps:
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
   condition: and(succeeded(), ne('${{parameters.branchToCreate}}', 'Commit to existing branch specified in Branch parameter')) # If an empty value is passed for the BranchToCreate variable, then skip this task
 
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@2
-  displayName: 'Install Power Platform Build Tools'
-
 - template: install-powershell-modules.yml
 
 # Before exporting the solution, publish solution customizations to ensure all the changes are exported
@@ -105,7 +116,7 @@ steps:
   inputs:
     authenticationType: PowerPlatformSPN
     PowerPlatformSPN: ${{parameters.serviceConnectionName}}
-  condition: and(succeeded(), not(eq('variables.PublishCustomizationsBeforeExport', 'false')))
+  condition: and(succeeded(), ne(variables.PublishCustomizationsBeforeExport, 'false'))
 
 # Export both unmanaged and managed to put into source control
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2

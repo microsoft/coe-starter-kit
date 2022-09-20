@@ -1,5 +1,5 @@
 ﻿param(
-    $CdsBaseConnectionString, $ServiceConnection, $MicrosoftXrmDataPowerShellModule, $XrmDataPowerShellVersion, $SolutionComponentOwnershipConfigurationPath
+    $DataverseConnectionString, $ServiceConnection, $MicrosoftXrmDataPowerShellModule, $XrmDataPowerShellVersion, $SolutionComponentOwnershipConfigurationPath
 )
 
 Describe 'Enable-Disable-Solution-Flows-Test' {
@@ -10,6 +10,6 @@ Describe 'Enable-Disable-Solution-Flows-Test' {
         . .\utilities.tests.ps1
    
         $componentOwnerConfig = Invoke-SetDeploymentVariable "$SolutionComponentOwnershipConfigurationPath" "SolutionComponentOwnershipConfiguration"
-        Invoke-UpdateSolutionComponentOwner $CdsBaseConnectionString $ServiceConnection $MicrosoftXrmDataPowerShellModule $XrmDataPowerShellVersion $componentOwnerConfig
+        Invoke-UpdateSolutionComponentOwner $DataverseConnectionString $ServiceConnection $MicrosoftXrmDataPowerShellModule $XrmDataPowerShellVersion $componentOwnerConfig
     }
 }

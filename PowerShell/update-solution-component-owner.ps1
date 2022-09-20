@@ -1,6 +1,6 @@
 function Invoke-UpdateSolutionComponentOwner {
     param (
-        [Parameter()] [String]$cdsBaseConnectionString,
+        [Parameter()] [String]$dataverseConnectionString,
         [Parameter()] [String]$serviceConnection,
         [Parameter()] [String]$microsoftXrmDataPowerShellModule,
         [Parameter()] [String]$xrmDataPowerShellVersion,
@@ -9,8 +9,8 @@ function Invoke-UpdateSolutionComponentOwner {
     Write-Host "Importing PowerShell Module: $microsoftXrmDataPowerShellModule - $xrmDataPowerShellVersion"
     Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $xrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
 
-    $conn = Get-CrmConnection -ConnectionString "$cdsBaseConnectionString$serviceConnection"
-    $impersonationConn = Get-CrmConnection -ConnectionString "$cdsBaseConnectionString$serviceConnection"
+    $conn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
+    $impersonationConn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
 
     $flowsToSetOwners = [System.Collections.ArrayList]@()
     Get-OwnerFlowActivations $solutionComponentOwnershipConfiguration "" $conn $flowsToSetOwners

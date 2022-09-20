@@ -16,7 +16,7 @@ function Invoke-DeploymentSettingsConfiguration-Test($usePlaceholders, $path)
         PipelineSourceDirectory             = $testConfig.pipelineSourceDirectory
         BuildProjectName                    = $testConfig.buildProjectName
         BuildRepositoryName                 = $testConfig.buildRepositoryName
-        CdsBaseConnectionString             = $testConfig.cdsBaseConnectionString
+        DataverseConnectionString           = $testConfig.dataverseConnectionString
         XrmDataPowerShellVersion            = $testConfig.xrmDataPowerShellVersion
         MicrosoftXrmDataPowerShellModule    = $testConfig.microsoftXrmDataPowerShellModule
         OrgUrl                              = $testConfig.orgUrl

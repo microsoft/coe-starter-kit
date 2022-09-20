@@ -13,7 +13,7 @@ function Invoke-ActivateFlows-Test()
         ActivationConfigPath                               = $testConfig.activationConfigPath
         ComponentOwnerConfigPath                           = $testConfig.componentOwnerConfigPath
         ConnectionReferenceConfigPath                      = $testConfig.connectionReferenceConfigPath
-        CdsBaseConnectionString                            = $testConfig.cdsBaseConnectionString
+        DataverseConnectionString                          = $testConfig.dataverseConnectionString
         ServiceConnection                                  = $testConfig.serviceConnection
         TenantId                                           = $testConfig.tenantId
         ClientId                                           = $testConfig.clientId
