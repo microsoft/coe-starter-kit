@@ -1500,7 +1500,7 @@ Home As screen:
             PaddingRight: =0
             PaddingTop: =0
             Size: =12
-            Text: =If(!IsBlankOrError(ThisItem.deploymentprofile), Concat(ThisItem.deploymentprofile.'Deployment Steps', Name, " - "), "No Profile Selected")
+            Text: =If(!IsBlankOrError(ThisItem.deploymentprofile), Concat(SortByColumns(ThisItem.deploymentprofile.'Deployment Steps', "cat_stepnumber", Ascending, "cat_name", Ascending), Name, " - "), "No Profile Selected")
             Tooltip: =ThisItem.friendlyname
             Width: =400
             Wrap: =false
@@ -2302,51 +2302,62 @@ Home As screen:
                             selectedCommitProfile: LookUp(
                                 'Deployment Profiles',
                                 'Deployment Profile' = selectedConfigurationDeploymentProfile.'Deployment Profile'
-                            ),
-                            pipelineProject: If(
-                                IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
-                                selectedConfigurationDeploymentProfile.Project,
-                                selectedConfigurationDeploymentProfile.'Pipeline Project'
                             )
                         }
                     );
+                    //Try to find the export pipeline in either the Pipeline Project or the Solution Project
                     ClearCollect(
                         locPipelines,
-                        CustomAzureDevOps.GetPipelines(
-                            selectedConfigurationDeploymentProfile.Organization,
-                            pipelineProject
-                        ).value
+                        AddColumns(
+                            CustomAzureDevOps.GetPipelines(
+                                selectedConfigurationDeploymentProfile.Organization,
+                                selectedConfigurationDeploymentProfile.Project
+                            ).value,
+                            "Project",
+                            selectedConfigurationDeploymentProfile.Project
+                        )
+                    );
+                    If(
+                        !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                        AddColumns(
+                            CustomAzureDevOps.GetPipelines(
+                                selectedConfigurationDeploymentProfile.Organization,
+                                selectedConfigurationDeploymentProfile.'Pipeline Project'
+                            ).value,
+                            "Project",
+                            selectedConfigurationDeploymentProfile.'Pipeline Project'
+                        )
                     );
                     //See if an export pipeline exists for the specific solution
                 UpdateContext(
                         {
-                            piplineIdToRun: LookUp(
+                            piplineToRun: LookUp(
                                 locPipelines,
                                 name = "export-solution-to-git-" & glrSolutions.Selected.uniquename
-                            ).id
+                            )
                         }
                     );
                     //If an export pipeline doesn't exist for the specific solution see if an export pipeline exists for the specific repo
                 If(
-                        IsBlank(piplineIdToRun),
+                        IsBlankOrError(piplineToRun),
                         UpdateContext(
                             {
-                                piplineIdToRun: LookUp(
+                                piplineToRun: LookUp(
                                     locPipelines,
                                     name = "export-solution-to-git-" & selectedConfigurationDeploymentProfile.Repository
-                                ).id
+                                )
                             }
                         )
                     );
                     //Otherwise we will default to the standard export pipeline
                 If(
-                        IsBlank(piplineIdToRun),
+                        IsBlank(piplineToRun),
                         UpdateContext(
                             {
-                                piplineIdToRun: LookUp(
+                                piplineToRun: LookUp(
                                     locPipelines,
                                     name = "export-solution-to-git"
-                                ).id
+                                )
                             }
                         )
                     );
@@ -2407,8 +2418,8 @@ Home As screen:
                             promoteBuildId: IfError(
                                 CustomAzureDevOps.RunPipeline(
                                     selectedCommitProfile.Organization,
-                                    pipelineProject,
-                                    piplineIdToRun,
+                                    piplineToRun.Project,
+                                    piplineToRun.id,
                                     {
                                         definition: {id: piplineIdToRun},
                                         templateParameters: {
@@ -2426,7 +2437,7 @@ Home As screen:
                                             ),
                                             ServiceConnectionName: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
                                             ServiceConnectionUrl: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            PipelineId: piplineIdToRun,
+                                            PipelineId: piplineToRun.id,
                                             Data: JSON(SolutionDeploymentSettings),
                                             EnvironmentName: "NA",
                                             BuildDefinitionId: "NA",
@@ -2943,25 +2954,33 @@ Home As screen:
                     LastSavedImportPipelineRunsSettingName,
                     "LastSavedImportPipelineRuns - " & selectedConfigurationDeploymentProfile.Organization & " - " & selectedConfigurationDeploymentProfile.Project
                 );
+                
                 UpdateContext(
                     {
-                        pipelineProject: If(
-                            IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
-                            selectedConfigurationDeploymentProfile.Project,
-                            selectedConfigurationDeploymentProfile.'Pipeline Project'
-                        )
-                    }
-                );
-                UpdateContext(
-                    {
-                        piplineToRun: LookUp(
+                        piplineIdToRun: LookUp(
                             CustomAzureDevOps.GetPipelines(
                                 selectedConfigurationDeploymentProfile.Organization,
-                                pipelineProject
+                                selectedConfigurationDeploymentProfile.Project
                             ).value,
                             name = "import-unmanaged-to-dev-environment"
-                        )
+                        ).id,
+                        pipelineProject: selectedConfigurationDeploymentProfile.Project
                     }
+                );
+                If(
+                    IsBlankOrError(piplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                    UpdateContext(
+                        {
+                            piplineIdToRun: LookUp(
+                                CustomAzureDevOps.GetPipelines(
+                                    selectedConfigurationDeploymentProfile.Organization,
+                                    selectedConfigurationDeploymentProfile.'Pipeline Project'
+                                ).value,
+                                name = "import-unmanaged-to-dev-environment"
+                            ).id,
+                            pipelineProject: selectedConfigurationDeploymentProfile.'Pipeline Project'
+                        }
+                    )
                 );
                 UpdateContext(
                     {
@@ -2977,9 +2996,9 @@ Home As screen:
                             CustomAzureDevOps.RunPipeline(
                                 locImportProfile.Organization,
                                 pipelineProject,
-                                piplineToRun.id,
+                                piplineIdToRun,
                                 {
-                                    definition: {id: piplineToRun.id},
+                                    definition: {id: piplineIdToRun},
                                     templateParameters: {
                                         Project: locImportProfile.Project,
                                         Repo: locImportProfile.Repository,
@@ -4501,11 +4520,27 @@ Home As screen:
                         piplineIdToRun: LookUp(
                             CustomAzureDevOps.GetPipelines(
                                 selectedConfigurationDeploymentProfile.Organization,
-                                pipelineProject
+                                selectedConfigurationDeploymentProfile.Project
                             ).value,
                             name = "delete-unmanaged-solution-and-components"
-                        ).id
+                        ).id,
+                        pipelineProject: selectedConfigurationDeploymentProfile.Project
                     }
+                );
+                If(
+                    IsBlankOrError(piplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                    UpdateContext(
+                        {
+                            piplineIdToRun: LookUp(
+                                CustomAzureDevOps.GetPipelines(
+                                    selectedConfigurationDeploymentProfile.Organization,
+                                    selectedConfigurationDeploymentProfile.'Pipeline Project'
+                                ).value,
+                                name = "delete-unmanaged-solution-and-components"
+                            ).id,
+                            pipelineProject: selectedConfigurationDeploymentProfile.'Pipeline Project'
+                        }
+                    )
                 );
                 //Updated LookUp and Remove code to RemoveIf
                 UpdateContext(
@@ -4518,16 +4553,16 @@ Home As screen:
                                 {
                                     definition: {id: piplineIdToRun},
                                     templateParameters: {
-                                        Project: selectedConfigurationDeploymentProfile.Project,
-                                        Repo: selectedConfigurationDeploymentProfile.Repository,
+                                        Project: "NA",
+                                        Repo: "NA",
                                         SolutionName: glrSolutions.Selected.uniquename,
-                                        Email: gblUser.Email,
-                                        UserName: gblUser.FullName,
+                                        Email: "NA",
+                                        UserName: "NA",
                                         Branch: "NA",
                                         BranchToCreate: "Commit to existing branch specified in Branch parameter",
                                         ServiceConnectionName: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
                                         ServiceConnectionUrl: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                        PipelineId: piplineIdToRun,
+                                        PipelineId: "NA",
                                         TriggerSolutionUpgrade: false,
                                         CommitMessage: "NA",
                                         BuildDefinitionId: "NA",
@@ -5912,6 +5947,23 @@ Home As screen:
             X: =30
             Y: =403
             ZIndex: =51
+
+        lblCommitNote As label:
+            Align: =Align.Center
+            Color: =RGBA(0, 0, 0, 1)
+            FontWeight: =FontWeight.Semibold
+            Height: =45
+            HoverColor: =RGBA(0, 0, 0, 1)
+            PaddingLeft: =0
+            PaddingTop: =0
+            Size: =12
+            Text: |-
+                ="NOTE: Changes made to the solution's profile requires you to run " & promoteSolutionLabel & " again to update the deployment."
+            VerticalAlign: =VerticalAlign.Bottom
+            Width: =476
+            X: =30
+            Y: =975
+            ZIndex: =52
 
     btnFunctions As groupContainer:
         Height: =320
