@@ -13,13 +13,13 @@ function Set-CanvasTestAutomationURLs {
     $testUrlsObject | Add-Member -MemberType NoteProperty -Name TestURLs -Value $testUrls
 
     if(Test-Path $canvasAppsPath) {
-        $canvasApps = Get-ChildItem $canvasAppsPath -Filter "*$filter"
+        $canvasApps = Get-ChildItem "$canvasAppsPath\src\" -Filter "*$filter"
         $asTestCase = "As TestCase"
         $hostUrl = Get-HostFromUrl $url        
         foreach ($app in $canvasApps) {
-            $appName = $app.Name.Replace($filter, "")        
+            $appName = $app.Name.Replace($filter, "")
             $appDirectory = $app.Directory.ToString()
-            $appSrcDirectory = "$appDirectory\$appName" + "_DocumentUri_msapp_src\Src\Tests"
+            $appSrcDirectory = "$appDirectory\src\$appName\Src\Tests"
 
             if(Test-Path $appSrcDirectory) {
                 $testFiles = Get-ChildItem $appSrcDirectory
