@@ -167,10 +167,15 @@
                 elseif($configurationVariableName.StartsWith("groupTeam.", "CurrentCultureIgnoreCase")) {
                     $teamName = $configurationVariableName.split('.')[-1]
                     $teamGroupRoles = $configurationVariable.Data.split(',')
-
-                    $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadSecurityGroupId"="#{$configurationVariableName}#"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
+                    $businessUnitVariableName = $configurationVariableName.Replace("groupTeam", "businessUnit")
+                    $teamBusinessUnit = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq $businessUnitVariableName } | Select-Object -First 1
+                    $teamBusinessUnitValue = ""
+                    if($null -ne $teamBusinessUnit) {
+                        $teamBusinessUnitValue = $teamBusinessUnit.Value
+                    }
+                    $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="#{$businessUnitVariableName}#"; "aadSecurityGroupId"="#{$configurationVariableName}#"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
                     if($usePlaceholders.ToLower() -eq 'false') {
-                        $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadSecurityGroupId"="$configurationVariableValue"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
+                        $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="$teamBusinessUnitValue"; "aadSecurityGroupId"="$configurationVariableValue"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
                     }
                     $groupTeams.Add($groupTeamConfig)
                 }
