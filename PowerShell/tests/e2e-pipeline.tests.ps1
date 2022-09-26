@@ -120,6 +120,20 @@ Describe 'E2E-Pipeline-Test' {
         $response = Invoke-RestMethod $requestUrl -Method 'DELETE' -Headers $headers
         $response | ConvertTo-Json -Depth 10
 
+		# To test Profile change post commit scenario
+		# Set "DeploymentEnvironmentUrl" and "ServiceConnectionName" as blank on 1st Commit
+        $dataJson = ConvertFrom-Json $Data
+        for($i=0;$i -le $dataJson.length;$i++)
+        {
+          if($dataJson[$i])
+          {
+              $dataJson[$i].DeploymentEnvironmentUrl = [string]::Empty;
+              $dataJson[$i].ServiceConnectionName = [string]::Empty;
+          }
+        }
+
+        $modifiedData = ConvertTo-Json $dataJson	
+        Write-Host "Modified Data - $modifiedData"		
 
         $body = @{
             resources          = @{
@@ -133,7 +147,7 @@ Describe 'E2E-Pipeline-Test' {
                 Branch                = $SourceBranch
                 BranchToCreate        = $BranchToCreate
                 CommitMessage         = $CommitMessage
-                Data                  = $Data
+                Data                  = $modifiedData
                 Email                 = $Email
                 Project               = $Project
                 Repo                  = $Repo
