@@ -19,6 +19,9 @@ pool:
 
 name: 1.0.$(Date:yyyyMMdd)$(Rev:.r)
 
+variables:
+- group: alm-accelerator-variable-group
+
 steps:
 - task: NodeTool@0
   inputs:
@@ -29,8 +32,6 @@ steps:
     $json = (Get-Content ./coe-cli/package.json | ConvertFrom-Json)
     $json.version = "$(Build.BuildNumber)"
     $json | ConvertTo-Json | Set-Content "./coe-cli/package.json"
-    Write-Host $json
-    Write-Host "$(Build.BuildNumber)"
     node -p "'export const LIB_VERSION = ' + JSON.stringify(require('./coe-cli/package.json').version) + ';'" > coe-cli/src/version.ts
   displayName: 'Set Version Number'
   
@@ -50,14 +51,14 @@ steps:
     customCommand: 'run test:ci'
 
 - task: PublishTestResults@2
-  displayName: 'supply npm test results to pipelines'
+  displayName: 'Publish Test Results'
   condition: succeededOrFailed() # because otherwise we won't know what tests failed
   inputs:
     testResultsFiles: 'coe-cli\junit.xml'
 
 - pwsh: |
     npx pkg -t linux,macos,win ./coe --out-path dist
-  displayName: 'npm install and build'
+  displayName: 'Build Executables'
   workingDirectory: "coe-cli"
 
 - pwsh: |
@@ -73,3 +74,21 @@ steps:
   inputs:
     targetPath: '$(Build.ArtifactStagingDirectory)'
     artifact: drop
+
+- pwsh: |
+    if(Test-Path -Path "./coe-alm-accelerator-templates-latest") {
+        Remove-Item "./coe-alm-accelerator-templates-latest" -Force -Recurse
+    }
+    New-Item -ItemType "directory" -Name "./coe-alm-accelerator-templates-latest"
+
+    Set-Location "./coe-alm-accelerator-templates-latest"
+    git clone https://github.com/microsoft/coe-alm-accelerator-templates.git
+    Set-Location "./coe-alm-accelerator-templates"
+    $branch = 'coe-cli-update' + (New-Guid).Guid
+    git checkout -b $branch "main"
+    Copy-Item -Force -Recurse "$(Build.ArtifactStagingDirectory)\Coe-Cli" "./Coe-Cli"
+    git add --all
+    git commit -m "Adding latest coe-cli executables"
+    git -c http.extraHeader="AUTHORIZATION: bearer $(GitHubPAT)" push
+    git request-pull $branch https://github.com/microsoft/coe-alm-accelerator-templates.git main
+    
