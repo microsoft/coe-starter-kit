@@ -12,7 +12,7 @@ AzureDevOpsProjects As screen:
         DisplayMode: =DisplayMode.Edit
         FontSize: =7
         Height: =20
-        Text: ="0.0.2"
+        Text: ="0.0.3"
         Width: =75
         X: =20
         Y: =App.Height - Self.Height
@@ -395,7 +395,10 @@ AzureDevOpsProjects As screen:
                                             );
                                             If(createProjectPermission,
                                                 UpdateContext({newALMAccProjectCurrentStep: 1, showNewALMAccProjectDialog: true}),
-                                                UpdateContext({newALMAccProjectCurrentStep: 0, showNewALMAccProjectDialog: true})
+                                                UpdateContext({
+                                                    newALMAccProjectCurrentStep: 0, showNewALMAccProjectDialog: true,
+                                                    projectWizardError: "You do not have the required permissions to create a project. For help talk to your Azure DevOps admin"
+                                                })            
                                             )
                                         );
                                         ,
@@ -1288,8 +1291,6 @@ AzureDevOpsProjects As screen:
                         
                         UpdateContext({newAlmProjectRepoStatus: $"Creating sync-pipeline-repo.yml file"});
             
-                        UpdateContext({newPipelineTemplateVersion: First(Sort('Release Histories', Published, Descending)).Tag});
-            
                         UpdateContext({fileContent: GetGithubFileContent.Run(newPipelineTemplateVersion).filecontent});
                         
                         CustomAzureDevOps.CreateFile(
@@ -1427,7 +1428,7 @@ AzureDevOpsProjects As screen:
                     showNewALMAccProjectDialog: false,
                     showNewALMAccProjectWizardCloseDialog: false,
                     projectWizardError: "",
-                    createProjectError: ""  
+                    createProjectError: ""
                 });
                 Reset(txtProjectName_4);
                 Reset(txtProjectDescription_2);
@@ -1448,6 +1449,7 @@ AzureDevOpsProjects As screen:
                 Clear(colNewAlmAccServiceConnectionCreated);
                 Clear(colNewAlmProjectRepos);
                 Clear(colNewAlmProjectSyncPipelineRuns);
+            
             
                 ,
                 "Cancel",
@@ -1845,7 +1847,10 @@ AzureDevOpsProjects As screen:
                                 }
                             );
                         );
-                        UpdateContext({showNewProjectPanel: false});
+                        UpdateContext({
+                            showNewProjectPanel: false,
+                            showCreateProjectSpinner: false
+                        });
                     );
                 
                     Reset(txtRepositoryName);
@@ -2676,6 +2681,8 @@ AzureDevOpsProjects As screen:
                             AccessibleLabel: ="Search files"
                             DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(IsBlank(ddExistingProjects.Selected)) Or  Not(createProjectPermission), DisplayMode.Disabled, DisplayMode.Edit)
                             Height: =32
+                            OnChange: |-
+                                =UpdateContext({createProjectError: ""})
                             Placeholder: ="Project Name"
                             Value: =""
                             Visible: =true
@@ -2756,7 +2763,7 @@ AzureDevOpsProjects As screen:
                         ZIndex: =2
 
                         btnCreateProject As Button:
-                            DisplayMode: =If(Not(IsBlank(createProjectError)) Or (IsBlank(txtProjectName_4.Value) And CountRows(ddExistingProjects.SelectedItems) = 0), DisplayMode.Disabled, DisplayMode.Edit)
+                            DisplayMode: =If((IsBlank(txtProjectName_4.Value) And CountRows(ddExistingProjects.SelectedItems) = 0) Or Not(createProjectError = ""), DisplayMode.Disabled, DisplayMode.Edit)
                             Height: =32
                             OnSelect: |-
                                 =If(IsBlank(ddExistingProjects.Selected), 
@@ -2765,18 +2772,14 @@ AzureDevOpsProjects As screen:
                                             newAlmProjectOrganization: currentOrganization.AccountName,
                                             newAlmProjectName: txtProjectName_4.Value,
                                             newAlmProjectDescription: txtProjectDescription_2.Value,
-                                            newAlmProjectShowSpinnerStep1: true
+                                            newAlmProjectShowSpinnerStep1: true,
+                                            createProjectError: ""
                                         }
                                     );
-                                    // check if project exist
-                                    ClearCollect(colProjects, CustomAzureDevOps.GetProjects(ddOrganization.Selected.AccountName));
-                                    If(IsBlankOrError(LookUp(colProjects, name = newAlmProjectName).id),
-                                
-                                    // project does not exist
-                                        IfError(
+                                    // create project
                                             ClearCollect(
                                                 operations,
-                                                CustomAzureDevOps.CreateProject(
+                                                IfError(CustomAzureDevOps.CreateProject(
                                                     newAlmProjectOrganization,
                                                     {
                                                         'api-version': "7.0",
@@ -2787,22 +2790,22 @@ AzureDevOpsProjects As screen:
                                                             processTemplate: {templateTypeId: "b8a3a935-7e91-48b8-a94c-606d37c3e9f2"}//basic project template
                                                         }
                                                     }
+                                                ),
+                                                { id: "-1" }
                                                 )
-                                            )
-                                        ,
-                                            UpdateContext({createProjectError: "There was an error creating the Project" });
+                                            );
+                                        
+                                        If(First(operations).id = "-1",
+                                            UpdateContext({
+                                                newAlmProjectShowSpinnerStep1: false,
+                                                createProjectError: "There was an error creating the Project. Does the project already exist?"
+                                            });
                                         ,
                                             UpdateContext({operation: First(operations)});
                                             UpdateContext({createNewAlmProjectLoop: true})
                                         )
                                     ,
-                                    // Project exist
-                                        UpdateContext({
-                                            createProjectError: "Project with that name already exist"
-                                        });
-                                    );
-                                ,
-                                    // use existing project
+                                     // use existing project
                                     UpdateContext(
                                         {
                                             newAlmProjectOrganization: currentOrganization.AccountName,
@@ -2890,6 +2893,18 @@ AzureDevOpsProjects As screen:
                             Y: =Parent.Height - Self.Height - 10
                             ZIndex: =5
 
+                        Label1 As Label:
+                            AutoHeight: =true
+                            Color: =RGBA(184, 0, 0, 1)
+                            DisplayMode: =DisplayMode.Edit
+                            Height: =32
+                            Text: =createProjectError
+                            Visible: =Not(createProjectError = "")
+                            Width: =Parent.Width - 140
+                            X: =15
+                            Y: =Parent.Height - Self.Height - 10
+                            ZIndex: =6
+
                 lblNewALMAccProjectStep1 As Label:
                     DisplayMode: =DisplayMode.Edit
                     FontWeight: =FontWeight.Semibold
@@ -2899,23 +2914,6 @@ AzureDevOpsProjects As screen:
                     X: =10
                     Y: =0
                     ZIndex: =2
-
-                lblProjectWizardCreateProjectStep As label:
-                    BorderColor: =RGBA(0, 18, 107, 1)
-                    Color: =RGBA(184, 0, 0, 1)
-                    DisabledColor: =RGBA(166, 166, 166, 1)
-                    Font: =Font.'Segoe UI'
-                    FontWeight: =FontWeight.Lighter
-                    Height: =32
-                    Overflow: =Overflow.Scroll
-                    Size: =10.5
-                    Text: =Coalesce(createProjectError, "You do not have the required permissions to create a new Azure DevOps project")
-                    VerticalAlign: =VerticalAlign.Top
-                    Visible: =Not(createProjectPermission) Or (CountRows(ddExistingProjects.SelectedItems) > 0 And Not(ExistingProjectEmpty))
-                    Width: =Parent.Width - 130
-                    X: =10
-                    Y: =Parent.Height - Self.Height - 10
-                    ZIndex: =7
 
                 grpProjectWizardCreateProjectIcons As group:
                     Height: =5
@@ -4657,16 +4655,16 @@ AzureDevOpsProjects As screen:
             ZIndex: =69
 
         lblProjectWizardError As Label:
-            AutoHeight: =true
+            AutoHeight: =false
             Color: =RGBA(184, 0, 0, 1)
             DisplayMode: =DisplayMode.Edit
             Height: =32
             PaddingBottom: =10
-            Text: =Coalesce(projectWizardError, "You do not have the required permissions to create a project. For help talk to your Azure DevOps admin")
+            Text: =projectWizardError
             Visible: =showNewALMAccProjectDialog And Not(IsBlank(projectWizardError))
             Width: =dlgNewALMAccProject.ContentWidth - 150
-            X: =dlgNewALMAccProject.ContentX + 30
-            Y: =dlgNewALMAccProject.ContentY + dlgNewALMAccProject.ContentHeight + 40 - Self.Height - 10
+            X: =dlgNewALMAccProject.ContentX + 20
+            Y: =dlgNewALMAccProject.ContentY + dlgNewALMAccProject.ContentHeight - 10
             ZIndex: =70
 
     grpUpdateReleaseHistory As group:
@@ -4732,6 +4730,8 @@ AzureDevOpsProjects As screen:
             OnButtonSelect: |-
                 =If(
                     Self.SelectedButton.Label = "Create",
+                    UpdateContext({showCreateProjectSpinner: true});
+                    
                     UpdateContext(
                         {
                             newProjectOrganization: ddOrganization.Selected.AccountName,
@@ -4744,7 +4744,7 @@ AzureDevOpsProjects As screen:
                     );
                     ClearCollect(
                         operations,
-                        CustomAzureDevOps.CreateProject(
+                        IfError(CustomAzureDevOps.CreateProject(
                             ddOrganization.Selected.AccountName,
                             {
                                 'api-version': "7.0",
@@ -4755,11 +4755,14 @@ AzureDevOpsProjects As screen:
                                     processTemplate: {templateTypeId: "b8a3a935-7e91-48b8-a94c-606d37c3e9f2"}//basic project template
                                 }
                             }
-                        )
+                        ),
+                        { id: "-1" });
                     );
                     UpdateContext({operation: First(operations)});
-                    If(IsBlank(operation.id), 
-                        Notify("Error creating project! Does it already exist? Note that you only see projects that you have access to.", NotificationType.Error),
+                    If(operation.id = "-1", 
+                        Notify("Error creating project! Does it already exist? Note that you only see projects that you have access to.", NotificationType.Error);
+                        UpdateContext({showCreateProjectSpinner: false});
+                        ,
                         UpdateContext({createNewProjectLoop: true});
                     );
                     
@@ -4772,7 +4775,12 @@ AzureDevOpsProjects As screen:
                 Reset(txtPipelineTemplateRepository);
                 Reset(ddReleaseTags_1);
             OnCloseSelect: |-
-                =UpdateContext({showNewProjectPanel:false})
+                =UpdateContext({
+                    showNewProjectPanel:false,
+                    createNewProjectLoop: false,
+                    createRepoLoop: false,
+                    showCreateProjectSpinner: false
+                })
             Subtitle: ="Create a new Azure DevOps Project to be used with ALM Accelerator"
             Title: ="New Azure DevOps Project"
             Visible: =showNewProjectPanel
@@ -4920,7 +4928,10 @@ AzureDevOpsProjects As screen:
                             }
                         );
                         ,
-                        UpdateContext({showNewProjectPanel: false});
+                        UpdateContext({
+                            showNewProjectPanel: false,
+                            showCreateProjectSpinner: false
+                        });
                     )   
                 );
             PressedBorderColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
@@ -4988,7 +4999,7 @@ AzureDevOpsProjects As screen:
         "spnCreateProject As 'Fluent Spinner (1.0.8) Preview'":
             DisplayMode: =DisplayMode.Edit
             Height: =32
-            Visible: =showNewProjectPanel And (createNewProjectLoop Or createRepoLoop)
+            Visible: =showNewProjectPanel And showCreateProjectSpinner
             Width: =96
             X: =App.Width - 280
             Y: =App.Height - 42
