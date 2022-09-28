@@ -118,23 +118,23 @@ steps:
     PowerPlatformSPN: ${{parameters.serviceConnectionName}}
   condition: and(succeeded(), ne(variables.PublishCustomizationsBeforeExport, 'false'))
 
-# Export both unmanaged and managed to put into source control
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2
-  displayName: 'Export Unmanaged Solution'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
-    SolutionName: '${{parameters.solutionName}}'
-    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
+## Export both unmanaged and managed to put into source control
+#- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2
+#  displayName: 'Export Unmanaged Solution'
+#  inputs:
+#    authenticationType: PowerPlatformSPN
+#    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
+#    SolutionName: '${{parameters.solutionName}}'
+#    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
 
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2
-  displayName: 'Export Managed Solution'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
-    SolutionName: '${{parameters.solutionName}}'
-    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip'
-    Managed: true
+#- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2
+#  displayName: 'Export Managed Solution'
+#  inputs:
+#    authenticationType: PowerPlatformSPN
+#    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
+#    SolutionName: '${{parameters.solutionName}}'
+#    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip'
+#    Managed: true
 
 - pwsh: |
     # Default to true when no variable is set on the pipeline
@@ -143,33 +143,56 @@ steps:
     }
     else {
       echo '##vso[task.setvariable variable=localProcessCanvasApps]$(ProcessCanvasApps)'
-    }    
-    if(Test-Path '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\CanvasApps') {
-        Remove-Item '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\CanvasApps' -Force -Recurse
+    }
+    
+    $canvasAppsFolderPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src\CanvasApps"
+    if(Test-Path "$canvasAppsFolderPath") {
+        Remove-Item "$canvasAppsFolderPath" -Force -Recurse
     }
   displayName: 'Set localProcessCanvasApps variable'
 
 - template: Hooks\export-solution-unpack-pre-hook.yml
 
-# Unpack contents of solution to make the contents source control friendly 
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.unpack-solution.PowerPlatformUnpackSolution@2
-  displayName: 'Power Platform Unpack Solution'
-  inputs:
-    SolutionInputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
-    SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage'
-    SolutionType: Both
-    OverwriteFiles: true
-    ProcessCanvasApps: $(localProcessCanvasApps)
+## Unpack contents of solution to make the contents source control friendly 
+#- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.unpack-solution.PowerPlatformUnpackSolution@2
+#  displayName: 'Power Platform Unpack Solution'
+#  inputs:
+#    SolutionInputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}.zip'
+#    SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage'
+#    SolutionType: Both
+#    OverwriteFiles: true
+#    ProcessCanvasApps: $(localProcessCanvasApps)
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      set-pac-tools-path "$(Agent.OS)"
+  displayName: 'Set pac tools path'
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      clone-or-sync-solution "${{parameters.serviceConnectionUrl}}" "$(ClientId)" "$(ClientSecret)" "$(TenantID)" "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}" "$(pacPath)" "$(Agent.BuildDirectory)"
+  displayName: 'pac - Clone or Sync Solution'
+
+- pwsh: |
+    . "$env:POWERSHELLPATH/code-first-functions.ps1"
+    add-packagetype-node-to-cdsproj "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}"
+  displayName: 'Add Packagetype Node to cdsproj'
 
 - template: Hooks\export-solution-manipulate-pre-hook.yml
 
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\**\Solution.xml" | 
-   ForEach-Object {
-        (Get-Content $_.FullName) `
-            -replace '<Version>[\s\S]*?<\/Version>', '<Version>0.0.0.0</Version>' |
-        Out-File $_.FullName
+   $solutionXMLPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src\Other\Solution.xml"
+   if(Test-Path "$solutionXMLPath"){
+       Get-ChildItem -Path "$solutionXMLPath" | 
+        ForEach-Object {
+            (Get-Content $_.FullName) `
+                -replace '<Version>[\s\S]*?<\/Version>', '<Version>0.0.0.0</Version>' |
+            Out-File $_.FullName
+        }
    }
+   else{
+    Write-Host "Solution.xml unavialble at $solutionXMLPath"
+   }   
   displayName: 'Update Solution XML with Build Number'
   condition: and(succeeded(), ne(variables.UseSolutionVersionFromDataverse, 'true'))
 
@@ -198,7 +221,8 @@ steps:
 # update all the json files to be pretty-print / formatted so they are easier to read in source control.
 # This also makes it easier to read changes from one commit to another
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage" -Recurse -Filter *.json | 
+   $solutionComponentsPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src"
+   Get-ChildItem -Path "$solutionComponentsPath" -Recurse -Filter *.json | 
    ForEach-Object {
     #skip canvas app and workflows folder because canvas and flows team already handles this
      if(-not $_.FullName.Contains('CanvasApps') -and -not $_.FullName.Contains('Workflows')) {
@@ -214,9 +238,10 @@ steps:
 # We need to set empty GUIDs output when a business rule is first exported.  This is to ensure that
 # there aren't noisy diffs when the business rule is subsequently imported and exported.
 - pwsh: |
+   $workflowsPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src\Workflows"
    # Regex to extract GUID from the end of the filename
    $reGuid = '(([0-9a-f]){8}-([0-9a-f]){4}-([0-9a-f]){4}-([0-9a-f]){4}-([0-9a-f]){12})\.xaml$'
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\Workflows" -Recurse -File -Filter *.xaml | 
+   Get-ChildItem -Path "$workflowsPath" -Recurse -File -Filter *.xaml | 
      Select-String 'XrmWorkflow00000000000000000000000000000000' -List | 
      Select-Object Path,Filename |
      ForEach-Object {
@@ -232,7 +257,8 @@ steps:
   displayName: 'Fix unset GUIDs in new Business Rules'
 
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions" -Recurse -Filter environmentvariablevalues.json | Remove-Item
+   $envvardefinitionPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src\environmentvariabledefinitions"
+   Get-ChildItem -Path "$envvardefinitionPath" -Recurse -Filter environmentvariablevalues.json | Remove-Item
   displayName: 'Verify Environment Variable Current Value Not Exported'
   condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'))
 
@@ -283,9 +309,10 @@ steps:
 - pwsh: |
    if('$(outDefaultEnvironmentVariables)' -ne '') {
        $config = Get-Content $(outDefaultEnvironmentVariables) | ConvertFrom-Json
+       $envvardefinitionPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src\environmentvariabledefinitions"
        foreach ($c in $config) {
            $envVariableName = $c[0]
-           Get-ChildItem -Path "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\environmentvariabledefinitions\$envVariableName\environmentvariabledefinition.xml" | 
+           Get-ChildItem -Path "$envvardefinitionPath\$envVariableName\environmentvariabledefinition.xml" | 
            ForEach-Object {
              $xml=[xml](Get-Content $_.FullName)
              $definitionNode = $xml.SelectSingleNode("//environmentvariabledefinition")

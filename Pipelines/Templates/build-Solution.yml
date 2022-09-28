@@ -56,10 +56,26 @@ steps:
   condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
 
 - template: Hooks\build-solution-manipulate-source-pre-hook.yml
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      set-pac-tools-path "$(Agent.OS)"
+  displayName: 'Set pac tools path'
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      pac-authenticate "${{parameters.serviceConnectionUrl}}" "$(ClientId)" "$(ClientSecret)" "$(TenantID)" "$(pacPath)"
+  displayName: 'Pac cli and Authenticate'
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      restructure-legacy-folders '$(Build.ArtifactStagingDirectory)' '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}' '$(pacPath)' '${{parameters.serviceConnectionUrl}}' '$(Agent.BuildDirectory)'
+  displayName: 'Restructure legacy folders'
   
 # Solution version in source control is not used.  Instead, create version at build time from the current build number.
 - pwsh: |
-   Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\**\Solution.xml" | 
+   $solutionXMLPath = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\src\Other\Solution.xml"
+   Get-ChildItem -Path "$solutionXMLPath" |  
    ForEach-Object {
         (Get-Content $_.FullName) `
             -replace '<Version>0.0.0.0<\/Version>', '<Version>$(Build.BuildNumber)</Version>' |
@@ -174,14 +190,74 @@ steps:
 
 - template: Hooks\build-solution-pack-pre-hook.yml
 
-#Pack the solution based on the build type parameter (Unmanaged, Managed or Both)
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.pack-solution.PowerPlatformPackSolution@2
-  displayName: 'Pack Solutions (Unmanaged and/or Managed)'
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      check-code-first-components '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}'
+  displayName: 'Check codefirst components existence'
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      add-codefirst-projects-to-cdsproj '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}' '$(pacPath)'
+  displayName: 'Add project references to cdsproject'
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      pcf-Projects-install-npm '$(Build.SourcesDirectory)' '$(RepoName)'
+  displayName: 'Install npm - pcf projects'
+
+- task: VSBuild@1
   inputs:
-    SolutionSourceFolder: $(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage
-    SolutionOutputFile: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_$(Build.BuildNumber).zip'
-    SolutionType: ${{parameters.buildType}}
-    ProcessCanvasApps: $(localProcessCanvasApps)
+    #solution: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\${{parameters.solutionName}}\${{parameters.solutionName}}.cdsproj'
+    solution: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\${{parameters.solutionName}}.cdsproj'
+    msbuildArgs: '/t:build /restore'
+    #platform: '$(buildPlatform)'
+    #configuration: '$(buildConfiguration)'
+  displayName: 'Build cdsproject'
+
+- task: VSTest@2
+  inputs:
+    platform: 'Any CPU'
+    configuration: 'Release'
+    codeCoverageEnabled: True
+    resultsFolder: '$(build.ArtifactStagingDirectory)\Test\Results'
+    searchFolder: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}'
+    testAssemblyVer2: |
+      **\*test*.dll
+      !**\*TestAdapter.dll
+      !**\obj\**
+    condition: and(succeeded(), eq(variables.codefirstexists, 'true'))
+  displayName: 'Run Unit Test Case Projects'
+
+- pwsh: |
+    #$sourceDirectory  = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\${{parameters.solutionName}}\bin\Debug\*"
+    $sourceDirectory  = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\bin\Debug\*"
+    Get-ChildItem "$sourceDirectory" -Recurse
+  displayName: 'Display Bin Files' 
+
+  # Using cdsproj approach Solutions gets created post building cdsproj file.
+  # Copy the Solution from bin to ArtifactStagingDirectory
+- pwsh: |
+    #$sourceDirectory  = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\${{parameters.solutionName}}\bin\Debug\*"
+    $sourceDirectory  = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\bin\Debug\*"
+    $destinationDirectory = "$(Build.ArtifactStagingDirectory)"
+    If(Test-Path "$sourceDirectory")
+    {
+        Copy-item -Force -Recurse -Verbose "$sourceDirectory" -Destination $destinationDirectory
+    }
+    else
+    {
+        Write-Host "Folder unavailable - $sourceDirectory"
+    }
+  displayName: 'Copy cdsproj solutions to ArtifactStagingDirectory'
+  
+- pwsh: |
+    Get-ChildItem "$(Build.ArtifactStagingDirectory)"
+  displayName: 'Display ArtifactStagingDirectory Files'
+
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      append-version-to-managed-solution '$(Build.ArtifactStagingDirectory)' '${{parameters.solutionName}}' '$(Build.BuildNumber)'
+  displayName: 'Append version to managed solution'  
 
 #Run Solution Checker against our solution. This is currently only triggered for pipelines that trigger for Pull Requests
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.checker.PowerPlatformChecker@2
