@@ -29,7 +29,7 @@ function Invoke-ActivateFlows {
     $flowsToActivate = [System.Collections.ArrayList]@()
 
     Get-UserConfiguredFlowActivations $activateFlowConfiguration $conn $flowsToActivate
-    Get-ConnectionReferenceFlowActivations $connectionReferences $activateFlowConfiguration $conn $flowsToActivate
+    Get-ConnectionReferenceFlowActivations $solutionName $connectionReferences $activateFlowConfiguration $conn $flowsToActivate
     Get-OwnerFlowActivations $solutionComponentOwnershipConfiguration $activateFlowConfiguration $conn $flowsToActivate
 
     #Activate any flows added to the collection based on sort order
@@ -121,6 +121,7 @@ function Get-UserConfiguredFlowActivations {
 
 function Get-ConnectionReferenceFlowActivations {
     param (
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionName,
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$connectionReferences,
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration,
         [Parameter(Mandatory)] [Microsoft.Xrm.Tooling.Connector.CrmServiceClient]$conn,
