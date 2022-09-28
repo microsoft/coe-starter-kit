@@ -259,8 +259,14 @@
                                     ,
                                     Set( var_today, Today() );
                                     ,
-                                    // Get Office groups the logged in user owns or is a member of
-                                    ClearCollect( col_groups, Filter( Office365Groups.ListOwnedGroupsV3().value, securityEnabled ) );
+                                    /* Call the	ListGroups operation and save response to a variable */
+                                    Set( var_response, Office365Groups.ListGroups({'$filter':"securityEnabled eq true or groupTypes/any(s:s eq 'Unified')",'$top':500 }) );
+                                
+                                    /* Parse the $skipToken value from the @odata.nextLink value in the response */
+                                    Set( var_nextLink, Last(Split( var_response.'@odata.nextLink', "=")).Result );
+                                
+                                    /* Save the response into a collection */
+                                    ClearCollect( col_groups, var_response.value );
                                     ,
                                     // Get list of DLP Policies that are marked as shared in dataverse 
                                     ClearCollect( col_sharedPolicies, Filter( 'DLP Policies', 'Is Shared' = 'Is Shared (DLP Policies)'.Yes ));
@@ -270,6 +276,7 @@
                                     ,
                                     /* Get Environment Variable definitions */
                                     ClearCollect(col_definitions, Filter('Environment Variable Definitions', "admin_envr" in 'Schema Name' && SearchEnvVars.Text in 'Schema Name' ));
+                                    
                                 );
                                 
                                 UpdateContext({var_loading: false});
@@ -355,13 +362,15 @@
                                 ClearCollect( col_requestedMakers, gal_ecrs.Selected.Makers); 
                                 Collect( col_requestedMakers, LookUp(col_allmakers, 'User Principal Name' = gal_ecrs.Selected.'Created By'.'User Name'));
                                 ClearCollect( col_reqConnBlockedStatus, ShowColumns(col_requestedConnectors, "admin_id", "admin_displayname", "admin_iconuri"));
+                                /* Navigate with context variables */
                                 Navigate(scr_ViewCreationRequest, Fade, { triggerRefresh: true
                                     , var_notes: gal_ecrs.Selected.Notes
                                     , var_adminControlsMode: If(gal_ecrs.Selected.Status = 'Status (Environment Creation Requests)'.Active, 
                                         DisplayMode.Edit, 
                                         DisplayMode.Disabled
                                     )
-                                    , var_securityGroupId: gal_ecrs.Selected.'Database security group ID' 
+                                    , var_securityGroupId: gal_ecrs.Selected.'Database security group ID'
+                                    , var_selectedSecurityGroup: LookUp( col_groups, id = gal_ecrs.Selected.'Database security group ID' )
                                     , var_initialSecurityGroupId: gal_ecrs.Selected.'Database security group ID'
                                     , var_init_row: true
                                 }); 
@@ -588,7 +597,7 @@
                         Font: =Font.'Segoe UI'
                         FontWeight: =Normal
                         PaddingLeft: =40
-                        Size: =18
+                        Size: =16
                         Text: =Coalesce(Text(cbx_view.Selected.Value), "All") &" Environment Creation Requests" & If(!var_loading, " ("& CountRows(gal_ecrs.AllItems)&")")
                         VerticalAlign: =VerticalAlign.Top
                         ZIndex: =2
@@ -605,7 +614,7 @@
                     Font: =Font.'Segoe UI'
                     Height: =60
                     PaddingLeft: =40
-                    Size: =12
+                    Size: =10
                     Text: ="Select one of the requests below to view details. Admins can approve or reject Pending requests in the details page."
                     VerticalAlign: =VerticalAlign.Top
                     Visible: =var_loading <> true
