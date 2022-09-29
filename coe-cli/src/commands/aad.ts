@@ -8,7 +8,7 @@ import { Environment } from '../common/environment';
 import { Prompt } from '../common/prompt';
 
 /**
- * ALM Accelereator for Makers commands
+ * ALM Accelerator for Makers commands
  */
 class AADCommand {
   
