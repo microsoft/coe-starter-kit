@@ -142,7 +142,7 @@ describe('API Import', () => {
         mockCli.validateAzCliReady.mockResolvedValue(true)
 
         mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
-            let response : Promise<AxiosResponse<any>> = null
+            let response : Promise<AxiosResponse<any>>
             response = mockResponse(url, '/solutions', { value: [] })
             if (response != null ) {
                 return response
