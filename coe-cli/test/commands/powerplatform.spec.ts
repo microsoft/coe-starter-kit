@@ -401,7 +401,7 @@ describe('API Import', () => {
         let connectionReferencesCount = 0
 
         mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
-            let response : Promise<AxiosResponse<any>> = null
+            let response : Promise<AxiosResponse<any>>
             response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
             if (response != null ) {
                 return response
