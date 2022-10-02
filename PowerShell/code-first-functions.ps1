@@ -387,26 +387,46 @@ function get-publisher-prefix{
     return $publisherPrefix
 }
 
-function append-version-to-managed-solution{
+function append-version-to-solutions{
     param (
         [Parameter(Mandatory)] [String]$artifactStagingDirectory,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$buildNumber
     )
     $folderType = ".zip"
-    $newFolderName = "$solutionName" + "_" + "$buildNumber" + "$folderType"
     $managedSolutionPath = "$artifactStagingDirectory\$solutionName" + "_managed.zip"
+    $newManagedSolutionFileName = "$solutionName" + "_" + "$buildNumber" + "_" + "managed" + "$folderType"
+    $unmanagedSolutionPath = "$artifactStagingDirectory\$solutionName" + ".zip"
+    $newUnmanagedSolutionFileName = "$solutionName" + "_" + "$buildNumber" + "$folderType"
     Write-Host "managedSolutionPath - $managedSolutionPath"
-    Write-Host "newFolderName - $newFolderName"
+    Write-Host "unmanagedSolutionPath - $unmanagedSolutionPath"
+    Write-Host "newManagedSolutionFileName - $newManagedSolutionFileName"
+    Write-Host "newUnManagedSolutionFileName - $newUnmanagedSolutionFileName"
     if(Test-Path "$managedSolutionPath")
     {
-        #Rename-Item -Path "$managedSolutionPath" -NewName "$newFolderName"
+        #Rename-Item -Path "$managedSolutionPath" -NewName "$newManagedSolutionFileName"
 
         # Create a new Solution zip file with new name (Appending version number)
-        Copy-Item "$managedSolutionPath" -Destination "$artifactStagingDirectory\$newFolderName"
+        Copy-Item "$managedSolutionPath" -Destination "$artifactStagingDirectory\$newManagedSolutionFileName"
+		# Delete old managed solution file
+		Remove-Item -Path "$managedSolutionPath" -Force
     }
     else
     {
-        Write-Host "Solution is unavailble at $managedSolutionPath"
+        Write-Host "Managed solution is unavailble at $managedSolutionPath"
+    }
+	
+    if(Test-Path "$unmanagedSolutionPath")
+    {
+        #Rename-Item -Path "$managedSolutionPath" -NewName "$newManagedSolutionFileName"
+
+        # Create a new Solution zip file with new name (Appending version number)
+        Copy-Item "$unmanagedSolutionPath" -Destination "$artifactStagingDirectory\$newUnmanagedSolutionFileName"
+		# Delete old unmanaged solution file
+		Remove-Item -Path "$unmanagedSolutionPath" -Force
+    }
+    else
+    {
+        Write-Host "Unmanaged solution is unavailble at unmanagedSolutionPath"
     }
 }
