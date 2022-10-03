@@ -2,8 +2,8 @@ AzureDevOpsProjects As screen:
     Fill: =RGBA(230, 230, 230, 1)
     LoadingSpinnerColor: =RGBA(0, 120, 212, 1)
     OnVisible: |+
-        =UpdateContext({colOrganizations: IfError(CustomAzureDevOps.GetOrganizations(), Table())});
-        If(IsEmpty(colOrganizations),
+        =UpdateContext({_colOrganizations: IfError(CustomAzureDevOps.GetOrganizations(), Table())});
+        If(IsEmpty(_colOrganizations),
             UpdateContext({
                 infoTitle: "Error connecting to Azure DevOps",
                 infoText: "There was an issue connecting to Azure DevOps.\n\nHave you configured the CustomAzureDevOps connector? If not please configure the CustomAzureDevOps connector and try again.\n\nIf you have configured the CustomAzureDevOps connector please try refresh the browser.",
@@ -191,8 +191,7 @@ AzureDevOpsProjects As screen:
 
                         "ddOrganization As 'Combo box'.pcfdataset":
                             AccessibleLabel: ="Align"
-                            DefaultSelectedItems: |-
-                                =Table({Name:"None"})
+                            DefaultSelectedItems: =
                             DisplayMode: =DisplayMode.Edit
                             Height: =32
                             Items: =CustomAzureDevOps.GetOrganizations()
@@ -216,6 +215,7 @@ AzureDevOpsProjects As screen:
                                     Clear(colProjectVariableGroups);
                                     Clear(colProjectServiceConnections);
                                 );
+                            OnSelect: =
                             Text: =""
                             Visible: =true
                             Width: =180
@@ -778,7 +778,7 @@ AzureDevOpsProjects As screen:
                                 =Table(
                                     {ItemKey:"View",ItemDisplayName:"View",ItemIconName:"View", ItemEnabled:(CountRows(fdPipelines.SelectedItems) = 1 And CountRows(fdProjects.SelectedItems) = 1)},
                                 
-                                    {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:(1=2 And CountRows(fdProjects.SelectedItems) = 1)},
+                                    {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:(CountRows(fdProjects.SelectedItems) = 1)},
                                 
                                     // Far Items
                                     {ItemKey:"Info",ItemDisplayName:"Info",ItemIconName:"Info",ItemIconOnly:true,ItemFarItem:true}
@@ -1054,12 +1054,14 @@ AzureDevOpsProjects As screen:
                             OnSelect: |
                                 =Switch(cbServiceConnections.Selected.ItemKey,
                                     "Refresh",
-                                    ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value),
+                                    ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value)
+                                    ,
                                     "New",
                                     UpdateContext({
                                         serviceConnectionOperation: "create",
                                         showProjectServiceConnectionPanel:true
-                                    }),
+                                    })
+                                    ,
                                     "Edit",
                                     UpdateContext({ 
                                         serviceConnectionOperation: "edit",     
@@ -1094,7 +1096,8 @@ AzureDevOpsProjects As screen:
                                         });
                                     );
                                     UpdateContext({showProjectServiceConnectionPanel:true, selectedServiceConnection: fdServiceConnections.Selected});
-                                   
+                                    ,
+                                
                                     "Delete",
                                     ForAll(fdServiceConnections.SelectedItems,
                                         IfError(CustomAzureDevOps.DeleteServiceEndpoint(currentOrganization.AccountName, ThisRecord.id, {
@@ -1102,7 +1105,8 @@ AzureDevOpsProjects As screen:
                                             projectIds: currentProject.id
                                         }), true)
                                     );
-                                    
+                                    ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value);
+                                    ,
                                     "Info",
                                     UpdateContext({
                                         infoTitle: "Azure DevOps Service Connections",
@@ -1212,8 +1216,8 @@ AzureDevOpsProjects As screen:
                             Height: =32
                             Items: |-
                                 =Table(
-                                    {ItemKey:"View",ItemDisplayName:"View",ItemIconName:"View", ItemEnabled:(CountRows(fdProjects.SelectedItems) = 1)},
-                                    {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh"},
+                                    {ItemKey:"View",ItemDisplayName:"View",ItemIconName:"View", ItemEnabled:(CountRows(fdVariableGroup.SelectedItems) = 1)},
+                                    {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:(CountRows(fdProjects.SelectedItems) = 1)},
                                 
                                     // Far Items
                                     {ItemKey:"info",ItemDisplayName:"Info",ItemIconName:"Info",ItemIconOnly:true,ItemFarItem:true}
@@ -1246,7 +1250,8 @@ AzureDevOpsProjects As screen:
                 "Cancel",
                 UpdateContext({showDeleteProjectDialog: false});
             )
-        OnCloseSelect: =false
+        OnCloseSelect: |-
+            =UpdateContext({showDeleteProjectDialog: false});
         SubTitle: |-
             =$"Are you sure you want to delete {CountRows(fdProjects.SelectedItems)} project{If(CountRows(fdProjects.SelectedItems) > 1, "s")} in the {ddOrganization.Selected.AccountName} organizaton?
             
@@ -1257,7 +1262,7 @@ AzureDevOpsProjects As screen:
         Title: =$"Delete {CountRows(fdProjects.SelectedItems)} DevOps Project{If(CountRows(fdProjects.SelectedItems) > 1, "s")}?"
         Visible: =showDeleteProjectDialog
         Width: =App.Width
-        ZIndex: =28
+        ZIndex: =19
 
     dlgRunDiagnostics As Dialog:
         DialogHeight: =600
@@ -1276,7 +1281,7 @@ AzureDevOpsProjects As screen:
         Title: =$"Run Diagnostics for {fdProjects.Selected.name}"
         Visible: =showRunDiagnosticsDialog
         Width: =1366
-        ZIndex: =29
+        ZIndex: =20
 
     tmrProjectWizardCreateRepoLoop As timer:
         BorderColor: =RGBA(0, 120, 212, 1)
@@ -1454,298 +1459,13 @@ AzureDevOpsProjects As screen:
         Visible: =false
         X: =78
         Y: =256
-        ZIndex: =62
-
-    grpNewVariableGroup As group:
-        Height: =5
-        Width: =5
-        X: =40
-        Y: =40
-        ZIndex: =73
-
-        pnlNewVariableGroup As Panel:
-            Buttons: |-
-                =Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Create", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary})
-            Fill: =pnlNewVariableGroup.OverlayColor
-            OnButtonSelect: |-
-                =If(
-                    Self.SelectedButton.Label = "Create",
-                    CustomAzureDevOps.CreateVariableGroup(ddOrganization.Selected.AccountName, {
-                        'api-version': "6.0",
-                        'Content-Type': "application/json",
-                        description: txtVariableGroupDescription.Value,
-                        name: txtVariableGroupName.Value,
-                        type: "Vsts",
-                        variables: {
-                            AADHost: {
-                                isSecret: false,
-                                value: txtAADHost.Value
-                            },
-                            CdsBaseConnectionString: {
-                                isSecret: false,
-                                value: txtCdsBaseConnectionString.Value
-                            },
-                            TenantId: {
-                                isSecret: false,
-                                value: txtTenantId.Value
-                            },
-                                ClientId: {
-                                isSecret: false,
-                                value: txtClientId.Value
-                            },
-                            ClientSecret: {
-                                isSecret: true,
-                                value: txtClientSecret.Value
-                            }
-                        },
-                        variableGroupProjectReferences: {
-                            description: txtVariableGroupDescription.Value,
-                            name: txtVariableGroupName.Value,
-                            projectReference: {
-                                id: currentProject.id,
-                                name: currentProject.name
-                            }
-                        }
-                    });
-                    UpdateContext({showNewVariableGroupPanel: false});
-                    ,
-                
-                    "Refresh",
-                    // Get Variable Groups
-                    ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value);
-                    ,
-                    UpdateContext({showNewVariableGroupPanel: false})
-                )
-            OnCloseSelect: |-
-                =UpdateContext({showNewVariableGroupPanel:false})
-            Subtitle: ="Create a new Azure DevOps Project Variable Group to be used with ALM Accelerator"
-            Title: ="New Project Variable Group"
-            Visible: =showNewVariableGroupPanel
-            Width: =App.Width
-            ZIndex: =44
-
-        "txtProjectName_3 As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Disabled
-            Height: =32
-            Placeholder: ="Project Name"
-            Value: =""
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =160
-            ZIndex: =45
-
-        lblProjectName_3 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Project Name"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =128
-            ZIndex: =46
-
-        "txtVariableGroupName As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Placeholder: ="Variable Group Name"
-            Value: ="alm-accelerator-variable-group"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =227
-            ZIndex: =47
-
-        lblProjectDescription_3 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Variable Group Name"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =200
-            ZIndex: =48
-
-        "txtVariableGroupDescription As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Placeholder: ="Variable Group Description"
-            Value: =""
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =308
-            ZIndex: =49
-
-        lblProjectDescription_4 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Variable Group Description"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =276
-            ZIndex: =50
-
-        "txtAADHost As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Placeholder: ="AADHost"
-            Value: ="login.microsoftonline.com"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =382
-            ZIndex: =51
-
-        lblProjectDescription_5 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="AADHost"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =350
-            ZIndex: =52
-
-        "txtCdsBaseConnectionString As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Placeholder: ="CdsBaseConnectionString"
-            Value: ="AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =455
-            ZIndex: =53
-
-        lblProjectDescription_6 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="CdsBaseConnectionString"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =423
-            ZIndex: =54
-
-        "txtTenantId As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Placeholder: ="TenantId"
-            Value: =""
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =525
-            ZIndex: =55
-
-        lblProjectDescription_7 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="TenantId"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =493
-            ZIndex: =56
-
-        "txtClientId As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Placeholder: ="ClientId"
-            Value: =""
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =595
-            ZIndex: =57
-
-        lblProjectDescription_8 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="ClientId"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =563
-            ZIndex: =58
-
-        "txtClientSecret As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Mode: ='''Microsoft.CoreControls.TextBox.Mode'''.Password
-            Placeholder: ="ClientSecret"
-            Value: =""
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =665
-            ZIndex: =59
-
-        lblProjectDescription_9 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="ClientSecret"
-            Visible: =showNewVariableGroupPanel
-            Width: =pnlNewVariableGroup.DialogWidth - 40
-            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
-            Y: =633
-            ZIndex: =60
+        ZIndex: =51
 
     cntWizard As groupContainer.manualLayoutContainer:
         Height: =App.Height
         Visible: =showNewALMAccProjectPanel
         Width: =App.Width
-        ZIndex: =75
+        ZIndex: =61
 
         Panel_1 As Panel:
             Buttons: |-
@@ -1754,7 +1474,7 @@ AzureDevOpsProjects As screen:
             Fill: =Panel_1.OverlayColor
             OnCloseSelect: =Select(btnCloseWizard);
             Subtitle: ="Follow the steps below to setup a complete ALM Accelerator Project"
-            Title: ="Create new ALM Accelerator Project"
+            Title: ="Setup new ALM Accelerator Project"
             Width: =App.Width
             ZIndex: =1
 
@@ -2382,7 +2102,8 @@ AzureDevOpsProjects As screen:
                                         If(First(operations).id = "-1",
                                             UpdateContext({
                                                 newAlmProjectShowSpinnerStep1: false,
-                                                createProjectError: "There was an error creating the Project. Does the project already exist?"
+                                                createProjectError: "There was an error creating the Project. Does the project already exist?",
+                                                wizardShowSpinner: false
                                             });
                                         ,
                                             UpdateContext({operation: First(operations)});
@@ -2468,7 +2189,7 @@ AzureDevOpsProjects As screen:
                                     =Table({Name:"None"})
                                 DisplayMode: =If(chkProjectWizardCreateRepoExistingRepo_1.Checked,DisplayMode.Disabled, DisplayMode.Edit)
                                 Height: =32
-                                Items: =If(Not(IsBlank(ddOrganization.Selected)), CustomAzureDevOps.GetProjects(ddOrganization.Selected.AccountName).value)
+                                Items: =If(Not(IsBlank(ddOrganization.Selected)), colProjects)
                                 OnChange: |-
                                     =Clear(colPipelineRepos);
                                     If(Not(IsBlankOrError(Self.Selected.name)),
@@ -2748,7 +2469,8 @@ AzureDevOpsProjects As screen:
                                                 },
                                                 serviceEndpointProjectReferences: {
                                                     description: "",
-                                                    name: ThisRecord.name,
+                                                    //name: ThisRecord.name, 
+                                                    name: ThisRecord.url, // use url to work around issue with export pipeline service connections
                                                     projectReference: {
                                                         id: newAlmProjectId,
                                                         name: newAlmProjectName
@@ -3740,6 +3462,291 @@ AzureDevOpsProjects As screen:
             Y: =App.Height - 40
             ZIndex: =5
 
+    grpNewVariableGroup As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =73
+
+        pnlNewVariableGroup As Panel:
+            Buttons: |-
+                =Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Create", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary})
+            Fill: =pnlNewVariableGroup.OverlayColor
+            OnButtonSelect: |-
+                =If(
+                    Self.SelectedButton.Label = "Create",
+                    CustomAzureDevOps.CreateVariableGroup(ddOrganization.Selected.AccountName, {
+                        'api-version': "6.0",
+                        'Content-Type': "application/json",
+                        description: txtVariableGroupDescription.Value,
+                        name: txtVariableGroupName.Value,
+                        type: "Vsts",
+                        variables: {
+                            AADHost: {
+                                isSecret: false,
+                                value: txtAADHost.Value
+                            },
+                            CdsBaseConnectionString: {
+                                isSecret: false,
+                                value: txtCdsBaseConnectionString.Value
+                            },
+                            TenantId: {
+                                isSecret: false,
+                                value: txtTenantId.Value
+                            },
+                                ClientId: {
+                                isSecret: false,
+                                value: txtClientId.Value
+                            },
+                            ClientSecret: {
+                                isSecret: true,
+                                value: txtClientSecret.Value
+                            }
+                        },
+                        variableGroupProjectReferences: {
+                            description: txtVariableGroupDescription.Value,
+                            name: txtVariableGroupName.Value,
+                            projectReference: {
+                                id: currentProject.id,
+                                name: currentProject.name
+                            }
+                        }
+                    });
+                    UpdateContext({showNewVariableGroupPanel: false});
+                    ,
+                
+                    "Refresh",
+                    // Get Variable Groups
+                    ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value);
+                    ,
+                    UpdateContext({showNewVariableGroupPanel: false})
+                )
+            OnCloseSelect: |-
+                =UpdateContext({showNewVariableGroupPanel:false})
+            Subtitle: ="Create a new Azure DevOps Project Variable Group to be used with ALM Accelerator"
+            Title: ="New Project Variable Group"
+            Visible: =showNewVariableGroupPanel
+            Width: =App.Width
+            ZIndex: =34
+
+        "txtProjectName_3 As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Disabled
+            Height: =32
+            Placeholder: ="Project Name"
+            Value: =""
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =160
+            ZIndex: =35
+
+        lblProjectName_3 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Project Name"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =128
+            ZIndex: =36
+
+        "txtVariableGroupName As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Placeholder: ="Variable Group Name"
+            Value: ="alm-accelerator-variable-group"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =227
+            ZIndex: =37
+
+        lblProjectDescription_3 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Variable Group Name"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =200
+            ZIndex: =38
+
+        "txtVariableGroupDescription As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Placeholder: ="Variable Group Description"
+            Value: =""
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =308
+            ZIndex: =39
+
+        lblProjectDescription_4 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Variable Group Description"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =276
+            ZIndex: =40
+
+        "txtAADHost As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Placeholder: ="AADHost"
+            Value: ="login.microsoftonline.com"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =382
+            ZIndex: =41
+
+        lblProjectDescription_5 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="AADHost"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =350
+            ZIndex: =42
+
+        "txtCdsBaseConnectionString As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Placeholder: ="CdsBaseConnectionString"
+            Value: ="AuthType=ClientSecret;ClientId=$(ClientId);ClientSecret=$(ClientSecret);Url="
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =455
+            ZIndex: =43
+
+        lblProjectDescription_6 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="CdsBaseConnectionString"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =423
+            ZIndex: =44
+
+        "txtTenantId As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Placeholder: ="TenantId"
+            Value: =""
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =525
+            ZIndex: =45
+
+        lblProjectDescription_7 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="TenantId"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =493
+            ZIndex: =46
+
+        "txtClientId As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Placeholder: ="ClientId"
+            Value: =""
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =595
+            ZIndex: =47
+
+        lblProjectDescription_8 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="ClientId"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =563
+            ZIndex: =48
+
+        "txtClientSecret As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Mode: ='''Microsoft.CoreControls.TextBox.Mode'''.Password
+            Placeholder: ="ClientSecret"
+            Value: =""
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =665
+            ZIndex: =49
+
+        lblProjectDescription_9 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="ClientSecret"
+            Visible: =showNewVariableGroupPanel
+            Width: =pnlNewVariableGroup.DialogWidth - 40
+            X: =Parent.Width - pnlNewVariableGroup.DialogWidth + 20
+            Y: =633
+            ZIndex: =50
+
     grpNewServiceConnection As group:
         Height: =5
         Width: =5
@@ -3925,7 +3932,6 @@ AzureDevOpsProjects As screen:
             Title: ="Project Sevice Connections"
             Visible: =showProjectServiceConnectionPanel
             Width: =App.Width
-            ZIndex: =7
 
         "txtProjectDescription_1 As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -3937,7 +3943,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =207
-            ZIndex: =8
+            ZIndex: =4
 
         lblProjectDescription_1 As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -3952,7 +3958,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =175
-            ZIndex: =9
+            ZIndex: =5
 
         "txtProjectName_1 As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -3964,7 +3970,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =138
-            ZIndex: =10
+            ZIndex: =6
 
         lblProjectName_1 As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -3979,7 +3985,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =106
-            ZIndex: =11
+            ZIndex: =7
 
         "txtServiceConnectionName As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -3991,7 +3997,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =278
-            ZIndex: =16
+            ZIndex: =8
 
         lblServiceConnectionName As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4006,7 +4012,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =246
-            ZIndex: =17
+            ZIndex: =9
 
         "txtServiceConnectionURL As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4018,7 +4024,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =344
-            ZIndex: =18
+            ZIndex: =10
 
         lblServiceConnectionURL As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4033,7 +4039,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =312
-            ZIndex: =19
+            ZIndex: =11
 
         "txtServiceConnectionTenantId As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4045,7 +4051,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =412
-            ZIndex: =20
+            ZIndex: =12
 
         lblServiceConnectionTenantId As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4060,7 +4066,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =380
-            ZIndex: =21
+            ZIndex: =13
 
         "txtServiceConnectionClientId As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4072,7 +4078,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =482
-            ZIndex: =22
+            ZIndex: =14
 
         lblServiceConnectionClientId As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4087,7 +4093,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =450
-            ZIndex: =23
+            ZIndex: =15
 
         "txtServiceConnectionClientSecret As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4100,7 +4106,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =550
-            ZIndex: =24
+            ZIndex: =16
 
         lblServiceConnectionClientSecret As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4115,7 +4121,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =518
-            ZIndex: =25
+            ZIndex: =17
 
         "chkShareToAllPipelines As 'Check box'":
             Checked: =If(CountRows(fdServiceConnections.SelectedItems) > 0 And serviceConnectionOperation = "edit", If(sharedSingleValue, selectedServiceConnectionShared, false), false)
@@ -4126,7 +4132,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =588
-            ZIndex: =26
+            ZIndex: =18
 
         "txtServiceConnectionDescription As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4138,7 +4144,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =346
-            ZIndex: =30
+            ZIndex: =21
 
         lblServiceConnectionDescription As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4153,7 +4159,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =314
-            ZIndex: =31
+            ZIndex: =22
 
         lblMissingAuthorizationMessage As Label:
             Color: =RGBA(184, 0, 0, 1)
@@ -4164,36 +4170,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlNewServiceConnection.DialogWidth - 40
             X: =Parent.Width - pnlNewServiceConnection.DialogWidth + 20
             Y: =Parent.Height - 80
-            ZIndex: =69
-
-    dlgNewAlmAccProjectWizardClose As Dialog:
-        Buttons: |-
-            =Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Close", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary})
-        Fill: =dlgNewAlmAccProjectWizardClose.OverlayColor
-        Height: =App.Height
-        OnButtonSelect: |-
-            =Switch(Self.SelectedButton.Label,
-                "Close",
-                UpdateContext({
-                    newALMAccProjectCurrentStep: 6
-                });
-                Select(btnCloseWizard);
-                ,
-                "Cancel",
-                UpdateContext({showNewALMAccProjectWizardCloseDialog: false});
-            )
-        OnCloseSelect: |-
-            =UpdateContext({showNewALMAccProjectWizardCloseDialog: false})
-        SubTitle: |-
-            ="If you close the Project Wizard now your project will not be correctly configured.
-            
-            The Project you have created will be left with an invalid configuration.
-            
-            If you close the Project Wizard you should delete the Project or configure it manually"
-        Title: ="Are you sure?"
-        Visible: =showNewALMAccProjectWizardCloseDialog
-        Width: =App.Width
-        ZIndex: =76
+            ZIndex: =57
 
     grpUpdateReleaseHistory As group:
         Height: =5
@@ -4228,7 +4205,7 @@ AzureDevOpsProjects As screen:
             Title: ="Need to update Release History"
             Visible: =showReleaseTagDialog
             Width: =App.Width
-            ZIndex: =70
+            ZIndex: =58
 
         "spnUpdatingReleaseHistory As 'Fluent Spinner (1.0.8) Preview'":
             DisplayMode: =DisplayMode.Edit
@@ -4237,7 +4214,376 @@ AzureDevOpsProjects As screen:
             Width: =96
             X: =dlgReleaseTag.ContentX + dlgReleaseTag.ContentWidth - 110
             Y: =dlgReleaseTag.ContentY + dlgReleaseTag.ContentHeight - 2
+            ZIndex: =59
+
+    dlgNewAlmAccProjectWizardClose As Dialog:
+        Buttons: |-
+            =Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Close", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary})
+        Fill: =dlgNewAlmAccProjectWizardClose.OverlayColor
+        Height: =App.Height
+        OnButtonSelect: |-
+            =Switch(Self.SelectedButton.Label,
+                "Close",
+                UpdateContext({
+                    newALMAccProjectCurrentStep: 6
+                });
+                Select(btnCloseWizard);
+                ,
+                "Cancel",
+                UpdateContext({showNewALMAccProjectWizardCloseDialog: false});
+            )
+        OnCloseSelect: |-
+            =UpdateContext({showNewALMAccProjectWizardCloseDialog: false})
+        SubTitle: |-
+            ="If you close the Project Wizard now your project will not be correctly configured.
+            
+            The Project you have created will be left with an invalid configuration.
+            
+            If you close the Project Wizard you should delete the Project or configure it manually"
+        Title: ="Are you sure?"
+        Visible: =showNewALMAccProjectWizardCloseDialog
+        Width: =App.Width
+        ZIndex: =78
+
+    grpCreateProject As group:
+        Height: =5
+        Width: =5
+        X: =40
+        Y: =40
+        ZIndex: =78
+
+        pnlNewProject As Panel:
+            Buttons: |-
+                =If(Not(showNewProjectPanel And (createNewProjectLoop Or createRepoLoop)),
+                    If(createProjectPermission, 
+                        Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Create", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary}),
+                        Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard })
+                    )
+                )
+            Fill: =pnlNewProject.OverlayColor
+            OnButtonSelect: |-
+                =If(
+                    Self.SelectedButton.Label = "Create",
+                    UpdateContext({showCreateProjectSpinner: true});
+                    
+                    UpdateContext(
+                        {
+                            newProjectOrganization: ddOrganization.Selected.AccountName,
+                            newProjectName: txtProjectName.Value,
+                            newProjectDescription: txtProjectDescription.Value,
+                            newProjectInstallTemplates: chkInstallPipelineTemplates.Checked,
+                            newPipelineTemplateRepository: txtPipelineTemplateRepository.Value,
+                            newPipelineTemplateVersion: ddReleaseTags_1.Selected.Tag
+                        }
+                    );
+                    ClearCollect(
+                        operations,
+                        IfError(CustomAzureDevOps.CreateProject(
+                            ddOrganization.Selected.AccountName,
+                            {
+                                'api-version': "7.0",
+                                name: txtProjectName.Value,
+                                description: txtProjectDescription.Value,
+                                capabilities: {
+                                    versioncontrol: {sourceControlType: "Git"},
+                                    processTemplate: {templateTypeId: "b8a3a935-7e91-48b8-a94c-606d37c3e9f2"}//basic project template
+                                }
+                            }
+                        ),
+                        { id: "-1" });
+                    );
+                    UpdateContext({operation: First(operations)});
+                    If(operation.id = "-1", 
+                        Notify("Error creating project! Does it already exist? Note that you only see projects that you have access to.", NotificationType.Error);
+                        UpdateContext({showCreateProjectSpinner: false});
+                        ,
+                        UpdateContext({createNewProjectLoop: true});
+                    );
+                    
+                    ,
+                    UpdateContext({showNewProjectPanel: false})
+                );
+                Reset(txtProjectName);
+                Reset(txtProjectDescription);
+                Reset(chkInstallPipelineTemplates);
+                Reset(txtPipelineTemplateRepository);
+                Reset(ddReleaseTags_1);
+            OnCloseSelect: |-
+                =UpdateContext({
+                    showNewProjectPanel:false,
+                    createNewProjectLoop: false,
+                    createRepoLoop: false,
+                    showCreateProjectSpinner: false
+                })
+            Subtitle: ="Create a new Azure DevOps Project to be used with ALM Accelerator"
+            Title: ="New Azure DevOps Project"
+            Visible: =showNewProjectPanel
+            Width: =App.Width
+            ZIndex: =63
+
+        "txtProjectDescription As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =If(createProjectPermission And Not(createNewProjectLoop Or createRepoLoop), Edit, Disabled)
+            Height: =32
+            Placeholder: ="Project Description"
+            Value: =""
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =236
+            ZIndex: =64
+
+        lblProjectDescription As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Project Description"
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =204
+            ZIndex: =65
+
+        "txtProjectName As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =If(createProjectPermission And Not(createNewProjectLoop Or createRepoLoop), Edit, Disabled)
+            Height: =32
+            Placeholder: ="Project Name"
+            Value: =""
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =160
+            ZIndex: =66
+
+        lblProjectName As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Project Name"
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =128
+            ZIndex: =67
+
+        "chkInstallPipelineTemplates As 'Check box'":
+            AccessibleLabel: ="Wrap description"
+            Checked: =false
+            DisplayMode: =If(createProjectPermission And Not(createNewProjectLoop Or createRepoLoop), Edit, Disabled)
+            Height: =32
+            Label: ="Install Pipeline Templates"
+            OnChange: =
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =284
+            ZIndex: =68
+
+        "txtPipelineTemplateRepository As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
+            Height: =32
+            Placeholder: ="Pipeline Template Repository"
+            Value: ="coe-alm-accelerator-templates"
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =360
+            ZIndex: =69
+
+        lblPipelineTemplatesRepository As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Pipeline Templates Repository"
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =328
+            ZIndex: =70
+
+        tmrCreateProjectLoop As timer:
+            AutoPause: =false
+            BorderColor: =RGBA(0, 120, 212, 1)
+            BorderStyle: =BorderStyle.None
+            DisabledBorderColor: =RGBA(244, 244, 244, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Duration: =2000
+            Fill: =RGBA(0, 120, 212, 1)
+            FocusedBorderThickness: =2
+            Font: =Font.'Segoe UI'
+            HoverBorderColor: =ColorFade(RGBA(0, 120, 212, 1), -10%)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =ColorFade(RGBA(0, 120, 212, 1), -10%)
+            OnTimerEnd: |-
+                =UpdateContext({operation: CustomAzureDevOps.GetOperation(ddOrganization.Selected.AccountName, operation.id)});
+                If(operation.status = "succeeded",      
+                    UpdateContext({createNewProjectLoop: false});
+                    ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(ddOrganization.Selected.AccountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
+                    
+                    UpdateContext({newProjectId: LookUp(colProjects, name = newProjectName).id});
+                
+                    If(newProjectInstallTemplates,
+                        Reset(tmrCreateRepository);
+                        // Create repo
+                        ClearCollect(
+                            operations,
+                            CustomAzureDevOps.CreateGitRepo(
+                                ddOrganization.Selected.AccountName,
+                                newProjectName,
+                                {
+                                    'api-version': "7.0",
+                                    name: txtPipelineTemplateRepository.Value,
+                                    project: {id: newProjectId}
+                                }
+                            )
+                        );
+                        //UpdateContext({currentProject: LookUp(colProjects, name = txtProjectName.Value)});
+                        UpdateContext(
+                            {
+                                newProjectOrganization: ddOrganization.Selected.AccountName,
+                                newProjectName: newProjectName,
+                                newProjectInstallTemplates: true,
+                                createRepoOperation: "createRepo",
+                                createRepoLoop: true
+                            }
+                        );
+                        ,
+                        UpdateContext({
+                            showNewProjectPanel: false,
+                            showCreateProjectSpinner: false
+                        });
+                    )   
+                );
+            PressedBorderColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            Repeat: =createNewProjectLoop
+            Size: =10.5
+            Start: =createNewProjectLoop
+            Visible: =false
+            X: =20
             ZIndex: =71
+
+        "ddReleaseTags_1 As 'Combo box'.pcfdataset":
+            AccessibleLabel: ="Align"
+            DefaultSelectedItems: |-
+                =Table({Name:"None"})
+            DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
+            Height: =32
+            Items: =Sort(colReleaseTags, Published, Descending)
+            OnChange: =false
+            Text: =""
+            Visible: =showNewProjectPanel
+            Width: =plnNewRepository.DialogWidth - 76
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =434
+            ZIndex: =72
+
+            Tag1_1 As pcfDataField.textualColumn:
+                FieldDisplayName: ="Tag"
+                FieldName: ="cat_tag"
+                FieldType: ="s"
+                FieldVariantName: ="textualColumn"
+                Order: =1
+                ZIndex: =23
+
+        lblPipelineTemplatesRepository_1 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Pipeline Templates Version"
+            Visible: =showNewProjectPanel
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =400
+            ZIndex: =73
+
+        lblCreateProjectPermissionError As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(184, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            Height: =45
+            Size: =10.5
+            Text: ="You do not have the required permissions to create a project"
+            Visible: =showNewProjectPanel And Not(createProjectPermission)
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =App.Height - 100
+            ZIndex: =74
+
+        "spnCreateProject As 'Fluent Spinner (1.0.8) Preview'":
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Visible: =showNewProjectPanel And showCreateProjectSpinner
+            Width: =96
+            X: =App.Width - 280
+            Y: =App.Height - 42
+            ZIndex: =75
+
+        icoUpdateReleaseTagsNewProject As icon.Reload:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            Color: =RGBA(0, 120, 212, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            DisabledColor: =RGBA(220, 220, 220, 1)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
+            Height: =32
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            HoverFill: =RGBA(0, 0, 0, 0)
+            Icon: =Icon.Reload
+            OnSelect: |-
+                =IfError(UpdateReleaseHistoryInstant.Run(),
+                    Notify("Error refreshing release tags")
+                    ,
+                    ClearCollect(colReleaseTags, 'Release Histories')
+                );
+            PaddingBottom: =3
+            PaddingLeft: =3
+            PaddingRight: =3
+            PaddingTop: =3
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Visible: =showNewProjectPanel
+            Width: =26
+            X: =ddReleaseTags_1.X + ddReleaseTags_1.Width + 5
+            Y: =ddReleaseTags_1.Y
+            ZIndex: =76
+
+        lblCreateProjectPermissionError_1 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(184, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            Height: =45
+            Size: =10.5
+            Text: ="Enter project name"
+            Visible: =showNewProjectPanel And IsBlank(txtProjectName.Value)
+            Width: =pnlNewProject.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =App.Height - 100
+            ZIndex: =77
 
     grpNewRepository As group:
         Height: =5
@@ -4292,7 +4638,7 @@ AzureDevOpsProjects As screen:
             Title: ="New Azure DevOps Project"
             Visible: =showNewRepositoryPanel
             Width: =App.Width
-            ZIndex: =32
+            ZIndex: =23
 
         "txtProjectName_2 As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4304,7 +4650,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =160
-            ZIndex: =33
+            ZIndex: =24
 
         lblProjectName_2 As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4319,7 +4665,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =128
-            ZIndex: =34
+            ZIndex: =25
 
         "chkSetPermissions As 'Check box'":
             AccessibleLabel: ="Wrap description"
@@ -4332,7 +4678,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =399
-            ZIndex: =35
+            ZIndex: =26
 
         "chkInstallPipelines As 'Check box'":
             AccessibleLabel: ="Wrap description"
@@ -4345,7 +4691,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =284
-            ZIndex: =36
+            ZIndex: =27
 
         "txtRepositoryName As 'Text box'":
             AccessibleLabel: ="Search files"
@@ -4357,7 +4703,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =240
-            ZIndex: =37
+            ZIndex: =28
 
         lblRepositoryName As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4372,7 +4718,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =208
-            ZIndex: =38
+            ZIndex: =29
 
         lblPipelineTemplateVersion As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -4387,7 +4733,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - pnlNewProject.DialogWidth + 20
             Y: =318
-            ZIndex: =39
+            ZIndex: =30
 
         "ddReleaseTags As 'Combo box'.pcfdataset":
             AccessibleLabel: ="Align"
@@ -4402,7 +4748,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 76
             X: =Parent.Width - pnlNewProject.DialogWidth + 20
             Y: =350
-            ZIndex: =40
+            ZIndex: =31
 
             Tag1 As pcfDataField.textualColumn:
                 FieldDisplayName: ="Tag"
@@ -4426,7 +4772,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - pnlNewProject.DialogWidth + 20
             Y: =428
-            ZIndex: =41
+            ZIndex: =32
 
         tmrCreateRepository As timer:
             AutoPause: =false
@@ -4639,7 +4985,7 @@ AzureDevOpsProjects As screen:
             Start: =createRepoLoop
             Visible: =false
             X: =540
-            ZIndex: =42
+            ZIndex: =33
 
         icoUpdateReleaseTagsNewRepo As icon.Reload:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -4669,332 +5015,7 @@ AzureDevOpsProjects As screen:
             Width: =26
             X: =ddReleaseTags.X + ddReleaseTags.Width + 5
             Y: =ddReleaseTags.Y
-            ZIndex: =73
-
-    grpNewProject As group:
-        Height: =5
-        Width: =5
-        X: =40
-        Y: =40
-        ZIndex: =80
-
-        pnlNewProject As Panel:
-            Buttons: |-
-                =If(Not(showNewProjectPanel And (createNewProjectLoop Or createRepoLoop)),
-                    If(createProjectPermission, 
-                        Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Create", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary}),
-                        Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard })
-                    )
-                )
-            Fill: =pnlNewProject.OverlayColor
-            OnButtonSelect: |-
-                =If(
-                    Self.SelectedButton.Label = "Create",
-                    UpdateContext({showCreateProjectSpinner: true});
-                    
-                    UpdateContext(
-                        {
-                            newProjectOrganization: ddOrganization.Selected.AccountName,
-                            newProjectName: txtProjectName.Value,
-                            newProjectDescription: txtProjectDescription.Value,
-                            newProjectInstallTemplates: chkInstallPipelineTemplates.Checked,
-                            newPipelineTemplateRepository: txtPipelineTemplateRepository.Value,
-                            newPipelineTemplateVersion: ddReleaseTags_1.Selected.Tag
-                        }
-                    );
-                    ClearCollect(
-                        operations,
-                        IfError(CustomAzureDevOps.CreateProject(
-                            ddOrganization.Selected.AccountName,
-                            {
-                                'api-version': "7.0",
-                                name: txtProjectName.Value,
-                                description: txtProjectDescription.Value,
-                                capabilities: {
-                                    versioncontrol: {sourceControlType: "Git"},
-                                    processTemplate: {templateTypeId: "b8a3a935-7e91-48b8-a94c-606d37c3e9f2"}//basic project template
-                                }
-                            }
-                        ),
-                        { id: "-1" });
-                    );
-                    UpdateContext({operation: First(operations)});
-                    If(operation.id = "-1", 
-                        Notify("Error creating project! Does it already exist? Note that you only see projects that you have access to.", NotificationType.Error);
-                        UpdateContext({showCreateProjectSpinner: false});
-                        ,
-                        UpdateContext({createNewProjectLoop: true});
-                    );
-                    
-                    ,
-                    UpdateContext({showNewProjectPanel: false})
-                );
-                Reset(txtProjectName);
-                Reset(txtProjectDescription);
-                Reset(chkInstallPipelineTemplates);
-                Reset(txtPipelineTemplateRepository);
-                Reset(ddReleaseTags_1);
-            OnCloseSelect: |-
-                =UpdateContext({
-                    showNewProjectPanel:false,
-                    createNewProjectLoop: false,
-                    createRepoLoop: false,
-                    showCreateProjectSpinner: false
-                })
-            Subtitle: ="Create a new Azure DevOps Project to be used with ALM Accelerator"
-            Title: ="New Azure DevOps Project"
-            Visible: =showNewProjectPanel
-            Width: =App.Width
-
-        "txtProjectDescription As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =If(createProjectPermission And Not(createNewProjectLoop Or createRepoLoop), Edit, Disabled)
-            Height: =32
-            Placeholder: ="Project Description"
-            Value: =""
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =236
-            ZIndex: =4
-
-        lblProjectDescription As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Project Description"
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =204
-            ZIndex: =5
-
-        "txtProjectName As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =If(createProjectPermission And Not(createNewProjectLoop Or createRepoLoop), Edit, Disabled)
-            Height: =32
-            Placeholder: ="Project Name"
-            Value: =""
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =160
-            ZIndex: =6
-
-        lblProjectName As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Project Name"
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =128
-            ZIndex: =12
-
-        "chkInstallPipelineTemplates As 'Check box'":
-            AccessibleLabel: ="Wrap description"
-            Checked: =false
-            DisplayMode: =If(createProjectPermission And Not(createNewProjectLoop Or createRepoLoop), Edit, Disabled)
-            Height: =32
-            Label: ="Install Pipeline Templates"
-            OnChange: =
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =284
-            ZIndex: =13
-
-        "txtPipelineTemplateRepository As 'Text box'":
-            AccessibleLabel: ="Search files"
-            DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
-            Height: =32
-            Placeholder: ="Pipeline Template Repository"
-            Value: ="coe-alm-accelerator-templates"
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =360
-            ZIndex: =14
-
-        lblPipelineTemplatesRepository As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Pipeline Templates Repository"
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =328
-            ZIndex: =15
-
-        tmrCreateProjectLoop As timer:
-            AutoPause: =false
-            BorderColor: =RGBA(0, 120, 212, 1)
-            BorderStyle: =BorderStyle.None
-            DisabledBorderColor: =RGBA(244, 244, 244, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            DisabledFill: =RGBA(244, 244, 244, 1)
-            Duration: =2000
-            Fill: =RGBA(0, 120, 212, 1)
-            FocusedBorderThickness: =2
-            Font: =Font.'Segoe UI'
-            HoverBorderColor: =ColorFade(RGBA(0, 120, 212, 1), -10%)
-            HoverColor: =RGBA(255, 255, 255, 1)
-            HoverFill: =ColorFade(RGBA(0, 120, 212, 1), -10%)
-            OnTimerEnd: |-
-                =UpdateContext({operation: CustomAzureDevOps.GetOperation(ddOrganization.Selected.AccountName, operation.id)});
-                If(operation.status = "succeeded",      
-                    UpdateContext({createNewProjectLoop: false});
-                    ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(ddOrganization.Selected.AccountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
-                    
-                    UpdateContext({newProjectId: LookUp(colProjects, name = newProjectName).id});
-                
-                    If(newProjectInstallTemplates,
-                        Reset(tmrCreateRepository);
-                        // Create repo
-                        ClearCollect(
-                            operations,
-                            CustomAzureDevOps.CreateGitRepo(
-                                ddOrganization.Selected.AccountName,
-                                newProjectName,
-                                {
-                                    'api-version': "7.0",
-                                    name: txtPipelineTemplateRepository.Value,
-                                    project: {id: newProjectId}
-                                }
-                            )
-                        );
-                        //UpdateContext({currentProject: LookUp(colProjects, name = txtProjectName.Value)});
-                        UpdateContext(
-                            {
-                                newProjectOrganization: ddOrganization.Selected.AccountName,
-                                newProjectName: newProjectName,
-                                newProjectInstallTemplates: true,
-                                createRepoOperation: "createRepo",
-                                createRepoLoop: true
-                            }
-                        );
-                        ,
-                        UpdateContext({
-                            showNewProjectPanel: false,
-                            showCreateProjectSpinner: false
-                        });
-                    )   
-                );
-            PressedBorderColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
-            PressedColor: =RGBA(255, 255, 255, 1)
-            PressedFill: =ColorFade(RGBA(0, 120, 212, 1), -30%)
-            Repeat: =createNewProjectLoop
-            Size: =10.5
-            Start: =createNewProjectLoop
-            Visible: =false
-            X: =20
-            ZIndex: =27
-
-        "ddReleaseTags_1 As 'Combo box'.pcfdataset":
-            AccessibleLabel: ="Align"
-            DefaultSelectedItems: |-
-                =Table({Name:"None"})
-            DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
-            Height: =32
-            Items: =Sort(colReleaseTags, Published, Descending)
-            OnChange: =false
-            Text: =""
-            Visible: =showNewProjectPanel
-            Width: =plnNewRepository.DialogWidth - 76
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =434
-            ZIndex: =43
-
-            Tag1_1 As pcfDataField.textualColumn:
-                FieldDisplayName: ="Tag"
-                FieldName: ="cat_tag"
-                FieldType: ="s"
-                FieldVariantName: ="textualColumn"
-                Order: =1
-                ZIndex: =23
-
-        lblPipelineTemplatesRepository_1 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(0, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            FontWeight: =FontWeight.Lighter
-            Height: =32
-            Size: =10.5
-            Text: ="Pipeline Templates Version"
-            Visible: =showNewProjectPanel
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =400
-            ZIndex: =61
-
-        lblPipelineTemplatesRepository_2 As label:
-            BorderColor: =RGBA(0, 18, 107, 1)
-            Color: =RGBA(184, 0, 0, 1)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            Font: =Font.'Segoe UI'
-            Height: =45
-            Size: =10.5
-            Text: ="You do not have the required permissions to create a project"
-            Visible: =showNewProjectPanel And Not(createProjectPermission)
-            Width: =pnlNewProject.DialogWidth - 40
-            X: =Parent.Width - pnlNewProject.DialogWidth + 20
-            Y: =624
-            ZIndex: =63
-
-        "spnCreateProject As 'Fluent Spinner (1.0.8) Preview'":
-            DisplayMode: =DisplayMode.Edit
-            Height: =32
-            Visible: =showNewProjectPanel And showCreateProjectSpinner
-            Width: =96
-            X: =App.Width - 280
-            Y: =App.Height - 42
-            ZIndex: =72
-
-        icoUpdateReleaseTagsNewProject As icon.Reload:
-            BorderColor: =RGBA(0, 0, 0, 0)
-            Color: =RGBA(0, 120, 212, 1)
-            DisabledBorderColor: =RGBA(166, 166, 166, 1)
-            DisabledColor: =RGBA(220, 220, 220, 1)
-            DisabledFill: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
-            Height: =32
-            HoverBorderColor: =RGBA(0, 0, 0, 0)
-            HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
-            HoverFill: =RGBA(0, 0, 0, 0)
-            Icon: =Icon.Reload
-            OnSelect: |-
-                =IfError(UpdateReleaseHistoryInstant.Run(),
-                    Notify("Error refreshing release tags")
-                    ,
-                    ClearCollect(colReleaseTags, 'Release Histories')
-                );
-            PaddingBottom: =3
-            PaddingLeft: =3
-            PaddingRight: =3
-            PaddingTop: =3
-            PressedBorderColor: =RGBA(0, 0, 0, 0)
-            PressedColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
-            PressedFill: =RGBA(0, 0, 0, 0)
-            Visible: =showNewProjectPanel
-            Width: =26
-            X: =ddReleaseTags_1.X + ddReleaseTags_1.Width + 5
-            Y: =ddReleaseTags_1.Y
-            ZIndex: =74
+            ZIndex: =60
 
     grpAddTeamMembers As group:
         Height: =5
@@ -5021,7 +5042,10 @@ AzureDevOpsProjects As screen:
                         ForAll(colProjectTeamMembers,
                             Collect(colProjectTeamMemberIdentities, { id: identity.id, displayName: identity.displayName, isAdmin: If(isTeamAdmin, "Yes", "") });
                     );
-                    UpdateContext({showAddTeamMemberPanel: false});    
+                    UpdateContext({showAddTeamMemberPanel: false});
+                    ,
+                    "Cancel",
+                    UpdateContext({showAddTeamMemberPanel:false})
                 );
                 
                  //ForAll(ddUsersToAdd.SelectedItems, CustomAzureDevOps.AddMemberToGroup(currentOrganization.AccountName, currentProject.defaultTeam.id, CustomAzureDevOps.GetIdentities(currentOrganization.AccountName, {'api-version': "6.0", searchFilter: "General", ThisRecord.principalName})));
@@ -5031,7 +5055,7 @@ AzureDevOpsProjects As screen:
             Title: ="Add Project Team Member"
             Visible: =showAddTeamMemberPanel
             Width: =App.Width
-            ZIndex: =64
+            ZIndex: =52
 
         lblUsersToAdd As label:
             BorderColor: =RGBA(0, 18, 107, 1)
@@ -5046,7 +5070,7 @@ AzureDevOpsProjects As screen:
             Width: =pnlAddTeamMember.DialogWidth - 40
             X: =Parent.Width - pnlAddTeamMember.DialogWidth + 20
             Y: =128
-            ZIndex: =65
+            ZIndex: =53
 
         "ddUsersToAdd As 'Combo box'.pcfdataset":
             AccessibleLabel: ="Align"
@@ -5063,7 +5087,7 @@ AzureDevOpsProjects As screen:
             Width: =plnNewRepository.DialogWidth - 40
             X: =Parent.Width - pnlAddTeamMember.DialogWidth + 20
             Y: =162
-            ZIndex: =66
+            ZIndex: =54
 
             displayName2 As pcfDataField.textualColumn:
                 FieldDisplayName: ="displayName"
@@ -5102,7 +5126,7 @@ AzureDevOpsProjects As screen:
             Title: =infoTitle
             Visible: =showInfoDialog
             Width: =Parent.Width
-            ZIndex: =67
+            ZIndex: =55
 
         lblInfoText As Label:
             AutoHeight: =true
@@ -5116,5 +5140,5 @@ AzureDevOpsProjects As screen:
             Width: =dlgInfoDialog.ContentWidth - 40
             X: =dlgInfoDialog.ContentX + 20
             Y: =dlgInfoDialog.ContentY + 20
-            ZIndex: =68
+            ZIndex: =56
 
