@@ -38,7 +38,7 @@
                             $workflowNode.StateCode = '0'
                             $workflowNode.StatusCode = '1'
                         }
-                        else {
+                        elseif ($activateFlowConfig.activate -eq 'true') {
                             Write-Host "Enabling flow " $activateFlowConfig.solutionComponentName 
                             $workflowNode.StateCode = '1'
                             $workflowNode.StatusCode = '2'
