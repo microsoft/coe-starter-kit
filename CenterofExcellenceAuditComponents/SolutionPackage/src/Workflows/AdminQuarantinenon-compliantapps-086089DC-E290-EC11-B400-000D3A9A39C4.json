@@ -1,0 +1,114 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Quarantine Apps after x days of non-compliance (admin_QuarantineAppsafterxdaysofnoncompliance)": {
+          "defaultValue": 7,
+          "type": "Int",
+          "metadata": {
+            "schemaName": "admin_QuarantineAppsafterxdaysofnoncompliance",
+            "description": "If using the Compliance flow for apps to gather compliance details from makers, specify if you want to quarantine apps if they're not compliant. Specified in days. "
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2022-02-18T10:00:00Z"
+          },
+          "metadata": {
+            "operationMetadataId": "07de233e-b3c0-4307-940f-3ec33a55a393"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "List_apps_for_quarantine": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "0e2f71f6-5e66-435d-9a0e-f7bc4ffca29a"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "admin_apps",
+              "$select": "admin_appenvironmentdisplayname,admin_appid,admin_appownerdisplayname,_admin_appenvironment_value,_admin_appowner_value,admin_displayname",
+              "$filter": "Microsoft.Dynamics.CRM.OlderThanXDays(PropertyName='admin_compliancerequestedon',PropertyValue=@{parameters('Quarantine Apps after x days of non-compliance (admin_QuarantineAppsafterxdaysofnoncompliance)')}) and Microsoft.Dynamics.CRM.OnOrAfter(PropertyName='admin_compliancerequestedon',PropertyValue='12/1/1899') and admin_adminrequirementriskassessmentstate eq 597910001 and (admin_quarantineapp eq null or admin_quarantineapp eq false) and admin_AppEnvironment/admin_excusefromappquarantineflow eq false and admin_AppEnvironment/admin_environmentid ne null and admin_AppOwner/admin_makerid ne null",
+              "$expand": "admin_AppEnvironment($select=admin_environmentid,admin_displayname),admin_AppOwner($select=admin_userprincipalname)"
+            },
+            "authentication": "@parameters('$authentication')"
+          },
+          "description": "Gets apps in environments that are included in the quarantine flow and filters apps where compliance has been requested more than x days ago and that are not already in quarantine",
+          "runtimeConfiguration": {
+            "paginationPolicy": {
+              "minimumItemCount": 100000
+            }
+          }
+        },
+        "Apply_to_each": {
+          "foreach": "@outputs('List_apps_for_quarantine')?['body/value']",
+          "actions": {
+            "Update_a_row": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "3008fe4d-7c74-44a6-a794-2525e50a6d66"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_apps",
+                  "recordId": "@items('Apply_to_each')?['admin_appid']",
+                  "item/admin_quarantineapp": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "List_apps_for_quarantine": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "22d2a4b4-4c45-4a05-a067-ac0ff88a3f29"
+          },
+          "type": "Foreach"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

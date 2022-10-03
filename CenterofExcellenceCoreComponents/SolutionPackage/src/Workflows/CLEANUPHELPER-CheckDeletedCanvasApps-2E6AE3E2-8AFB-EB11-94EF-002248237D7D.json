@@ -1,0 +1,599 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_powerappsforadmins": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsAdmin2"
+        },
+        "api": {
+          "name": "shared_powerappsforadmins"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+          }
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "1fd53939-c57f-4db3-a2ef-4732fd6b0629"
+          },
+          "type": "Request",
+          "kind": "Button",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "EnvtID",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "boolean": {
+                  "title": "CheckIfDeleted",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                },
+                "boolean_1": {
+                  "title": "DeleteFromCoE",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                },
+                "text_1": {
+                  "title": "EnvtName",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text",
+                "boolean",
+                "boolean_1",
+                "text_1"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Respond_to_a_PowerApp_or_flow": {
+          "runAfter": {
+            "Error_Handling_Scope": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "fbee6d3c-9bda-4cde-9a43-0d303a364511"
+          },
+          "type": "Response",
+          "kind": "PowerApp",
+          "inputs": {
+            "statusCode": 200,
+            "body": {
+              "thereturnvalue": "@variables('returnValue')"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "thereturnvalue": {
+                  "title": "theReturnValue",
+                  "x-ms-dynamically-added": true,
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "Initialize_returnValue": {
+          "runAfter": {
+            "Exit_early_if_BYODL": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "67b6e712-1e4e-489b-9d2a-b45a12e71f35"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "returnValue",
+                "type": "string",
+                "value": "pass"
+              }
+            ]
+          }
+        },
+        "Check_Deleted_Scope": {
+          "actions": {
+            "List_Canvas_Apps": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "60337b9b-9176-4546-9c6d-d7b93ccae386"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_apps",
+                  "$select": "admin_appid, admin_appdeleted ",
+                  "$filter": "_admin_appenvironment_value eq '@{triggerBody()['text']}' and admin_powerappstype ne 597910001"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                }
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "See_if_need_to_check_deleted_status_before_marking_delete": {
+              "actions": {
+                "Check_each_app_to_see_if_still_in_environment": {
+                  "foreach": "@outputs('List_Canvas_Apps_not_yet_marked_deleted')?['body/value']",
+                  "actions": {
+                    "Filter_tenant_list_of_apps_to_this_appid": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "67f3ad04-2438-4b9c-a4be-d3daf02ec59c"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Select')",
+                        "where": "@equals(item()['name'], items('Check_each_app_to_see_if_still_in_environment')?['admin_appid'])"
+                      }
+                    },
+                    "If_not_found_in_tenant,_delete_or_mark_deleted": {
+                      "actions": {
+                        "See_if_delete_row_from_inventory_or_mark_deleted_-_check_deleted": {
+                          "actions": {
+                            "Delete_this_app_from_inventory": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "46f87a8b-ae01-4992-bcb3-f904d4bbd652"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "DeleteRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_apps",
+                                  "recordId": "@items('Check_each_app_to_see_if_still_in_environment')?['admin_appid']"
+                                },
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 10,
+                                  "interval": "PT10S"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "else": {
+                            "actions": {
+                              "Mark_this_app_as_deleted_today": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "68ad53bf-558d-4f0d-be45-44cf4dd55601"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_apps",
+                                    "recordId": "@items('Check_each_app_to_see_if_still_in_environment')?['admin_appid']",
+                                    "item/admin_appdeleted": true,
+                                    "item/admin_appdeletedon": "@utcNow()"
+                                  },
+                                  "authentication": {
+                                    "type": "Raw",
+                                    "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                  },
+                                  "retryPolicy": {
+                                    "type": "exponential",
+                                    "count": 10,
+                                    "interval": "PT10S"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@triggerBody()['boolean_1']",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ec74a9b9-d13a-4878-a3ed-98699078573e"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "Filter_tenant_list_of_apps_to_this_appid": [
+                          "Succeeded"
+                        ]
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(body('Filter_tenant_list_of_apps_to_this_appid'))",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1a551226-c6bb-4134-bdba-c3c5e5712a95"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Select": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "62a11987-09f7-4acd-afe6-6b7767bf0c1f"
+                  },
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
+                },
+                "List_Canvas_Apps_not_yet_marked_deleted": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "3082d9e6-3971-464b-9f27-d7887234285c"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "$select": "admin_appid, admin_appdeleted ",
+                      "$filter": "_admin_appenvironment_value eq '@{triggerBody()['text']}' and admin_appdeleted eq false and admin_powerappstype ne 597910001"
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Get_Apps_as_Admin": {
+                  "runAfter": {
+                    "List_Canvas_Apps_not_yet_marked_deleted": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "b09f2b96-44d4-4de0-a04d-53cc75d113b6"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_powerappsforadmins",
+                      "operationId": "Get-AdminApps",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
+                    },
+                    "parameters": {
+                      "environment": "@triggerBody()['text_1']",
+                      "api-version": "2016-11-01",
+                      "$top": 250
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Select": {
+                  "runAfter": {
+                    "Get_Apps_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "152b961d-d6aa-4c3d-a907-4c92e0076bf3"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@outputs('Get_Apps_as_Admin')?['body/value']",
+                    "select": {
+                      "name": "@item()?['name']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "List_Canvas_Apps": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "See_if_delete_row_from_inventory_or_mark_deleted": {
+                    "actions": {
+                      "Delete_all_the_apps_from_inventory": {
+                        "foreach": "@outputs('List_Canvas_Apps')?['body/value']",
+                        "actions": {
+                          "Delete_app_from_inventory": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "bb0a3e63-0e07-4cfe-a79d-c70568e42c09"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "DeleteRecord",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                              },
+                              "parameters": {
+                                "entityName": "admin_apps",
+                                "recordId": "@items('Delete_all_the_apps_from_inventory')?['admin_appid']"
+                              },
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "retryPolicy": {
+                                "type": "exponential",
+                                "count": 10,
+                                "interval": "PT10S"
+                              }
+                            }
+                          }
+                        },
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "04aad91a-1bd6-4d9c-ba91-26cfb3a48176"
+                        },
+                        "type": "Foreach"
+                      }
+                    },
+                    "runAfter": {},
+                    "else": {
+                      "actions": {
+                        "Mark_all_apps_in_inventory_as_deleted_today": {
+                          "foreach": "@outputs('List_Canvas_Apps')?['body/value']",
+                          "actions": {
+                            "Mark_app_as_deleted_today": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "e89780d1-c432-437f-b632-fa72ca9d0e48"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_apps",
+                                  "recordId": "@items('Mark_all_apps_in_inventory_as_deleted_today')?['admin_appid']",
+                                  "item/admin_appdeleted": true,
+                                  "item/admin_appdeletedon": "@utcNow()"
+                                },
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 10,
+                                  "interval": "PT10S"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "7e3be2d5-e880-4bb2-92bd-860fbd7de2df"
+                          },
+                          "type": "Foreach"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "equals": [
+                        "@triggerBody()['boolean_1']",
+                        "@true"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "1600e9fb-aa2d-425b-aba3-315611f4851e"
+                    },
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@triggerBody()['boolean']",
+                  "@true"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "3b2352f4-32b6-457d-a4a8-c39c5f4b9253"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_returnValue": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a4fb4e0c-42ae-42bc-8805-0e83bda08f3c"
+          },
+          "type": "Scope"
+        },
+        "Error_Handling_Scope": {
+          "actions": {
+            "Create_Sync_Flow_Error_record": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "d35c27a2-b60e-4b71-99bb-10ed6cd0d677"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "CLEANUP HELPER - Check Deleted (Canvas Apps)",
+                  "item/admin_environmentname": "@triggerBody()['text']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Set_returnValue_to_fail": {
+              "runAfter": {
+                "Create_Sync_Flow_Error_record": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "0f5fd8d8-74e4-4009-a687-a1edee577436"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "returnValue",
+                "value": "fail"
+              }
+            }
+          },
+          "runAfter": {
+            "Check_Deleted_Scope": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f0e18c4a-85d8-4cfc-a6e5-2924b5ce2fbf"
+          },
+          "type": "Scope"
+        },
+        "Exit_early_if_BYODL": {
+          "actions": {
+            "Terminate": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "92b4d9c4-ba8a-497b-a9b3-7a4fcc04cbba"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "equals": [
+              "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+              "@true"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "94ee58a2-cda0-4623-bac4-47155a00602e"
+          },
+          "type": "If"
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

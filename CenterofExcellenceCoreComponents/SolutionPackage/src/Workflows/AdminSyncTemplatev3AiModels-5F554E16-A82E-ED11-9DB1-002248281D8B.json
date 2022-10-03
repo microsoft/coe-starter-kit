@@ -1,0 +1,929 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataservice_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "api": {
+          "name": "shared_commondataservice"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "impersonation": {},
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "FullInventory (admin_FullInventory)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_FullInventory",
+            "description": "Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running "
+          }
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "metadata": {
+            "operationMetadataId": "b583c3fa-b79b-4108-a97b-a6e0006fbda4"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/name": "5f554e16-a82e-ed11-9db1-002248281d8b"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Check_if_Solutions_can_be_retrieved_for_this_environment": {
+          "actions": {
+            "Terminate,_inquiry__not_supported": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "303cf191-ec29-40ed-b90b-d73833e269c0"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_hascds']",
+                  "@false"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentsku']",
+                  "Teams"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentsku']",
+                  "Developer"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9b6688e4-c25b-4e40-9deb-fcf181094357"
+          },
+          "type": "If"
+        },
+        "Get_Ai_Models_and_Exit_if_no_Ai_Models_in_envt_or_if_no_permissions": {
+          "actions": {
+            "Count_Ai_Models": {
+              "actions": {
+                "Quit_if_no_Ai_Models": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "f8a93c00-c6c9-4716-9e92-62ed6d148503"
+                  },
+                  "type": "Terminate",
+                  "inputs": {
+                    "runStatus": "Succeeded"
+                  }
+                }
+              },
+              "runAfter": {
+                "Terminate_if_no_access": [
+                  "Skipped"
+                ]
+              },
+              "expression": {
+                "equals": [
+                  "@length(outputs('List_Ai_Models')?['body/value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b7370f16-6982-490a-92dd-0fd0001e2c79"
+              },
+              "type": "If"
+            },
+            "List_Ai_Models": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "18cc04ae-6bf0-45a5-88cd-867597f3f22a"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                  "connectionName": "shared_commondataservice_1",
+                  "operationId": "GetItems_V2"
+                },
+                "parameters": {
+                  "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                  "table": "msdyn_aimodels",
+                  "$expand": "createdby($select=fullname),  createdby($select=azureactivedirectoryobjectid), msdyn_TemplateId($select=msdyn_uniquename)"
+                },
+                "retryPolicy": {
+                  "type": "none"
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "description": "Do not collect or inventory solutions created by System",
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Terminate_if_no_access": {
+              "runAfter": {
+                "List_Ai_Models": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "713f1ba1-95d3-4176-80c2-0488efa1cb30"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "404",
+                  "message": "Unauthorized"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Check_if_Solutions_can_be_retrieved_for_this_environment": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3e11da85-65c2-4bec-a9d3-76ca594e26b2"
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_isNewToCoE": {
+          "runAfter": {
+            "Get_Ai_Models_and_Exit_if_no_Ai_Models_in_envt_or_if_no_permissions": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "cdc98291-b926-4a68-b8c5-a1a14a84eef0"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
+        },
+        "Initialize_AiModel_NeedsUpdatedInCoE": {
+          "runAfter": {
+            "Initialize_variable_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9ede7832-defd-43d8-95f9-cac7dd9b3bbc"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "AiModel_NeedsUpdatedInCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
+        },
+        "Put_Ai_Models_in_CoE": {
+          "actions": {
+            "Apply_to_each_Ai_Model": {
+              "foreach": "@outputs('List_Ai_Models')?['body/value']",
+              "actions": {
+                "Reset_AiModel_NeedsUpdatedInCoE": {
+                  "runAfter": {
+                    "Reset_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "1fa03a7e-4e91-48fa-ae35-fcf556963885"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "AiModel_NeedsUpdatedInCoE",
+                    "value": "@false"
+                  }
+                },
+                "Get_AiModel_from_CoE": {
+                  "runAfter": {
+                    "Reset_AiModel_NeedsUpdatedInCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "8c833560-1466-48f4-a502-fd356bdc9cde"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "GetItem"
+                    },
+                    "parameters": {
+                      "entityName": "admin_aibuildermodels",
+                      "recordId": "@outputs('AIModelGUID')"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "if_not_found,_set_isNewToCoE_to_true": {
+                  "runAfter": {
+                    "Get_AiModel_from_CoE": [
+                      "Failed"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "59a0cdba-5550-4d27-ac20-bcb228da147f"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@true"
+                  }
+                },
+                "Update_or_Insert_AiModel_and_Owner": {
+                  "actions": {
+                    "See_if_AiModel_Needs_Update_To_CoE": {
+                      "actions": {
+                        "CoE_ModifiedOn": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "099790f1-5f28-4a4a-8584-33f16fa1864c"
+                          },
+                          "type": "Compose",
+                          "inputs": "@coalesce(formatDateTime(outputs('Get_AiModel_from_CoE')?['body/admin_aimodifiedon'], 'yyyy-MM-dd HH:mm:ss'), '')"
+                        },
+                        "Set_Ai_NeedsUpdatedInCoE_true_bc_last_modifed_was_null": {
+                          "runAfter": {
+                            "CoE_ModifiedOn": [
+                              "Failed"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "4fc37477-7a2c-4461-b83e-5ca1bf18e71c"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "AiModel_NeedsUpdatedInCoE",
+                            "value": "@true"
+                          }
+                        },
+                        "AiModel_ModifiedOn": {
+                          "runAfter": {
+                            "Set_Ai_NeedsUpdatedInCoE_true_bc_last_modifed_was_null": [
+                              "Succeeded",
+                              "Skipped"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "8dcbd96b-f378-4f2d-adc7-817f4f9c9111"
+                          },
+                          "type": "Compose",
+                          "inputs": "@formatDateTime(items('Apply_to_each_Ai_Model')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss')"
+                        },
+                        "Set_Ai_NeedsUpdatedInCoE_true_bc_modifedon_was_null": {
+                          "runAfter": {
+                            "AiModel_ModifiedOn": [
+                              "Failed"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "68d687bf-c7c6-4537-8201-17c17d1e39fb"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "AiModel_NeedsUpdatedInCoE",
+                            "value": "@true"
+                          }
+                        },
+                        "See_if_needs_updated": {
+                          "actions": {
+                            "Set_Ai_NeedsUpdatedInCoE_true": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "97e50298-1e8e-4c34-9ebf-ccdcdfa2b441"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "AiModel_NeedsUpdatedInCoE",
+                                "value": "@true"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "CoE_LastRun": [
+                              "Succeeded"
+                            ]
+                          },
+                          "expression": {
+                            "or": [
+                              {
+                                "equals": [
+                                  "@parameters('FullInventory (admin_FullInventory)')",
+                                  "True"
+                                ]
+                              },
+                              {
+                                "equals": [
+                                  "@variables('AiModel_NeedsUpdatedInCoE')",
+                                  "@true"
+                                ]
+                              },
+                              {
+                                "equals": [
+                                  "@less(outputs('CoE_ModifiedOn'), outputs('AiModel_ModifiedOn'))",
+                                  "@true"
+                                ]
+                              },
+                              {
+                                "equals": [
+                                  "@less(outputs('CoE_LastRun'), outputs('AiModel_LastRun'))",
+                                  "@true"
+                                ]
+                              }
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2bab952f-3749-450e-b4dc-011e57ba2b68"
+                          },
+                          "type": "If"
+                        },
+                        "CoE_LastRun": {
+                          "runAfter": {
+                            "Set_Ai_NeedsUpdatedInCoE_true_bc_modifedon_was_null": [
+                              "Succeeded",
+                              "Skipped"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "1bafaa73-c3bc-455d-b557-2c603ab41f28"
+                          },
+                          "type": "Compose",
+                          "inputs": "@if(equals(coalesce(formatDateTime(outputs('Get_AiModel_from_CoE')?['body/admin_ailastused'], 'yyyy-MM-dd HH:mm:ss'), ''), ''), coalesce(formatDateTime(outputs('Get_AiModel_from_CoE')?['body/admin_aicreatedon'], 'yyyy-MM-dd HH:mm:ss'), ''), coalesce(formatDateTime(outputs('Get_AiModel_from_CoE')?['body/admin_ailastused'], 'yyyy-MM-dd HH:mm:ss'), ''))"
+                        },
+                        "Only_proceed_if_changed_since_last_updated_in_CoE_or_FullInventory": {
+                          "actions": {
+                            "Maker_Check_-_Edit": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "1e992e10-64e9-4cc5-90a8-37906b7393c8"
+                              },
+                              "type": "Workflow",
+                              "inputs": {
+                                "host": {
+                                  "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                                },
+                                "body": {
+                                  "text": "@if(equals(body('Get_AiModel_Owner')?['azureactivedirectoryobjectid'], null), '', body('Get_AiModel_Owner')?['azureactivedirectoryobjectid'])",
+                                  "text_1": "@body('Get_AiModel_Owner')?['fullname']",
+                                  "boolean": false
+                                }
+                              }
+                            },
+                            "Check_if_Orphan_-_Edit": {
+                              "actions": {
+                                "Update_AiModel_(Orphaned)": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "519156c5-c6cb-4592-a22e-a98531996d5b"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "UpdateRecord"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_aibuildermodels",
+                                      "recordId": "@outputs('AIModelGUID')",
+                                      "item/admin_name": "@items('Apply_to_each_Ai_Model')?['msdyn_name']",
+                                      "item/admin_aicreatedon": "@items('Apply_to_each_Ai_Model')?['createdon']",
+                                      "item/admin_aideleted": false,
+                                      "item/admin_aideletedon": "@null",
+                                      "item/admin_AiEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_aienvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                      "item/admin_aiismanaged": "@items('Apply_to_each_Ai_Model')?['ismanaged']",
+                                      "item/admin_aiisorphaned": true,
+                                      "item/admin_ailastused": "@outputs('AiModel_LastRun')",
+                                      "item/admin_aimodifiedon": "@items('Apply_to_each_Ai_Model')?['modifiedon']",
+                                      "item/admin_ainonuniquename": "@items('Apply_to_each_Ai_Model')?['msdyn_aimodelid']",
+                                      "item/admin_aistate": "@items('Apply_to_each_Ai_Model')?['_componentstate_label']",
+                                      "item/admin_aistatus": "@items('Apply_to_each_Ai_Model')?['_statuscode_label']",
+                                      "item/admin_aitemplate": "@body('Get_AiModel_Template')?['msdyn_uniquename']",
+                                      "item/admin_aiuniquename": "@outputs('UniqueNameString')",
+                                      "item/admin_recordguidasstring": "@outputs('AIModelGUID')"
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Maker_Check_-_Edit": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Update_AiModel": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "5f2d46e3-3f95-40e1-8dd0-56ff8ad1d99e"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "UpdateRecord"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_aibuildermodels",
+                                        "recordId": "@outputs('AIModelGUID')",
+                                        "item/admin_name": "@items('Apply_to_each_Ai_Model')?['msdyn_name']",
+                                        "item/admin_aicreatedon": "@items('Apply_to_each_Ai_Model')?['createdon']",
+                                        "item/admin_AiCreator@odata.bind": "admin_makers(@{outputs('Maker_Check_-_Edit')?['Body']?['userid']})",
+                                        "item/admin_aicreatordisplayname": "@body('Maker_Check_-_Edit')?['userdisplayname']",
+                                        "item/admin_aideleted": false,
+                                        "item/admin_aideletedon": "@null",
+                                        "item/admin_AiEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_aienvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                        "item/admin_aiismanaged": "@items('Apply_to_each_Ai_Model')?['ismanaged']",
+                                        "item/admin_aiisorphaned": false,
+                                        "item/admin_ailastused": "@outputs('AiModel_LastRun')",
+                                        "item/admin_aimodifiedon": "@items('Apply_to_each_Ai_Model')?['modifiedon']",
+                                        "item/admin_ainonuniquename": "@items('Apply_to_each_Ai_Model')?['msdyn_aimodelid']",
+                                        "item/admin_aistate": "@items('Apply_to_each_Ai_Model')?['_componentstate_label']",
+                                        "item/admin_aistatus": "@items('Apply_to_each_Ai_Model')?['_statuscode_label']",
+                                        "item/admin_aitemplate": "@body('Get_AiModel_Template')?['msdyn_uniquename']",
+                                        "item/admin_aiuniquename": "@outputs('UniqueNameString')",
+                                        "item/admin_recordguidasstring": "@outputs('AIModelGUID')"
+                                      },
+                                      "authentication": "@parameters('$authentication')"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@body('Maker_Check_-_Edit')?['userisorphan']",
+                                  "True"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "6c8b870f-ff10-41ad-b335-b5de929995ce"
+                              },
+                              "type": "If"
+                            }
+                          },
+                          "runAfter": {
+                            "See_if_needs_updated": [
+                              "Succeeded"
+                            ]
+                          },
+                          "expression": {
+                            "equals": [
+                              "@variables('AiModel_NeedsUpdatedInCoE')",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "152a3d20-d59f-4463-941d-67075fc2f6df"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "3d281cad-2845-4a78-a58d-52027cbc30e7"
+                      },
+                      "type": "Scope"
+                    }
+                  },
+                  "runAfter": {
+                    "if_not_found,_set_isNewToCoE_to_true": [
+                      "Succeeded",
+                      "Skipped"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Maker_Check_-_New": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "d1b3d1b8-221c-4aae-aad2-d3ea26281e13"
+                        },
+                        "type": "Workflow",
+                        "inputs": {
+                          "host": {
+                            "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                          },
+                          "body": {
+                            "text": "@if(equals(body('Get_AiModel_Owner')?['azureactivedirectoryobjectid'], null), '', body('Get_AiModel_Owner')?['azureactivedirectoryobjectid'])",
+                            "text_1": "@body('Get_AiModel_Owner')?['fullname']",
+                            "boolean": false
+                          }
+                        }
+                      },
+                      "Check_if_Orphan_-_New": {
+                        "actions": {
+                          "Create_AiModel_(Orphaned)": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "554fc1e2-5f18-4ee4-895b-9ceb8de06d97"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "CreateRecord"
+                              },
+                              "parameters": {
+                                "entityName": "admin_aibuildermodels",
+                                "item/admin_name": "@items('Apply_to_each_Ai_Model')?['msdyn_name']",
+                                "item/admin_aicreatedon": "@items('Apply_to_each_Ai_Model')?['createdon']",
+                                "item/admin_aideleted": false,
+                                "item/admin_AiEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                "item/admin_aienvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                "item/admin_aiismanaged": "@items('Apply_to_each_Ai_Model')?['ismanaged']",
+                                "item/admin_aiisorphaned": true,
+                                "item/admin_ailastused": "@outputs('AiModel_LastRun')",
+                                "item/admin_aimodifiedon": "@items('Apply_to_each_Ai_Model')?['modifiedon']",
+                                "item/admin_ainonuniquename": "@items('Apply_to_each_Ai_Model')?['msdyn_aimodelid']",
+                                "item/admin_aistate": "@items('Apply_to_each_Ai_Model')?['_componentstate_label']",
+                                "item/admin_aistatus": "@items('Apply_to_each_Ai_Model')?['_statuscode_label']",
+                                "item/admin_aitemplate": "@body('Get_AiModel_Template')?['msdyn_uniquename']",
+                                "item/admin_aiuniquename": "@outputs('UniqueNameString')",
+                                "item/admin_aibuildermodelid": "@outputs('AIModelGUID')",
+                                "item/admin_recordguidasstring": "@outputs('AIModelGUID')"
+                              },
+                              "authentication": "@parameters('$authentication')"
+                            }
+                          }
+                        },
+                        "runAfter": {
+                          "Maker_Check_-_New": [
+                            "Succeeded"
+                          ]
+                        },
+                        "else": {
+                          "actions": {
+                            "Create_AiModel": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "974a183c-c27e-4792-8f31-263ae95ce1ce"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "CreateRecord"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_aibuildermodels",
+                                  "item/admin_name": "@items('Apply_to_each_Ai_Model')?['msdyn_name']",
+                                  "item/admin_aicreatedon": "@items('Apply_to_each_Ai_Model')?['createdon']",
+                                  "item/admin_AiCreator@odata.bind": "admin_makers(@{outputs('Maker_Check_-_New')?['Body']?['userid']})",
+                                  "item/admin_aicreatordisplayname": "@body('Maker_Check_-_New')?['userdisplayname']",
+                                  "item/admin_aideleted": false,
+                                  "item/admin_AiEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_aienvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_aiismanaged": "@items('Apply_to_each_Ai_Model')?['ismanaged']",
+                                  "item/admin_aiisorphaned": false,
+                                  "item/admin_ailastused": "@outputs('AiModel_LastRun')",
+                                  "item/admin_aimodifiedon": "@items('Apply_to_each_Ai_Model')?['modifiedon']",
+                                  "item/admin_ainonuniquename": "@items('Apply_to_each_Ai_Model')?['msdyn_aimodelid']",
+                                  "item/admin_aistate": "@items('Apply_to_each_Ai_Model')?['_componentstate_label']",
+                                  "item/admin_aistatus": "@items('Apply_to_each_Ai_Model')?['_statuscode_label']",
+                                  "item/admin_aitemplate": "@body('Get_AiModel_Template')?['msdyn_uniquename']",
+                                  "item/admin_aiuniquename": "@outputs('UniqueNameString')",
+                                  "item/admin_aibuildermodelid": "@outputs('AIModelGUID')",
+                                  "item/admin_recordguidasstring": "@outputs('AIModelGUID')"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          }
+                        },
+                        "expression": {
+                          "equals": [
+                            "",
+                            "True"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "930204d9-ce43-4283-881c-2801a60fd16e"
+                        },
+                        "type": "If"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@variables('isNewToCoE')",
+                      "@false"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "86060d13-b142-4f69-b87b-9287c84d2a27"
+                  },
+                  "type": "If"
+                },
+                "Get_Related_Objects": {
+                  "actions": {
+                    "Get_Ai_Configurations_for_Run_Info": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0c145a31-3bd6-42a5-8a13-f6e88b8009fd"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice_1",
+                          "operationId": "GetItems_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "table": "msdyn_aiconfigurations",
+                          "$filter": "_msdyn_aimodelid_value eq @{items('Apply_to_each_AI_Model')?['msdyn_aimodelid']}",
+                          "$orderby": "msdyn_lasttrainorrundate desc"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "AiModel_LastRun": {
+                      "runAfter": {
+                        "Get_Ai_Configurations_for_Run_Info": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f2b85d07-ac62-423f-af83-e642bdf79e16"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(equals(first(outputs('Get_Ai_Configurations_for_Run_Info')?['body/value'])?['msdyn_lasttrainorrundate'], null), formatDateTime(items('Apply_to_each_Ai_Model')?['createdon'], 'yyyy-MM-dd HH:mm:ss'), formatDateTime(first(outputs('Get_Ai_Configurations_for_Run_Info')?['body/value'])?['msdyn_lasttrainorrundate'], 'yyyy-MM-dd HH:mm:ss'))"
+                    },
+                    "Get_AiModel_Owner": {
+                      "runAfter": {
+                        "AiModel_LastRun": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "573598b3-98f4-430a-ac38-23c47fd98333"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice_1",
+                          "operationId": "GetItem_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "table": "systemusers",
+                          "id": "@items('Apply_to_each_Ai_Model')?['_createdby_value']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Get_AiModel_Template": {
+                      "runAfter": {
+                        "Get_AiModel_Owner": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "9f353f93-2547-48ed-965a-85eee6402825"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                          "connectionName": "shared_commondataservice_1",
+                          "operationId": "GetItem_V2"
+                        },
+                        "parameters": {
+                          "dataset": "@triggerOutputs()?['body/admin_environmentcdsmetadataname']",
+                          "table": "msdyn_aitemplates",
+                          "id": "@items('Apply_to_each_Ai_Model')?['_msdyn_templateid_value']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "UniqueNameString": {
+                      "runAfter": {
+                        "Get_AiModel_Template": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "b36066b5-babf-4455-bcb7-df570f011c3b"
+                      },
+                      "type": "Compose",
+                      "inputs": "@concat(triggerOutputs()?['body/admin_environmentid'], '_', items('Apply_to_each_Ai_Model')?['msdyn_aimodelid'])",
+                      "description": "concat(triggerOutputs()?['body/admin_environmentid'], '_', items('Apply_to_each_Ai_Model')?['msdyn_aimodelid'])"
+                    },
+                    "Get_GUID": {
+                      "runAfter": {
+                        "UniqueNameString": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "64c76ef2-9917-4248-a79d-d92c048307a3"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords"
+                        },
+                        "parameters": {
+                          "entityName": "admin_aibuildermodels",
+                          "$select": "admin_aibuildermodelid",
+                          "$filter": "admin_aiuniquename eq '@{outputs('UniqueNameString')}'",
+                          "$top": 1
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "AIModelGUID": {
+                      "runAfter": {
+                        "Get_GUID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a2b7ded7-492c-4179-94f9-eeca4e2a19d8"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(equals(length(outputs('Get_GUID')?['body/value']), 0), GUID(), first(outputs('Get_GUID')?['body/value'])?['admin_aibuildermodelid'])"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "8bf82cff-a91e-49ab-a9f8-8fce6dce4ecf"
+                  },
+                  "type": "Scope"
+                },
+                "Reset_isNewToCoE": {
+                  "runAfter": {
+                    "Get_Related_Objects": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0026ab47-6260-4024-ae1b-2ef07b41847c"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  }
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "71d10e4a-0f17-4bd0-b32c-8bc995c65e53"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Initialize_AiModel_NeedsUpdatedInCoE": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "fc05dedd-2ece-4ac0-b01e-15e35895259c"
+          },
+          "type": "Scope"
+        },
+        "Put_Ai_Model_in_CoE_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "613da3ef-3857-4218-ae25-b8be6d66b3c4"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3 (Ai Models)",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "e6fb89b6-b607-465a-aa3a-4c86d692f5c8"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Ai Models Failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Put_Ai_Models_in_CoE": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0dbc47e1-3e25-4cc2-8949-d62f0755e5dc"
+          },
+          "type": "Scope"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

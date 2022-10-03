@@ -1,0 +1,1586 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_powerplatformforadmins_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerPlatformforAdmins"
+        },
+        "api": {
+          "name": "shared_powerplatformforadmins"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "DelayInventory (admin_DelayInventory)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_DelayInventory",
+            "description": "If Yes, will run a delay step to assist with the Dataverse health. Only turn to No for debugging. "
+          }
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1
+          },
+          "metadata": {
+            "operationMetadataId": "3c3ce999-3c1e-44d8-b7e6-a63d677236b3"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Store_environments_in_the_CoE_CDS_Entity": {
+          "actions": {
+            "Apply_to_each_Environment": {
+              "foreach": "@outputs('Get_Environments')?['body/value']",
+              "actions": {
+                "Check_if_CDS": {
+                  "actions": {
+                    "Set_'CDS_Metadata_Name'_to_empty_string": {
+                      "runAfter": {
+                        "Set_isCDS_false": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "7ee2925f-86cb-499b-9ef9-5200863a8f0b"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "CDS Metadata Name",
+                        "value": "@{concat('', '')}"
+                      }
+                    },
+                    "Set_isCDS_false": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "b11d2ceb-66a3-4653-849e-54c52866fbda"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "isCDS",
+                        "value": "@false"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "isCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Set_'CD_Metadata_Name'": {
+                        "runAfter": {
+                          "Set_cdsURL": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "de9a84bf-d2dc-4dff-a068-bba12e58e82b"
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "CDS Metadata Name",
+                          "value": "@{replace(concat(\r\n   items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['uniqueName'], \r\n   variables('cdsURL')\r\n), '/', '')}"
+                        }
+                      },
+                      "Set_cdsURL": {
+                        "runAfter": {
+                          "Set_isCDS_true": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "e08ca1f4-7807-4334-b9e0-2ed562e1ae11"
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "cdsURL",
+                          "value": "@{concat('.', split(items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl'], '.')[1])}"
+                        }
+                      },
+                      "Set_isCDS_true": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "8a54f187-7ec7-4897-9d78-3b1a0ba576b8"
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "isCDS",
+                          "value": "@true"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@items('Apply_to_each_Environment')?['properties/linkedEnvironmentMetadata']",
+                      "@null"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "b57f3943-ea70-4f5e-8dc8-0ad71608e30c"
+                  },
+                  "type": "If"
+                },
+                "Check_if_Legacy_Environment": {
+                  "actions": {
+                    "If_found,_we've_already_created,_just_update_it,_else_create": {
+                      "actions": {
+                        "Set_GuidFound": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "a988a411-ab29-4d35-a068-b30d4929fecd"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "GuidFound",
+                            "value": "@{first(outputs('See_if_we''ve_created_previously')?['body/value'])?['admin_environmentid']}"
+                          }
+                        },
+                        "Update_Legacy_Environment": {
+                          "runAfter": {
+                            "Set_GuidFound": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "94a0a70c-ea3c-4ed0-b4f9-dedd528ace2f"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environments",
+                              "recordId": "@variables('GuidFound')",
+                              "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                              "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                              "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                              "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                              "item/admin_environmentdeleted": false,
+                              "item/admin_environmentdeletedon": "@null",
+                              "item/admin_environmentisorphaned": "no",
+                              "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                              "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                              "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                              "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                              "item/admin_environmentqueriedon": "@utcNow()",
+                              "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                              "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                              "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                              "item/admin_hascds": "@variables('isCDS')",
+                              "item/admin_iscoe": "@outputs('isCoE')",
+                              "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                              "item/admin_recordguidasstring": "@variables('GuidFound')",
+                              "item/admin_tenantid": "@variables('tenantID')"
+                            },
+                            "authentication": "@parameters('$authentication')",
+                            "retryPolicy": {
+                              "type": "exponential",
+                              "count": 10,
+                              "interval": "PT10S"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "See_if_we've_created_previously": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Insert_Legacy_Environment": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "67442a61-8cfc-4c4e-b71e-add8f099c4e0"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "CreateRecord",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                              },
+                              "parameters": {
+                                "entityName": "admin_environments",
+                                "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                "item/admin_environmentdeleted": false,
+                                "item/admin_environmentdeletedon": "@null",
+                                "item/admin_environmentisorphaned": "no",
+                                "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                                "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                "item/admin_environmentqueriedon": "@utcNow()",
+                                "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                "item/admin_hascds": "@variables('isCDS')",
+                                "item/admin_iscoe": "@outputs('isCoE')",
+                                "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                "item/admin_tenantid": "@variables('tenantID')"
+                              },
+                              "authentication": "@parameters('$authentication')",
+                              "retryPolicy": {
+                                "type": "exponential",
+                                "count": 10,
+                                "interval": "PT10S"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(body('See_if_we''ve_created_previously')?['value'])",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3041c1dc-80d7-4835-bb53-718036fe8f86"
+                      },
+                      "type": "If"
+                    },
+                    "See_if_we've_created_previously": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "bec051d6-026d-4895-a374-77d4c7a89ec3"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_environments",
+                          "$select": "admin_environmentid",
+                          "$filter": "admin_environmentname eq '@{items('Apply_to_each_Environment')?['name']}'"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 10,
+                          "interval": "PT10S"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Check_if_Teams_envt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Get_Environment": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "10bd46df-c321-464c-9b83-7c844a840d66"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "GetItem",
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                          },
+                          "parameters": {
+                            "entityName": "admin_environments",
+                            "recordId": "@outputs('Remove_any_Environment_prefix')",
+                            "$select": "admin_environmentid"
+                          },
+                          "authentication": "@parameters('$authentication')",
+                          "retryPolicy": {
+                            "type": "exponential",
+                            "count": 10,
+                            "interval": "PT10S"
+                          }
+                        }
+                      },
+                      "See_if_already_in_CoE": {
+                        "actions": {
+                          "Check_if_SYSTEM_created_Environment": {
+                            "actions": {
+                              "Update_Environment_(System)": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "0443e304-a411-44c2-9dee-3fba704948a0"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_environments",
+                                    "recordId": "@outputs('Remove_any_Environment_prefix')",
+                                    "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                    "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                    "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                    "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                    "item/admin_environmentdeleted": false,
+                                    "item/admin_environmentdeletedon": "@null",
+                                    "item/admin_environmentisorphaned": "no",
+                                    "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                                    "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                    "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                    "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                    "item/admin_environmentqueriedon": "@utcNow()",
+                                    "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                    "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                    "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                    "item/admin_hascds": "@variables('isCDS')",
+                                    "item/admin_iscoe": "@outputs('isCoE')",
+                                    "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                    "item/admin_recordguidasstring": "@outputs('Remove_any_Environment_prefix')",
+                                    "item/admin_tenantid": "@variables('tenantID')"
+                                  },
+                                  "authentication": "@parameters('$authentication')",
+                                  "retryPolicy": {
+                                    "type": "exponential",
+                                    "count": 10,
+                                    "interval": "PT10S"
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {},
+                            "else": {
+                              "actions": {
+                                "Update_after_check_orphan_status": {
+                                  "actions": {
+                                    "Update_Environment_(Orphaned)": {
+                                      "runAfter": {},
+                                      "metadata": {
+                                        "operationMetadataId": "3b39b303-3bdb-449f-b0b0-df11a9292183"
+                                      },
+                                      "type": "OpenApiConnection",
+                                      "inputs": {
+                                        "host": {
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "UpdateRecord",
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_environments",
+                                          "recordId": "@outputs('Remove_any_Environment_prefix')",
+                                          "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                          "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                          "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                          "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                          "item/admin_environmentdeleted": false,
+                                          "item/admin_environmentdeletedon": "@null",
+                                          "item/admin_environmentisorphaned": "yes",
+                                          "item/admin_environmentmakerdisplayname": "@outputs('Get_Maker')?['Body']?['userdisplayname']",
+                                          "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                          "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                          "item/admin_environmentqueriedon": "@utcNow()",
+                                          "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                          "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                          "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                          "item/admin_hascds": "@variables('isCDS')",
+                                          "item/admin_iscoe": "@outputs('isCoE')",
+                                          "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                          "item/admin_recordguidasstring": "@outputs('Remove_any_Environment_prefix')",
+                                          "item/admin_tenantid": "@variables('tenantID')"
+                                        },
+                                        "authentication": "@parameters('$authentication')",
+                                        "retryPolicy": {
+                                          "type": "exponential",
+                                          "count": 10,
+                                          "interval": "PT10S"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "else": {
+                                    "actions": {
+                                      "Update_Environment": {
+                                        "runAfter": {},
+                                        "metadata": {
+                                          "operationMetadataId": "590a2ba8-bf09-464b-8c5a-ee001b9cf735"
+                                        },
+                                        "type": "OpenApiConnection",
+                                        "inputs": {
+                                          "host": {
+                                            "connectionName": "shared_commondataserviceforapps",
+                                            "operationId": "UpdateRecord",
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                          },
+                                          "parameters": {
+                                            "entityName": "admin_environments",
+                                            "recordId": "@outputs('Remove_any_Environment_prefix')",
+                                            "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                            "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                            "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                            "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                            "item/admin_environmentdeleted": false,
+                                            "item/admin_environmentdeletedon": "@null",
+                                            "item/admin_environmentisorphaned": "no",
+                                            "item/admin_Maker@odata.bind": "admin_makers(@{outputs('Get_Maker')?['Body']?['userid']})",
+                                            "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                            "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                            "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                            "item/admin_environmentqueriedon": "@utcNow()",
+                                            "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                            "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                            "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                            "item/admin_hascds": "@variables('isCDS')",
+                                            "item/admin_iscoe": "@outputs('isCoE')",
+                                            "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                            "item/admin_recordguidasstring": "@outputs('Remove_any_Environment_prefix')",
+                                            "item/admin_tenantid": "@variables('tenantID')"
+                                          },
+                                          "authentication": "@parameters('$authentication')",
+                                          "retryPolicy": {
+                                            "type": "exponential",
+                                            "count": 10,
+                                            "interval": "PT10S"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "expression": {
+                                    "equals": [
+                                      "@outputs('Get_Maker')?['Body']?['userisorphan']",
+                                      "True"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "99f26aa3-7f50-4a58-9051-f0d0a982596a"
+                                  },
+                                  "type": "If"
+                                }
+                              }
+                            },
+                            "expression": {
+                              "equals": [
+                                "@outputs('Get_Maker')?['Body']?['userissystem']",
+                                "True"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "6f2d9998-f5ad-4d53-87fa-4363867b5562"
+                            },
+                            "type": "If"
+                          }
+                        },
+                        "runAfter": {
+                          "Get_Maker": [
+                            "Succeeded"
+                          ]
+                        },
+                        "else": {
+                          "actions": {
+                            "Check_if_SYSTEM_created_Environment_New": {
+                              "actions": {
+                                "Insert_Environment_(System)": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "338759ab-a402-4020-84b5-45fa8fcec1c2"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps",
+                                      "operationId": "CreateRecord",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_environments",
+                                      "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                      "item/admin_environmentid": "@outputs('Remove_any_Environment_prefix')",
+                                      "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                      "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                      "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                      "item/admin_environmentdeleted": false,
+                                      "item/admin_environmentdeletedon": "@null",
+                                      "item/admin_environmentisorphaned": "no",
+                                      "item/admin_Maker@odata.bind": "admin_makers(@{variables('systemMaker')})",
+                                      "item/admin_environmentmakerdisplayname": "@items('Apply_to_each_Environment')?['properties']?['createdBy']?['displayName']",
+                                      "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                      "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                      "item/admin_environmentqueriedon": "@utcNow()",
+                                      "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                      "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                      "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                      "item/admin_hascds": "@variables('isCDS')",
+                                      "item/admin_iscoe": "@outputs('isCoE')",
+                                      "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                      "item/admin_recordguidasstring": "@outputs('Remove_any_Environment_prefix')",
+                                      "item/admin_tenantid": "@variables('tenantID')"
+                                    },
+                                    "authentication": "@parameters('$authentication')",
+                                    "retryPolicy": {
+                                      "type": "exponential",
+                                      "count": 10,
+                                      "interval": "PT10S"
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {},
+                              "else": {
+                                "actions": {
+                                  "Insert_after_check_orphan_status": {
+                                    "actions": {
+                                      "Insert_Environment_(Orphaned)": {
+                                        "runAfter": {},
+                                        "metadata": {
+                                          "operationMetadataId": "12f84fd2-db98-4470-93a0-d50293fc5789"
+                                        },
+                                        "type": "OpenApiConnection",
+                                        "inputs": {
+                                          "host": {
+                                            "connectionName": "shared_commondataserviceforapps",
+                                            "operationId": "CreateRecord",
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                          },
+                                          "parameters": {
+                                            "entityName": "admin_environments",
+                                            "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                            "item/admin_environmentid": "@outputs('Remove_any_Environment_prefix')",
+                                            "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                            "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                            "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                            "item/admin_environmentdeleted": false,
+                                            "item/admin_environmentdeletedon": "@null",
+                                            "item/admin_environmentisorphaned": "yes",
+                                            "item/admin_environmentmakerdisplayname": "@outputs('Get_Maker')?['Body']?['userdisplayname']",
+                                            "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                            "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                            "item/admin_environmentqueriedon": "@utcNow()",
+                                            "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                            "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                            "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                            "item/admin_hascds": "@variables('isCDS')",
+                                            "item/admin_iscoe": "@outputs('isCoE')",
+                                            "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                            "item/admin_recordguidasstring": "@outputs('Remove_any_Environment_prefix')",
+                                            "item/admin_tenantid": "@variables('tenantID')"
+                                          },
+                                          "authentication": "@parameters('$authentication')",
+                                          "retryPolicy": {
+                                            "type": "exponential",
+                                            "count": 10,
+                                            "interval": "PT10S"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "else": {
+                                      "actions": {
+                                        "Insert_Environment": {
+                                          "runAfter": {},
+                                          "metadata": {
+                                            "operationMetadataId": "e92ab91b-631b-4868-a773-6b0278f86452"
+                                          },
+                                          "type": "OpenApiConnection",
+                                          "inputs": {
+                                            "host": {
+                                              "connectionName": "shared_commondataserviceforapps",
+                                              "operationId": "CreateRecord",
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                            },
+                                            "parameters": {
+                                              "entityName": "admin_environments",
+                                              "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
+                                              "item/admin_environmentid": "@outputs('Remove_any_Environment_prefix')",
+                                              "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                              "item/admin_environmentcdsmetadataname": "@variables('CDS Metadata Name')",
+                                              "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
+                                              "item/admin_environmentdeleted": false,
+                                              "item/admin_environmentdeletedon": "@null",
+                                              "item/admin_environmentisorphaned": "no",
+                                              "item/admin_Maker@odata.bind": "admin_makers(@{outputs('Get_Maker')?['Body']?['userid']})",
+                                              "item/admin_environmentmakerdisplayname": "@outputs('Get_Maker')?['Body']?['userdisplayname']",
+                                              "item/admin_environmentmodifiedon": "@items('Apply_to_each_Environment')?['properties']?['lastModifiedTime']",
+                                              "item/admin_environmentpurposetext": "@items('Apply_to_each_Environment')?['properties/description']",
+                                              "item/admin_environmentqueriedon": "@utcNow()",
+                                              "item/admin_region": "@items('Apply_to_each_Environment')?['location']",
+                                              "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
+                                              "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                              "item/admin_hascds": "@variables('isCDS')",
+                                              "item/admin_iscoe": "@outputs('isCoE')",
+                                              "item/admin_environmentname": "@items('Apply_to_each_Environment')?['name']",
+                                              "item/admin_recordguidasstring": "@outputs('Remove_any_Environment_prefix')",
+                                              "item/admin_tenantid": "@variables('tenantID')"
+                                            },
+                                            "authentication": "@parameters('$authentication')",
+                                            "retryPolicy": {
+                                              "type": "exponential",
+                                              "count": 10,
+                                              "interval": "PT10S"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "expression": {
+                                      "equals": [
+                                        "@outputs('Get_Maker')?['Body']?['userisorphan']",
+                                        "True"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "1baed687-31c2-4bc9-b03f-29ef6088423a"
+                                    },
+                                    "type": "If"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@outputs('Get_Maker')?['Body']?['userissystem']",
+                                  "True"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "5c2e5be8-053b-4bf2-b74b-abd8ef0304a4"
+                              },
+                              "type": "If"
+                            }
+                          }
+                        },
+                        "expression": {
+                          "equals": [
+                            "@variables('isNewToCoE')",
+                            "@false"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "49d73acd-5f3e-445f-96d0-6d707750a384"
+                        },
+                        "type": "If"
+                      },
+                      "Set_isNewToCoE_to_true": {
+                        "runAfter": {
+                          "Get_Environment": [
+                            "Failed"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "8c292c78-795f-4347-be34-553956a10806"
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "isNewToCoE",
+                          "value": "@true"
+                        }
+                      },
+                      "Get_Maker": {
+                        "runAfter": {
+                          "Set_isNewToCoE_to_true": [
+                            "Succeeded",
+                            "Skipped"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "f18a2639-4584-4bff-9fcb-36c87c12236a"
+                        },
+                        "type": "Workflow",
+                        "inputs": {
+                          "host": {
+                            "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                          },
+                          "body": {
+                            "text": "@items('Apply_to_each_Environment')?['properties/createdBy/id']",
+                            "text_1": "@items('Apply_to_each_Environment')?['properties/createdBy/displayName']",
+                            "boolean": false
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "contains": [
+                      "@items('Apply_to_each_Environment')?['properties/creationType']",
+                      "Legacy"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "4ea8f573-01c4-43d1-9c26-280f7568567f"
+                  },
+                  "type": "If",
+                  "description": "Legacy and Default environments have the same GUID, prefixed by Legacy- or Default- which is causing issues as the Record Identifier is using the GUID as a unique identifier. We are therefore using a generated GUID for the entity."
+                },
+                "Check_if_Teams_envt": {
+                  "actions": {
+                    "Parse_JSON": {
+                      "runAfter": {
+                        "get_connectedGroups": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "4689735a-9211-43c7-a196-6994f87f9e22"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@outputs('get_connectedGroups')",
+                        "schema": {
+                          "properties": {
+                            "displayName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "resources": {
+                              "items": {
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "id"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "state": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      }
+                    },
+                    "get_connectedGroups": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "1aa874ae-a93c-45dd-8d2c-f19e5bc84f31"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(items('Apply_to_each_Environment')?['properties/connectedGroups'])"
+                    }
+                  },
+                  "runAfter": {
+                    "Check_if_CDS": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "equals": [
+                      "@items('Apply_to_each_Environment')?['properties/environmentSku']",
+                      "Teams"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "075ce791-a673-4be9-9059-9ca401bda1a0"
+                  },
+                  "type": "If"
+                },
+                "Name_Length": {
+                  "runAfter": {
+                    "ReSet_failureOccurredInLoop": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "4230ad8d-8c2a-41f7-870e-607f90350117"
+                  },
+                  "type": "Compose",
+                  "inputs": "@sub(length(items('Apply_to_each_Environment')?['name']),36)",
+                  "description": "Returns the index where the GUID starts"
+                },
+                "ReSet_isNewToCoE": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "64f8fb3e-43c6-4f43-aef6-0aac2732c5bc"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "isNewToCoE",
+                    "value": "@false"
+                  }
+                },
+                "Remove_any_Environment_prefix": {
+                  "runAfter": {
+                    "Name_Length": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "364ae561-c6fe-4058-95a5-f5418a391a92"
+                  },
+                  "type": "Compose",
+                  "inputs": "@substring(items('Apply_to_each_Environment')?['name'], int(outputs('Name_Length')), 36)",
+                  "description": "Returns the GUID without any prefix (right 36 chars)"
+                },
+                "ReSet_failureOccurredInLoop": {
+                  "runAfter": {
+                    "ReSet_isNewToCoE": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0b2dc0c1-2f13-42c2-8bf4-1a86501ed592"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "failureOccurredInLoop",
+                    "value": "@false"
+                  }
+                },
+                "isCoE": {
+                  "runAfter": {
+                    "Remove_any_Environment_prefix": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "5f898384-e30e-464b-b530-7f2f9328b47c"
+                  },
+                  "type": "Compose",
+                  "inputs": "@if(equals(outputs('CoE_Envt'), outputs('Remove_any_Environment_prefix')), true, false)"
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "cea01520-4a74-4b49-b231-23aaedb151ac"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Get_Environments_and_some_tenant_wide_properties": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "2bc4bc7d-bdc5-4ea7-abc2-f0965a774fff"
+          },
+          "type": "Scope"
+        },
+        "Get_Environments_fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectguid eq @{workflow()?['name']}",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Store_environments_in_the_CoE_CDS_Entity": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Initialize_CDS_Metadata_Name": {
+          "runAfter": {
+            "Initialize_variable_isCDS": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "730f3341-7fa1-49ae-9e9d-191cbea03fcb"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "CDS Metadata Name",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_GuidFound": {
+          "runAfter": {
+            "Initialize_isNewToCoE": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8f1a3ffb-6658-450b-a174-90a730952b75"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "GuidFound",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_cdsURL": {
+          "runAfter": {
+            "Initialize_CDS_Metadata_Name": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5beee77f-2f9b-403d-9aef-b7989f64403e"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "cdsURL",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_isNewToCoE": {
+          "runAfter": {
+            "Delay_Inventory": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "e9aa23ed-304e-4399-a8eb-79a6b6cc8b90"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isNewToCoE",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
+        },
+        "Initialize_systemMaker": {
+          "runAfter": {
+            "Initialize_GuidFound": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "34322142-9050-4db3-bb27-b6a0060a81a5"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "systemMaker",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_variable_flowEnvironment": {
+          "runAfter": {
+            "Initialize_variable_today": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8c24da19-fb6e-46cb-b7a3-e52f85de1062"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowEnvironment",
+                "type": "string",
+                "value": "@parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)')"
+              }
+            ]
+          },
+          "description": "Environment location specific Flow URL - remember / at the end"
+        },
+        "Initialize_variable_isCDS": {
+          "runAfter": {
+            "Initialize_variable_flowEnvironment": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b9efd8bf-afd4-4169-96a6-fa40dbf16b6b"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isCDS",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          },
+          "description": "Environment location specific Flow URL - remember / at the end"
+        },
+        "Initialize_variable_today": {
+          "runAfter": {
+            "Initialize_systemMaker": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d2c104a2-69e0-4f49-8287-9f6b9b5235b4"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "today",
+                "type": "string",
+                "value": "@{utcNow()}"
+              }
+            ]
+          }
+        },
+        "Initialize_failureOccurredInLoop": {
+          "runAfter": {
+            "Initialize_cdsURL": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9bbf9e3a-d205-44e9-b338-205e1d3fff1f"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "failureOccurredInLoop",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
+        },
+        "Delay_Inventory": {
+          "actions": {
+            "Delay_1_to_900_minutes": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f37a4a9d-c5b4-41ed-8484-636dca60ee81"
+              },
+              "type": "Wait",
+              "inputs": {
+                "interval": {
+                  "count": "@rand(1, 900)",
+                  "unit": "Minute"
+                }
+              },
+              "description": "For Dataverse servie health, we will randomize the start time of these flows for tenants within a 15 hour range"
+            }
+          },
+          "runAfter": {
+            "If_inventory_in_BYODL_terminate_here": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "equals": [
+              "@parameters('DelayInventory (admin_DelayInventory)')",
+              true
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "49b3d120-232d-4694-b373-a97ecde35cc4"
+          },
+          "type": "If"
+        },
+        "Initialize_tenantID": {
+          "runAfter": {
+            "Initialize_failureOccurredInLoop": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b8f0c441-33f8-4250-bf3a-5c6b1dc6da15"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "tenantID",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Get_Environments_and_some_tenant_wide_properties": {
+          "actions": {
+            "Get_Environments": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "96dbd66a-d8d5-4b0d-b2ea-73766104434e"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_powerplatformforadmins_1",
+                  "operationId": "Get-AdminEnvironment",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                },
+                "parameters": {
+                  "api-version": "2021-03-01",
+                  "$expand": "properties.capacity,properties.addons"
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Get_tenantID": {
+              "actions": {
+                "Select_Tenant_ID": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "6c1bd028-1451-472a-bbfb-b17dab4e9359"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@outputs('Get_Environments')?['body/value']",
+                    "select": {
+                      "GetTenantID": "@item()?['properties/createdBy/tenantId']"
+                    }
+                  }
+                },
+                "Filter_not_null": {
+                  "runAfter": {
+                    "Select_Tenant_ID": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "23061d38-71f2-4deb-8a97-5aabc12ecdf4"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@body('Select_Tenant_ID')",
+                    "where": "@not(equals(item()?['GetTenantID'], null))"
+                  }
+                },
+                "Set_tenantID": {
+                  "runAfter": {
+                    "Filter_not_null": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "1c2b1e76-32a8-4612-bd80-0dc84cde0a7a"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "tenantID",
+                    "value": "@{first(body('Filter_not_null'))?['GetTenantID']}"
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_Environments": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c954f863-69f7-45fa-b822-c342ca9163b2"
+              },
+              "type": "Scope"
+            },
+            "Get_System_User": {
+              "actions": {
+                "Is_System_Maker": {
+                  "actions": {
+                    "Create_Maker_record_for_SYSTEM": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "c83d583d-1569-487b-ae3f-0f3d0e088fef"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "CreateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_makers",
+                          "item/admin_displayname": "SYSTEM"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 10,
+                          "interval": "PT10S"
+                        }
+                      }
+                    },
+                    "Set_systemMaker_with_new_record": {
+                      "runAfter": {
+                        "Create_Maker_record_for_SYSTEM": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3160ee45-9a51-4d89-a0bd-26b4277852c2"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "systemMaker",
+                        "value": "@outputs('Create_Maker_record_for_SYSTEM')?['body/admin_makerid']"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "List_Makers": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Set_systemMaker_with_existing_record": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "0e2cd801-3c19-495a-84e7-84a0b96687b7"
+                        },
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "systemMaker",
+                          "value": "@{first(body('List_Makers')?['value'])?['admin_makerid']}"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@length(outputs('List_Makers')?['body/value'])",
+                      0
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "8645a2a6-bfa1-42a0-98ce-a92b2c149cbb"
+                  },
+                  "type": "If"
+                },
+                "List_Makers": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "c4cecee4-c6a1-498a-a942-0054aa58fbad"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_makers",
+                      "$select": "admin_makerid",
+                      "$filter": "admin_displayname eq 'SYSTEM'"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 10,
+                      "interval": "PT10S"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_tenantID": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "de15e9bf-5a09-486f-8d39-230c345ca715"
+              },
+              "type": "Scope"
+            },
+            "Get_CoE_Envt_Name": {
+              "actions": {
+                "CoE_Envt": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "9d317ed4-37d6-4344-8ea1-6d850b008dc9"
+                  },
+                  "type": "Compose",
+                  "inputs": "@substring(workflow()?['tags']['environmentName'], sub(length(workflow()?['tags']['environmentName']), 36), 36)"
+                }
+              },
+              "runAfter": {
+                "Get_System_User": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "41f28676-ccb3-4f4a-927e-eb888de88ec5"
+              },
+              "type": "Scope"
+            }
+          },
+          "runAfter": {
+            "Initialize_tenantID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5f28eab2-0a94-4df9-8802-9a77aaf315cd"
+          },
+          "type": "Scope"
+        },
+        "If_inventory_in_BYODL_terminate_here": {
+          "actions": {
+            "Terminate_for_BYODL": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "b5f6975a-7731-4f8b-8e27-5fd452e901bb"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "equals": [
+              "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+              "@true"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "54988332-a904-4fb7-b5b3-40e6a1ceba99"
+          },
+          "type": "If"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectguid eq @{workflow()?['name']}",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Get_Environments_fails_-_Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

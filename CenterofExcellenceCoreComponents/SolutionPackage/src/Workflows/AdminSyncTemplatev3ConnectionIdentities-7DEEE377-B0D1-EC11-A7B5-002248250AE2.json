@@ -1,0 +1,733 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps_2": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_powerappsforadmins": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsAdmin2"
+        },
+        "api": {
+          "name": "shared_powerappsforadmins"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "Admin eMail (admin_AdminMail)": {
+          "defaultValue": "adelev@pplatform.onmicrosoft.com",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdminMail",
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
+          }
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_created_or_updated": {
+          "metadata": {
+            "operationMetadataId": "870e68af-a6ba-4c6c-967f-77e5390963ee"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps_2",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Check_if_Environment_Deleted,_terminate_if_true": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "c96f244b-3c1d-43b6-b930-9df94f180269"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+                  "@true"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "63dea944-5e5f-41f8-afd4-50360d37b9d5"
+          },
+          "type": "If"
+        },
+        "Get_Connector_Identities_fails_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "c525de68-a0d1-429d-813c-815b43ed43fe"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps_2",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3 (Connection Identities)",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b1d1e6a4-5011-4195-a95b-dc486d0c573d"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Connection Identities Failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Get_Connection_Identities_and_store_them_in_CoE_CDS_Entity": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f3d2c33a-9aee-43da-b94b-0e71ac2a817f"
+          },
+          "type": "Scope"
+        },
+        "Get_Connection_Identities_and_store_them_in_CoE_CDS_Entity": {
+          "actions": {
+            "GetCurrentInventory": {
+              "actions": {
+                "List_existing_connection_reference_identities": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "ef9a37bb-132b-457c-a4c9-d0560f83b45e"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_connectionreferenceidentities",
+                      "$select": "admin_name, admin_accountname, admin_connectionreferenceidentityid, _admin_connectionreferencecreator_value, admin_connectionreferencecreatordisplayname",
+                      "$filter": "_admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Inventory": {
+                  "runAfter": {
+                    "List_existing_connection_reference_identities": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "223198b2-fbea-4fe9-9e06-10338991d442"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@outputs('List_existing_connection_reference_identities')?['body/value']",
+                    "select": {
+                      "connectionName": "@item()?['admin_name']",
+                      "accountName": "@item()?['admin_accountname']",
+                      "connectionCreator": "@item()?['_admin_connectionreferencecreator_value']",
+                      "connectionCreatorUPN": "@item()?['admin_connectionreferencecreatordisplayname']"
+                    }
+                  }
+                },
+                "Parsed_Inventory": {
+                  "runAfter": {
+                    "Inventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e691d027-78c3-47cc-a745-67c7314c4e99"
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('Inventory')",
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionName": {
+                            "type": "string"
+                          },
+                          "accountName": {
+                            "type": "string"
+                          },
+                          "connectionCreator": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "connectionCreatorUPN": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "connectionName",
+                          "accountName"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "fa009654-799d-41f8-9292-f3bdd5c1a736"
+              },
+              "type": "Scope"
+            },
+            "GetCurrentActual": {
+              "actions": {
+                "Get_Connections_as_Admin": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "bab18f06-309d-4485-a8c2-0b9ce6053b46"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_powerappsforadmins",
+                      "operationId": "Get-AdminConnections",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
+                    },
+                    "parameters": {
+                      "environment": "@triggerOutputs()?['body/admin_environmentname']",
+                      "api-version": "2016-11-01",
+                      "$top": 250
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Filter_to_connections_with_accountName": {
+                  "runAfter": {
+                    "Get_Connections_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "97531256-757e-46b9-a3c4-8ef4cf6d2062"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@outputs('Get_Connections_as_Admin')?['body/value']",
+                    "where": "@not(equals(item()?['properties/accountName'], null))"
+                  }
+                },
+                "Select_connection_and_name": {
+                  "runAfter": {
+                    "Filter_to_connections_with_accountName": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9c6dd552-16a6-4eea-bb11-64b58033e383"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@body('Filter_to_connections_with_accountName')",
+                    "select": {
+                      "connectionName": "@last(split(item()?['properties/apiId'], '/'))",
+                      "accountName": "@item()?['properties/accountName']",
+                      "connectionCreator": "@item()?['properties']?['createdBy']?['id']",
+                      "connectionCreatorUPN": "@item()?['properties']?['createdBy']?['userPrincipalName']"
+                    }
+                  }
+                },
+                "Get_distinct_set": {
+                  "runAfter": {
+                    "Select_connection_and_name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "19b967ae-b4f4-4191-aa1e-600d0d7fff7c"
+                  },
+                  "type": "Compose",
+                  "inputs": "@intersection(body('Select_connection_and_name'), body('Select_connection_and_name'))"
+                },
+                "Parsed_Current": {
+                  "runAfter": {
+                    "Get_distinct_set": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "967f7f67-d689-490c-b732-4ecbb78e6ea4"
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@outputs('Get_distinct_set')",
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionName": {
+                            "type": "string"
+                          },
+                          "accountName": {
+                            "type": "string"
+                          },
+                          "connectionCreator": {
+                            "type": "string"
+                          },
+                          "connectionCreatorUPN": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "connectionName",
+                          "accountName",
+                          "connectionCreator",
+                          "connectionCreatorUPN"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "GetCurrentInventory": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9ce85202-5ccb-40c4-99dc-c715bba1020a"
+              },
+              "type": "Scope"
+            },
+            "Remove_deleted_ones_from_inventory": {
+              "actions": {
+                "RemoveFromInventory": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "f7dee7c5-8dfc-4e13-ba97-26241944a102"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@body('Parsed_Inventory')",
+                    "where": "@not(contains(body('Parsed_Current'), item()))"
+                  }
+                },
+                "Apply_to_each_identified_to_delete": {
+                  "foreach": "@body('RemoveFromInventory')",
+                  "actions": {
+                    "Delete_it": {
+                      "runAfter": {
+                        "Find_it_for_ID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "8427e348-b9d2-4008-819e-e353fd96fa60"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "DeleteRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_connectionreferenceidentities",
+                          "recordId": "@first(outputs('Find_it_for_ID')?['body/value'])?['admin_connectionreferenceidentityid']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "RemoveSpecialChars": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "24fd15d6-ee7c-4419-91cf-8ee304daf0ee"
+                      },
+                      "type": "Compose",
+                      "inputs": "@replace(items('Apply_to_each_identified_to_delete')?['connectionCreatorUPN'], '''', '_')"
+                    },
+                    "Find_it_for_ID": {
+                      "runAfter": {
+                        "RemoveSpecialChars": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "b5040aaf-adf4-4e13-a4e1-e7aed3815592"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_connectionreferenceidentities",
+                          "$select": "admin_name, admin_accountname, admin_connectionreferenceidentityid",
+                          "$filter": "_admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_name eq '@{items('Apply_to_each_identified_to_delete')?['connectionName']}' and (admin_connectionreferencecreatordisplayname eq null or admin_connectionreferencecreatordisplayname eq '@{outputs('RemoveSpecialChars')}')",
+                          "$top": 1
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "RemoveFromInventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "4f49d0d7-18b8-4dad-bcf8-3b7189f8ab69"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "GetCurrentActual": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9347f4ab-6fcf-4e10-a946-95fe3dc449e1"
+              },
+              "type": "Scope"
+            },
+            "Add_new_ones_to_inventory": {
+              "actions": {
+                "AddToInventory": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "3e51b4f7-eb14-44c3-95c1-a9f4df780b05"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@body('Parsed_Current')",
+                    "where": "@not(contains(body('Parsed_Inventory'), item()))"
+                  }
+                },
+                "List_PowerApps_Connectors": {
+                  "runAfter": {
+                    "AddToInventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "907b2f23-b275-44b3-bb18-91757d4a2482"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_connectors",
+                      "$select": "admin_name, admin_connectorid",
+                      "$filter": "admin_name ne null"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Apply_to_each": {
+                  "foreach": "@body('AddToInventory')",
+                  "actions": {
+                    "xTenant_check": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "2e386dfa-d70a-434c-8adf-d6e5e90d0298"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(equals(toLower(last(split(items('Apply_to_each')['accountName'], '@'))), outputs('localTenantString')), false, true)"
+                    },
+                    "GetConnectorGUID": {
+                      "runAfter": {
+                        "xTenant_check": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "82dac28f-eee1-4ded-bd25-33a1a305a234"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@outputs('List_PowerApps_Connectors')?['body/value']",
+                        "where": "@equals(item()?['admin_name'], items('Apply_to_each')['connectionName'])"
+                      }
+                    },
+                    "Add_Connection_Identities_without_Lookups": {
+                      "runAfter": {
+                        "RemoveSpecialChars_for_Add": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "79ee55f1-841e-4298-b48f-5bf0c00cd684"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "CreateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_connectionreferenceidentities",
+                          "item/admin_name": "@items('Apply_to_each')['connectionName']",
+                          "item/admin_accountname": "@items('Apply_to_each')['accountName']",
+                          "item/admin_connectionreferencecreatordisplayname": "@outputs('RemoveSpecialChars_for_Add')",
+                          "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                          "item/admin_noneorcrosstenantidentity": "@outputs('xTenant_check')"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "ConnectorGUID": {
+                      "runAfter": {
+                        "GetConnectorGUID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a8290743-b8a3-48da-a4bc-c86a51228bfc"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(body('GetConnectorGUID'))?['admin_connectorid']"
+                    },
+                    "catch_connector_not_found": {
+                      "runAfter": {
+                        "Update_Connector_Lookup": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c778f493-14be-4511-93a6-7c847db722fa"
+                      },
+                      "type": "Compose",
+                      "inputs": "catch connector not found"
+                    },
+                    "catch_user_not_found": {
+                      "runAfter": {
+                        "Update_User_Lookup": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e8f998cf-9b2b-4fc7-89bc-fc14ddffa521"
+                      },
+                      "type": "Compose",
+                      "inputs": "catch user not found"
+                    },
+                    "Update_Connector_Lookup": {
+                      "runAfter": {
+                        "Add_Connection_Identities_without_Lookups": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "0be81177-11d4-4c98-a788-fb4c15571421"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_connectionreferenceidentities",
+                          "recordId": "@outputs('Add_Connection_Identities_without_Lookups')?['body/admin_connectionreferenceidentityid']",
+                          "item/admin_Connector@odata.bind": "admin_connectors(@{outputs('ConnectorGUID')})"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Update_User_Lookup": {
+                      "runAfter": {
+                        "catch_connector_not_found": [
+                          "Succeeded",
+                          "Skipped"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "7b34198f-ea4b-4b45-a8c8-2b6d0f631142"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_connectionreferenceidentities",
+                          "recordId": "@outputs('Add_Connection_Identities_without_Lookups')?['body/admin_connectionreferenceidentityid']",
+                          "item/admin_ConnectionReferenceCreator@odata.bind": "admin_powerplatformusers(@{items('Apply_to_each')?['connectionCreator']})"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "RemoveSpecialChars_for_Add": {
+                      "runAfter": {
+                        "ConnectorGUID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "290cb683-5ad4-451a-931b-86df23bd77df"
+                      },
+                      "type": "Compose",
+                      "inputs": "@replace(items('Apply_to_each')?['connectionCreatorUPN'], '''', '_')"
+                    }
+                  },
+                  "runAfter": {
+                    "List_PowerApps_Connectors": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "fe132ea9-6c6f-41f8-a3f8-bdad1af0918b"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "Remove_deleted_ones_from_inventory": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "e9ecda2d-1127-4c4c-8adc-7c8b6e609e5f"
+              },
+              "type": "Scope"
+            }
+          },
+          "runAfter": {
+            "localTenantString": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f019ff79-eb04-49cc-96a3-a63d560e993c"
+          },
+          "type": "Scope"
+        },
+        "localTenantString": {
+          "runAfter": {
+            "Check_if_Environment_Deleted,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8700f6f7-c76b-4d31-a154-49e6cd7c8c81"
+          },
+          "type": "Compose",
+          "inputs": "@toLower(last(split(parameters('Admin eMail (admin_AdminMail)'), '@')))"
+        }
+      }
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}

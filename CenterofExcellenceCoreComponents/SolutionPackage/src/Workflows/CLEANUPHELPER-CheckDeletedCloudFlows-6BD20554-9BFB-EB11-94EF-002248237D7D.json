@@ -1,0 +1,597 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_flowmanagement": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "api": {
+          "name": "shared_flowmanagement"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+          }
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "cf6052fc-6983-4269-9cad-4ba024724054"
+          },
+          "type": "Request",
+          "kind": "Button",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "EnvtID",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "boolean": {
+                  "title": "CheckIfDeleted",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                },
+                "boolean_1": {
+                  "title": "DeleteFromCoE",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                },
+                "text_1": {
+                  "title": "EnvtName",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text",
+                "boolean",
+                "boolean_1",
+                "text_1"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Check_Deleted_Scope": {
+          "actions": {
+            "List_Cloud_Flows": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "0728c215-819f-44d7-a8b4-f9c1c69c87bd"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_flows",
+                  "$select": "admin_flowid, admin_flowdeletedon",
+                  "$filter": "_admin_flowenvironment_value eq '@{triggerBody()['text']}'"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                }
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "See_if_need_to_check_deleted_status_before_marking_delete": {
+              "actions": {
+                "List_Cloud_Flows_not_yet_marked_deleted": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "461071d1-2b98-4766-8199-0cd1afa648ea"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_flows",
+                      "$select": "admin_flowid, admin_flowdeletedon",
+                      "$filter": "_admin_flowenvironment_value eq '@{triggerBody()['text']}' and admin_flowdeleted eq false"
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "List_Flows_as_Admin": {
+                  "runAfter": {
+                    "List_Cloud_Flows_not_yet_marked_deleted": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c51bee22-d119-4f37-b3d2-00088140335e"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_flowmanagement",
+                      "operationId": "ListFlowsInEnvironment",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement"
+                    },
+                    "parameters": {
+                      "environmentName": "@triggerBody()['text_1']"
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Check_each_flow_to_see_if_still_in_environment": {
+                  "foreach": "@outputs('List_Cloud_Flows_not_yet_marked_deleted')?['body/value']",
+                  "actions": {
+                    "Filter_tenant_list_of_flows_to_this_flowid": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "ad704fbc-97d1-4c01-9c9e-e5585bbcd6e2"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Select')",
+                        "where": "@equals(item()['name'], items('Check_each_flow_to_see_if_still_in_environment')?['admin_flowid'])"
+                      }
+                    },
+                    "If_not_found_in_tenant,_delete_or_mark_deleted": {
+                      "actions": {
+                        "See_if_delete_row_from_inventory_or_mark_deleted_-_check_deleted": {
+                          "actions": {
+                            "Delete_this_flow_from_inventory": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "83e7b07d-f92c-4ef2-969b-fb7cd0718dcd"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "DeleteRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "recordId": "@items('Check_each_flow_to_see_if_still_in_environment')?['admin_flowid']"
+                                },
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 10,
+                                  "interval": "PT10S"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "else": {
+                            "actions": {
+                              "Mark_this_flow_as_deleted_today": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "d359fe58-38c6-4abd-b7de-20bc1cd9ffa2"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_flows",
+                                    "recordId": "@items('Check_each_flow_to_see_if_still_in_environment')?['admin_flowid']",
+                                    "item/admin_flowdeleted": true,
+                                    "item/admin_flowdeletedon": "@utcNow()"
+                                  },
+                                  "authentication": {
+                                    "type": "Raw",
+                                    "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                  },
+                                  "retryPolicy": {
+                                    "type": "exponential",
+                                    "count": 10,
+                                    "interval": "PT10S"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@triggerBody()['boolean_1']",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ae9b9327-8f1b-4676-83a5-f5e173838db0"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "Filter_tenant_list_of_flows_to_this_flowid": [
+                          "Succeeded"
+                        ]
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(body('Filter_tenant_list_of_flows_to_this_flowid'))",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c35aff70-22fd-4d3e-858e-59476c6df0ce"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Select": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e02b22e5-1868-4e97-883f-59ba43484367"
+                  },
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
+                },
+                "Select": {
+                  "runAfter": {
+                    "List_Flows_as_Admin": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "f9db31e2-ea74-4bda-9137-408bebca6f25"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@outputs('List_Flows_as_Admin')?['body/value']",
+                    "select": {
+                      "name": "@item()?['name']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "List_Cloud_Flows": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "See_if_delete_row_from_inventory_or_mark_deleted": {
+                    "actions": {
+                      "Delete_all_the_flows_from_inventory": {
+                        "foreach": "@outputs('List_Cloud_Flows')?['body/value']",
+                        "actions": {
+                          "Delete_flow_from_inventory": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "4930be82-a798-4865-8455-fe65ab638e4e"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "DeleteRecord",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                              },
+                              "parameters": {
+                                "entityName": "admin_flows",
+                                "recordId": "@items('Delete_all_the_flows_from_inventory')?['admin_flowid']"
+                              },
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              },
+                              "retryPolicy": {
+                                "type": "exponential",
+                                "count": 10,
+                                "interval": "PT10S"
+                              }
+                            }
+                          }
+                        },
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "02f50dd8-d9cc-4c8e-8a0a-42db46a68c48"
+                        },
+                        "type": "Foreach"
+                      }
+                    },
+                    "runAfter": {},
+                    "else": {
+                      "actions": {
+                        "Mark_all_flows_in_inventory_as_deleted_today": {
+                          "foreach": "@outputs('List_Cloud_Flows')?['body/value']",
+                          "actions": {
+                            "Mark_flow_as_deleted_today": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "6248994b-c78d-4d09-bd14-6d0236697ce4"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "recordId": "@items('Mark_all_flows_in_inventory_as_deleted_today')?['admin_flowid']",
+                                  "item/admin_flowdeleted": true,
+                                  "item/admin_flowdeletedon": "@utcNow()"
+                                },
+                                "authentication": {
+                                  "type": "Raw",
+                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                },
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 10,
+                                  "interval": "PT10S"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "c28756d2-0cc3-4a68-9db4-257ac6dd2641"
+                          },
+                          "type": "Foreach"
+                        }
+                      }
+                    },
+                    "expression": {
+                      "equals": [
+                        "@triggerBody()['boolean_1']",
+                        "@true"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "06f38cc3-175c-4c99-8885-a0fdf05dbd09"
+                    },
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@triggerBody()['boolean']",
+                  "@true"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "a2ab14a0-5767-4d8f-9c41-d0157106051f"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_returnValue": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "bb999f04-fd25-4a24-a886-d9e0898c6fe2"
+          },
+          "type": "Scope"
+        },
+        "Error_Handling_Scope": {
+          "actions": {
+            "Create_Sync_Flow_Error_record": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "130bc438-c207-4044-88d9-b9bbc02551e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "CLEANUP HELPER - Check Deleted (Cloud Flows)",
+                  "item/admin_environmentname": "@triggerBody()['text']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                },
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Set_returnValue_to_fail": {
+              "runAfter": {
+                "Create_Sync_Flow_Error_record": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "62f6fe3c-a28d-4387-b54d-6c9867116651"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "returnValue",
+                "value": "fail"
+              }
+            }
+          },
+          "runAfter": {
+            "Check_Deleted_Scope": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "115c425c-d18f-41cb-9d1e-072f8e641eed"
+          },
+          "type": "Scope"
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "runAfter": {
+            "Error_Handling_Scope": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a578b127-9391-4866-88bc-a20d1666d4ea"
+          },
+          "type": "Response",
+          "kind": "PowerApp",
+          "inputs": {
+            "statusCode": 200,
+            "body": {
+              "thereturnvalue": "@variables('returnValue')"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "thereturnvalue": {
+                  "title": "theReturnValue",
+                  "x-ms-dynamically-added": true,
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "Initialize_returnValue": {
+          "runAfter": {
+            "Exit_early_if_BYODL": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ef95a0bd-5f5e-48e6-bcac-7ac9d835576e"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "returnValue",
+                "type": "string",
+                "value": "pass"
+              }
+            ]
+          }
+        },
+        "Exit_early_if_BYODL": {
+          "actions": {
+            "Terminate": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "ab7f61a9-40ef-46ec-850b-45b6944b5f3b"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "equals": [
+              "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+              "@true"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "e61fbce7-34ee-4eb6-9076-48ba689d15bf"
+          },
+          "type": "If"
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
