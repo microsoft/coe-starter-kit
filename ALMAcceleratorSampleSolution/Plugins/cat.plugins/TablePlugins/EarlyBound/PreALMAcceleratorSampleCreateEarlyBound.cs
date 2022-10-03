@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------
-// <copyright file="PreALMAcceleratorSampleCreate.cs" company="Microsoft">
+// <copyright file="PreALMAcceleratorSampleCreateEarlyBound.cs" company="Microsoft">
 // Copyright (c) 2022 All Rights Reserved
 // </copyright>
 // <summary>
@@ -8,25 +8,26 @@
 // Read the value from 'Details' column (Limit the length to 50 characters) and set to 'Name' column
 // </summary>
 //-----------------------------------------------------------------------
-namespace Plugins
+namespace Cat.Plugins
 {
     using System;
     using System.ServiceModel;
+    using Cat.Plugins.EarlyBound;
     using Cat.Plugins.Helper;
     using Microsoft.Xrm.Sdk;
 
     /// <summary>
-    /// Alm Accelerator Sample Class triggers on Pre Create 
+    /// ALM Accelerator Sample Class triggers on Pre Create 
     /// </summary>
-    public class PreALMAcceleratorSampleCreate : PluginBase
+    public class PreALMAcceleratorSampleCreateEarlyBound : PluginBase
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="PreALMAcceleratorSampleCreate" /> class
+        /// Initializes a new instance of the <see cref="PreALMAcceleratorSampleCreateEarlyBound" /> class
         /// </summary>
         /// <param name="unsecureConfiguration">Unsecure Configuration</param>
         /// <param name="secureConfiguration">Secure Configuration</param>
-        public PreALMAcceleratorSampleCreate(string unsecureConfiguration, string secureConfiguration)
-            : base(typeof(PreALMAcceleratorSampleCreate))
+        public PreALMAcceleratorSampleCreateEarlyBound(string unsecureConfiguration, string secureConfiguration)
+            : base(typeof(PreALMAcceleratorSampleCreateEarlyBound))
         {
             // TODO: Implement your custom configuration handling
             // https://docs.microsoft.com/powerapps/developer/common-data-service/register-plug-in#set-configuration-data
@@ -49,28 +50,28 @@ namespace Plugins
             if (context != null && context.InputParameters.Contains("Target") && context.InputParameters["Target"] is Entity entity)
             {
                 // Obtain the target entity from the input parameters.  
-                Entity targetAlmAcceleratorSampleCreate = entity;
+                cat_AlmAcceleratorSample targetAlmAcceleratorSampleCreate = entity.ToEntity<cat_AlmAcceleratorSample>();
 
                 try
                 {
                     string strDetails = string.Empty;
 
                     // Read first 50 characters of "Details" column
-                    if (targetAlmAcceleratorSampleCreate.Contains("cat_details") && targetAlmAcceleratorSampleCreate["cat_details"] != null)
+                    if (!string.IsNullOrEmpty(targetAlmAcceleratorSampleCreate.cat_Details))
                     {
-                        strDetails = ALMAcceleratorSampleHelper.TrimandExtractDetails(targetAlmAcceleratorSampleCreate["cat_details"].ToString());
+                        strDetails = ALMAcceleratorSampleHelper.TrimandExtractDetails(targetAlmAcceleratorSampleCreate.cat_Details);
                     }
 
                     // Set 'Name' column with first 50 characters of 'Details' column.
-                    targetAlmAcceleratorSampleCreate["cat_name"] = string.IsNullOrEmpty(strDetails) ? targetAlmAcceleratorSampleCreate["cat_name"] : targetAlmAcceleratorSampleCreate["cat_name"] + " - " + strDetails;
+                    targetAlmAcceleratorSampleCreate.cat_Name = string.IsNullOrEmpty(strDetails) ? targetAlmAcceleratorSampleCreate.cat_Name : targetAlmAcceleratorSampleCreate.cat_Name + " - " + strDetails;
                 }
                 catch (FaultException<OrganizationServiceFault> ex)
                 {
-                    throw new InvalidPluginExecutionException("An error occurred in PreALMAcceleratorSampleCreate.", ex);
+                    throw new InvalidPluginExecutionException("An error occurred in PreALMAcceleratorSampleCreateEarlyBound.", ex);
                 }
                 catch (Exception ex)
                 {
-                    localPluginContext.Trace("PreALMAcceleratorSampleCreate: {0}", ex.ToString());
+                    localPluginContext.Trace("PreALMAcceleratorSampleCreateEarlyBound: {0}", ex.ToString());
                     throw;
                 }
             }

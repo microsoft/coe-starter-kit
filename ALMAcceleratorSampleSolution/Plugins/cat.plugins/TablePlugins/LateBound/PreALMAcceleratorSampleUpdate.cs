@@ -9,7 +9,7 @@
 // Read the value from 'Details' column (Limit the length to 50 characters) and set to 'Name' column
 // </summary>
 //-----------------------------------------------------------------------
-namespace Plugins
+namespace Cat.Plugins
 {
     using System;
     using System.ServiceModel;

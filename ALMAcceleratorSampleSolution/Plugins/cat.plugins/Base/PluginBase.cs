@@ -7,7 +7,7 @@
 // </summary>
 //-----------------------------------------------------------------------
 
-namespace Plugins
+namespace Cat.Plugins
 {
     using System;
     using System.Runtime.CompilerServices;
