@@ -1,0 +1,347 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_flowmanagement": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "api": {
+          "name": "shared_flowmanagement"
+        }
+      },
+      "shared_commondataserviceforapps_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseForApps"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "52baed1b-79eb-4a74-8dde-c833724cabc1"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "envtGUID",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "boolean": {
+                  "title": "GetTurnedOn",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                }
+              },
+              "required": [
+                "text",
+                "boolean"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Get_Turned_on_or_off": {
+          "actions": {
+            "List_Flows_as_Admin": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "be160039-306f-4241-bcf8-a312a4e066a8"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_flowmanagement",
+                  "operationId": "ListFlowsInEnvironment",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement"
+                },
+                "parameters": {
+                  "environmentName": "@triggerBody()['text']"
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Response": {
+              "runAfter": {
+                "Select_Return_Fields": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "38bae734-ea6c-4e9e-9ae7-7d997cad0940"
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": "@body('Select_Return_Fields')",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "FlowGUID": {
+                        "type": "string"
+                      },
+                      "FlowDisplayName": {
+                        "type": "string"
+                      },
+                      "FlowState": {
+                        "type": "string"
+                      },
+                      "FlowIsPublished": {
+                        "type": "boolean"
+                      },
+                      "FlowSolutionFlowID": {
+                        "type": "string"
+                      },
+                      "FlowSolutionID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "FlowGUID",
+                      "FlowDisplayName",
+                      "FlowState"
+                    ]
+                  }
+                }
+              }
+            },
+            "Select_Return_Fields": {
+              "runAfter": {
+                "List_Flows_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "430b91ae-8287-41a5-b769-f34d624b899d"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@outputs('List_Flows_as_Admin')?['body/value']",
+                "select": {
+                  "FlowGUID": "@item()?['name']",
+                  "FlowDisplayName": "@item()?['properties/displayName']",
+                  "FlowState": "@item()?['properties/state']",
+                  "FlowIsPublished": "@true",
+                  "FlowSolutionFlowID": "@item()?['properties/workflowEntityId']",
+                  "FlowSolutionID": ""
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_FlowsWithSolutionID": [
+              "Succeeded"
+            ]
+          },
+          "else": {
+            "actions": {
+              "List_rows": {
+                "runAfter": {},
+                "metadata": {
+                  "operationMetadataId": "8cabf5b4-107e-464b-a5dc-5f5aab7a6ac5"
+                },
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_commondataserviceforapps_1",
+                    "operationId": "ListRecords",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                  },
+                  "parameters": {
+                    "entityName": "workflows",
+                    "$select": "name, workflowidunique, workflowid, solutionid",
+                    "$filter": "category eq 5 and statecode eq 0"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                }
+              },
+              "Parse_JSON_2": {
+                "runAfter": {
+                  "List_rows": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "8e056ac6-b314-4dcc-8e1c-f90c4f505223"
+                },
+                "type": "ParseJson",
+                "inputs": {
+                  "content": "@outputs('List_rows')?['body/value']",
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "body": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "workflowidunique": {
+                                    "type": "string"
+                                  },
+                                  "workflowid": {
+                                    "type": "string"
+                                  },
+                                  "solutionid": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "workflowidunique",
+                                  "workflowid"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "Select_2": {
+                "runAfter": {
+                  "Parse_JSON_2": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "911ce3ed-ac02-4ab8-b231-f066e94e504e"
+                },
+                "type": "Select",
+                "inputs": {
+                  "from": "@body('Parse_JSON_2')",
+                  "select": {
+                    "FlowGUID": "@item()['workflowid']",
+                    "FlowDisplayName": "@item()['name']",
+                    "FlowState": "Stopped",
+                    "FlowIsPublished": "@false",
+                    "FlowSolutionFlowID": "@item()['workflowidunique']",
+                    "FlowSolutionID": "@item()['solutionid']"
+                  }
+                }
+              },
+              "Response_2": {
+                "runAfter": {
+                  "Select_2": [
+                    "Succeeded"
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "fa533b7a-21cd-4731-a95f-3d34e7c902d1"
+                },
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "statusCode": 200,
+                  "body": "@body('Select_2')",
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "FlowGUID": {
+                          "type": "string"
+                        },
+                        "FlowDisplayName": {
+                          "type": "string"
+                        },
+                        "FlowState": {
+                          "type": "string"
+                        },
+                        "FlowIsPublished": {
+                          "type": "boolean"
+                        },
+                        "FlowSolutionFlowID": {
+                          "type": "string"
+                        },
+                        "FlowSolutionID": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "FlowGUID",
+                        "FlowDisplayName",
+                        "FlowState"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerBody()['boolean']",
+              "@true"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "67aefa24-63fd-4f8b-885b-56221e71fab8"
+          },
+          "type": "If"
+        },
+        "Initialize_FlowsWithSolutionID": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "e685ee11-f89d-45d1-85a5-c328c044e6e1"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "FlowsWithSolutionID",
+                "type": "array"
+              }
+            ]
+          }
+        }
+      },
+      "outputs": {}
+    }
+  },
+  "schemaVersion": "1.0.0.0"
+}
