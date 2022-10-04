@@ -142,7 +142,7 @@ describe('API Import', () => {
         mockCli.validateAzCliReady.mockResolvedValue(true)
 
         mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
-            let response : Promise<AxiosResponse<any>> = null
+            let response : Promise<AxiosResponse<any>>
             response = mockResponse(url, '/solutions', { value: [] })
             if (response != null ) {
                 return response
@@ -195,6 +195,7 @@ describe('API Import', () => {
         args.setupPermissions = false
         args.sourceLocation = "base64:12345=="
         args.authorization = "token ABC"
+        args.fixSolutionPostImport = true
 
         // Act
         
@@ -225,7 +226,7 @@ describe('API Import', () => {
         })
 
         mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
-            let response : Promise<AxiosResponse<any>> = null
+            let response : Promise<AxiosResponse<any>>
             response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
             if (response != null ) {
                 return response
@@ -344,6 +345,7 @@ describe('API Import', () => {
         })
 
         let args = new PowerPlatformImportSolutionArguments();
+        args.fixSolutionPostImport = true
         args.importMethod = 'api'
         args.environment = "test"
         args.endpoint = "prod"
@@ -399,7 +401,7 @@ describe('API Import', () => {
         let connectionReferencesCount = 0
 
         mockAxios.get.mockImplementation((url: string, _config: AxiosRequestConfig) => {
-            let response : Promise<AxiosResponse<any>> = null
+            let response : Promise<AxiosResponse<any>>
             response = mockResponse(url, '/solutions', { value: [ { solutionid: 'S1' }] })
             if (response != null ) {
                 return response
@@ -532,6 +534,7 @@ describe('API Import', () => {
         })
 
         let args = new PowerPlatformImportSolutionArguments();
+        args.fixSolutionPostImport = true
         args.importMethod = 'api'
         args.environment = "test"
         args.endpoint = "prod"
@@ -569,6 +572,7 @@ describe('Get Environment', () => {
         })
 
         let args = new PowerPlatformImportSolutionArguments()
+        args.fixSolutionPostImport = true
         args.environment  = 'https://foo.crm.dynamic.com'
         args.endpoint = "prod"
         args.setupPermissions = false
@@ -602,6 +606,7 @@ describe('Get Environment', () => {
         })
 
         let args = new PowerPlatformImportSolutionArguments()
+        args.fixSolutionPostImport = true
         args.environment  = 'https://foo.crm.dynamic.com'
         args.endpoint = "prod"
         args.setupPermissions = false
@@ -622,6 +627,7 @@ describe('Share', () => {
         var command = new PowerPlatformCommand(logger);
         
         let args = new PowerPlatformImportSolutionArguments()
+        args.fixSolutionPostImport = true
         let mockAxios = mock<AxiosStatic>()
         command.getAxios = () => mockAxios
         command.createAADCommand = () => mockAAD
@@ -656,6 +662,7 @@ describe('Share', () => {
         let logger = mock<winston.Logger>()
 
         let args = new PowerPlatformImportSolutionArguments()
+        args.fixSolutionPostImport = true
         let mockAxios = mock<AxiosStatic>()
         let mockAADcommand = mock<AADCommand>()
 

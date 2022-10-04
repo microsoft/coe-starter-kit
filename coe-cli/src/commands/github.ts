@@ -45,8 +45,8 @@ class GitHubCommand {
                 case 'coe':
                     releaseName = 'CoE Starter Kit'
                     break;
-                case 'alm': 
-                    releaseName = 'ALM Accelerator For Power Platform'
+                case 'creator': 
+                    releaseName = 'Creator Kit'
                     break;
                 default: {
                     // Use the defined release type as the release name
@@ -55,9 +55,10 @@ class GitHubCommand {
             }
 
             let coeRelease = results.data.filter((r: any) => r.name.indexOf(releaseName) >= 0);
-            if ( args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
+            if (typeof args.settings !== "undefined" && args.settings["installFile"]?.length > 0 && args.settings["installFile"].startsWith("https://") ) {
                 coeRelease = results.data.filter((r: any) => r.html_url == args.settings["installFile"]);
             }
+
             if (coeRelease.length > 0) {
                 if(args.asset == 'Source Code (zip)') {
                     return coeRelease[0].zipball_url
