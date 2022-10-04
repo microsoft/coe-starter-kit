@@ -161,24 +161,30 @@ class ALMCommand {
     importArgs.createSecret = args.createSecretIfNoExist
     importArgs.settings = args.settings
 
-    importArgs.sourceLocation = args.settings["installFile"]?.length > 0 ? args.settings["installFile"] : ''
-    if ( args.settings["installFile"]?.length > 0 && !args.settings["installFile"].startsWith("https://") ) {
-      importArgs.sourceLocation = args.settings["installFile"]
+    //Get latest creator kit release
+    let github = this.createGitHubCommand();
+    let gitHubArguments = new GitHubReleaseArguments();
+    gitHubArguments.type = 'creator'
+    gitHubArguments.asset = 'CreatorKitCore'
+
+    let creatorKitSource = await github.getRelease(gitHubArguments, 'powercat-creator-kit')
+    //Get latest ALM Accelerator release
+    let acceleratorSource = args.settings["installFile"]?.length > 0 ? args.settings["installFile"] : ''
+    if (args.settings["installFile"]?.length > 0 && !args.settings["installFile"].startsWith("https://")) {
+      acceleratorSource = args.settings["installFile"]
     }
 
-    if (importArgs.sourceLocation == '' || args.settings["installFile"].startsWith("https://")) {
-      let github = this.createGitHubCommand();
-      let gitHubArguments = new GitHubReleaseArguments();
+    if (acceleratorSource == '' || args.settings["installFile"].startsWith("https://")) {
       gitHubArguments.type = 'coe'
       gitHubArguments.asset = 'CenterofExcellenceALMAccelerator'
-      if ( typeof args.settings['installSource'] === "string" && args.settings['installSource'].length > 0 ) {
-        gitHubArguments.type = args.settings['installSource'] 
+      if (typeof args.settings['installSource'] === "string" && args.settings['installSource'].length > 0) {
+        gitHubArguments.type = args.settings['installSource']
       }
-      if ( typeof args.settings['installAsset'] === "string" && args.settings['installAsset'].length > 0 ) {
-        gitHubArguments.asset = args.settings['installAsset'] 
+      if (typeof args.settings['installAsset'] === "string" && args.settings['installAsset'].length > 0) {
+        gitHubArguments.asset = args.settings['installAsset']
       }
       gitHubArguments.settings = args.settings
-      importArgs.sourceLocation = await github.getRelease(gitHubArguments, 'coe-starter-kit')
+      acceleratorSource = await github.getRelease(gitHubArguments, 'coe-starter-kit')
       importArgs.authorization = github.getAccessToken(gitHubArguments)
     }
     
@@ -205,8 +211,15 @@ class ALMCommand {
       userArgs.settings = args.settings
       await this.addUser(userArgs)
     }
+    //Import Creator Kit
+    importArgs.fixSolutionPostImport = false
+    importArgs.sourceLocation = creatorKitSource
+    await command.importSolution(importArgs)
 
-      await command.importSolution(importArgs)
+    //Import ALM Accelerator
+    importArgs.fixSolutionPostImport = true
+    importArgs.sourceLocation = acceleratorSource
+    await command.importSolution(importArgs)
       let aadCommand = this.createAADCommand()
       let aadId = aadCommand.getAADApplication(args)
       await command.addAdminUser(aadId, args)
@@ -663,7 +676,7 @@ class ALMBranchArguments {
     sourceBranch: string
 
     /**
-    * The source build name to copy setup from> if not defained will create initial values that will need to be updated
+    * The source build name to copy setup from> if not defined will create initial values that will need to be updated
     */
     sourceBuildName: string
 

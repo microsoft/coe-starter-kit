@@ -173,27 +173,29 @@ class PowerPlatformCommand {
     
                 // TODO: Check if new version is an upgrade
             }
-    
-            if (!await this.cli.validateAzCliReady(args)) {
-                return Promise.resolve()
-            }
-    
-            let environment = await this.getEnvironment(args)
-    
-            if (environment != null) {
-                let solution: Solution = solutions.value[0]
-    
-                await this.fixCustomConnectors(environment.name, args)
-    
-                await this.fixConnectionReferences(environment.name, solutions, args)
-    
-                await this.fixFlows(solutions, args)
-    
-                await this.addApplicationUsersToEnvironments(args)
-    
-                if (args.setupPermissions) {
-                    await this.shareMakerApplication(solution, environment.name, args)
+
+            if(args.fixSolutionPostImport) {
+                if (!await this.cli.validateAzCliReady(args)) {
+                    return Promise.resolve()
                 }
+        
+                let environment = await this.getEnvironment(args)
+        
+                if (environment != null) {
+                    let solution: Solution = solutions.value[0]
+        
+                    await this.fixCustomConnectors(environment.name, args)
+        
+                    await this.fixConnectionReferences(environment.name, solutions, args)
+        
+                    await this.fixFlows(solutions, args)
+        
+                    await this.addApplicationUsersToEnvironments(args)
+        
+                    if (args.setupPermissions) {
+                        await this.shareMakerApplication(solution, environment.name, args)
+                    }
+                }    
             }    
         } catch (ex) {
             this.logger.error(ex)
@@ -1090,6 +1092,12 @@ class PowerPlatformImportSolutionArguments {
      * Check if permissions should be configured
      */
     setupPermissions: boolean;
+
+    /**
+     * Check if flows should be enabled custom connectors fixed etc.
+     */
+     fixSolutionPostImport: boolean;
+
 }
 
 class PowerPlatformConectorUpdate {
