@@ -194,7 +194,7 @@ AzureDevOpsProjects As screen:
                             DefaultSelectedItems: =
                             DisplayMode: =DisplayMode.Edit
                             Height: =32
-                            Items: =CustomAzureDevOps.GetOrganizations()
+                            Items: =Sort(CustomAzureDevOps.GetOrganizations(), AccountName, Ascending)
                             LayoutMinHeight: =32
                             LayoutMinWidth: =320
                             OnChange: |-
@@ -873,10 +873,19 @@ AzureDevOpsProjects As screen:
                             DisplayMode: =DisplayMode.Edit
                             Height: =200
                             Items: =colProjectRepos
+                            OnChange: |-
+                                =If(IsBlank(Self.Selected),
+                                    UpdateContext({repoContent: Blank()});
+                                    ,
+                                    UpdateContext({
+                                        repoContent: IfError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, Self.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content, JSON({ version: "" }))
+                                    })
+                                );
                             OnSelect: =false
                             PageSize: =2000
+                            RaiseOnRowSelectionChangeEvent: =true
                             SelectionAlwaysVisible: =true
-                            SelectionType: ='''PowerCAT.FluentDetailsList.SelectionType'''.Multiple
+                            SelectionType: ='''PowerCAT.FluentDetailsList.SelectionType'''.Single
                             Width: =Parent.Width - Parent.PaddingRight - 20
                             X: =Parent.PaddingLeft
                             Y: =lblRepositories.Height + cbRepositories.Height
@@ -907,6 +916,8 @@ AzureDevOpsProjects As screen:
                                 
                                     {ItemKey:"View",ItemDisplayName:"View",ItemIconName:"View", ItemEnabled:(CountRows(fdRepositories.SelectedItems) = 1 And CountRows(fdProjects.SelectedItems) = 1)},
                                 
+                                    {ItemKey:"Upgrade",ItemDisplayName:"Upgrade",ItemIconName:"SyncStatus", ItemEnabled:(Not(IsBlank(ParseJSON(repoContent).version)) And CountRows(fdRepositories.SelectedItems) = 1 And CountRows(fdProjects.SelectedItems) = 1)},
+                                
                                     {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:(CountRows(fdProjects.SelectedItems) = 1)},
                                 
                                     // Far Items
@@ -926,6 +937,9 @@ AzureDevOpsProjects As screen:
                                     ,
                                     "View",
                                     Launch($"https://dev.azure.com/{currentOrganization.AccountName}/{currentProject.name}/_git/{fdRepositories.Selected.name}");
+                                    ,
+                                    "Upgrade",
+                                    UpdateContext({showUpgradePipelineRepoPanel: true});
                                     ,
                                     "Info",
                                     UpdateContext({
@@ -2736,18 +2750,19 @@ AzureDevOpsProjects As screen:
                                 DisplayMode: =DisplayMode.Edit
                                 Height: =32
                                 Items: =colEnvironmentsDetails
+                                Tooltip: =
                                 Width: =Parent.Width - 220
                                 X: =200
                                 Y: =10
                                 ZIndex: =10
 
-                                name9_1 As pcfDataField.textualColumn:
+                                name5 As pcfDataField.textualColumn:
                                     FieldDisplayName: ="name"
                                     FieldName: ="name"
                                     FieldType: ="s"
                                     FieldVariantName: ="textualColumn"
-                                    Order: =1
-                                    ZIndex: =30
+                                    Order: =2
+                                    ZIndex: =32
 
                             lblSelectEnvironme_1 As label:
                                 BorderColor: =RGBA(0, 18, 107, 1)
@@ -4619,6 +4634,236 @@ AzureDevOpsProjects As screen:
             Y: =App.Height - 100
             ZIndex: =77
 
+    cntUpgradePipelineRepo As groupContainer.manualLayoutContainer:
+        Height: =App.Height
+        Visible: =showUpgradePipelineRepoPanel
+        Width: =App.Width
+        ZIndex: =79
+
+        pnlUpgradePipelineRepo As Panel:
+            Buttons: |-
+                =If(txtCurrentPipelineVersion.Value = txtUpgradePipelineVersion.Value Or IsBlank(ParseJSON(repoContent).version),
+                    Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard }),
+                    Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Upgrade", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary})
+                )    
+            Fill: =pnlUpgradePipelineRepo.OverlayColor
+            Height: =Parent.Height
+            OnButtonSelect: |-
+                =Switch(Self.SelectedButton.Label,
+                    "Upgrade",
+                    UpdateContext({almProjectSyncPipelineId: LookUp(colProjectPipelines, name = "sync-pipeline-repo").id});
+                    UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.AccountName, fdProjects.Selected.name, almProjectSyncPipelineId, {
+                        'api-version': "6.0",
+                        definition: {
+                            id: almProjectSyncPipelineId
+                        },
+                        templateParameters: {
+                            BranchToCreate: $"upgrade{txtUpgradePipelineVersion.Value}",
+                            TargetBranch: "main",
+                            SyncFrom: "Tag",
+                            SourceBranchOrTag: txtUpgradePipelineVersion.Value,
+                            AutoCompletePR: true,
+                            deleteSourceBranch: true
+                        }
+                    })}); 
+                    UpdateContext({showUpgradePipelineRepoPanel: false}),
+                
+                    "Cancel",
+                    UpdateContext({
+                        showUpgradePipelineRepoPanel: false
+                    });
+                )
+            OnCloseSelect: |
+                =UpdateContext({
+                    showUpgradePipelineRepoPanel: false
+                });
+            Subtitle: ="Upgrade the Pipeline Template version in the repository"
+            Title: ="Pipeline Repository Details"
+            Width: =Parent.Width
+            ZIndex: =1
+
+        "txtProjectName_4 As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =Disabled
+            Height: =32
+            Placeholder: ="Project Name"
+            Value: =currentProject.name
+            Visible: =true
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =163
+            ZIndex: =2
+
+        lblProjectName_4 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Project Name"
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =131
+            ZIndex: =3
+
+        "txtRepositoryName_1 As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.Disabled
+            Height: =32
+            Placeholder: ="Repository Name"
+            Value: =fdRepositories.Selected.name
+            Visible: =true
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =243
+            ZIndex: =4
+
+        lblRepositoryName_1 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Repository Name"
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =211
+            ZIndex: =5
+
+        lblPipelineTemplateVersion_1 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Current Pipeline Template Version"
+            Visible: =Not(IsBlank(ParseJSON(repoContent).version))
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =321
+            ZIndex: =6
+
+        icoUpdateReleaseTagsNewRepo_2 As icon.Reload:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            Color: =RGBA(0, 120, 212, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            DisabledColor: =RGBA(220, 220, 220, 1)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            Height: =32
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            HoverFill: =RGBA(0, 0, 0, 0)
+            Icon: =Icon.Reload
+            OnSelect: |-
+                =UpdateContext({
+                    repoContent: CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content
+                });
+            PaddingBottom: =3
+            PaddingLeft: =3
+            PaddingRight: =3
+            PaddingTop: =3
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Visible: =Not(IsBlank(ParseJSON(repoContent).version))
+            Width: =26
+            X: =ddReleaseTags.X + ddReleaseTags.Width + 5
+            Y: =354
+            ZIndex: =7
+
+        "txtCurrentPipelineVersion As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.View
+            Height: =32
+            Placeholder: =""
+            Value: =Text(ParseJSON(repoContent).version)
+            Visible: =Not(IsBlank(ParseJSON(repoContent).version))
+            Width: =plnNewRepository.DialogWidth - 80
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =355
+            ZIndex: =8
+
+        lblPipelineTemplateVersion_2 As label:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(0, 0, 0, 1)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Lighter
+            Height: =32
+            Size: =10.5
+            Text: ="Upgrade to Pipeline Template Version"
+            Visible: =Not(IsBlank(ParseJSON(repoContent).version))
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - pnlNewProject.DialogWidth + 20
+            Y: =397
+            ZIndex: =9
+
+        icoUpdateReleaseTagsNewRepo_4 As icon.Reload:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            Color: =RGBA(0, 120, 212, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            DisabledColor: =RGBA(220, 220, 220, 1)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            Height: =32
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            HoverFill: =RGBA(0, 0, 0, 0)
+            Icon: =Icon.Reload
+            OnSelect: |-
+                =IfError(UpdateReleaseHistoryInstant.Run(),
+                    Notify("Error refreshing release tags")
+                    ,
+                    ClearCollect(colReleaseTags, 'Release Histories')
+                );
+            PaddingBottom: =3
+            PaddingLeft: =3
+            PaddingRight: =3
+            PaddingTop: =3
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            Visible: =Not(IsBlank(ParseJSON(repoContent).version))
+            Width: =26
+            X: =ddReleaseTags.X + ddReleaseTags.Width + 5
+            Y: =430
+            ZIndex: =10
+
+        "txtUpgradePipelineVersion As 'Text box'":
+            AccessibleLabel: ="Search files"
+            DisplayMode: =DisplayMode.View
+            Height: =32
+            Placeholder: ="Repository Name"
+            Value: =First(Sort(colReleaseTags, Published, Descending)).Tag
+            Visible: =Not(IsBlank(ParseJSON(repoContent).version))
+            Width: =plnNewRepository.DialogWidth - 80
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =431
+            ZIndex: =11
+
+        Label2 As Label:
+            AutoHeight: =true
+            Color: =RGBA(184, 0, 0, 1)
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Text: |-
+                =If(txtCurrentPipelineVersion.Value = txtUpgradePipelineVersion.Value,
+                    "Repository already has latest Pipeline Template version installed."
+                    ,
+                    If(IsBlank(ParseJSON(repoContent).version),
+                        "This is not a Pipeline Templates Repository."
+                    )
+                )
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =App.Height - 100
+            ZIndex: =12
+
     grpNewRepository As group:
         Height: =5
         Width: =5
@@ -5050,6 +5295,15 @@ AzureDevOpsProjects As screen:
             X: =ddReleaseTags.X + ddReleaseTags.Width + 5
             Y: =ddReleaseTags.Y
             ZIndex: =60
+
+    Label4 As Label:
+        DisplayMode: =DisplayMode.Edit
+        Height: =32
+        Text: =IsBlank(ParseJSON(repoContent).version)
+        Width: =320
+        X: =125
+        Y: =8
+        ZIndex: =80
 
     grpAddTeamMembers As group:
         Height: =5
