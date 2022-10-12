@@ -75,62 +75,24 @@ steps:
 # Solution version in source control is not used.  Instead, create version at build time from the current build number.
 - pwsh: |
    $solutionXMLPath = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\src\Other\Solution.xml"
-   Get-ChildItem -Path "$solutionXMLPath" |  
-   ForEach-Object {
-        (Get-Content $_.FullName) `
-            -replace '<Version>0.0.0.0<\/Version>', '<Version>$(Build.BuildNumber)</Version>' |
-        Out-File $_.FullName
-   }
+    . "$env:POWERSHELLPATH/build-deploy-solution-functions.ps1"
+   update-solution-xml-with-build-number "$solutionXMLPath" "$(Build.BuildNumber)"
   displayName: 'Update Solution XML with Build Number'
   condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
 
 # Before we committed changes, we formatted all json files for readability in source control.  This breaks solution package, so we need to flatten them before packing   
 - pwsh: |
     #When we unpack the solution files, we format the json, but it causes solution import failures so we need to flatten the files
-    Get-ChildItem -Path "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}" -Recurse -Filter *.json |
-    ForEach-Object {
-        $fileContent = (Get-Content $_.FullName) -join ' '
-        if(-not [string]::IsNullOrWhiteSpace($fileContent)) {
-            Set-Content $_.FullName $fileContent
-        }
-    }
+    $solutionFolderPath = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}"
+    . "$env:POWERSHELLPATH/build-deploy-solution-functions.ps1"
+    flatten-JSON-files "$solutionFolderPath"
   displayName: 'Flatten JSON files'
   enabled: true
 
 # Pack canvas app source files into msapp
 - pwsh: |
-   $agentOS = "$(Agent.OS)"
-   if ($agentOS -eq "Linux") {
-       $pacPath = $env:POWERPLATFORMTOOLS_PACCLIPATH + "/pac_linux/tools"
-       $env:PATH = $env:PATH + ":" + $pacPath #note colon delimeter in path for linux
-   }
-   else {
-       $pacPath = $env:POWERPLATFORMTOOLS_PACCLIPATH + "\pac\tools"
-       $env:PATH = $env:PATH + ";" + $pacPath #note semi-colon delimeter in path for windows
-   }   
-   $solutionSource = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}"
-   # We need to keep the source of the canvas app in temp for later use in canvas test automation
-   Copy-Item $solutionSource -Destination "$(Agent.TempDirectory)\${{parameters.solutionName}}" -Recurse -Force
-   Get-ChildItem -Path $solutionSource -Recurse -Filter *_msapp_src | 
-   ForEach-Object {     
-     $unpackedPath = $_.FullName
-     $packedFileName = $unpackedPath.Replace("_msapp_src", ".msapp")
-     if(!(Test-Path $packedFileName)) {
-        #Temporarily unpacking with latest version of Power Apps Language Tooling
-        Write-Host "Packing cavas app source files into msapp"
-       pac canvas pack --sources $unpackedPath --msapp $packedFileName
-     }
-     else {
-        Write-Host "$packedFileName already exists. Skipping packing of the app."
-     }
-
-    # We need to copy the old folder structure for canvas app source into the new
-    # folder structure used by "pac solution pack --processCanvasApps" which is what
-    # the Azure DevOps task uses
-    $newCanvasAppSourceDirectory = $packedFileName.Split("\")[-1].Replace("_DocumentUri.msapp","")
-    Copy-Item -Path $unpackedPath -Destination "$solutionSource\SolutionPackage\CanvasApps\src\$newCanvasAppSourceDirectory" -Recurse -Force
-    Remove-Item -Path $unpackedPath -Recurse
-   }
+   . "$env:POWERSHELLPATH/build-deploy-solution-functions.ps1"
+    Process-old-canvas-code-folder-structure "$(Build.SourcesDirectory)" "$(RepoName)" "${{parameters.solutionName}}" "$(Agent.OS)" "$(Agent.TempDirectory)"
   displayName: 'Detect and process old canvas code folder structure for backwards compatibility'
   workingDirectory: $(PowerShellPath)
   enabled: true
@@ -138,8 +100,8 @@ steps:
 # Set paths to deployment settings
 - template: set-deployment-configuration-paths.yml
   parameters:
-    configPath: $(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\config\
-    environmentName: $(EnvironmentName)
+    configPath: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\config\'
+    environmentName: '$(EnvironmentName)'
 
 # We'll store configuration data as artifacts on the build pipeline to be used during deployment. This includes configuration data created via Configuration data migration tool and deploymentSettings.json and customDeploymentSettings.json 
 - pwsh: |
@@ -225,8 +187,8 @@ steps:
       **\*test*.dll
       !**\*TestAdapter.dll
       !**\obj\**
-    condition: and(succeeded(), eq(variables.codefirstexists, 'true'))
-  displayName: 'Run Unit Test Case Projects'
+    condition: and(succeeded(), eq(variables.pluginstestexists, 'true'))
+  displayName: 'Run unit test case projects'
 
 - pwsh: |
     $sourceDirectory  = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\bin\Debug\*"
@@ -259,14 +221,14 @@ steps:
   displayName: 'Print ArtifactStagingDirectory Files'
 
 #Run Solution Checker against our solution. This is currently only triggered for pipelines that trigger for Pull Requests
-- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.checker.PowerPlatformChecker@2
-  displayName: 'Run Solution Checker'
-  inputs:
-    authenticationType: PowerPlatformSPN
-    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
-    FilesToAnalyze: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_$(Build.BuildNumber).zip'
-    RuleSet: '0ad12346-e108-40b8-a956-9a8f95ea18c9'
-  condition: and(succeeded(), and(ne(variables['DisableSolutionChecker'], 'true'), eq(variables['Build.Reason'], 'PullRequest')))
+#- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.checker.PowerPlatformChecker@2
+#  displayName: 'Run Solution Checker'
+#  inputs:
+#    authenticationType: PowerPlatformSPN
+#    PowerPlatformSPN: ${{parameters.serviceConnectionName}}
+#    FilesToAnalyze: '$(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_$(Build.BuildNumber).zip'
+#    RuleSet: '0ad12346-e108-40b8-a956-9a8f95ea18c9'
+#  condition: and(succeeded(), and(ne(variables['DisableSolutionChecker'], 'true'), eq(variables['Build.Reason'], 'PullRequest')))
 
 - task: PublishPipelineArtifact@1
   displayName: 'Publish Artifacts'

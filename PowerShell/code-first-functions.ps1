@@ -83,7 +83,6 @@ function add-codefirst-projects-to-cdsproj{
         Invoke-Expression -Command "$pacexepath $authCommand"
 
         # Set location to .cdsproj Path
-        #$cdsProjPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName\$solutionName.cdsproj"
         $cdsProjPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName.cdsproj"
         Write-Host "cdsProjPath - $cdsProjPath"
         if(Test-Path $cdsProjPath)
@@ -106,17 +105,36 @@ function add-codefirst-projects-to-cdsproj{
           } 
 
           Write-Host "Adding Plugin (i.e.,.csproj) references to cdsproj"
-          # Get all .csproj files under Repo/Commited Solution folder
-          $pluginProjectFiles = Get-ChildItem -Path "$buildSourceDirectory\$repo\$solutionName" -Filter *.csproj -Recurse
-          foreach($pluginProj in $pluginProjectFiles)
-          {     
-            Write-Host "Adding Reference of Plugin Project - " $pluginProj.FullName
-            $pluginProjectPath = $pluginProj.FullName
+          # Skip adding plugin projects if 'Plugin Assembly' is not part of Dataverse solution
+          $unpackedPluginAssemblyPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\src\PluginAssemblies"
+          if(Test-Path "$unpackedPluginAssemblyPath"){
+              # Get all .csproj files under Repo/Commited Solution folder
+              $csProjectFiles = Get-ChildItem -Path "$buildSourceDirectory\$repo\$solutionName" -Filter *.csproj -Recurse
+              foreach($csProject in $csProjectFiles)
+              {     
+                Write-Host "Adding Reference of Plugin Project - " $csProject.FullName
+                # Add only Plugin type csproj; Skip others
+                $csProjectPath = $csProject.FullName
 
-            $addReferenceCommand = "solution add-reference -p $pluginProjectPath"
-            Write-Host "Add Reference Command - $addReferenceCommand"
-            Invoke-Expression -Command "$pacexepath $addReferenceCommand"
-          } 
+                # Read csproj xml to determin project type
+                [xml]$xmlDoc = Get-Content -Path $csProjectPath
+                $tagPowerAppsTargetsPath = $xmlDoc.Project.PropertyGroup.PowerAppsTargetsPath
+
+                # 'PowerAppsTargetsPath' tag is only availble in plugin project generate via 'pac plugin init'
+                if(-not [string]::IsNullOrWhiteSpace($tagPowerAppsTargetsPath)){
+                    $addReferenceCommand = "solution add-reference -p $csProjectPath"
+                    Write-Host "Add Reference Command - $addReferenceCommand"
+                    Invoke-Expression -Command "$pacexepath $addReferenceCommand"
+                }
+                else{
+                    Write-Host "Not a plug-in project; Skipping add reference to cdsproj; Path - $csProjectPath"
+                }
+              }
+          }
+          else
+          {
+                Write-Host "PluginAssemblies folder unavailble in unpacked solution"
+          }
         }
         else
         {
@@ -428,5 +446,39 @@ function append-version-to-solutions{
     else
     {
         Write-Host "Unmanaged solution is unavailble at unmanagedSolutionPath"
+    }
+}
+
+function check-test-projects{
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName
+    )
+
+    $testProjectsPath = "$buildSourceDirectory\$repo\$solutionName\Test"
+    If(Test-Path "$testProjectsPath")
+    {
+        $testProjectFiles = Get-ChildItem -Path "$testProjectsPath" -Filter *.csproj -Recurse
+        foreach($csProject in $csProjectFiles)
+        {     
+            # Add only Plugin type csproj; Skip others
+            $csProjectPath = $csProject.FullName
+
+            # Read csproj xml to determin project type
+            [xml]$xmlDoc = Get-Content -Path $csProjectPath
+            $testProjectType = $xmlDoc.Project.PropertyGroup.TestProjectType
+
+            # 'TestProjectType' tag is available only to Test projects
+            if(-not [string]::IsNullOrWhiteSpace($testProjectType)){
+                Write-Host "Test projects exist in the Repo - $csProjectPath"
+                Write-Host "##vso[task.setvariable variable=pluginstestexists;]$true"
+                break
+            }       
+        }
+    }
+    else
+    {
+        Write-Host "Test projects not exist under $testProjectsPath"
     }
 }
