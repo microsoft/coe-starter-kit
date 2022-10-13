@@ -104,7 +104,7 @@ function Format-JSON-Files
      if(-not $_.FullName.Contains('CanvasApps') -and -not $_.FullName.Contains('Workflows')) {
        Write-Host $_.FullName
        $formatted = jq . $_.FullName --sort-keys
-       $formatted | Out-File $_.FullName -Encoding UTF8
+       $formatted | Out-File $_.FullName -Encoding utf8NoBOM
      }
    }
 }

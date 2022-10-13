@@ -238,7 +238,14 @@
 
             Write-Host "Creating deployment settings"
             $json = ConvertTo-Json -Depth 10 $newConfiguration
-            Set-Content -Path $deploymentSettingsFilePath -Value $json
+            if ($PSVersionTable.PSVersion.Major -gt 5) {
+                Set-Content -Path $deploymentSettingsFilePath -Value $json
+            }
+            else {
+                $utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+                $jsonBytes = $utf8NoBomEncoding.GetBytes($json)
+                Set-Content -Path $deploymentSettingsFilePath -Value $jsonBytes -Encoding Byte
+            }
 
             #Create the custom deployment configuration
             $customDeploymentSettingsFilePath = "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\customDeploymentSettings.json"
@@ -252,8 +259,14 @@
             #Convert the updated configuration to json and store in customDeploymentSettings.json
             Write-Host "Creating custom deployment settings"
             $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
-            Set-Content -Path $customDeploymentSettingsFilePath -Value $json
-
+            if ($PSVersionTable.PSVersion.Major -gt 5) {
+                Set-Content -Path $customDeploymentSettingsFilePath -Value $json
+            }
+            else {
+                $utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+                $jsonBytes = $utf8NoBomEncoding.GetBytes($json)
+                Set-Content -Path $customDeploymentSettingsFilePath -Value $jsonBytes -Encoding Byte
+            }
             #Set the build variables
             Set-BuildDefinitionVariables $orgUrl $projectName $azdoAuthType $buildDefinitionResponseResults[0] $buildDefinitionResponseResults[0].id $newBuildDefinitionVariables
         }

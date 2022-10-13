@@ -148,7 +148,7 @@ function set-deployment-variable
                 }
                 Write-Host "Writing to file $variableValue"
                 Write-Host $settingsJson
-                $settingsJson | Out-File $variableValue
+                $settingsJson | Out-File $variableValue -Encoding utf8NoBOM
             }
         }
     }
@@ -215,7 +215,7 @@ function flatten-JSON-files
     ForEach-Object {
         $fileContent = (Get-Content $_.FullName) -join ' '
         if(-not [string]::IsNullOrWhiteSpace($fileContent)) {
-            Set-Content $_.FullName $fileContent
+            Set-Content $_.FullName $fileContent -Encoding utf8NoBOM
         }
     }
 }

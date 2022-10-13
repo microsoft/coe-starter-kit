@@ -26,7 +26,7 @@ class Helper {
         while ($result.status -ne 'completed') {
             Start-Sleep -Seconds 15
             $result = az pipelines runs show --id $id --org $org --project $project
-            $result = $result | ConvertFrom-Json -Depth 10
+            $result = $result | ConvertFrom-Json -Depth 100
         }
     
         return $result.result -eq 'succeeded' -or $result.result -eq 'partiallySucceeded' 
@@ -46,7 +46,7 @@ class Helper {
         $apiVersion = "?api-version=7.0"
         $requestUrl = "$org/$project/_apis/pipelines$apiVersion"
         $response = Invoke-RestMethod $requestUrl -Method 'GET' -Headers $headers
-        $response | ConvertTo-Json -Depth 10
+        $response | ConvertTo-Json -Depth 100
 
         $pipelineId = 0;
 
@@ -58,13 +58,13 @@ class Helper {
         }        
 
         $body.templateParameters.PipelineId = $pipelineId
-        $body = ConvertTo-Json -Depth 10 $body -Compress
-
+        $body = ConvertTo-Json -Depth 100 $body -Compress
+        $body = [System.Text.Encoding]::UTF8.GetBytes($body)
         $requestUrl = "$org/$project/_apis/pipelines/$pipelineId/runs$apiVersion"
         Write-Host $requestUrl
         Write-Host $body
         $response = Invoke-RestMethod $requestUrl -Method 'POST' -Headers $headers -Body $body
-        $response | ConvertTo-Json -Depth 10
+        $response | ConvertTo-Json -Depth 100
 
         $id = $response.id
         return [Helper]::WaitForPipelineToComplete($org, $project, $id)
@@ -72,7 +72,7 @@ class Helper {
 }
 
 BeforeAll { 
-    [Helper]::AccessToken = (az account get-access-token | ConvertFrom-Json -Depth 10).accessToken    
+    [Helper]::AccessToken = (az account get-access-token | ConvertFrom-Json -Depth 100).accessToken    
 }
 
 Describe 'E2E-Pipeline-Test' {
@@ -99,7 +99,7 @@ Describe 'E2E-Pipeline-Test' {
             SolutionName=$SolutionName `
             UserName=$UserName `
             EnvironmentName=$environmentName
-        $result = $result | ConvertFrom-Json -Depth 10
+        $result = $result | ConvertFrom-Json -Depth 100
         $id = $result.id
         [Helper]::WaitForPipelineToComplete($Org, $Project, $id) | Should -BeTrue
     }
@@ -118,7 +118,7 @@ Describe 'E2E-Pipeline-Test' {
         $apiVersion = "?api-version=6.0-preview.2"
         $requestUrl = "$Org/$Project/_apis/build/folders$apiVersion&path=$SolutionName"
         $response = Invoke-RestMethod $requestUrl -Method 'DELETE' -Headers $headers
-        $response | ConvertTo-Json -Depth 10
+        $response | ConvertTo-Json -Depth 100
 
 		# To test Profile change post commit scenario
 		# Set "DeploymentEnvironmentUrl" and "ServiceConnectionName" as blank on 1st Commit
@@ -132,7 +132,7 @@ Describe 'E2E-Pipeline-Test' {
           }
         }
 
-        $modifiedData = ConvertTo-Json $dataJson	
+        $modifiedData = $dataJson | ConvertTo-Json -Depth 100
         Write-Host "Modified Data - $modifiedData"		
 
         $body = @{
@@ -218,7 +218,7 @@ Describe 'E2E-Pipeline-Test' {
 
         # Create PR for the branch we committed/pushed to
         $result = az repos pr create --org $Org --project $Project --repository $Repo --source-branch $BranchToCreate --target-branch $SolutionName --title "E2E-Pipeline-Test"
-        $result = $result | ConvertFrom-Json -Depth 10
+        $result = $result | ConvertFrom-Json -Depth 100
         $result.status | Should -Be 'active'
         
         # Get the id of the PR validation pipeline using the PR id and wait for it to successfully complete
@@ -226,7 +226,7 @@ Describe 'E2E-Pipeline-Test' {
         # sleep for 15 seconds to ensure the pipeline to validate the PR is kicked off (may need to tweak)
         Start-Sleep -Seconds 15
         $result = az pipelines runs list --org $Org --project $Project --branch "refs/pull/$pullRequestId/merge"
-        $result = $result | ConvertFrom-Json -Depth 10
+        $result = $result | ConvertFrom-Json -Depth 100
         $id = $result[0].id
         [Helper]::WaitForPipelineToComplete($Org, $Project, $id) | Should -BeTrue
 
@@ -238,7 +238,7 @@ Describe 'E2E-Pipeline-Test' {
         # Get the id of the pipeline to deploy to UAT and wait for it to successfully complete
         # TODO: See if we can improve the query below to be more precise.  Works when there isn't another pipeline running triggered from the same solution branch
         $result = az pipelines runs list --org $Org --project $Project --branch $SolutionName --top 1 --reason individualCI --query-order QueueTimeDesc
-        $result = $result | ConvertFrom-Json -Depth 10
+        $result = $result | ConvertFrom-Json -Depth 100
         $id = $result[0].id
         [Helper]::WaitForPipelineToComplete($Org, $Project, $id) | Should -BeTrue
     }
@@ -260,7 +260,7 @@ Describe 'E2E-Pipeline-Test' {
             ServiceConnectionUrl=$ServiceConnection `
             SolutionName=$SolutionName `
             UserName=$UserName
-        $result = $result | ConvertFrom-Json -Depth 10
+        $result = $result | ConvertFrom-Json -Depth 100
         $id = $result.id
         [Helper]::WaitForPipelineToComplete($Org, $Project, $id) | Should -BeTrue
     }    

@@ -48,7 +48,14 @@ function Set-CanvasTestAutomationURLs {
         }
     }
     $json = ConvertTo-Json $testUrlsObject
-    Set-Content -Path "CanvasTestAutomationURLs.json" -Value $json -Force
+    if ($PSVersionTable.PSVersion.Major -gt 5) {
+        Set-Content -Path "CanvasTestAutomationURLs.json" -Value $json -Force -Encoding utf8NoBOM
+    }
+    else {
+        $utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+        $jsonBytes = $utf8NoBomEncoding.GetBytes($json)
+        Set-Content -Path "CanvasTestAutomationURLs.json" -Value $jsonBytes -Encoding Byte
+    }
     Get-Content -Path "CanvasTestAutomationURLs.json"
 }
 
