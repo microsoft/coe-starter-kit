@@ -1,0 +1,84 @@
+# The following parameters need to be set when the pipeline is queued to run:
+# Branch: The name of the Azure DevOps Branch in the Repo above to which we are exporting our solution.
+# BranchToCreate: The name of the new Azure DevOps Branch to create in the Repo above to which we are exporting our solution (Optional).
+# CommitMessage: The commit message for this commit.
+# Data: Additional Data (e.g. JSON Payload) for the export to configure deployment pipelines
+# Email: The email of the user performing the commit.
+# Project: The name of the Azure DevOps Project to which we are exporting our solution.
+# Repo: The name of the Azure DevOps Repo to which we are exporting our solution.
+# ServiceConnectionName: The name of the service connection to Power Platform from which we'll be pulling the solution.
+# ServiceConnectionUrl: The url of the service connection to Power Platform from which we'll be pulling the solution.
+# SolutionName: The name of the solution being exported (i.e. Not the Display Name).
+# UserName: The Display name of the user performing the commit.
+# PortalSiteName: Power Apps Portal/Power Pages website name
+parameters:
+- name: gitAccessUrl
+  type: string
+  default: ''
+- name: project
+  type: string
+  default: ''
+- name: repo
+  type: string
+  default: ''
+- name: branch
+  type: string
+  default: ''
+- name: branchToCreate
+  type: string
+  default: ''
+- name: commitMessage
+  type: string
+  default: ''
+- name: email
+  type: string
+  default: ''
+- name: serviceConnectionName
+  type: string
+  default: ''
+- name: serviceConnectionUrl
+  type: string
+  default: ''
+- name: solutionName
+  type: string
+  default: ''
+- name: userName
+  type: string
+  default: ''
+- name: configurationData
+  type: string
+  default: ''
+- name: portalSiteName
+  type: string
+  default: ''
+steps:
+    - template: Pipelines\Templates\export-Solution.yml@PipelineRepo
+      parameters:
+        gitAccessUrl: $(GitAccessUrl)
+        project: ${{parameters.Project}}
+        repo: ${{parameters.Repo}}
+        branch: ${{parameters.Branch}}
+        branchToCreate: ${{parameters.BranchToCreate}}
+        commitMessage: ${{parameters.CommitMessage}}
+        email: ${{parameters.Email}}
+        serviceConnectionName: ${{parameters.ServiceConnectionName}}
+        serviceConnectionUrl: ${{parameters.ServiceConnectionUrl}}
+        solutionName: ${{parameters.SolutionName}}
+        userName: ${{parameters.UserName}}
+        configurationData: ${{parameters.Data}}
+
+
+    # Checkout our Azure DevOps Branch
+    - checkout: git://${{parameters.Project}}/${{parameters.Repo}}@${{parameters.Branch}}
+      path: 'DevopsSource'
+      displayName: 'Checkout Source Branch'
+      condition: and(succeeded(), ne('${{parameters.BranchToCreate}}', 'Commit to existing branch specified in Branch parameter'), ne('${{parameters.BranchToCreate}}', '${{parameters.SolutionName}}')) # If an empty value is passed for the BranchToCreate variable, then skip this task
+
+  # If BranchToCreate variable value is not '', then push to the branch specified in the BranchToCreate variable
+    - script: |
+       git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" fetch --all
+       git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" checkout -b ${{parameters.BranchToCreate}}
+       git -c http.extraheader="AUTHORIZATION: bearer $(System.AccessToken)" push --set-upstream origin ${{parameters.BranchToCreate}}
+      workingDirectory: $(Pipeline.Workspace)\DevopsSource
+      displayName: 'Push to Azure DevOps ${{parameters.BranchToCreate}} Remote Branch'
+      condition: and(succeeded(), ne('${{parameters.BranchToCreate}}', 'Commit to existing branch specified in Branch parameter'), ne('${{parameters.BranchToCreate}}', '${{parameters.SolutionName}}')) # If an empty value is not passed for the BranchToCreate variable, then run this task
