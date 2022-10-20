@@ -212,6 +212,7 @@ function set-deployment-variable
     if (-not ([string]::IsNullOrEmpty("$deploymentSettingsPath"))){
         $deploymentSettings = Get-Content "$deploymentSettingsPath" | ConvertFrom-Json
         $settingsNode = $deploymentSettings.$deploymentSettingsNode
+        Write-Host "settingsNode - $settingsNode"
         if($null -ne $settingsNode) {
             Write-Host "Found settings node in $deploymentSettingsNode"
             $settingsJson = $settingsNode | ConvertTo-Json
@@ -226,6 +227,9 @@ function set-deployment-variable
             }
         }
     }
+
+    Write-Host "variableName - $variableName"
+    Write-Host "variableValue - $variableValue"
     # Set the deployment variable for use elsewhere
     Write-Host "##vso[task.setvariable variable=$variableName;]$variableValue"
 }

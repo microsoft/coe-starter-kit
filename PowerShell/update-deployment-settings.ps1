@@ -177,7 +177,8 @@
                         }
                     }
                     elseif($configurationVariableName.StartsWith("groupTeam.", "CurrentCultureIgnoreCase")) {
-                        $teamName = $configurationVariableName.split('.')[-1]
+                        #$teamName = $configurationVariableName.split('.')[-1]
+                        $teamName = Get-Group-Team-Name $configurationVariableName
                         $teamGroupRoles = $configurationVariable.Data.split(',')
                         $businessUnitVariableName = $configurationVariableName.Replace("groupTeam", "businessUnit")
                         $teamBusinessUnit = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq $businessUnitVariableName } | Select-Object -First 1
@@ -463,4 +464,27 @@ function Check-Parameter{
      }
 
      return $found
+}
+
+function Get-Group-Team-Name{
+    param (
+        [Parameter()] [String]$configurationVariableName
+    )
+
+    $teamName = ""
+    $seperator=""
+    $arrVariableParts = $configurationVariableName.split('.')
+    write-Host "arrVariableParts count - " $arrVariableParts.Count
+
+    if($arrVariableParts.Count -gt 2)
+    {
+        for($indxVariableParts=2;$indxVariableParts -lt $arrVariableParts.Count;$indxVariableParts++)
+        {
+            $teamName += $seperator + $arrVariableParts[$indxVariableParts]
+            $seperator='.'
+        }
+    }
+
+    Write-Host "teamName - $teamName"
+    return $teamName
 }

@@ -1,7 +1,7 @@
 # Testable outside of agent
 function Grant-AccessToWorkflow {
     param (
-        [Parameter(Mandatory)] [String]$token,
+        [Parameter()] [String]$token,
         [Parameter(Mandatory)] [String]$dataverseHost,
         [Parameter(Mandatory)] [String]$teamName,
         [Parameter(Mandatory)] [String]$workflowId
@@ -29,7 +29,7 @@ function Grant-AccessToWorkflow {
 
 function Grant-AccessToConnector {
     param (
-        [Parameter(Mandatory)] [String]$token,
+        [Parameter()] [String]$token,
         [Parameter(Mandatory)] [String]$dataverseHost,
         [Parameter(Mandatory)] [String]$teamName,
         [Parameter(Mandatory)] [String]$connectorId

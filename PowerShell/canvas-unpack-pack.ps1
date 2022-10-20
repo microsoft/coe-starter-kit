@@ -65,48 +65,51 @@ function Share-Canvas-App-with-AAD-Group
         [Parameter(Mandatory)] [String]$microsoftXrmDataPowerShellModule,
         [Parameter(Mandatory)] [String]$XrmDataPowerShellVersion,
         [Parameter(Mandatory)] [String]$serviceConnection,
-        [Parameter(Mandatory)] [String]$aadGroupCanvasConfiguration,
-        [Parameter(Mandatory)] [String]$environmentId
+        [Parameter()] [String]$aadGroupCanvasConfiguration,
+        [Parameter(Mandatory)] [String]$environmentId,
+        [Parameter(Mandatory)] [String]$dataverseConnectionString
     )
-    #$microsoftPowerAppsAdministrationPowerShellModule = '$(CoETools_Microsoft_PowerApps_Administration_PowerShell)'
-    Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $powerAppsAdminModuleVersion -ArgumentList @{ NonInteractive = $true }
-    Add-PowerAppsAccount -TenantID $tenantId -ApplicationId $clientId -ClientSecret $clientSecret
-    #$microsoftXrmDataPowerShellModule = '$(CoETools_Microsoft_Xrm_Data_PowerShell)'
-    Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $XrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
-    $conn = Get-CrmConnection -ConnectionString "$(connectionVariables.BuildTools.DataverseConnectionString)"
+	if($aadGroupCanvasConfiguration -ne '') {
+        #$microsoftPowerAppsAdministrationPowerShellModule = '$(CoETools_Microsoft_PowerApps_Administration_PowerShell)'
+        Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $powerAppsAdminModuleVersion -ArgumentList @{ NonInteractive = $true }
+        Add-PowerAppsAccount -TenantID $tenantId -ApplicationId $clientId -ClientSecret $clientSecret
+        #$microsoftXrmDataPowerShellModule = '$(CoETools_Microsoft_Xrm_Data_PowerShell)'
+        Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $XrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
+        $conn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
 
-    # json config value must follow this format
-    #[
-    #    {
-    #        "aadGroupId": "aad-security-group-guid-1",
-    #        "canvasNameInSolution": "pfx_app-name-in-solution-name-1",
-    #        "roleName":"CanView or CanViewWithShare or CanEdit" 
-    #    },
-    #    {
-    #        "aadGroupId": "aad-security-group-guid-2",
-    #        "canvasNameInSolution": "pfx_app-name-in-solution-name-2",
-    #        "roleName":"CanView or CanViewWithShare or CanEdit" 
-    #    }
-    #]
-    $config = Get-Content "$aadGroupCanvasConfiguration" | ConvertFrom-Json
+        # json config value must follow this format
+        #[
+        #    {
+        #        "aadGroupId": "aad-security-group-guid-1",
+        #        "canvasNameInSolution": "pfx_app-name-in-solution-name-1",
+        #        "roleName":"CanView or CanViewWithShare or CanEdit" 
+        #    },
+        #    {
+        #        "aadGroupId": "aad-security-group-guid-2",
+        #        "canvasNameInSolution": "pfx_app-name-in-solution-name-2",
+        #        "roleName":"CanView or CanViewWithShare or CanEdit" 
+        #    }
+        #]
+        $config = Get-Content "$aadGroupCanvasConfiguration" | ConvertFrom-Json
 
-    foreach ($c in $config){
-        $aadGroupId = $c.aadGroupId
-        $roleName = $c.roleName
-        $canvasNameInSolution = $c.canvasNameInSolution     
-        if($aadGroupId -ne '' -and $roleName -ne '' -and $canvasNameInSolution -ne '') {
-            $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $canvasNameInSolution -Fields canvasappid
-            if($canvasApps.Count -gt 0) {
-                $appId = $canvasApps.CrmRecords[0].canvasappid
-                #$environmentId = "$environmentId"
-                Write-Host "Sharing app $appId with $aadGroupId"
-                Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId
-            }
-            else {
-                Write-Host "##vso[task.logissue type=warning]A specified canvas app was not found in the target environment. Verify your deployment configuration and try again."
+        foreach ($c in $config){
+            $aadGroupId = $c.aadGroupId
+            $roleName = $c.roleName
+            $canvasNameInSolution = $c.canvasNameInSolution     
+            if($aadGroupId -ne '' -and $roleName -ne '' -and $canvasNameInSolution -ne '') {
+                $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $canvasNameInSolution -Fields canvasappid
+                if($canvasApps.Count -gt 0) {
+                    $appId = $canvasApps.CrmRecords[0].canvasappid
+                    #$environmentId = "$environmentId"
+                    Write-Host "Sharing app $appId with $aadGroupId"
+                    Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId
+                }
+                else {
+                    Write-Host "##vso[task.logissue type=warning]A specified canvas app was not found in the target environment. Verify your deployment configuration and try again."
+                }
             }
         }
-    }
+	}
 }
 
 function Update-Canvas-App-Ownership
