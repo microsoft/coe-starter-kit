@@ -41,6 +41,80 @@
    }
 }
 
+function Repack-Canvas-Apps
+{
+    param (
+        [Parameter(Mandatory)] [String]$sourcesDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [String]$agentOS,
+        [Parameter(Mandatory)] [String]$tempDirectory
+    )
+
+   if ($agentOS -eq "Linux") {
+       $pacPath = $env:POWERPLATFORMTOOLS_PACCLIPATH + "/pac_linux/tools"
+       $env:PATH = $env:PATH + ":" + $pacPath #note colon delimeter in path for linux
+   }
+   else {
+       $pacPath = $env:POWERPLATFORMTOOLS_PACCLIPATH + "\pac\tools"
+       $env:PATH = $env:PATH + ";" + $pacPath #note semi-colon delimeter in path for windows
+   }   
+
+   $solutionSource = "$sourcesDirectory\$repo\$solutionName"
+   $canvasUnpackPath = "$solutionSource\SolutionPackage\src\CanvasApps"
+
+   Write-Host "canvasUnpackPath - $canvasUnpackPath"
+   #Check if Canvas Apps folder exist in solution unpack
+   if(Test-Path "$canvasUnpackPath")
+   {
+       # Fetch .msapp files
+       Get-ChildItem -Path "$canvasUnpackPath" -Recurse  -Include *.msapp | 
+           ForEach-Object {     
+             $msappName = $_.Name
+             Write-Host "msappName - " $msappName
+             # msapp file name suffixes with '_DocumentUri.msapp'
+             $seperator = "_DocumentUri.msapp"
+             if($msappName.EndsWith("$seperator")) {
+                $canvasAppName = $msappName.Replace("$seperator","")
+                Write-Host "canvasAppName - " $canvasAppName
+                $canvasSrcFolderPath = "$canvasUnpackPath\src\$canvasAppName"
+                # Check canvas src folder exists
+                if(Test-Path "$canvasSrcFolderPath")
+                {
+                  # Rebuild and save the new .msapp file in temp folder
+                  pac canvas pack --sources "$canvasSrcFolderPath" --msapp "$tempDirectory\msapps\$msappName"
+                }
+                else{
+                  Write-Host "canvasSrcFolderPath unavailable - $canvasAppName"
+                }
+             }        
+           }
+
+       # Delete old .msapp files
+       #Get-ChildItem -Path "$canvasUnpackPath" -Recurse  -Include *.msapp | 
+       #    ForEach-Object {
+       #        Write-Host "Deleting msapp file - " $_.Name
+       #        Remove-Item -Path $_.FullName -Force           
+       #    }
+       
+        # Move new msapp files to solution\src folder
+        if(Test-Path "$tempDirectory\msapps")
+        {
+            Write-Host "Copying rebuilt msapp files to unpacked folder"
+            Copy-Item -Path "$tempDirectory\msapps\*" -Destination "$canvasUnpackPath" -PassThru -Force
+            # Delete tempDirectory\msapps folder
+            Write-Host "Deleting tempDirectory\msapps folder"
+            Remove-Item -Path "$tempDirectory\msapps" -Recurse
+        }
+        else{
+            Write-Host "tempDirectory\msapps unavailable"
+        }
+   }
+   else{
+      Write-Host "canvasUnpackPath unavailable - $canvasUnpackPath"
+   }
+}
+
 function Get-managed-solution-zip-path
 {
     param (
@@ -224,8 +298,7 @@ function get-managed-solution-zip-path
 {
     param (
         [Parameter(Mandatory)] [String]$artifactDropPath,
-        [Parameter(Mandatory)] [String]$solutionName,
-        [Parameter(Mandatory)] [String]$triggerSolutionUpgrade
+        [Parameter(Mandatory)] [String]$solutionName
     )
 
     #Attempt to find the managed solution in the build pipeline drop if build and deploy are seperate pipelines
@@ -237,9 +310,4 @@ function get-managed-solution-zip-path
         }
     }
     Write-Host "##vso[task.setVariable variable=ManagedSolutionPath]$managedSolutionPath"
-
-    #Set TriggerSolutionUpgrade to false if the variable is not set
-    if('$triggerSolutionUpgrade'.Contains("TriggerSolutionUpgrade")) {
-        Write-Host "##vso[task.setVariable variable=TriggerSolutionUpgrade]false"
-    }
 }
