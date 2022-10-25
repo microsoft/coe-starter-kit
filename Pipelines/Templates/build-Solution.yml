@@ -72,13 +72,25 @@ steps:
       restructure-legacy-folders '$(Build.ArtifactStagingDirectory)' '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}' '$(pacPath)' '${{parameters.serviceConnectionUrl}}' '$(Agent.BuildDirectory)'
   displayName: 'Restructure legacy folders'
   
-# Solution version in source control is not used.  Instead, create version at build time from the current build number.
+  # By default variable UseSolutionVersionFromDataverse is not 'true'
+  # use pipeline build number for versioning
 - pwsh: |
    $solutionXMLPath = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\src\Other\Solution.xml"
     . "$env:POWERSHELLPATH/build-deploy-solution-functions.ps1"
    update-solution-xml-with-build-number "$solutionXMLPath" "$(Build.BuildNumber)"
   displayName: 'Update Solution XML with Build Number'
-  condition: and(succeeded(), ne('${{parameters.buildType}}', 'Unmanaged'))
+  condition: and(succeeded(), ne(variables.UseSolutionVersionFromDataverse, 'true'))
+
+  # If UseSolutionVersionFromDataverse is 'true'
+  # use version number from solution xml for pipeline build number
+  # Updating the Pipeline Build number is only useful for display purposes
+- pwsh: |
+    $solutionXMLPath = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\src\Other\Solution.xml"
+    [xml]$solutionXmlDoc = Get-Content -LiteralPath $solutionXMLPath
+    Write-Host "##vso[build.updatebuildnumber]$($solutionXmlDoc.ImportExportXml.SolutionManifest.Version)"
+  displayName: 'Update Build Number from Solution XML'
+  condition: and(succeeded(), eq(variables.UseSolutionVersionFromDataverse, 'true'))
+
 
 # Before we committed changes, we formatted all json files for readability in source control.  This breaks solution package, so we need to flatten them before packing   
 - pwsh: |
