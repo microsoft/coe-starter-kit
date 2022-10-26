@@ -22,17 +22,6 @@ AzureDevOpsProjects As screen:
         
         
 
-    lblVersion As Label:
-        Alignment: =Align.Left
-        DisplayMode: =DisplayMode.Edit
-        FontSize: =7
-        Height: =20
-        Text: ="0.0.0.3"
-        Width: =75
-        X: =20
-        Y: =App.Height - Self.Height
-        ZIndex: =1
-
     RootLayout As groupContainer.horizontalAutoLayoutContainer:
         Height: =Parent.Height
         LayoutDirection: =LayoutDirection.Vertical
@@ -876,11 +865,19 @@ AzureDevOpsProjects As screen:
                             Items: =colProjectRepos
                             OnChange: |-
                                 =If(IsBlank(Self.Selected),
-                                    UpdateContext({repoContent: Blank()});
+                                    UpdateContext({isTemplateRepo: false, repoContent: Blank()});
                                     ,
+                                    UpdateContext({ isTemplateRepo: Not(IsError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, Self.Selected.id, { path: "/Pipelines/export-solution-to-git.yml", 'api-version': "7.1-preview"}).content) )});
+                                    
                                     UpdateContext({
-                                        repoContent: IfError(JSON(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, Self.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content), JSON({ version: "" }))
-                                    })
+                                        repoContent: If(isTemplateRepo, 
+                                            IfError(JSON(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, Self.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content), JSON({
+                                  version: "Unknown",
+                                  published: "",
+                                  content: "coe-alm-accelerator-templates"
+                                }))
+                                    , JSON({ version: "" }))
+                                    });
                                 );
                             OnSelect: =false
                             PageSize: =2000
@@ -917,7 +914,7 @@ AzureDevOpsProjects As screen:
                                 
                                     {ItemKey:"View",ItemDisplayName:"View",ItemIconName:"View", ItemEnabled:(CountRows(fdRepositories.SelectedItems) = 1 And CountRows(fdProjects.SelectedItems) = 1)},
                                 
-                                    {ItemKey:"Upgrade",ItemDisplayName:"Upgrade",ItemIconName:"SyncStatus", ItemEnabled:(Not(IsBlank(ParseJSON(repoContent).version)) And CountRows(fdRepositories.SelectedItems) = 1 And CountRows(fdProjects.SelectedItems) = 1)},
+                                    {ItemKey:"Upgrade",ItemDisplayName:"Upgrade",ItemIconName:"SyncStatus", ItemEnabled:(isTemplateRepo) And CountRows(fdRepositories.SelectedItems) = 1 And CountRows(fdProjects.SelectedItems) = 1},
                                 
                                     {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:(CountRows(fdProjects.SelectedItems) = 1)},
                                 
@@ -940,6 +937,7 @@ AzureDevOpsProjects As screen:
                                     Launch($"https://dev.azure.com/{currentOrganization.AccountName}/{currentProject.name}/_git/{fdRepositories.Selected.name}");
                                     ,
                                     "Upgrade",
+                                    UpdateContext({almProjectSyncPipelineId: If(IsBlank(LookUp(colProjectPipelines, name = "sync-pipeline-repo")), -1, LookUp(colProjectPipelines, name = "sync-pipeline-repo").id)});
                                     UpdateContext({showUpgradePipelineRepoPanel: true});
                                     ,
                                     "Info",
@@ -4660,7 +4658,7 @@ AzureDevOpsProjects As screen:
 
         pnlUpgradePipelineRepo As Panel:
             Buttons: |-
-                =If(txtCurrentPipelineVersion.Value = txtUpgradePipelineVersion.Value Or IsBlank(ParseJSON(repoContent).version),
+                =If(txtCurrentPipelineVersion.Value = txtUpgradePipelineVersion.Value Or Not(isTemplateRepo) Or almProjectSyncPipelineId = -1,
                     Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard }),
                     Table({Label: "Cancel", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Standard } ,{Label: "Upgrade", ButtonType:'''Microsoft.CoreControls.Button.ButtonType'''.Primary})
                 )    
@@ -4669,7 +4667,7 @@ AzureDevOpsProjects As screen:
             OnButtonSelect: |-
                 =Switch(Self.SelectedButton.Label,
                     "Upgrade",
-                    UpdateContext({almProjectSyncPipelineId: LookUp(colProjectPipelines, name = "sync-pipeline-repo").id});
+                
                     UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.AccountName, fdProjects.Selected.name, almProjectSyncPipelineId, {
                         'api-version': "6.0",
                         definition: {
@@ -4680,10 +4678,11 @@ AzureDevOpsProjects As screen:
                             TargetBranch: "main",
                             SyncFrom: "Tag",
                             SourceBranchOrTag: txtUpgradePipelineVersion.Value,
-                            AutoCompletePR: true,
+                            AutoCompletePR: chkAutoCompleteUpgrade.Checked,
                             deleteSourceBranch: true
                         }
                     })}); 
+                    
                     UpdateContext({showUpgradePipelineRepoPanel: false}),
                 
                     "Cancel",
@@ -4773,15 +4772,26 @@ AzureDevOpsProjects As screen:
             DisabledBorderColor: =RGBA(166, 166, 166, 1)
             DisabledColor: =RGBA(220, 220, 220, 1)
             DisabledFill: =RGBA(0, 0, 0, 0)
+            DisplayMode: =If(almProjectSyncPipelineId = -1, Disabled, Edit)
             Height: =32
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
             HoverFill: =RGBA(0, 0, 0, 0)
             Icon: =Icon.Reload
             OnSelect: |-
-                =UpdateContext({
-                    repoContent: CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content
+                =UpdateContext({ isTemplateRepo: Not(IsError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/Pipelines/export-solution-to-git.yml", 'api-version': "7.1-preview"}).content) )});
+                    
+                UpdateContext({
+                    repoContent: If(isTemplateRepo, 
+                        IfError(JSON(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content), JSON({
+                  version: "Unknown",
+                  published: "",
+                  content: "coe-alm-accelerator-templates"
+                }))
+                    , JSON({ version: "" }))
                 });
+                
+                Reset(txtCurrentPipelineVersion);
             PaddingBottom: =3
             PaddingLeft: =3
             PaddingRight: =3
@@ -4797,9 +4807,10 @@ AzureDevOpsProjects As screen:
 
         "txtCurrentPipelineVersion As 'Text box'":
             AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.View
+            DisplayMode: =If(almProjectSyncPipelineId = -1, Disabled, View)
             Height: =32
             Placeholder: =""
+            Tooltip: =Text(ParseJSON(repoContent).version)
             Value: =Text(ParseJSON(repoContent).version)
             Visible: =Not(IsBlank(ParseJSON(repoContent).version))
             Width: =plnNewRepository.DialogWidth - 80
@@ -4828,6 +4839,7 @@ AzureDevOpsProjects As screen:
             DisabledBorderColor: =RGBA(166, 166, 166, 1)
             DisabledColor: =RGBA(220, 220, 220, 1)
             DisabledFill: =RGBA(0, 0, 0, 0)
+            DisplayMode: =If(almProjectSyncPipelineId = -1, Disabled, Edit)
             Height: =32
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
@@ -4839,6 +4851,8 @@ AzureDevOpsProjects As screen:
                     ,
                     ClearCollect(colReleaseTags, 'Release Histories')
                 );
+                
+                Reset(txtUpgradePipelineVersion);
             PaddingBottom: =3
             PaddingLeft: =3
             PaddingRight: =3
@@ -4854,9 +4868,10 @@ AzureDevOpsProjects As screen:
 
         "txtUpgradePipelineVersion As 'Text box'":
             AccessibleLabel: ="Search files"
-            DisplayMode: =DisplayMode.View
+            DisplayMode: =If(almProjectSyncPipelineId = -1, Disabled, View)
             Height: =32
             Placeholder: ="Repository Name"
+            Tooltip: =First(Sort(colReleaseTags, Published, Descending)).Tag
             Value: =First(Sort(colReleaseTags, Published, Descending)).Tag
             Visible: =Not(IsBlank(ParseJSON(repoContent).version))
             Width: =plnNewRepository.DialogWidth - 80
@@ -4881,6 +4896,27 @@ AzureDevOpsProjects As screen:
             X: =Parent.Width - plnNewRepository.DialogWidth + 20
             Y: =App.Height - 100
             ZIndex: =12
+
+        "chkAutoCompleteUpgrade As 'Check box'":
+            Checked: =true
+            DisplayMode: =If(almProjectSyncPipelineId = -1, Disabled, Edit)
+            Height: =32
+            Label: ="Auto complete upgrade"
+            Width: =plnNewRepository.DialogWidth - 40
+            X: =Parent.Width - plnNewRepository.DialogWidth + 20
+            Y: =485
+            ZIndex: =13
+
+        lblSyncPipelineNotFound As Label:
+            Color: =RGBA(184, 0, 0, 1)
+            DisplayMode: =DisplayMode.Edit
+            Height: =32
+            Text: ="Sync pipeline not found"
+            Visible: =almProjectSyncPipelineId = -1
+            Width: =320
+            X: =986
+            Y: =668
+            ZIndex: =14
 
     grpNewRepository As group:
         Height: =5
