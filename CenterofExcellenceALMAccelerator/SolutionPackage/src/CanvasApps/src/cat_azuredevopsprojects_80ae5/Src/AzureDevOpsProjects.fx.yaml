@@ -1918,7 +1918,7 @@ AzureDevOpsProjects As screen:
                             "ddExistingProjects_1 As 'Combo box'.pcfdataset":
                                 DisplayMode: =If(Not(IsBlank(ddOrganization.Selected)) And IsBlank(txtProjectName_5.Value), DisplayMode.Edit, DisplayMode.Disabled)
                                 Height: =32
-                                Items: =If(Not(IsBlankOrError(currentOrganization.AccountName)), colProjects, Blank())
+                                Items: =If(Not(IsBlankOrError(currentOrganization.AccountName)), Sort(colProjects, name, Ascending), Blank())
                                 OnChange: |
                                     =If(CountRows(Self.SelectedItems) > 0,
                                         ClearCollect(colExistingProjectRepos, CustomAzureDevOps.GetGitRepos(currentOrganization.AccountName, Self.Selected.name, {'api-version': "6.0"}).value);
@@ -2203,7 +2203,7 @@ AzureDevOpsProjects As screen:
                                     =Table({Name:"None"})
                                 DisplayMode: =If(chkProjectWizardCreateRepoExistingRepo_1.Checked,DisplayMode.Disabled, DisplayMode.Edit)
                                 Height: =32
-                                Items: =If(Not(IsBlank(ddOrganization.Selected)), colProjects)
+                                Items: =If(Not(IsBlank(ddOrganization.Selected)), Sort(colProjects, name, Ascending))
                                 OnChange: |-
                                     =Clear(colPipelineRepos);
                                     If(Not(IsBlankOrError(Self.Selected.name)),
@@ -4546,6 +4546,7 @@ AzureDevOpsProjects As screen:
 
         "ddReleaseTags_1 As 'Combo box'.pcfdataset":
             AccessibleLabel: ="Align"
+            AllowMultiSelect: =false
             DefaultSelectedItems: |-
                 =Table({Name:"None"})
             DisplayMode: =If(IsBlank(ddOrganization.Selected) Or Not(chkInstallPipelineTemplates.Checked) Or Not(createProjectPermission) Or createNewProjectLoop Or createRepoLoop, DisplayMode.Disabled, DisplayMode.Edit)
@@ -4951,7 +4952,8 @@ AzureDevOpsProjects As screen:
                         {
                             newProjectOrganization: ddOrganization.Selected.AccountName,
                             newProjectName: txtProjectName_2.Value,
-                            newProjectInstallTemplates: chkSetPermissions.Checked,
+                            newProjectInstallTemplates: chkInstallPipelines.Checked,
+                            newProjectRepoSetPermissions: chkSetPermissions.Checked,
                             newPipelineTemplateRepository: txtRepositoryName.Value,
                             newPipelineTemplateVersion: ddReleaseTags.Selected.Tag,
                             createRepoOperation: "createRepo",
@@ -4968,8 +4970,8 @@ AzureDevOpsProjects As screen:
                 )
             OnCloseSelect: |-
                 =UpdateContext({showNewRepositoryPanel:false})
-            Subtitle: ="Create a new Azure DevOps Project to be used with ALM Accelerator"
-            Title: ="New Azure DevOps Project"
+            Subtitle: =$"Create a new Azure Git Repository in the {currentProject.name} Project"
+            Title: ="New Repository"
             Visible: =showNewRepositoryPanel
             Width: =App.Width
             ZIndex: =23
@@ -5131,82 +5133,84 @@ AzureDevOpsProjects As screen:
                     
                         UpdateContext({newProjectId: LookUp(colProjects, name = newProjectName).id});
                 
-                        // Get build service identity
-                        ClearCollect(
-                            projectBuildServiceAccount,
-                            CustomAzureDevOps.GetIdentities(
+                        If(newProjectRepoSetPermissions,
+                            // Get build service identity
+                            ClearCollect(
+                                projectBuildServiceAccount,
+                                CustomAzureDevOps.GetIdentities(
+                                    ddOrganization.Selected.AccountName,
+                                    {
+                                        'api-version': "7.1-preview.1",
+                                        searchFilter: "General",
+                                        filterValue: Concatenate(
+                                            newProjectName,
+                                            " Build Service (",
+                                            ddOrganization.Selected.AccountName,
+                                            ")"
+                                        )
+                                    }
+                                ).value
+                            );
+                            
+                            // Set Permissions
+                            CustomAzureDevOps.SetPermissions(
                                 ddOrganization.Selected.AccountName,
+                                "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                 {
-                                    'api-version': "7.1-preview.1",
-                                    searchFilter: "General",
-                                    filterValue: Concatenate(
-                                        newProjectName,
-                                        " Build Service (",
-                                        ddOrganization.Selected.AccountName,
-                                        ")"
-                                    )
+                                    'api-version': "6.0",
+                                    token: "repoV2/" & newProjectId & "/" & LookUp(
+                                        colProjectRepos,
+                                        name = newPipelineTemplateRepository
+                                    ).id,
+                                    merge: true,
+                                    accessControlEntries: {
+                                        descriptor: First(projectBuildServiceAccount).descriptor,
+                                        allow: 16404,
+                                        deny: 0
+                                    }
                                 }
-                            ).value
-                        );
-                        
-                        // Set Permissions
-                        CustomAzureDevOps.SetPermissions(
-                            ddOrganization.Selected.AccountName,
-                            "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
-                            {
-                                'api-version': "6.0",
-                                token: "repoV2/" & newProjectId & "/" & LookUp(
-                                    colProjectRepos,
-                                    name = newPipelineTemplateRepository
-                                ).id,
-                                merge: true,
-                                accessControlEntries: {
-                                    descriptor: First(projectBuildServiceAccount).descriptor,
-                                    allow: 16404,
-                                    deny: 0
-                                }
-                            }
-                        );
+                            );
                 
-                        // Get build service identity
-                        ClearCollect(
-                            projectBuildServiceAccount,
-                            CustomAzureDevOps.GetIdentities(
+                            // Get build service identity
+                            ClearCollect(
+                                projectBuildServiceAccount,
+                                CustomAzureDevOps.GetIdentities(
+                                    ddOrganization.Selected.AccountName,
+                                    {
+                                        'api-version': "7.1-preview.1",
+                                        searchFilter: "General",
+                                        filterValue: Concatenate(
+                                            "Project Collection Build Service (",
+                                            ddOrganization.Selected.AccountName,
+                                            ")"
+                                        )
+                                    }
+                                ).value
+                            );
+                            
+                
+                
+                
+                            // Set Permissions
+                            CustomAzureDevOps.SetPermissions(
                                 ddOrganization.Selected.AccountName,
+                                "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                 {
-                                    'api-version': "7.1-preview.1",
-                                    searchFilter: "General",
-                                    filterValue: Concatenate(
-                                        "Project Collection Build Service (",
-                                        ddOrganization.Selected.AccountName,
-                                        ")"
-                                    )
+                                    'api-version': "6.0",
+                                    token: "repoV2/" & newProjectId & "/" & LookUp(
+                                        colProjectRepos,
+                                        name = newPipelineTemplateRepository
+                                    ).id,
+                                    merge: true,
+                                    accessControlEntries: {
+                                        descriptor: First(projectBuildServiceAccount).descriptor,
+                                        allow: 16404,
+                                        deny: 0
+                                    }
                                 }
-                            ).value
-                        );
-                        
-                
-                
-                
-                        // Set Permissions
-                        CustomAzureDevOps.SetPermissions(
-                            ddOrganization.Selected.AccountName,
-                            "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
-                            {
-                                'api-version': "6.0",
-                                token: "repoV2/" & newProjectId & "/" & LookUp(
-                                    colProjectRepos,
-                                    name = newPipelineTemplateRepository
-                                ).id,
-                                merge: true,
-                                accessControlEntries: {
-                                    descriptor: First(projectBuildServiceAccount).descriptor,
-                                    allow: 16404,
-                                    deny: 0
-                                }
-                            }
-                        );
-                                
+                            );
+                        );    
+                            
                         If(newProjectInstallTemplates,
                 
                             UpdateContext({fileContent: GetGithubFileContent.Run(newPipelineTemplateVersion).filecontent});
@@ -5238,36 +5242,42 @@ AzureDevOpsProjects As screen:
                                 }
                             );
                 
-                            UpdateContext({syncPipeline: CustomAzureDevOps.CreatePipeline(ddOrganization.Selected.AccountName, newProjectName, {
-                                'api-version': "6.0",
-                                folder: "ALM Accelerator Templates",
-                                name: "sync-pipeline-repo",
-                                configuration: {
-                                    type: "yaml",
-                                    path: "/Pipelines/sync-pipeline-repo.yml",
-                                    repository: {
-                                        id: LookUp(colProjectRepos, name = newPipelineTemplateRepository).id,
-                                        name: newPipelineTemplateRepository,
-                                        type: "azureReposGit"
+                            ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value);
+                            If(IsBlank(LookUp(colProjectPipelines, name = "sync-pipeline-repo")),
+                                // create new sync pipeline
+                                UpdateContext({syncPipeline: CustomAzureDevOps.CreatePipeline(ddOrganization.Selected.AccountName, newProjectName, {
+                                    'api-version': "6.0",
+                                    folder: "ALM Accelerator Templates",
+                                    name: "sync-pipeline-repo",
+                                    configuration: {
+                                        type: "yaml",
+                                        path: "/Pipelines/sync-pipeline-repo.yml",
+                                        repository: {
+                                            id: LookUp(colProjectRepos, name = newPipelineTemplateRepository).id,
+                                            name: newPipelineTemplateRepository,
+                                            type: "azureReposGit"
+                                        }
                                     }
-                                }
-                            }).id});
-                        
+                                }).id});
+                            ,
+                              UpdateContext({syncPipeline: LookUp(colProjectPipelines, name = "sync-pipeline-repo").id});
+                                  
+                            );
+                                
                             UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.AccountName, newProjectName, syncPipeline, {
-                                'api-version': "6.0",
-                                definition: {
-                                    id: syncPipeline
-                                },
-                                templateParameters: {
-                                    BranchToCreate: "initialSync",
-                                    TargetBranch: "main",
-                                    SyncFrom: "Tag",
-                                    SourceBranchOrTag: newPipelineTemplateVersion,
-                                    AutoCompletePR: true,
-                                    deleteSourceBranch: true
-                                }
+                                    'api-version': "6.0",
+                                    definition: {
+                                        id: syncPipeline
+                                    },
+                                    templateParameters: {
+                                        BranchToCreate: "initialSync",
+                                        TargetBranch: "main",
+                                        SyncFrom: "Tag",
+                                        SourceBranchOrTag: newPipelineTemplateVersion,
+                                        AutoCompletePR: true,
+                                        deleteSourceBranch: true
+                                    }
                             })}); 
-                            
                             // removed - it requires that custom connector is preinstalled in order to install the ALM Acc. solution. Need to find a solution for this
                             //GetPipelineRunResult.Run(currentOrganization.AccountName, newProjectName, syncPipelineRun.pipeline.id, syncPipelineRun.id, User().Email);
                         ,
