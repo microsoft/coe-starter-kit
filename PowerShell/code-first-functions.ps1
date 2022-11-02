@@ -268,7 +268,6 @@ function add-packagetype-node-to-cdsproj{
         [Parameter(Mandatory)] [String]$repo,
         [Parameter(Mandatory)] [String]$solutionName
     )
-    #$cdsProjPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName\$solutionName.cdsproj"
     $cdsProjPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName.cdsproj"
 
     if(Test-Path $cdsProjPath){
@@ -277,7 +276,8 @@ function add-packagetype-node-to-cdsproj{
         # Skip logic if 'Solution Package Type' node already exists'
         $solutionPackageType = $xmlDoc.Project.PropertyGroup.SolutionPackageType
 
-        if($solutionPackageType -eq $null){
+        Write-Host "Existing solutionPackageType - " $solutionPackageType
+        if (([string]::IsNullOrWhiteSpace("$solutionPackageType"))){
             Write-Host "Adding SolutionPackageType='Both' node"
             $newPropertyGroup = $xmlDoc.Project.AppendChild($xmlDoc.CreateElement("PropertyGroup",$xmlDoc.Project.NamespaceURI));
             $newSolPkgType = $newPropertyGroup.AppendChild($xmlDoc.CreateElement("SolutionPackageType",$xmlDoc.Project.NamespaceURI));
