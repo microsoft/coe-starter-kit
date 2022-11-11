@@ -6,7 +6,10 @@ function Grant-AccessToWorkflow {
         [Parameter(Mandatory)] [String]$teamName,
         [Parameter(Mandatory)] [String]$workflowId
     )
+    Write-Host "teamName - $teamName"
+    Write-Host "workflowId - $workflowId"
     $teamId = Get-TeamId $token $dataverseHost $teamName
+    Write-Host "teamId - $teamId"
     if($teamId -ne '') {
         $body = "{
         `n    `"Target`":{

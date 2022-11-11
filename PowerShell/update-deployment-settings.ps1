@@ -141,14 +141,22 @@
                     }
                     elseif($configurationVariableName.StartsWith("flow.sharing.", "CurrentCultureIgnoreCase")) {
                         $flowSplit = $configurationVariableName.Split(".")
-                        $flowSharing = [PSCustomObject]@{"solutionComponentName"=$flowSplit[2]; "solutionComponentUniqueName"=$flowSplit[3]; "aadGroupTeamName"="#{$configurationVariableName}#"}
+                        $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
+                        $flowSharing = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "aadGroupTeamName"="#{$configurationVariableName}#"}
                         if($usePlaceholders.ToLower() -eq 'false') {
-                            $flowSharing = [PSCustomObject]@{"solutionComponentName"=$flowSplit[2]; "solutionComponentUniqueName"=$flowSplit[3]; "aadGroupTeamName"="$configurationVariableValue"}
+                            $flowSharing = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "aadGroupTeamName"="$configurationVariableValue"}
                         }
                         $flowSharings.Add($flowSharing)
                     }
                     elseif($configurationVariableName.StartsWith("activateflow.activate.", "CurrentCultureIgnoreCase")) {
+                        Write-Host "Flow configurationVariableName - $configurationVariableName"
                         $flowSplit = $configurationVariableName.Split(".")
+                        
+                        for($indxVariableParts=0;$indxVariableParts -lt $flowSplit.Count;$indxVariableParts++)
+                        {
+                            Write-Host "$indxVariableParts - " $flowSplit[$indxVariableParts]
+                        }
+
                         $flowActivateAsName = $configurationVariableName.Replace(".activate.", ".activateas.")
                         $flowActivateOrderName = $configurationVariableName.Replace(".activate.", ".order.")
 
@@ -159,9 +167,10 @@
                             $flowActivateOrderValue = $flowActivateOrder.Value
                             $flowActivateAsValue = $flowActivateAs.Value
 
-                            $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$flowSplit[2]; "solutionComponentUniqueName"=$flowSplit[3]; "activateAsUser"="#{$flowActivateAsName}#"; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
+                            $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
+                            $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "activateAsUser"="#{$flowActivateAsName}#"; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
                             if($usePlaceholders.ToLower() -eq 'false') {
-                                $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$flowSplit[2]; "solutionComponentUniqueName"=$flowSplit[3]; "activateAsUser"="$flowActivateAsValue"; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
+                                $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "activateAsUser"="$flowActivateAsValue"; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
                             }
                             $flowActivationUsers.Add($flowActivateConfig)
                         }
@@ -474,7 +483,6 @@ function Get-Group-Team-Name{
     $teamName = ""
     $seperator=""
     $arrVariableParts = $configurationVariableName.split('.')
-    write-Host "arrVariableParts count - " $arrVariableParts.Count
 
     if($arrVariableParts.Count -gt 2)
     {
@@ -487,4 +495,30 @@ function Get-Group-Team-Name{
 
     Write-Host "teamName - $teamName"
     return $teamName
+}
+
+# Flow component name starts from split[2] to split[n-2]; if contains periods
+function Get-Flow-Component-Name{
+    param (
+        [Parameter()] [String]$configurationVariableName
+    )
+
+    $flowComponentName = ""
+    $seperator=""
+    $arrVariableParts = $configurationVariableName.split('.')
+
+    if($arrVariableParts.Count -gt 4)
+    {
+        for($indxVariableParts=2;$indxVariableParts -lt $arrVariableParts.Count-1;$indxVariableParts++)
+        {
+            $flowComponentName += $seperator + $arrVariableParts[$indxVariableParts]
+            $seperator='.'
+        }
+    }
+    elseif($arrVariableParts.Count -eq 4){
+       $flowComponentName = $arrVariableParts[2]
+    }
+
+    Write-Host "flowComponentName - $flowComponentName"
+    return $flowComponentName
 }
