@@ -131,13 +131,13 @@
                     elseif($configurationVariableName.StartsWith("owner.ownerEmail.", "CurrentCultureIgnoreCase")) {
                         #Create the flow ownership deployment settings
                         $flowSplit = $configurationVariableName.Split(".")
-                        if($flowSplit.length -eq 4){
-                            $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$flowSplit[2]; "solutionComponentUniqueName"=$flowSplit[3]; "ownerEmail"="#{$configurationVariableName}#"}
-                            if($usePlaceholders.ToLower() -eq 'false') {
-                                $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$flowSplit[2]; "solutionComponentUniqueName"=$flowSplit[3]; "ownerEmail"="$configurationVariableValue"}
-                            }
-                            $flowOwnerships.Add($flowOwnerConfig)
+                        $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
+
+                        $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "ownerEmail"="#{$configurationVariableName}#"}
+                        if($usePlaceholders.ToLower() -eq 'false') {
+                            $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "ownerEmail"="$configurationVariableValue"}
                         }
+                        $flowOwnerships.Add($flowOwnerConfig)
                     }
                     elseif($configurationVariableName.StartsWith("flow.sharing.", "CurrentCultureIgnoreCase")) {
                         $flowSplit = $configurationVariableName.Split(".")
