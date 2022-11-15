@@ -141,6 +141,26 @@ function Get-managed-solution-zip-path
     }
 }
 
+function Get-unmanaged-solution-zip-path
+{
+    param (
+        [Parameter(Mandatory)] [String]$artifactDropPath,
+        [Parameter(Mandatory)] [String]$solutionName
+    )
+
+   $unmanagedSolutionPath = ''
+   Get-ChildItem -Path "$artifactDropPath" -Filter "$solutionName*.zip" | 
+   ForEach-Object {
+       If (-not $_.FullName.Contains("_managed")) 
+       { 
+         $unmanagedSolutionPath = $_.FullName 
+       }
+   }
+
+   Write-Host "##vso[task.setVariable variable=UnmanagedSolutionPath]$unmanagedSolutionPath"
+   Write-Host "unmanagedSolutionPath - " $unmanagedSolutionPath
+}
+
 function Check-if-Deployment-Settings-Exist
 {
     param (
