@@ -99,7 +99,7 @@ function add-codefirst-projects-to-cdsproj{
             Write-Host "Adding Reference of Pcf Project - " $pcfProj.FullName
             $pcfProjectPath = $pcfProj.FullName
 
-            $addReferenceCommand = "solution add-reference -p $pcfProjectPath"
+            $addReferenceCommand = "solution add-reference --path $pcfProjectPath"
             Write-Host "Add Reference Command - $addReferenceCommand"
             Invoke-Expression -Command "$pacexepath $addReferenceCommand"
           } 
@@ -122,7 +122,7 @@ function add-codefirst-projects-to-cdsproj{
 
                 # 'PowerAppsTargetsPath' tag is only availble in plugin project generate via 'pac plugin init'
                 if(-not [string]::IsNullOrWhiteSpace($tagPowerAppsTargetsPath)){
-                    $addReferenceCommand = "solution add-reference -p $csProjectPath"
+                    $addReferenceCommand = "solution add-reference --path $csProjectPath"
                     Write-Host "Add Reference Command - $addReferenceCommand"
                     Invoke-Expression -Command "$pacexepath $addReferenceCommand"
                 }
@@ -222,8 +222,6 @@ function clone-or-sync-solution{
         $unpackfolderpath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage"
 
         # Trigger Clone or Sync
-        #$cdsProjPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName\$solutionName.cdsproj"
-        #$cdsProjFolderPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName"
         $cdsProjPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName.cdsproj"
         $cdsProjFolderPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage"
         # If .cds project file exists (i.e., Clone performed already) trigger Sync
@@ -233,7 +231,7 @@ function clone-or-sync-solution{
             $cdsProjfolderPath = [System.IO.Path]::GetDirectoryName("$cdsProjPath")
             Write-Host "Pointing to cdsproj folder path - " $cdsProjfolderPath
             Set-Location -Path $cdsProjfolderPath
-            $syncCommand = "solution sync -pca true -p Both"
+            $syncCommand = "solution sync --processCanvasApps true --packagetype Both --async"
             Write-Host "Triggering Sync - $syncCommand"
             Invoke-Expression -Command "$pacexepath $syncCommand"
         }
@@ -245,7 +243,7 @@ function clone-or-sync-solution{
             }
 
             # Trigger Clone
-            $cloneCommand = "solution clone -n $solutionName -pca true -o ""$unpackfolderpath"" -p Both"
+            $cloneCommand = "solution clone -n $solutionName --processCanvasApps true --outputDirectory ""$unpackfolderpath"" --packagetype Both --async"
             Write-Host "Clone Command - $pacexepath $cloneCommand"
             Invoke-Expression -Command "$pacexepath $cloneCommand"
         }
@@ -340,8 +338,8 @@ function restructure-legacy-folders{
         # Generate .cdsproj file by triggering Clone
         $temp_init_path = "$buildDirectory\temp_init"
 
-        $solInitCommand = "solution init -pn $publisherName -pp $publisherPrefix -o $temp_init_path\$solutionName"
-        Write-Host "Solution Init Command - $pacPath\pac.exe $solInitCommand"
+        $solInitCommand = "solution init --publisher-name $publisherName --publisher-prefix $publisherPrefix --outputDirectory $temp_init_path\$solutionName"
+        Write-Host "Solution Init Command - $solInitCommand"
         Invoke-Expression -Command "$pacPath\pac.exe $solInitCommand"
 
         # Copy .cdsprojfile from temp to new folder structure
