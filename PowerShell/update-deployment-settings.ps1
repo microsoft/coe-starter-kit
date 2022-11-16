@@ -295,7 +295,7 @@ function New-DeploymentPipelines
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [String] [AllowEmptyString()] $pat,
         [Parameter(Mandatory)] [String]$solutionName,
-        [Parameter(Mandatory)] [System.Object[]]$configurationData,
+        [Parameter()] [System.Object[]] [AllowEmptyCollection()]$configurationData,
         [Parameter()] [String]$agentOS
     )
     if($null -ne $configurationData -and $configurationData.length -gt 0) {
