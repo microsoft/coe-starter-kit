@@ -131,7 +131,9 @@ class DevOpsCommand {
         let context: DevOpsProjectSecurityContext = <DevOpsProjectSecurityContext>{}
         let coreApi = await connection.getCoreApi();
 
-        let projects = await coreApi.getProjects()
+        //let projects = await coreApi.getProjects()
+        let projects = await coreApi.getProjects(undefined, 300, undefined, undefined, undefined)
+        
         let project = projects.filter(p => p.name?.toLowerCase() == args.projectName?.toLowerCase())
 
         if (project.length != 1) {
@@ -578,7 +580,8 @@ class DevOpsCommand {
             let endpoints = await this.getServiceConnections(args, connection)
             let coreApi = await connection.getCoreApi();
 
-            let projects = await coreApi.getProjects()
+            //let projects = await coreApi.getProjects()
+            let projects = await coreApi.getProjects(undefined, 300, undefined, undefined, undefined)
             let project = projects.filter(p => p.name?.toLowerCase() == projectNames[projectIndex].toLowerCase())
 
             if (project.length == 0) {
