@@ -50,11 +50,11 @@
           }
         },
         "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
-          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
           "type": "String",
           "metadata": {
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
-            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+            "description": "REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
           }
         }
       },
@@ -130,6 +130,14 @@
             "Apply_to_each": {
               "foreach": "@body('Filter_for_current_environment')",
               "actions": {
+                "Set_approved_capacity_for_Developer_and_Teams_environments": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "cfa5721b-7971-4a7c-9806-313c48158759"
+                  },
+                  "type": "Compose",
+                  "inputs": "@if(or(equals(items('Apply_to_each')?['properties']?['environmentSku'], 'Teams'), equals(items('Apply_to_each')?['properties']?['environmentSku'], 'Developer')), 2000, null)"
+                },
                 "Apply_to_each_capacity": {
                   "foreach": "@items('Apply_to_each')?['properties']?['capacity']",
                   "actions": {
@@ -164,6 +172,7 @@
                                   "entityName": "admin_environmentcapacities",
                                   "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
                                   "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                  "item/admin_approvedcapacity": "@outputs('Set_approved_capacity_for_Developer_and_Teams_environments')",
                                   "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
                                   "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
                                   "item/admin_ratedconsumption": "@items('Apply_to_each_capacity')?['ratedConsumption']"
@@ -195,6 +204,7 @@
                                     "entityName": "admin_environmentcapacities",
                                     "recordId": "@first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_environmentcapacityid']",
                                     "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                    "item/admin_approvedcapacity": "@outputs('Set_approved_capacity_for_Developer_and_Teams_environments')",
                                     "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
                                     "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
                                     "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
@@ -232,7 +242,11 @@
                       "type": "If"
                     }
                   },
-                  "runAfter": {},
+                  "runAfter": {
+                    "Set_approved_capacity_for_Developer_and_Teams_environments": [
+                      "Succeeded"
+                    ]
+                  },
                   "metadata": {
                     "operationMetadataId": "6cb254a9-6732-4f9a-8467-d53cfe404872"
                   },
@@ -405,7 +419,11 @@
           }
         },
         "Initialize_systemMaker": {
-          "runAfter": {},
+          "runAfter": {
+            "Check_if_Environment_Deleted_or_Excused,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
           "metadata": {
             "operationMetadataId": "34322142-9050-4db3-bb27-b6a0060a81a5"
           },
@@ -563,9 +581,45 @@
             "operationMetadataId": "5330f407-fe80-4deb-bcb6-e31fccde5e58"
           },
           "type": "Scope"
+        },
+        "Check_if_Environment_Deleted_or_Excused,_terminate_if_true": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "71b2e356-dc30-46ae-aa5e-90ae51cf707b"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_excusefrominventory']",
+                  "@true"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0bf354ac-4265-4bbe-9fed-996958d038bd"
+          },
+          "type": "If"
         }
       }
-    }
+    },
+    "templateName": null
   },
   "schemaVersion": "1.0.0.0"
 }

@@ -1,0 +1,359 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "impersonation": {},
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseEnvRequest"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_office365groups": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Groups"
+        },
+        "api": {
+          "name": "shared_office365groups"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "9aec5393-1abe-4f28-bbbc-a58b84746201"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "UserID",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_1": {
+                  "title": "SrID",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "boolean": {
+                  "title": "UserIsGroup",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                },
+                "boolean_1": {
+                  "title": "SrIsBu",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "boolean",
+                "boolean_1"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "If_User_Is_Group": {
+          "actions": {
+            "List_teams_with_this_Azure_AD_Object_ID": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "1bc2504b-748b-4b6c-a14d-af7a117454c0"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "entityName": "teams",
+                  "$select": "teamid, name",
+                  "$filter": "azureactivedirectoryobjectid eq @{triggerBody()['text']}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "See_if_team_already_exists": {
+              "actions": {
+                "Relate_Existing_Team_to_Role": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "744e050f-25ec-41e1-923e-56e30928fa5d"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "AssociateEntities"
+                    },
+                    "parameters": {
+                      "entityName": "roles",
+                      "recordId": "@triggerBody()['text_1']",
+                      "associationEntityRelationship": "teamroles_association",
+                      "item/@odata.id": "@first(outputs('List_teams_with_this_Azure_AD_Object_ID')?['body/value'])?['@odata.id']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "List_teams_with_this_Azure_AD_Object_ID": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Get_Team_Type": {
+                    "actions": {
+                      "TeamType": {
+                        "runAfter": {
+                          "Filter_to_This_Group": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "4facdd88-a4ba-4eb1-ab45-2579ff085997"
+                        },
+                        "type": "Compose",
+                        "inputs": "@if(equals(length(first(body('Filter_to_This_Group'))?['groupTypes']), 0), 2, 3)"
+                      },
+                      "Filter_to_This_Group": {
+                        "runAfter": {
+                          "List_groups": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "757973dd-2752-4019-8411-5729d3c7fe72"
+                        },
+                        "type": "Query",
+                        "inputs": {
+                          "from": "@outputs('List_groups')?['body/value']",
+                          "where": "@equals(item()?['id'], triggerBody()['text'])"
+                        }
+                      },
+                      "List_groups": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "d71e3969-2564-41ec-b16e-b2cdeebc12e4"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups",
+                            "connectionName": "shared_office365groups",
+                            "operationId": "ListGroups"
+                          },
+                          "parameters": {},
+                          "authentication": {
+                            "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+                            "type": "Raw"
+                          }
+                        },
+                        "runtimeConfiguration": {
+                          "paginationPolicy": {
+                            "minimumItemCount": 100000
+                          }
+                        }
+                      }
+                    },
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "36c4cb04-aca5-4494-8500-22810de61664"
+                    },
+                    "type": "Scope"
+                  },
+                  "Add_a_new_team": {
+                    "runAfter": {
+                      "Get_Team_Type": [
+                        "Succeeded"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "acb28fa8-2858-4c47-8c78-bdc1918695fa"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "CreateRecord"
+                      },
+                      "parameters": {
+                        "entityName": "teams",
+                        "item/membershiptype": 0,
+                        "item/name": "@{first(body('Filter_to_This_Group'))?['displayName']} Team",
+                        "item/teamtype": "@outputs('TeamType')",
+                        "item/azureactivedirectoryobjectid": "@triggerBody()['text']"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  },
+                  "Relate_New_Team_to_Role": {
+                    "runAfter": {
+                      "Add_a_new_team": [
+                        "Succeeded"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "744e050f-25ec-41e1-923e-56e30928fa5d"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "AssociateEntities"
+                      },
+                      "parameters": {
+                        "entityName": "roles",
+                        "recordId": "@triggerBody()['text_1']",
+                        "associationEntityRelationship": "teamroles_association",
+                        "item/@odata.id": "@outputs('Add_a_new_team')?['body/@odata.id']"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(outputs('List_teams_with_this_Azure_AD_Object_ID')?['body/value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9f5da638-4c6a-435b-84e3-1a88ca7f73f8"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_ReturnValue_to_Pass": [
+              "Succeeded"
+            ]
+          },
+          "else": {
+            "actions": {
+              "Compose": {
+                "runAfter": {},
+                "metadata": {
+                  "operationMetadataId": "2cfb0acd-c8e7-4f98-8f41-b2701acafad8"
+                },
+                "type": "Compose",
+                "inputs": "Not Yet Implemented"
+              }
+            }
+          },
+          "expression": {
+            "equals": [
+              "@triggerBody()['boolean']",
+              "@true"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "be15d55b-5db8-4a68-b012-129e40ded278"
+          },
+          "type": "If"
+        },
+        "Initialize_ReturnValue_to_Pass": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "ab7082a1-7af6-4e2a-8c60-a7b93651df23"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "ReturnValue",
+                "type": "string",
+                "value": "Pass"
+              }
+            ]
+          }
+        },
+        "Set_ReturnValue_if_failed": {
+          "runAfter": {
+            "If_User_Is_Group": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f9fd701a-41cc-421b-b4b7-a3a284a853bd"
+          },
+          "type": "SetVariable",
+          "inputs": {
+            "name": "ReturnValue",
+            "value": "Fail"
+          }
+        },
+        "Respond_to_a_PowerApp_or_flow": {
+          "runAfter": {
+            "Set_ReturnValue_if_failed": [
+              "Succeeded",
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "11652d5a-b2a7-419d-9b20-3b551a2668b5"
+          },
+          "type": "Response",
+          "kind": "PowerApp",
+          "inputs": {
+            "statusCode": 200,
+            "body": {
+              "return": "@variables('ReturnValue')"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "return": {
+                  "title": "Return",
+                  "x-ms-dynamically-added": true,
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}

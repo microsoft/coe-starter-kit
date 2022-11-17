@@ -1,0 +1,422 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "impersonation": {},
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "Every_Month": {
+          "recurrence": {
+            "frequency": "Month",
+            "interval": 1,
+            "timeZone": "UTC",
+            "startTime": "2022-11-01T18:00:00Z"
+          },
+          "metadata": {
+            "operationMetadataId": "02143152-f4f9-4625-a072-277cbcf4479e"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Update_Environment_Add-Ons": {
+          "actions": {
+            "List_environments_with_PVA_bots": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "98251c60-bc9a-484b-8715-90ad4bb6f53f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "entityName": "admin_environments",
+                  "fetchXml": "<fetch version=\"1.0\" output-format=\"xml-platform\" mapping=\"logical\" distinct=\"true\">\n  <entity name=\"admin_environment\">\n    <attribute name=\"admin_environmentid\" />\n    <order attribute=\"admin_displayname\" descending=\"false\" />\n    <filter type=\"and\">\n      <condition attribute=\"statecode\" operator=\"eq\" value=\"0\" />\n    </filter>\n    <link-entity name=\"admin_pva\" from=\"admin_pvaenvironment\" to=\"admin_environmentid\" link-type=\"inner\" alias=\"bot\">\n      <filter type=\"and\">\n        <condition attribute=\"statecode\" operator=\"eq\" value=\"0\" />\n      </filter>\n    </link-entity>\n  </entity>\n</fetch>"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Apply_to_each_environment": {
+              "foreach": "@outputs('List_environments_with_PVA_bots')?['body/value']",
+              "actions": {
+                "Sum_PVA_bot_usage_for_previous_month_per_environment": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "d8619131-f25f-4df2-b1de-97c2877137e0"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvabotusages",
+                      "fetchXml": " <fetch distinct='false' mapping='logical' aggregate='true'> \n    <entity name=\"admin_pvabotusage\">\n        <attribute name='admin_conversations' alias='conversations_sum' aggregate='sum' /> \n      <filter type=\"and\">\n        <condition attribute=\"statecode\" operator=\"eq\" value=\"0\" />\n        <condition attribute=\"admin_date\" operator=\"last-month\" />\n      </filter>\n      <link-entity name=\"admin_pva\" from=\"admin_pvaid\" to=\"admin_pvabot\" link-type=\"inner\" alias=\"bot\">\n        <filter type=\"and\">\n          <condition attribute=\"admin_pvaenvironment\" operator=\"eq\" value=\"@{items('Apply_to_each_environment')?['admin_environmentid']}\" />\n        </filter>\n      </link-entity>\n    </entity>\n  </fetch>"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Parse_JSON_for_returned_PVA_bot_usage_sums": {
+                  "runAfter": {
+                    "Sum_PVA_bot_usage_for_previous_month_per_environment": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "69ed11e4-a99d-4582-be35-4c9d2d71c030"
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('Sum_PVA_bot_usage_for_previous_month_per_environment')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "@@odata.context": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "conversations_sum": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "conversations_sum"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "List_PVA_Environment_Add-Ons": {
+                  "runAfter": {
+                    "Parse_JSON_for_returned_PVA_bot_usage_sums": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c7d3f051-9b27-43ed-acd5-5d38c0fcbb84"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "entityName": "admin_environmentaddonses",
+                      "$select": "admin_environmentaddonsid",
+                      "$filter": "admin_addontype eq 'PVA' and statecode eq 0 and _admin_environment_value eq '@{items('Apply_to_each_environment')?['admin_environmentid']}'"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Check_if_PVA_Environment_Add-On_record_already_exists": {
+                  "actions": {
+                    "Update_Environment_Add-On": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "45a59840-99bf-4a2a-a7a8-e28970073b25"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_environmentaddonses",
+                          "recordId": "@first(outputs('List_PVA_Environment_Add-Ons')?['body/value'])?['admin_environmentaddonsid']",
+                          "item/admin_consumedlastmonth": "@first(body('Parse_JSON_for_returned_PVA_bot_usage_sums')?['value'])?['conversations_sum']",
+                          "item/admin_addontype": "PVA",
+                          "item/admin_Environment@odata.bind": "admin_environments(@{items('Apply_to_each_environment')?['admin_environmentid']})",
+                          "item/admin_unit": "Conversations"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "List_PVA_Environment_Add-Ons": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Add_Environment_Add-On": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "f8c49fde-af07-4ba4-b60c-0a9bd2723cfc"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                            "connectionName": "shared_commondataserviceforapps",
+                            "operationId": "CreateRecord"
+                          },
+                          "parameters": {
+                            "entityName": "admin_environmentaddonses",
+                            "item/admin_addontype": "PVA",
+                            "item/admin_Environment@odata.bind": "admin_environments(@{items('Apply_to_each_environment')?['admin_environmentid']})",
+                            "item/admin_consumedlastmonth": "@first(body('Parse_JSON_for_returned_PVA_bot_usage_sums')?['value'])?['conversations_sum']",
+                            "item/admin_unit": "Conversations"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@empty(outputs('List_PVA_Environment_Add-Ons')?['body/value'])",
+                      false
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9198f095-afc8-4f7d-9ab0-546ad16fc8bc"
+                  },
+                  "type": "If"
+                }
+              },
+              "runAfter": {
+                "List_environments_with_PVA_bots": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "508ecb42-6e14-45eb-8473-be9ced123346"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "45a59840-99bf-4a2a-a7a8-e28970073b25"
+          },
+          "type": "Scope"
+        },
+        "Update_PVA_Bots": {
+          "actions": {
+            "List_PVA_Bots": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "eb3cf956-7f6e-40d5-8550-af2981199e90"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords"
+                },
+                "parameters": {
+                  "entityName": "admin_pvas",
+                  "$select": "admin_pvaid",
+                  "$filter": "statecode eq 0"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Apply_to_each_PVA_Bot": {
+              "foreach": "@outputs('List_PVA_Bots')?['body/value']",
+              "actions": {
+                "Sum_PVA_bot_usage_for_previous_month_per_bot": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "d8619131-f25f-4df2-b1de-97c2877137e0"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvabotusages",
+                      "fetchXml": "  <fetch distinct='false' mapping='logical' aggregate='true'> \n    <entity name=\"admin_pvabotusage\">\n        <attribute name='admin_conversations' alias='conversations_sum' aggregate='sum' /> \n      <filter type=\"and\">\n        <condition attribute=\"statecode\" operator=\"eq\" value=\"0\" />\n        <condition attribute=\"admin_date\" operator=\"last-month\" />\n        <condition attribute=\"admin_pvabot\" operator=\"eq\" value=\"@{items('Apply_to_each_PVA_Bot')?['admin_pvaid']}\" />\n      </filter>\n    </entity>\n  </fetch>"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Parse_JSON_for_returned_PVA_bot_usage_sums_for_the_bot": {
+                  "runAfter": {
+                    "Sum_PVA_bot_usage_for_previous_month_per_bot": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "69ed11e4-a99d-4582-be35-4c9d2d71c030"
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@body('Sum_PVA_bot_usage_for_previous_month_per_bot')",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "@@odata.context": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "conversations_sum": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "conversations_sum"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "Update_a_row": {
+                  "runAfter": {
+                    "Parse_JSON_for_returned_PVA_bot_usage_sums_for_the_bot": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "71613b66-9e67-4481-ab1f-8dd0bc6ee634"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvas",
+                      "recordId": "@items('Apply_to_each_PVA_Bot')?['admin_pvaid']",
+                      "item/admin_pvanumberlaunches": "@first(body('Parse_JSON_for_returned_PVA_bot_usage_sums_for_the_bot')?['value'])?['conversations_sum']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "List_PVA_Bots": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f99e8273-6c67-44cf-a77f-45abbb85ed88"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Update_Environment_Add-Ons": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "30831c61-f678-449d-acca-ef994a5abd44"
+          },
+          "type": "Scope"
+        },
+        "Update_PVA_Bots_failed_-_Error_Handling": {
+          "actions": {
+            "Create_new_Sync_Flow_Error": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "488a9fe0-9d91-4c45-ac41-f9aaeab05f79"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3 (PVA Usage - Environment Monthly Rollup)",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_new_Sync_Flow_Error": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "8e0dbbcd-5566-463a-bf04-56166499846c"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "PVA Usage - Environment Monthly Rollup failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Update_PVA_Bots": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "56843618-36d0-4493-b2fd-60b268bedd1a"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}

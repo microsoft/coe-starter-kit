@@ -1,0 +1,635 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)": {
+          "defaultValue": "en-US",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdmineMailPreferredLanguage",
+            "description": "Inventory - The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US"
+          }
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "Admin eMail (admin_AdminMail)": {
+          "defaultValue": "PowerPlatformAdmins@powercattools.onmicrosoft.com ",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdminMail",
+            "description": "Inventory - CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Month",
+            "interval": 1,
+            "timeZone": "UTC",
+            "startTime": "2022-11-01T22:00:00Z"
+          },
+          "metadata": {
+            "operationMetadataId": "f27d4783-3b80-456b-98d1-f47c085f217c"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Initialize_varOverAllocation": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "f55703aa-8bc1-42a5-888d-e8393db07d28"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varOverAllocation",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Initialize_varCloseToAllocation": {
+          "runAfter": {
+            "Initialize_varOverAllocation": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "63d14baa-b5c7-4a99-a0bd-88610c9d14d2"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varCloseToAllocation",
+                "type": "array"
+              }
+            ]
+          },
+          "description": "Currently alerts if capacity is at 80% of approved capacity"
+        },
+        "Initialize_adminMail": {
+          "runAfter": {
+            "Initialize_varCloseToAllocation": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1a299f25-f946-46e9-9550-c8431a29e0fe"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "adminMail",
+                "type": "string",
+                "value": "@parameters('Admin eMail (admin_AdminMail)')"
+              }
+            ]
+          }
+        },
+        "Initialize_htmlHeader": {
+          "runAfter": {
+            "Initialize_adminMail": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c1598f26-ca58-4681-809d-c554cb7f0ee2"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "htmlHeader",
+                "type": "string",
+                "value": "<style>\ntable {\n  border-collapse: collapse;\n  width: 100%;\n}\n\nth, td {\n  padding: 8px;\n  text-align: left;\n  border-bottom: 1px solid #ddd;\n}\n</style>"
+              }
+            ]
+          }
+        },
+        "Initialize_emailGUID": {
+          "runAfter": {
+            "Initialize_htmlHeader": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "dad8eca6-7937-47c0-aa57-f2d48dd1c5a2"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "emailGUID",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Run_Capacity_Alerts_Scope": {
+          "actions": {
+            "Apply_to_each_add-on": {
+              "foreach": "@outputs('List_Environment_Add-Ons_information')?['body/value']",
+              "actions": {
+                "Actual_is_80_percent_of_Approved": {
+                  "actions": {
+                    "Append_to_array_variable_2": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d78f5747-30a3-4326-a26e-f153bc8afbc3"
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "varCloseToAllocation",
+                        "value": {
+                          "Last Month Consumption": "@items('Apply_to_each_add-on')?['admin_consumedlastmonth']",
+                          "Allocated": "@items('Apply_to_each_add-on')?['admin_allocated']",
+                          "Capacity Type": "@items('Apply_to_each_add-on')?['admin_addontype']",
+                          "Environment ID": "@items('Apply_to_each_add-on')?['admin_environment/admin_environmentid']",
+                          "Environment Name": "@items('Apply_to_each_add-on')?['admin_environment/admin_displayname']"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Compose": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "greaterOrEquals": [
+                          "@outputs('Compose')",
+                          0.8
+                        ]
+                      },
+                      {
+                        "less": [
+                          "@outputs('Compose')",
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "fe0bbb99-4fca-46a3-8872-ed81aca02b02"
+                  },
+                  "type": "If"
+                },
+                "Consumed_is_over_Allocated": {
+                  "actions": {
+                    "Append_to_array_variable": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "ef3b52cb-57f3-4d77-899e-d0aaf28a57f0"
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "varOverAllocation",
+                        "value": {
+                          "Last Month Consumption": "@items('Apply_to_each_add-on')?['admin_consumedlastmonth']",
+                          "Allocated": "@items('Apply_to_each_add-on')?['admin_allocated']",
+                          "Capacity Type": "@items('Apply_to_each_add-on')?['admin_addontype']",
+                          "Environment ID": "@items('Apply_to_each_add-on')?['admin_environment/admin_environmentid']",
+                          "Environment Name": "@items('Apply_to_each_add-on')?['admin_environment/admin_displayname']"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "expression": {
+                    "greater": [
+                      "@items('Apply_to_each_add-on')?['admin_consumedlastmonth']",
+                      "@items('Apply_to_each_add-on')?['admin_allocated']"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "6ea3e2c6-2613-40a2-80ce-25abfdb07165"
+                  },
+                  "type": "If"
+                },
+                "Compose": {
+                  "runAfter": {
+                    "Consumed_is_over_Allocated": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "002847a9-339f-4363-a117-cb889c3d5751"
+                  },
+                  "type": "Compose",
+                  "inputs": "@div(items('Apply_to_each_add-on')?['admin_consumedlastmonth'], items('Apply_to_each_add-on')?['admin_allocated'])"
+                }
+              },
+              "runAfter": {
+                "List_Environment_Add-Ons_information": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "bfda6608-a1a7-4af2-910a-734390e20867"
+              },
+              "type": "Foreach"
+            },
+            "Create_Over_Allocation": {
+              "runAfter": {
+                "Apply_to_each_add-on": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2df39d04-8326-44d1-b9ae-dadd9c3a5372"
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('varOverAllocation')",
+                "format": "HTML"
+              }
+            },
+            "Create_Close_to_Allocation": {
+              "runAfter": {
+                "Create_Over_Allocation": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c1814265-e99b-449d-9559-ff1a755ea0fb"
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@variables('varCloseToAllocation')",
+                "format": "HTML"
+              }
+            },
+            "Send_mail_if_over_allocation": {
+              "actions": {
+                "Get_Row_-_Send_Over_Allocation_Envts_to_Admin": {
+                  "actions": {
+                    "emailGUID_to_en-US": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "aec18431-a0b3-4314-8563-269073b0794f"
+                      },
+                      "type": "Compose",
+                      "inputs": "fc8a4d58-7d41-ec11-8c62-00224829bf00"
+                    },
+                    "List_emails_for_preferred_language": {
+                      "runAfter": {
+                        "emailGUID_to_en-US": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_customizedemails",
+                          "$select": "admin_customizedemailid",
+                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')}'"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Set_emailGUID_to_localized_row": {
+                      "runAfter": {
+                        "List_emails_for_preferred_language": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "emailGUID",
+                        "value": "@{if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']), 0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))}"
+                      },
+                      "description": "if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']),0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))"
+                    },
+                    "Get_a_row_by_ID": {
+                      "runAfter": {
+                        "Set_emailGUID_to_localized_row": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_customizedemails",
+                          "recordId": "@variables('emailGUID')",
+                          "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject, admin_importance"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Send_Over_Allocation_Envts_to_Admin": {
+                      "runAfter": {
+                        "Get_a_row_by_ID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "b38aeaea-3190-47ce-b9d4-3a4c0a188e4f"
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                        },
+                        "body": {
+                          "email": "@variables('adminMail')",
+                          "text": "@outputs('Get_a_row_by_ID')?['body/admin_subject']",
+                          "text_1": "@{outputs('Get_a_row_by_ID')?['body/admin_body']}\n\n@{body('Create_Over_Allocation')}",
+                          "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                          "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                          "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])",
+                          "text_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_importance'], null), '', outputs('Get_a_row_by_ID')?['body/admin_importance'])"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "Create_Close_to_Allocation": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "greater": [
+                  "@length(variables('varOverAllocation'))",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "547407c4-5e65-427c-812f-eaad441951f1"
+              },
+              "type": "If"
+            },
+            "List_Environment_Add-Ons_information": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "3d5e154d-0c4c-4e31-99a6-47857eba8777"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_environmentaddonses",
+                  "$select": "admin_addontype, _admin_environment_value, admin_allocated, admin_unit, admin_consumedlastmonth",
+                  "$filter": "admin_allocated ne null and admin_consumedlastmonth ne null and admin_Environment/admin_environmentdeleted ne true",
+                  "$expand": "admin_Environment"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Send_mail_if_close_to_over_allocation": {
+              "actions": {
+                "Get_Row_-_Send_Near_Capacity_Envts_to_Admin": {
+                  "actions": {
+                    "emailGUID_to_en-US_2": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "029d06dd-4205-4317-9f05-06cf0bc816c9"
+                      },
+                      "type": "Compose",
+                      "inputs": "028b4d58-7d41-ec11-8c62-00224829bf00"
+                    },
+                    "List_emails_for_preferred_language_2": {
+                      "runAfter": {
+                        "emailGUID_to_en-US_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_customizedemails",
+                          "$select": "admin_customizedemailid",
+                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US_2')}' and admin_language eq '@{parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')}'"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Set_emailGUID_to_localized_row_2": {
+                      "runAfter": {
+                        "List_emails_for_preferred_language_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "emailGUID",
+                        "value": "@{if(greater(length(outputs('List_emails_for_preferred_language_2')?['body/value']), 0), first(body('List_emails_for_preferred_language_2')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US_2'))}"
+                      },
+                      "description": "if(greater(length(outputs('List_emails_for_preferred_language_2')?['body/value']),0), first(body('List_emails_for_preferred_language_2')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US_2'))"
+                    },
+                    "Get_a_row_by_ID_2": {
+                      "runAfter": {
+                        "Set_emailGUID_to_localized_row_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_customizedemails",
+                          "recordId": "@variables('emailGUID')",
+                          "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject, admin_importance"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Send_Near_Allocation_Envts_to_Admin": {
+                      "runAfter": {
+                        "Get_a_row_by_ID_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "acaf353e-cf00-46d1-b457-eac85c38f49e"
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                        },
+                        "body": {
+                          "email": "@variables('adminMail')",
+                          "text": "@outputs('Get_a_row_by_ID_2')?['body/admin_subject']",
+                          "text_1": "@{outputs('Get_a_row_by_ID_2')?['body/admin_body']}\n\n@{body('Create_Close_to_Allocation')}",
+                          "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                          "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                          "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])",
+                          "text_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_importance'], null), '', outputs('Get_a_row_by_ID')?['body/admin_importance'])"
+                        }
+                      },
+                      "description": "028b4d58-7d41-ec11-8c62-00224829bf00"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "Send_mail_if_over_allocation": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "greater": [
+                  "@length(variables('varCloseToAllocation'))",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "547407c4-5e65-427c-812f-eaad441951f1"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Initialize_emailGUID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5daf4ce6-ea48-4b9a-bf45-b21289fdb80f"
+          },
+          "type": "Scope"
+        },
+        "Run_Capacity_Alerts_Scope_failed_-_Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "c28e1496-1f07-435e-aa3c-409b2f84fe0e"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Add-Ons Alerts",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f8780ea8-58d8-4a4f-947f-187905277b9f"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Add-Ons Alerts failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Run_Capacity_Alerts_Scope": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3b6daf49-8fbf-45d5-aa8b-e7d852c67f12"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
