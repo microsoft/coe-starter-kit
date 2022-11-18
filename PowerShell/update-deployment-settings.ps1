@@ -317,7 +317,11 @@ function New-DeploymentPipelines
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
         Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
 
-        $deploymentConfigurationData = $configurationData | Where-Object -FilterScript { [string]::IsNullOrWhiteSpace($_.StepType) -or $_.StepType -ne 809060000 }
+        #$deploymentConfigurationData = $configurationData | Where-Object -FilterScript { [string]::IsNullOrWhiteSpace($_.StepType) -or $_.StepType -ne 809060000 }
+        [System.Object[]]$deploymentConfigurationData = $configurationData | Where-Object { 
+            ([string]::IsNullOrWhiteSpace($_.StepType)) -or ($_.StepType -ne 809060000)
+        }
+        
         Write-Host "Retrieved " $deploymentConfigurationData.length " deployment configurations"
 
         if($branchResourceResults.length -eq 0 -or $buildDefinitionResponseResults.length -lt $deploymentConfigurationData.length) {
