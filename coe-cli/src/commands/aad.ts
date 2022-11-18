@@ -92,7 +92,7 @@ class AADCommand {
             }
             
         } else {
-            this.logger?.info(`Unable add user to ${azureActiveDirectoryMakersGroup}`)
+            this.logger?.info(`Unable to add user to ${azureActiveDirectoryMakersGroup}`)
             this.logger?.debug(userInfo)
         }
     }
