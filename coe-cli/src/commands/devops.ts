@@ -193,7 +193,7 @@ class DevOpsCommand {
             let match = members?.value?.filter((m: GraphMembership) => m.memberDescriptor == makerAADGroup)
 
             if (match?.length == 1) {
-                this.logger?.info("Group already a member of group")
+                this.logger?.info("Group is already a member of group")
             } else {
                 this.logger?.info("Adding member to group")
                 let update = await client.put(`${context.securityUrl}_apis/Graph/Memberships/${makerAADGroup}/${almGroup.descriptor}?api-version=5.2-preview.1`, "", headers)
