@@ -104,7 +104,7 @@
                         $envVarResults =  Get-CrmRecords -conn $conn -EntityLogicalName environmentvariabledefinition -FilterAttribute "schemaname" -FilterOperator "eq" -FilterValue $schemaName -Fields type
                         if ($envVarResults.Count -gt 0){
                             $type = $envVarResults.CrmRecords[0].type_Property.Value.Value
-                            if($type -ne 100000005 -or -not [string]::IsNullOrEmpty($configurationVariableValue)) {
+                            if(-not [string]::IsNullOrEmpty($configurationVariableValue)) {
                                 $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="#{$configurationVariableName}#"}
                                 if($usePlaceholders.ToLower() -eq 'false') {
                                     $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="$configurationVariableValue"}
