@@ -4,7 +4,7 @@
       "shared_commondataserviceforapps": {
         "runtimeSource": "embedded",
         "connection": {
-          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
         },
         "api": {
           "name": "shared_commondataserviceforapps"
@@ -19,15 +19,6 @@
           "name": "shared_teams"
         }
       },
-      "shared_office365users": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "new_CoEGovO365Users"
-        },
-        "api": {
-          "name": "shared_office365users"
-        }
-      },
       "shared_office365": {
         "runtimeSource": "embedded",
         "connection": {
@@ -35,6 +26,15 @@
         },
         "api": {
           "name": "shared_office365"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Users"
+        },
+        "api": {
+          "name": "shared_office365users"
         }
       }
     },
@@ -55,7 +55,7 @@
           "type": "String",
           "metadata": {
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
-            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+            "description": "REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
           }
         },
         "Admin eMail (admin_AdminMail)": {
@@ -71,7 +71,7 @@
           "type": "Bool",
           "metadata": {
             "schemaName": "admin_ProductionEnvironment",
-            "description": "true by default. set to false if you are creating a dev type envt. this will allow some flows to set target users to the admin instead of object owners"
+            "description": "Yes by default. Set to No if you are creating a dev type envt. This will allow some flows to set target users to the admin instead of resource owners"
           }
         },
         "Individual Admin (admin_ApprovalAdmin)": {
@@ -79,7 +79,7 @@
           "type": "String",
           "metadata": {
             "schemaName": "admin_ApprovalAdmin",
-            "description": "An individual admin's email. Some actions (approvals / team chats) cannot accept a group/DL. So this env variable is for those instances in the kit. "
+            "description": "REQUIRED. An individual admin's email. Some actions (approvals / team chats) cannot accept a group/DL. So this env variable is for those instances in the kit. "
           }
         }
       },
@@ -625,7 +625,7 @@
             }
           },
           "runAfter": {
-            "Initialize_returnValue": [
+            "Initialize_flowErrors": [
               "Succeeded"
             ]
           },
@@ -941,6 +941,22 @@
                                 "name": "BulkOperationSuccess",
                                 "value": "@false"
                               }
+                            },
+                            "Append_to_appErrors_-_take_ownership": {
+                              "runAfter": {
+                                "Set_BulkOperationSuccess_to_false_manager": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "appErrors",
+                                "value": {
+                                  "app": "@items('Assign_Each_App_to_Manager')['AppDisplayName']",
+                                  "envt": "@items('Assign_Each_App_to_Manager')['EnvtDisplayName']",
+                                  "error": "@body('Reassign_This_One_to_Manager')?['thereturnstring']"
+                                }
+                              }
                             }
                           },
                           "runAfter": {
@@ -951,7 +967,7 @@
                           "expression": {
                             "not": {
                               "equals": [
-                                "@outputs('Reassign_This_One_to_Manager')?['Body']?['return']",
+                                "@body('Reassign_This_One_to_Manager')?['thereturnstring']",
                                 "pass"
                               ]
                             }
@@ -963,7 +979,7 @@
                           "type": "Workflow",
                           "inputs": {
                             "host": {
-                              "workflowReferenceName": "ab3784ff-ceef-eb11-bacb-00224820693c"
+                              "workflowReferenceName": "41263d72-4dea-eb11-bacb-000d3a5786fb"
                             },
                             "body": {
                               "text": "@outputs('Get_managers_id')?['body/id']",
@@ -1023,7 +1039,7 @@
                               },
                               "parameters": {
                                 "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                "PostNotificationRequest/messageBody": "Some objects could not be assigned to @{outputs('Get_managers_id')?['body/displayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                "PostNotificationRequest/messageBody": "Some objects could not be assigned to @{outputs('Get_managers_id')?['body/displayName']}. An email with details will be sent to you. \nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
                                 "PostNotificationRequest/messageTitle": "Error"
                               },
                               "authentication": {
@@ -1035,6 +1051,55 @@
                                 "count": 10,
                                 "interval": "PT10S"
                               }
+                            }
+                          },
+                          "Send_email_list_of_failures_-_take_ownership": {
+                            "runAfter": {
+                              "Table_-_flowErrors_-_take_ownership": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_office365",
+                                "operationId": "SendEmailV2",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                              },
+                              "parameters": {
+                                "emailMessage/To": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])",
+                                "emailMessage/Subject": "Failed to take ownership of orphaned objects",
+                                "emailMessage/Body": "<p><u><strong>Apps that failed to have ownership taken</strong></u><br>\n<br>\n@{body('Table_-_appErrors_-_take_ownership')}<br>\n<br>\n<br>\n<u><strong>Flows that failed to have ownership taken<br></strong></u><br>\n@{body('Table_-_flowErrors_-_take_ownership')}<br>\n</p>",
+                                "emailMessage/Importance": "Normal"
+                              },
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              }
+                            }
+                          },
+                          "Table_-_appErrors_-_take_ownership": {
+                            "runAfter": {
+                              "Failed_to_Assign_Some_Objects_to_Manager": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Table",
+                            "inputs": {
+                              "from": "@variables('appErrors')",
+                              "format": "HTML"
+                            }
+                          },
+                          "Table_-_flowErrors_-_take_ownership": {
+                            "runAfter": {
+                              "Table_-_appErrors_-_take_ownership": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Table",
+                            "inputs": {
+                              "from": "@variables('flowErrors')",
+                              "format": "HTML"
                             }
                           }
                         }
@@ -1059,6 +1124,22 @@
                                 "name": "BulkOperationSuccess",
                                 "value": "@false"
                               }
+                            },
+                            "Append_to_flowErrors_-_take_ownership": {
+                              "runAfter": {
+                                "Set_BulkOperationSuccess_to_false_manager_flow": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "flowErrors",
+                                "value": {
+                                  "flow": "@items('Assign_Each_Flow_to_Manager')['FlowDisplayName']",
+                                  "envt": "@items('Assign_Each_Flow_to_Manager')['EnvtDisplayName']",
+                                  "error": "@body('Reassign_This_Flow_to_Manager')?['thereturnstring']"
+                                }
+                              }
                             }
                           },
                           "runAfter": {
@@ -1069,7 +1150,7 @@
                           "expression": {
                             "not": {
                               "equals": [
-                                "@outputs('Reassign_This_Flow_to_Manager')?['Body']?['return']",
+                                "@body('Reassign_This_Flow_to_Manager')?['thereturnstring']",
                                 "pass"
                               ]
                             }
@@ -1081,7 +1162,7 @@
                           "type": "Workflow",
                           "inputs": {
                             "host": {
-                              "workflowReferenceName": "b538d20c-d1ef-eb11-bacb-00224820693c"
+                              "workflowReferenceName": "6093b58a-4fea-eb11-bacb-000d3a578f6c"
                             },
                             "body": {
                               "text": "@outputs('Get_managers_id')?['body/id']",
@@ -1116,6 +1197,22 @@
                                 "name": "BulkOperationSuccess",
                                 "value": "@false"
                               }
+                            },
+                            "Append_to_appErrors_-_delete": {
+                              "runAfter": {
+                                "Set_BulkOperationSuccess_to_false": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "appErrors",
+                                "value": {
+                                  "app": "@items('Delete_Each_Orphaned_App')['AppDisplayName']",
+                                  "envt": "@items('Delete_Each_Orphaned_App')['EnvtDisplayName']",
+                                  "error": "@body('Delete_App')?['thereturnstring']"
+                                }
+                              }
                             }
                           },
                           "runAfter": {
@@ -1126,7 +1223,7 @@
                           "expression": {
                             "not": {
                               "equals": [
-                                "@outputs('Delete_App')?['Body']?['return']",
+                                "@body('Delete_App')?['thereturnstring']",
                                 "pass"
                               ]
                             }
@@ -1138,7 +1235,7 @@
                           "type": "Workflow",
                           "inputs": {
                             "host": {
-                              "workflowReferenceName": "ab3784ff-ceef-eb11-bacb-00224820693c"
+                              "workflowReferenceName": "41263d72-4dea-eb11-bacb-000d3a5786fb"
                             },
                             "body": {
                               "text": "not used",
@@ -1212,7 +1309,7 @@
                               },
                               "parameters": {
                                 "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                "PostNotificationRequest/messageBody": "Some objects could not be deleted. \n@{if(greaterOrEquals(length(body('get_only_solution_aware_flows')), 1), 'One or more flows is in a solution and the entire solution will need deleted', '')}\n\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                "PostNotificationRequest/messageBody": "Some objects could not be deleted. An email with details will be sent to you. \n\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
                                 "PostNotificationRequest/messageTitle": "Error"
                               },
                               "authentication": {
@@ -1223,6 +1320,55 @@
                                 "type": "exponential",
                                 "count": 10,
                                 "interval": "PT10S"
+                              }
+                            }
+                          },
+                          "Table_-_appErrors_-_delete_all": {
+                            "runAfter": {
+                              "Failed_to_Delete_Some_Objects": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Table",
+                            "inputs": {
+                              "from": "@variables('appErrors')",
+                              "format": "HTML"
+                            }
+                          },
+                          "Table_-_flowErrors_-_delete_all": {
+                            "runAfter": {
+                              "Table_-_appErrors_-_delete_all": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "Table",
+                            "inputs": {
+                              "from": "@variables('flowErrors')",
+                              "format": "HTML"
+                            }
+                          },
+                          "Send_email_list_of_failures_-_delete_all": {
+                            "runAfter": {
+                              "Table_-_flowErrors_-_delete_all": [
+                                "Succeeded"
+                              ]
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_office365",
+                                "operationId": "SendEmailV2",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                              },
+                              "parameters": {
+                                "emailMessage/To": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])",
+                                "emailMessage/Subject": "Failed to delete orphaned objects",
+                                "emailMessage/Body": "<p><u><strong>Apps that failed to delete</strong></u><br>\n<br>\n@{body('Table_-_appErrors_-_delete_all')}<br>\n<br>\n<br>\n<u><strong>Flows that failed to delete<br></strong></u><br>\n@{body('Table_-_flowErrors_-_delete_all')}<br>\n</p>",
+                                "emailMessage/Importance": "Normal"
+                              },
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
                               }
                             }
                           }
@@ -1244,7 +1390,7 @@
                           "type": "Workflow",
                           "inputs": {
                             "host": {
-                              "workflowReferenceName": "b538d20c-d1ef-eb11-bacb-00224820693c"
+                              "workflowReferenceName": "6093b58a-4fea-eb11-bacb-000d3a578f6c"
                             },
                             "body": {
                               "text": "not used",
@@ -1263,6 +1409,22 @@
                                 "name": "BulkOperationSuccess",
                                 "value": "@false"
                               }
+                            },
+                            "Append_to_flowErrors_-_delete": {
+                              "runAfter": {
+                                "Set_BulkOperationSuccess_to_false_flow": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "flowErrors",
+                                "value": {
+                                  "flow": "@items('Delete_Each_Orphaned_Flow')['FlowDisplayName']",
+                                  "envt": "@items('Delete_Each_Orphaned_Flow')['EnvtDisplayName']",
+                                  "error": "@body('Delete_Flow')?['thereturnstring']"
+                                }
+                              }
                             }
                           },
                           "runAfter": {
@@ -1273,7 +1435,7 @@
                           "expression": {
                             "not": {
                               "equals": [
-                                "@outputs('Delete_Flow')?['Body']?['return']",
+                                "@body('Delete_Flow')?['thereturnstring']",
                                 "pass"
                               ]
                             }
@@ -1339,6 +1501,22 @@
                                         "name": "BulkOperationSuccess",
                                         "value": "@false"
                                       }
+                                    },
+                                    "Append_to_appErrors_-_assign": {
+                                      "runAfter": {
+                                        "Set_BulkOperationSuccess_to_false_AssignAllDone": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "AppendToArrayVariable",
+                                      "inputs": {
+                                        "name": "appErrors",
+                                        "value": {
+                                          "app": "@items('Assign_Each_App_to_New_Owner')['AppDisplayName']",
+                                          "envt": "@items('Assign_Each_App_to_New_Owner')['EnvtDisplayName']",
+                                          "error": "@body('Reassign_This_One')?['thereturnstring']"
+                                        }
+                                      }
                                     }
                                   },
                                   "runAfter": {
@@ -1349,7 +1527,7 @@
                                   "expression": {
                                     "not": {
                                       "equals": [
-                                        "@outputs('Reassign_This_One')?['Body']?['return']",
+                                        "@body('Reassign_This_One')?['thereturnstring']",
                                         "pass"
                                       ]
                                     }
@@ -1361,7 +1539,7 @@
                                   "type": "Workflow",
                                   "inputs": {
                                     "host": {
-                                      "workflowReferenceName": "ab3784ff-ceef-eb11-bacb-00224820693c"
+                                      "workflowReferenceName": "41263d72-4dea-eb11-bacb-000d3a5786fb"
                                     },
                                     "body": {
                                       "text": "@outputs('Get_toWhom_profile')?['body/id']",
@@ -1421,7 +1599,7 @@
                                       },
                                       "parameters": {
                                         "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                        "PostNotificationRequest/messageBody": "Some objects could not be assigned to @{outputs('Get_toWhom_profile')?['body/displayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                        "PostNotificationRequest/messageBody": "Some objects could not be assigned to @{outputs('Get_toWhom_profile')?['body/displayName']}.\nAn email with details will be sent to you. \n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
                                         "PostNotificationRequest/messageTitle": "Error"
                                       },
                                       "authentication": {
@@ -1432,6 +1610,55 @@
                                         "type": "exponential",
                                         "count": 10,
                                         "interval": "PT10S"
+                                      }
+                                    }
+                                  },
+                                  "Table_-_appErrors_-_assign_all": {
+                                    "runAfter": {
+                                      "Failed_to_Assign_Some_Objects": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "Table",
+                                    "inputs": {
+                                      "from": "@variables('appErrors')",
+                                      "format": "HTML"
+                                    }
+                                  },
+                                  "Table_-_flowErrors_-_assign_all": {
+                                    "runAfter": {
+                                      "Table_-_appErrors_-_assign_all": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "Table",
+                                    "inputs": {
+                                      "from": "@variables('flowErrors')",
+                                      "format": "HTML"
+                                    }
+                                  },
+                                  "Send_email_list_of_failures_-_assign_all": {
+                                    "runAfter": {
+                                      "Table_-_flowErrors_-_assign_all": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_office365",
+                                        "operationId": "SendEmailV2",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                                      },
+                                      "parameters": {
+                                        "emailMessage/To": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])",
+                                        "emailMessage/Subject": "Failed to assign ownership of orphaned objects",
+                                        "emailMessage/Body": "<p><u><strong>Apps that failed to have ownership given</strong></u><br>\n<br>\n@{body('Table_-_appErrors_-_assign_all')}<br>\n<br>\n<br>\n<u><strong>Flows that failed to have ownership given<br></strong></u><br>\n@{body('Table_-_flowErrors_-_assign_all')}<br>\n</p>",
+                                        "emailMessage/Importance": "Normal"
+                                      },
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
                                       }
                                     }
                                   }
@@ -1453,7 +1680,7 @@
                                   "type": "Workflow",
                                   "inputs": {
                                     "host": {
-                                      "workflowReferenceName": "b538d20c-d1ef-eb11-bacb-00224820693c"
+                                      "workflowReferenceName": "6093b58a-4fea-eb11-bacb-000d3a578f6c"
                                     },
                                     "body": {
                                       "text": "@outputs('Get_toWhom_profile')?['body/id']",
@@ -1472,6 +1699,22 @@
                                         "name": "BulkOperationSuccess",
                                         "value": "@false"
                                       }
+                                    },
+                                    "Append_to_flowErrors_-_assign": {
+                                      "runAfter": {
+                                        "Set_BulkOperationSuccess_to_false_AssignAllDone_flow": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "type": "AppendToArrayVariable",
+                                      "inputs": {
+                                        "name": "flowErrors",
+                                        "value": {
+                                          "flow": "@items('Assign_Each_Flow_to_New_Owner')['FlowDisplayName']",
+                                          "envt": "@items('Assign_Each_Flow_to_New_Owner')['EnvtDisplayName']",
+                                          "error": "@body('Reassign_This_One_Flow')?['thereturnstring']"
+                                        }
+                                      }
                                     }
                                   },
                                   "runAfter": {
@@ -1482,7 +1725,7 @@
                                   "expression": {
                                     "not": {
                                       "equals": [
-                                        "@outputs('Reassign_This_One_Flow')?['Body']?['return']",
+                                        "@body('Reassign_This_One_Flow')?['thereturnstring']",
                                         "pass"
                                       ]
                                     }
@@ -1710,7 +1953,7 @@
                                               },
                                               "parameters": {
                                                 "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                                "PostNotificationRequest/messageBody": "@{items('Show_Each_App_Separately')['AppDisplayName']} could not be assigned to @{outputs('Get_managers_id')?['body/displayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                                "PostNotificationRequest/messageBody": "@{items('Show_Each_App_Separately')['AppDisplayName']} could not be assigned to @{outputs('Get_managers_id')?['body/displayName']}.\n\nHere is the error message received from the product:\n\n@{body('Assign_App_to_Manager')?['thereturnstring']}\n\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
                                                 "PostNotificationRequest/messageTitle": "Error"
                                               },
                                               "authentication": {
@@ -1728,7 +1971,7 @@
                                       },
                                       "expression": {
                                         "equals": [
-                                          "@outputs('Assign_App_to_Manager')?['Body']?['return']",
+                                          "@body('Assign_App_to_Manager')?['thereturnstring']",
                                           "pass"
                                         ]
                                       },
@@ -1739,7 +1982,7 @@
                                       "type": "Workflow",
                                       "inputs": {
                                         "host": {
-                                          "workflowReferenceName": "ab3784ff-ceef-eb11-bacb-00224820693c"
+                                          "workflowReferenceName": "41263d72-4dea-eb11-bacb-000d3a5786fb"
                                         },
                                         "body": {
                                           "text": "@outputs('Get_managers_id')?['body/id']",
@@ -1800,7 +2043,7 @@
                                               },
                                               "parameters": {
                                                 "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                                "PostNotificationRequest/messageBody": "Could not delete @{items('Show_Each_App_Separately')['AppDisplayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                                "PostNotificationRequest/messageBody": "Could not delete @{items('Show_Each_App_Separately')['AppDisplayName']}.\n\nHere is the error message received from the product:\n\n@{body('Delete_This_App')?['thereturnstring']}\n\n\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
                                                 "PostNotificationRequest/messageTitle": "Error"
                                               },
                                               "authentication": {
@@ -1818,7 +2061,7 @@
                                       },
                                       "expression": {
                                         "equals": [
-                                          "@outputs('Delete_This_App')?['Body']?['return']",
+                                          "@body('Delete_This_App')?['thereturnstring']",
                                           "pass"
                                         ]
                                       },
@@ -1829,7 +2072,7 @@
                                       "type": "Workflow",
                                       "inputs": {
                                         "host": {
-                                          "workflowReferenceName": "ab3784ff-ceef-eb11-bacb-00224820693c"
+                                          "workflowReferenceName": "41263d72-4dea-eb11-bacb-000d3a5786fb"
                                         },
                                         "body": {
                                           "text": "Not Used",
@@ -1924,7 +2167,7 @@
                                                       },
                                                       "parameters": {
                                                         "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                                        "PostNotificationRequest/messageBody": "@{items('Show_Each_App_Separately')['AppDisplayName']} could not be assigned to @{outputs('Get_toWhom_profile_-_app')?['body/displayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                                        "PostNotificationRequest/messageBody": "@{items('Show_Each_App_Separately')['AppDisplayName']} could not be assigned to @{outputs('Get_toWhom_profile_-_app')?['body/displayName']}.\n\nHere is the error message received from the product:\n\n@{body('Assign_App_toWhom')?['thereturnstring']}\n\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
                                                         "PostNotificationRequest/messageTitle": "Error"
                                                       },
                                                       "authentication": {
@@ -1942,7 +2185,7 @@
                                               },
                                               "expression": {
                                                 "equals": [
-                                                  "@outputs('Assign_App_toWhom')?['Body']?['return']",
+                                                  "@body('Assign_App_toWhom')?['thereturnstring']",
                                                   "pass"
                                                 ]
                                               },
@@ -1953,7 +2196,7 @@
                                               "type": "Workflow",
                                               "inputs": {
                                                 "host": {
-                                                  "workflowReferenceName": "ab3784ff-ceef-eb11-bacb-00224820693c"
+                                                  "workflowReferenceName": "41263d72-4dea-eb11-bacb-000d3a5786fb"
                                                 },
                                                 "body": {
                                                   "text": "@outputs('Get_toWhom_profile_-_app')?['body/id']",
@@ -2324,7 +2567,7 @@
                                               },
                                               "parameters": {
                                                 "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                                "PostNotificationRequest/messageBody": "@{items('Show_Each_Flow_Separately')['FlowDisplayName']} could not be assigned to @{outputs('Get_managers_id')?['body/displayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                                "PostNotificationRequest/messageBody": "@{items('Show_Each_Flow_Separately')['FlowDisplayName']} could not be assigned to @{outputs('Get_managers_id')?['body/displayName']}.\n\nHere is the error message received from the product:\n\n@{body('Assign_Flow_to_Manager')?['thereturnstring']}\n\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
                                                 "PostNotificationRequest/messageTitle": "Error"
                                               },
                                               "authentication": {
@@ -2342,7 +2585,7 @@
                                       },
                                       "expression": {
                                         "equals": [
-                                          "@outputs('Assign_Flow_to_Manager')?['Body']?['return']",
+                                          "@body('Assign_Flow_to_Manager')?['thereturnstring']",
                                           "pass"
                                         ]
                                       },
@@ -2353,7 +2596,7 @@
                                       "type": "Workflow",
                                       "inputs": {
                                         "host": {
-                                          "workflowReferenceName": "b538d20c-d1ef-eb11-bacb-00224820693c"
+                                          "workflowReferenceName": "6093b58a-4fea-eb11-bacb-000d3a578f6c"
                                         },
                                         "body": {
                                           "text": "@outputs('Get_managers_id')?['body/id']",
@@ -2414,7 +2657,7 @@
                                               },
                                               "parameters": {
                                                 "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                                "PostNotificationRequest/messageBody": "Could not delete @{items('Show_Each_Flow_Separately')['FlowDisplayName']}.\n@{if(items('Show_Each_Flow_Separately')['isSolnFlow'], 'This flow is in a solution and the entire solution will need deleted', '')}\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                                "PostNotificationRequest/messageBody": "Could not delete @{items('Show_Each_Flow_Separately')['FlowDisplayName']}.\n\nHere is the error message received from the product:\n\n@{body('Delete_This_Flow')?['thereturnstring']}\n\n\nYou may need to seek help from your admin: \n@{parameters('Admin eMail (admin_AdminMail)')}",
                                                 "PostNotificationRequest/messageTitle": "Error"
                                               },
                                               "authentication": {
@@ -2432,7 +2675,7 @@
                                       },
                                       "expression": {
                                         "equals": [
-                                          "@outputs('Delete_This_Flow')?['Body']?['return']",
+                                          "@body('Delete_This_Flow')?['thereturnstring']",
                                           "pass"
                                         ]
                                       },
@@ -2443,7 +2686,7 @@
                                       "type": "Workflow",
                                       "inputs": {
                                         "host": {
-                                          "workflowReferenceName": "b538d20c-d1ef-eb11-bacb-00224820693c"
+                                          "workflowReferenceName": "6093b58a-4fea-eb11-bacb-000d3a578f6c"
                                         },
                                         "body": {
                                           "text": "notused",
@@ -2538,7 +2781,7 @@
                                                       },
                                                       "parameters": {
                                                         "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), triggerBody()['text'])};",
-                                                        "PostNotificationRequest/messageBody": "@{items('Show_Each_Flow_Separately')['FlowDisplayName']} could not be assigned to @{outputs('Get_toWhom_profile_-_flow')?['body/displayName']}.\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
+                                                        "PostNotificationRequest/messageBody": "@{items('Show_Each_Flow_Separately')['FlowDisplayName']} could not be assigned to @{outputs('Get_toWhom_profile_-_flow')?['body/displayName']}.\n\nHere is the error message received from the product:\n\n@{body('Assign_Flow_toWhom')?['thereturnstring']}\n\n\nYou may need to seek help from your admin: \n\n@{parameters('Admin eMail (admin_AdminMail)')}",
                                                         "PostNotificationRequest/messageTitle": "Error"
                                                       },
                                                       "authentication": {
@@ -2556,7 +2799,7 @@
                                               },
                                               "expression": {
                                                 "equals": [
-                                                  "@outputs('Assign_Flow_toWhom')?['Body']?['return']",
+                                                  "@body('Assign_Flow_toWhom')?['thereturnstring']",
                                                   "pass"
                                                 ]
                                               },
@@ -2567,7 +2810,7 @@
                                               "type": "Workflow",
                                               "inputs": {
                                                 "host": {
-                                                  "workflowReferenceName": "b538d20c-d1ef-eb11-bacb-00224820693c"
+                                                  "workflowReferenceName": "6093b58a-4fea-eb11-bacb-000d3a578f6c"
                                                 },
                                                 "body": {
                                                   "text": "@outputs('Get_toWhom_profile_-_flow')?['body/id']",
@@ -3165,10 +3408,49 @@
               }
             ]
           }
+        },
+        "Initialize_appErrors": {
+          "runAfter": {
+            "Initialize_returnValue": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "81575c14-fc50-4c37-b495-7d81de750c77"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "appErrors",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Initialize_flowErrors": {
+          "runAfter": {
+            "Initialize_appErrors": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c189ee0e-5f06-42ef-b957-f1d6a5eef47b"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowErrors",
+                "type": "array"
+              }
+            ]
+          }
         }
       },
       "outputs": {}
-    }
+    },
+    "templateName": null
   },
   "schemaVersion": "1.0.0.0"
 }

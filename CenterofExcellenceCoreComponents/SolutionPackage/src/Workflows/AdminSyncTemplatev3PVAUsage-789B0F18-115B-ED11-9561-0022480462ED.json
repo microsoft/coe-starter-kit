@@ -1,0 +1,262 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "impersonation": {},
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_commondataservice_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "api": {
+          "name": "shared_commondataservice"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2022-11-03T11:00:00Z"
+          },
+          "metadata": {
+            "operationMetadataId": "8439d673-0237-4708-8138-8060311c20b3"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "List_Bots": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "98251c60-bc9a-484b-8715-90ad4bb6f53f"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords"
+            },
+            "parameters": {
+              "entityName": "admin_pvas",
+              "$select": "admin_pvaid,admin_botid,_admin_pvaenvironment_value",
+              "$filter": "admin_pvastate eq 'Published' and admin_pvadeleted eq false and _admin_pvaenvironment_value ne null",
+              "$expand": "admin_PVAEnvironment($select=admin_environmentcdsmetadataname)"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Get_Chatbot_usage_failed_-_Error_Handling": {
+          "actions": {
+            "Create_new_Sync_Flow_Error": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f8f67040-8a5b-4147-b619-6077b0cbfbec"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "Admin | Sync Template v3 (PVA Usage - Daily Sync)",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Create_new_Sync_Flow_Error": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "bbca81bb-6f1e-4acd-a2c7-d8c2bb90b5ca"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "PVA Usage Daily Sync failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Get_Chatbot_usage": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a458cbea-2295-43a0-b1e3-86a0d2affa6d"
+          },
+          "type": "Scope"
+        },
+        "Get_Chatbot_usage": {
+          "actions": {
+            "Apply_to_each_bot": {
+              "foreach": "@outputs('List_Bots')?['body/value']",
+              "actions": {
+                "Count_conversation_transcripts_for_the_previous_day": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "2159bd20-ea93-4fe4-a7bb-7998ea38f171"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice",
+                      "connectionName": "shared_commondataservice_1",
+                      "operationId": "GetItems_V2"
+                    },
+                    "parameters": {
+                      "dataset": "@items('Apply_to_each_bot')?['admin_pvaenvironment/admin_environmentcdsmetadataname']",
+                      "table": "conversationtranscripts",
+                      "$apply": "filter(Microsoft.Dynamics.CRM.LastXDays(PropertyName='conversationstarttime',PropertyValue=1) and _bot_conversationtranscriptid_value eq '@{items('Apply_to_each_bot')?['admin_botid']}')/aggregate($count as statecode)"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Parse_JSON_(count_conversation_transcripts)": {
+                  "runAfter": {
+                    "Count_conversation_transcripts_for_the_previous_day": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "086f6c4d-22f1-4fdb-a2d0-7e004c4f962f"
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@outputs('Count_conversation_transcripts_for_the_previous_day')?['body/value']",
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "@@odata.id": {
+                            "type": "string"
+                          },
+                          "@@odata.etag": {
+                            "type": "string"
+                          },
+                          "ItemInternalId": {
+                            "type": "string"
+                          },
+                          "statecode": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "@@odata.id",
+                          "@@odata.etag",
+                          "ItemInternalId",
+                          "statecode"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "Condition": {
+                  "actions": {
+                    "Create_PVA_Bot_Usage_record": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "8d48cb95-6b90-495e-9eda-e4e46df35d73"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "CreateRecord"
+                        },
+                        "parameters": {
+                          "entityName": "admin_pvabotusages",
+                          "item/admin_name": "@{items('Apply_to_each_bot')?['_admin_pvaenvironment_value']}-@{items('Apply_to_each_bot')?['admin_botid']}-@{formatDateTime(addDays(utcnow(), -1), 'yyyy-MM-dd')}",
+                          "item/admin_PVABot@odata.bind": "admin_pvas(@{items('Apply_to_each_bot')?['admin_pvaid']})",
+                          "item/admin_conversations": "@first(body('Parse_JSON_(count_conversation_transcripts)'))?['statecode']",
+                          "item/admin_date": "@addDays(utcnow(), -1)"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_JSON_(count_conversation_transcripts)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "not": {
+                      "equals": [
+                        "@first(body('Parse_JSON_(count_conversation_transcripts)'))?['statecode']",
+                        0
+                      ]
+                    }
+                  },
+                  "metadata": {
+                    "operationMetadataId": "86f2f80e-ceb8-4571-b12f-a496a4929aac"
+                  },
+                  "type": "If"
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "4cca86a5-3e3c-43ca-b9e4-bbff0052f621"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "List_Bots": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a9d1a3fc-f2d8-4586-86d5-aff4b4b4a344"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
