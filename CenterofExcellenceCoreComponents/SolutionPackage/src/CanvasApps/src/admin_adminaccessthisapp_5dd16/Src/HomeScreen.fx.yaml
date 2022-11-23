@@ -23,17 +23,17 @@ HomeScreen As screen:
             { Title: "Delete", id: 2, launch: ""},
             { Title: "eMail Maker", id: 0, launch: ""});
         
-        UpdateContext({showAddUsers:false, showPermissions:true, showArchive:false, showDelete:false,showMakerPortal: false, showEmail: false});
+        UpdateContext({showAddUsers:false, showPermissions:true, showArchive:false, showDelete:false, showMakerPortal: false, showEmail: false});
         UpdateContext({showCantShowThat: false, CantShowThatText: ""});
         
         //get user and app
         Set(myUserProfile, Office365Users.MyProfileV2());
         If(IsBlank(First([@PowerBIIntegration].Data).admin_appid), 
-           Set(selectedAppID, "d83187a7-eeb0-432d-9055-b441dda82faf");
-           Set(envName, "ce02d360-be4c-4fc0-afae-52a6a80ff2fc");
+           Set(selectedAppID, "003014e9-8875-428f-bb17-0139bc168acc");
+           Set(envName, "12ca3475-c509-e18d-9dfa-dd949c00a21d");
         , 
            Set(selectedAppID, GUID(First([@PowerBIIntegration].Data).admin_appid));
-           Set(envName, GUID(First([@PowerBIIntegration].Data).admin_environmentname));
+           Set(envName, First([@PowerBIIntegration].Data).admin_environmentname);
         );
         Set(selectedApp, PowerAppsforAdmins.GetAdminApp(envName, selectedAppID));
         
@@ -159,7 +159,10 @@ HomeScreen As screen:
                 PressedColor: =RGBA(4,45,81,1.00)
                 PressedFill: =RGBA(0, 0, 0, 0)
                 Size: =18
-                Text: =ThisItem.properties.principal.displayName
+                Text: |-
+                    =If(ThisItem.properties.principal.type = "Tenant", "Entire Org",
+                    If(ThisItem.properties.principal.type = "Group", "Group: " & ThisItem.properties.principal.displayName,
+                    ThisItem.properties.principal.displayName))
                 Width: =492
                 X: =98
                 ZIndex: =2
@@ -173,7 +176,10 @@ HomeScreen As screen:
                 Height: =60
                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                 HoverFill: =RGBA(0, 0, 0, 0)
-                Image: =If(ThisItem.properties.principal.type <> "User", SampleImage,  LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject)
+                Image: |-
+                    =If(ThisItem.properties.principal.type <> "User", SampleImage,
+                    If(CountRows(Filter('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id))) = 0, SampleImage, 
+                    LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject))
                 ImagePosition: =ImagePosition.Fill
                 OnSelect: =Select(Parent)
                 PaddingBottom: =imgUserProfile.PaddingTop
@@ -224,7 +230,8 @@ HomeScreen As screen:
                 HoverFill: =ColorValue(Style.Secondary)
                 OnSelect: |-
                     =//call helper to reassign
-                    If('HELPER-ObjectOperations'.Run(ThisItem.name, selectedAppID, envName, "assign", "app").thereturnstring="pass",
+                    UpdateContext({theHelperReturnString:'HELPER-ObjectOperations'.Run(ThisItem.name, selectedAppID, envName, "assign", "app").thereturnstring});
+                    If(theHelperReturnString="pass",
                     
                     ClearCollect(
                         appRoles,
@@ -234,10 +241,7 @@ HomeScreen As screen:
                         ).value);, 
                     
                     //else show error message
-                    UpdateContext({
-                            showCantShowThat: true,
-                            CantShowThatText: "Changing owner failed, try to set via product UX"
-                    }));
+                    UpdateContext({showCantShowThat: true, CantShowThatText: theHelperReturnString}));
                 PaddingBottom: =10
                 PaddingLeft: =10
                 PaddingRight: =10
@@ -737,13 +741,13 @@ HomeScreen As screen:
                 =UpdateContext({UpdatePermissionsPassed: 'HELPER-ObjectOperations'.Run(galSearchPeopleresult.Selected.Id, selectedAppID, envName, If(drpSearchUserRole.SelectedText.Value = "CanView", "addviewer", "addeditor"), "app").thereturnstring});
                 
                 
-                //update app or show error
+                //update app if succeess
                 If(UpdatePermissionsPassed = "pass",
                   Refresh('Power Platform Users');
                   ClearCollect(appRoles, PowerAppsforAdmins.GetAdminAppRoleAssignment(envName, selectedAppID).value);,
-                UpdateContext({
-                        showCantShowThat: true,
-                        CantShowThatText: "Changing permissions failed, try to set via product UX"}));
+                
+                //else show error message
+                UpdateContext({showCantShowThat: true, CantShowThatText: UpdatePermissionsPassed}));
                 
                 //close dialog
                 UpdateContext({showAddUsers: false})
@@ -858,12 +862,12 @@ HomeScreen As screen:
             HoverBorderColor: =ColorFade(btnDeleteApp.BorderColor, 20%)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =//delete apps
-                If('HELPER-ObjectOperations'.Run("none", selectedAppID, envName, "delete", "app").thereturnstring <> "pass",
-                    UpdateContext({showCantShowThat: true,
-                        CantShowThatText: "Deleting some apps failed, try to delete via product UX"});,
-                    UpdateContext({showCantShowThat: true,
-                        CantShowThatText: "Deleted"});)
+                =UpdateContext({DeleteAppPassed: 'HELPER-ObjectOperations'.Run("none", selectedAppID, envName, "delete", "app").thereturnstring});
+                
+                //update app if succeess
+                If(DeleteAppPassed = "pass",
+                    UpdateContext({showCantShowThat: true, CantShowThatText: "Deleted"});,
+                    UpdateContext({showCantShowThat: true, CantShowThatText: DeleteAppPassed});)
             PressedBorderColor: =btnDeleteApp.Fill
             PressedColor: =RGBA(255, 255, 255, 1)
             PressedFill: =ColorFade(btnMakeOwner.Fill, -30%)
@@ -1074,12 +1078,11 @@ HomeScreen As screen:
         bg_cant_do_that As rectangle:
             DisabledFill: =bg_cant_do_that.Fill
             Fill: =RGBA(238, 204, 204, 1)
-            Height: =If(Self.Visible, 52, 0)
+            Height: =If(Self.Visible, 60, 0)
             HoverFill: =bg_cant_do_that.Fill
             PressedFill: =bg_cant_do_that.Fill
             Visible: =showCantShowThat
             Width: =If(Self.Visible, Parent.Width, 0)
-            Y: =55
             ZIndex: =32
 
         lbl_cant_do_that As label:

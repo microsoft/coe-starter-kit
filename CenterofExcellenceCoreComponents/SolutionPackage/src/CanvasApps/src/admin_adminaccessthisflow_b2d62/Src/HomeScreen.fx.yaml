@@ -15,6 +15,9 @@ HomeScreen As screen:
         Set(theFlowURL, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
         If(IsBlank(theFlowURL), Set(theFlowURL, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
         
+        //get groups for names
+        ClearCollect(theGroups, Office365Groups.ListGroups().value);
+        
         //create navigation collection
         ClearCollect(
             appFilter,
@@ -23,16 +26,17 @@ HomeScreen As screen:
             { Title: "Delete", id: 2, launch: ""},
             { Title: "eMail Maker", id: 0, launch: ""});
         
-        UpdateContext({showAddUsers:false, showPermissions:true, showArchive:false, showDelete:false});
+        UpdateContext({showAddUsers:false, showPermissions:true, showArchive:false, showDelete:false, showMakerPortal: false, showEmail: false});
+        UpdateContext({showCantShowThat: false, CantShowThatText: ""});
         
         //get user and flow
         Set(myUserProfile, Office365Users.MyProfileV2());
         If(IsBlank(First([@PowerBIIntegration].Data).admin_flowid), 
-           Set(selectedFlowID, "a50902c2-162e-4e54-880d-540669ffd749");
-           Set(envName, "ce02d360-be4c-4fc0-afae-52a6a80ff2fc");
+           Set(selectedFlowID, "5fdda073-f1a5-4e97-92a3-71943c38444b");
+           Set(envName, "12ca3475-c509-e18d-9dfa-dd949c00a21d");
         , 
            Set(selectedFlowID, First([@PowerBIIntegration].Data).admin_flowid);
-           Set(envName, GUID(First([@PowerBIIntegration].Data).admin_environmentname));
+           Set(envName, First([@PowerBIIntegration].Data).admin_environmentname);
         );
         Set(selectedFlow, PowerAutomateManagement.AdminGetFlow(envName, selectedFlowID));
         
@@ -157,7 +161,7 @@ HomeScreen As screen:
                 DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                 FocusedBorderColor: =lblUserName.BorderColor
                 Font: =Font.'Segoe UI'
-                Height: =86
+                Height: =58
                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                 HoverColor: =RGBA(4,45,81,1.00)
                 HoverFill: =RGBA(0, 0, 0, 0)
@@ -169,8 +173,7 @@ HomeScreen As screen:
                 Text: |-
                     =If(!isSolutionFlow,
                     If(ThisItem.properties.principal.type = "Tenant", "Entire Org",
-                       ThisItem.properties.principal.type = "Group",
-                       ThisItem.properties.principal.id,
+                       ThisItem.properties.principal.type = "Group", "Group: " & First(Filter(theGroups, id=ThisItem.name)).displayName,
                        If(IsError(Office365Users.UserProfile(ThisItem.properties.principal.id).DisplayName), "Unknown",
                        Office365Users.UserProfile(ThisItem.properties.principal.id).DisplayName
                        )
@@ -188,7 +191,10 @@ HomeScreen As screen:
                 Height: =60
                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                 HoverFill: =RGBA(0, 0, 0, 0)
-                Image: =If(ThisItem.properties.principal.type <> "User", SampleImage,  LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject)
+                Image: |-
+                    =If(ThisItem.properties.principal.type <> "User", SampleImage, 
+                    If(CountRows(Filter('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id))) = 0, SampleImage, 
+                    LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject))
                 ImagePosition: =ImagePosition.Fill
                 OnSelect: =Select(Parent)
                 PaddingBottom: =imgUserProfile.PaddingTop
@@ -198,8 +204,7 @@ HomeScreen As screen:
                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                 PressedFill: =RGBA(0, 0, 0, 0)
                 Width: =64
-                X: =14
-                Y: =13
+                X: =16
                 ZIndex: =4
 
             lblRole As label:
@@ -210,7 +215,7 @@ HomeScreen As screen:
                 DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                 FocusedBorderColor: =lblRole.BorderColor
                 Font: =Font.'Segoe UI'
-                Height: =86
+                Height: =58
                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                 HoverColor: =RGBA(4,45,81,1.00)
                 HoverFill: =RGBA(0, 0, 0, 0)
@@ -419,11 +424,12 @@ HomeScreen As screen:
             HoverBorderColor: =ColorFade(btnDeleteApp.BorderColor, 20%)
             HoverFill: =ColorValue(Style.Secondary)
             OnSelect: |-
-                =If('HELPER-ObjectOperations'.Run("none", selectedFlowID, envName, "delete", "flow").thereturnstring <> "pass", 
-                    UpdateContext({showCantShowThat: true,
-                        CantShowThatText: "Deleting flow failed, try to delete via product UX"});,
-                    UpdateContext({showCantShowThat: true,
-                        CantShowThatText: "Deleted"});)
+                =UpdateContext({DeleteFlowPassed: 'HELPER-ObjectOperations'.Run("none", selectedFlowID, envName, "delete", "flow").thereturnstring});
+                
+                //update app if succeess
+                If(DeleteFlowPassed = "pass",
+                    UpdateContext({showCantShowThat: true, CantShowThatText: "Deleted"});,
+                    UpdateContext({showCantShowThat: true, CantShowThatText: DeleteFlowPassed});)
             PressedBorderColor: =btnDeleteApp.Fill
             PressedColor: =RGBA(255, 255, 255, 1)
             PressedFill: =ColorFade(btnGrantAccessToFlow.Fill, -30%)
@@ -770,13 +776,13 @@ HomeScreen As screen:
             OnSelect: |
                 =UpdateContext({UpdatePermissionsPassed: 'HELPER-ObjectOperations'.Run(galSearchPeopleresult.Selected.Id, selectedFlowID, envName, If(drpSearchUserRole.SelectedText.Value = "CanView", "addviewer", "addeditor"), "flow").thereturnstring});
                 
-                //update app or show error
+                //update app if succeess
                 If(UpdatePermissionsPassed = "pass",
                   Refresh('Power Platform Users');
                   ClearCollect(roleAssignmentsCollection, PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);,
-                  UpdateContext({
-                        showCantShowThat: true,
-                        CantShowThatText: "Changing permissions failed, try to set via product UX"}));
+                
+                //else show error message
+                  UpdateContext({showCantShowThat: true, CantShowThatText: UpdatePermissionsPassed}));
                 
                 //close dialog
                 UpdateContext({showAddUsers: false})
@@ -1041,12 +1047,11 @@ HomeScreen As screen:
         bg_cant_do_that As rectangle:
             DisabledFill: =bg_cant_do_that.Fill
             Fill: =RGBA(238, 204, 204, 1)
-            Height: =If(Self.Visible, 52, 0)
+            Height: =If(Self.Visible, 60, 0)
             HoverFill: =bg_cant_do_that.Fill
             PressedFill: =bg_cant_do_that.Fill
             Visible: =showCantShowThat
             Width: =If(Self.Visible, Parent.Width, 0)
-            Y: =55
             ZIndex: =35
 
         lbl_cant_do_that As label:

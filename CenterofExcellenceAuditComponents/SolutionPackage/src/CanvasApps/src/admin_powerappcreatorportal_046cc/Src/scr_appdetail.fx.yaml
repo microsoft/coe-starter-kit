@@ -1503,7 +1503,7 @@
                                 Font: =Font.'Segoe UI'
                                 OnSelect: =Select(Parent)
                                 Size: =10.5
-                                Text: =ThisItem.Result
+                                Text: =LookUp(allConnectors, name = ThisItem.Result).properties.displayName
                                 Width: =366
                                 X: =40
                                 Y: =4
@@ -1520,7 +1520,8 @@
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverFill: =RGBA(0, 0, 0, 0)
                                 Image: |-
-                                    =PowerAppsforAppMakers.GetConnector(LookUp(allConnectors, properties.displayName = ThisItem.Result).name, {'$filter':"environment eq 'Default-" & defaultEnvironment & "'"}).properties.iconUri
+                                    =If(CountRows(Filter(allConnectors, name = ThisItem.Result)) > 0, 
+                                    PowerAppsforAppMakers.GetConnector(LookUp(allConnectors, name = ThisItem.Result).name, {'$filter':"environment eq 'Default-" & defaultEnvironment & "'"}).properties.iconUri, SampleImage)
                                 OnSelect: =Select(Parent)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedFill: =RGBA(0, 0, 0, 0)
@@ -3086,14 +3087,17 @@
             HoverColor: =RGBA(255, 255, 255, 1)
             HoverFill: =RGBA(135, 100, 184, 1)
             OnSelect: |-
-                =PowerAppsforAppMakers.RemoveApp(vSelectedAppN.App); 
-                ClearCollect( appsFromConnector, PowerAppsforAppMakers.GetApps({'$top':1000}).value); Navigate(scr_home, Fade);
-                UpdateContext(
-                        {
-                            showPopUp: false,
-                            confirmDeletion: false
-                        }
-                        );
+                =//call delete helper
+                UpdateContext({returnResult: 'HELPER-ObjectOperations'.Run("none", vSelectedAppN.App, vSelectedAppN.'App Environment'.Name, "delete", "app").thereturnstring});
+                
+                //update app or show error
+                If(returnResult = "pass",
+                    ClearCollect( appsFromConnector, PowerAppsforAppMakers.GetApps({'$top':1000}).value); Navigate(scr_home, Fade);,
+                //else show error
+                    UpdateContext({showCantShowThat: true, CantShowThatText: returnResult}));
+                
+                //close dialog
+                UpdateContext({showPopUp: false, confirmDeletion: false});
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -3527,18 +3531,18 @@
             HoverFill: =RGBA(135, 100, 184, 1)
             OnSelect: |-
                 =//get new owner guid
-                UpdateContext({NewOwner: IfError(Office365Users.UserProfileV2(txtInput_4.Text).id, "")});
+                UpdateContext({NewOwner: "x"});
+                UpdateContext({NewOwner: IfError(Office365Users.UserProfileV2(txtInput_4.Text).id, "z")});
                 
-                //if blank set to error
-                If(IsBlank(NewOwner), UpdateContext({NewOwnerError: true}),
+                //Office365Users.UserProfileV2(txtInput_4.Text);
+                If(IsBlankOrError(NewOwner),
+                UpdateContext({showCantShowThat: true, CantShowThatText: "Invalid new owner", returnResult: "Invalid new owner"}),
                 
                 //else set new owner and update roles on backend
-                UpdateContext({NewOwnerError: false});
-                UpdateContext({NewOwnerError: 
-                     If('HELPER-ObjectOperationsGov'.Run(NewOwner, vSelectedAppN.App, vSelectedAppN.'App Environment'.Name, "assign", "app").thereturnstring ="fail", true, false)});
+                UpdateContext({returnResult: 'HELPER-ObjectOperations'.Run(NewOwner, vSelectedAppN.App, vSelectedAppN.'App Environment'.Name, "assign", "app").thereturnstring}));
                 
                 //if it worked
-                If(!NewOwnerError,
+                If(returnResult = "pass",
                 //re-collect the app
                 RemoveIf(myApps, App=vSelectedAppN.App);
                 Collect(myApps, LookUp('PowerApps Apps', App=vSelectedAppN.App));
@@ -3549,11 +3553,13 @@
                     "Picture", If(properties.principal.type = "User" && Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
                         Office365Users.UserPhotoV2(properties.principal.id), 
                     properties.principal.type <> "Tenant", Contact, Org)));
-                ClearCollect(emailAppUserCollection, PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedAppN.App).value.properties);
+                ClearCollect(emailAppUserCollection, PowerAppsforAppMakers.GetAppRoleAssignment(vSelectedAppN.App).value.properties);,
+                
+                //else show error
+                UpdateContext({showCantShowThat: true, CantShowThatText: returnResult}));
                 
                 //and close the dialog
-                UpdateContext({showPopUp:false, showNewOwner: false})
-                ));
+                UpdateContext({showPopUp:false, showNewOwner: false});
             PaddingBottom: =10
             PaddingLeft: =10
             PaddingRight: =10
@@ -3646,12 +3652,11 @@
             BorderColor: =RGBA(0, 18, 107, 1)
             DisabledFill: =bg_cant_do_that.Fill
             Fill: =RGBA(238, 204, 204, 1)
-            Height: =If(Self.Visible, 52, 0)
+            Height: =If(Self.Visible, 60, 0)
             HoverFill: =bg_cant_do_that.Fill
             PressedFill: =bg_cant_do_that.Fill
             Visible: =showCantShowThat
             Width: =If(Self.Visible, Parent.Width, 0)
-            Y: =If(Self.Visible, 50, 0)
             ZIndex: =32
 
         lbl_cant_do_that As label:

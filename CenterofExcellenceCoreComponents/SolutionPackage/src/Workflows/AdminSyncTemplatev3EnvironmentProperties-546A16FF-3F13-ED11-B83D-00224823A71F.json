@@ -46,15 +46,15 @@
           "type": "Bool",
           "metadata": {
             "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
-            "description": "Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
+            "description": "Inventory - Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature)"
           }
         },
         "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
-          "defaultValue": "https://us.flow.microsoft.com/manage/environments/",
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
           "type": "String",
           "metadata": {
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
-            "description": "Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
           }
         }
       },
@@ -73,8 +73,7 @@
             "parameters": {
               "subscriptionRequest/message": 4,
               "subscriptionRequest/entityname": "admin_environment",
-              "subscriptionRequest/scope": 4,
-              "subscriptionRequest/filteringattributes": "admin_environmentqueriedon,admin_environmentmodifiedon,admin_environmentcreatedon"
+              "subscriptionRequest/scope": 4
             },
             "authentication": "@parameters('$authentication')"
           }
@@ -97,7 +96,7 @@
                 },
                 "parameters": {
                   "entityName": "admin_environmentcapacities",
-                  "$select": "admin_environmentcapacityid,admin_capacitytype",
+                  "$select": "admin_environmentcapacityid,admin_capacitytype,admin_approvedcapacity",
                   "$filter": "admin_Environment/admin_environmentid eq @{triggerOutputs()?['body/admin_environmentid']}"
                 },
                 "authentication": "@parameters('$authentication')"
@@ -130,6 +129,14 @@
             "Apply_to_each": {
               "foreach": "@body('Filter_for_current_environment')",
               "actions": {
+                "Set_approved_capacity_for_Developer_and_Teams_environments": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "cfa5721b-7971-4a7c-9806-313c48158759"
+                  },
+                  "type": "Compose",
+                  "inputs": "@if(or(equals(items('Apply_to_each')?['properties']?['environmentSku'], 'Teams'), equals(items('Apply_to_each')?['properties']?['environmentSku'], 'Developer')), 2000, null)"
+                },
                 "Apply_to_each_capacity": {
                   "foreach": "@items('Apply_to_each')?['properties']?['capacity']",
                   "actions": {
@@ -164,6 +171,7 @@
                                   "entityName": "admin_environmentcapacities",
                                   "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
                                   "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                  "item/admin_approvedcapacity": "@if(equals(first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_approvedCapacity'], null), outputs('Set_approved_capacity_for_Developer_and_Teams_environments'),first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_approvedCapacity'])",
                                   "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
                                   "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
                                   "item/admin_ratedconsumption": "@items('Apply_to_each_capacity')?['ratedConsumption']"
@@ -173,7 +181,7 @@
                             }
                           },
                           "runAfter": {
-                            "Check_if_Capacity_Type_already_exists_for_this_environment": [
+                            "Compose_2": [
                               "Succeeded"
                             ]
                           },
@@ -195,6 +203,7 @@
                                     "entityName": "admin_environmentcapacities",
                                     "recordId": "@first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_environmentcapacityid']",
                                     "item/admin_actualconsumption": "@items('Apply_to_each_capacity')?['actualConsumption']",
+                                    "item/admin_approvedcapacity": "@if(equals(first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_approvedCapacity'], null), outputs('Set_approved_capacity_for_Developer_and_Teams_environments'),first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_approvedCapacity'])",
                                     "item/admin_capacitytype": "@items('Apply_to_each_capacity')?['capacityType']",
                                     "item/admin_capacityunit": "@items('Apply_to_each_capacity')?['capacityUnit']",
                                     "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
@@ -215,6 +224,18 @@
                             "operationMetadataId": "5378bbe8-6de1-4cd3-814c-59cd47606ead"
                           },
                           "type": "If"
+                        },
+                        "Compose_2": {
+                          "runAfter": {
+                            "Check_if_Capacity_Type_already_exists_for_this_environment": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "bc47b9b7-4a45-4ca3-bef9-1be074a34313"
+                          },
+                          "type": "Compose",
+                          "inputs": "@if(equals(first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_approvedCapacity'], null), outputs('Set_approved_capacity_for_Developer_and_Teams_environments'),first(body('Check_if_Capacity_Type_already_exists_for_this_environment'))['admin_approvedCapacity'])"
                         }
                       },
                       "runAfter": {},
@@ -232,7 +253,11 @@
                       "type": "If"
                     }
                   },
-                  "runAfter": {},
+                  "runAfter": {
+                    "Set_approved_capacity_for_Developer_and_Teams_environments": [
+                      "Succeeded"
+                    ]
+                  },
                   "metadata": {
                     "operationMetadataId": "6cb254a9-6732-4f9a-8467-d53cfe404872"
                   },
@@ -283,8 +308,8 @@
                             "parameters": {
                               "entityName": "admin_environmentaddonses",
                               "item/admin_addontype": "@items('Apply_to_each_addon')?['addonType']",
-                              "item/admin_allocated": "@items('Apply_to_each_addon')?['allocated']",
-                              "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})"
+                              "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                              "item/admin_allocated": "@items('Apply_to_each_addon')?['allocated']"
                             },
                             "authentication": "@parameters('$authentication')"
                           }
@@ -405,7 +430,11 @@
           }
         },
         "Initialize_systemMaker": {
-          "runAfter": {},
+          "runAfter": {
+            "Check_if_Environment_Deleted_or_Excused,_terminate_if_true": [
+              "Succeeded"
+            ]
+          },
           "metadata": {
             "operationMetadataId": "34322142-9050-4db3-bb27-b6a0060a81a5"
           },
@@ -563,9 +592,45 @@
             "operationMetadataId": "5330f407-fe80-4deb-bcb6-e31fccde5e58"
           },
           "type": "Scope"
+        },
+        "Check_if_Environment_Deleted_or_Excused,_terminate_if_true": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "71b2e356-dc30-46ae-aa5e-90ae51cf707b"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_excusefrominventory']",
+                  "@true"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0bf354ac-4265-4bbe-9fed-996958d038bd"
+          },
+          "type": "If"
         }
       }
-    }
+    },
+    "templateName": ""
   },
   "schemaVersion": "1.0.0.0"
 }

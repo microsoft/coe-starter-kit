@@ -46,7 +46,15 @@
           "type": "String",
           "metadata": {
             "schemaName": "admin_GraphURLEnvironmentVariable",
-            "description": "The URL used to get graph information for your cloud. Ex https://graph.microsoft.com/"
+            "description": "REQUIRED. The URL used to get graph information for your cloud. Ex https://graph.microsoft.com/"
+          }
+        },
+        "Disabled Users are Orphaned (admin_DisabledUsersareOrphaned)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_DisabledUsersareOrphaned",
+            "description": "If an AD User has property Account enabled as false, will be considered as orphaned"
           }
         }
       },
@@ -113,7 +121,7 @@
         },
         "Initialize_isSystem": {
           "runAfter": {
-            "Initialize_isOrphan": [
+            "Initialize_isEnabled": [
               "Succeeded"
             ]
           },
@@ -273,7 +281,8 @@
               "userid": "@variables('ID')",
               "useremail": "@variables('Email')",
               "usermanagerid": "@variables('ManagerID')",
-              "usermanagername": "@variables('ManagerName')"
+              "usermanagername": "@variables('ManagerName')",
+              "userisenabled": "@variables('isEnabled')"
             },
             "schema": {
               "type": "object",
@@ -342,6 +351,11 @@
                   "title": "userManagerName",
                   "x-ms-dynamically-added": true,
                   "type": "string"
+                },
+                "userisenabled": {
+                  "title": "userIsEnabled",
+                  "x-ms-dynamically-added": true,
+                  "type": "boolean"
                 }
               }
             }
@@ -594,7 +608,7 @@
                         },
                         "Set_variable_existing_value_-_isSystem": {
                           "runAfter": {
-                            "Set_variable_existing_value_-_isOrphan": [
+                            "Set_variable_existing_value_-_isEnabled": [
                               "Succeeded"
                             ]
                           },
@@ -852,6 +866,21 @@
                             "name": "hasManager",
                             "value": "@false"
                           }
+                        },
+                        "Set_variable_existing_value_-_isEnabled": {
+                          "runAfter": {
+                            "Set_variable_existing_value_-_isOrphan": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "237ce153-f7cc-4921-9e6d-67a1539b8c5d"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "isEnabled",
+                            "value": "@first(outputs('See_if_maker_exists_and_updated_already_today')?['body/value'])['admin_accountenabled']"
+                          }
                         }
                       },
                       "runAfter": {
@@ -872,26 +901,6 @@
                               "200_Success": {
                                 "case": 200,
                                 "actions": {
-                                  "Find_Maker": {
-                                    "runAfter": {},
-                                    "type": "OpenApiConnection",
-                                    "inputs": {
-                                      "host": {
-                                        "connectionName": "shared_commondataserviceforapps",
-                                        "operationId": "ListRecords",
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                      },
-                                      "parameters": {
-                                        "entityName": "admin_makers",
-                                        "$select": "admin_makerid",
-                                        "$filter": "admin_makerid eq @{triggerBody()['text']}"
-                                      },
-                                      "authentication": {
-                                        "type": "Raw",
-                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                                      }
-                                    }
-                                  },
                                   "Update_or_Insert_Maker": {
                                     "actions": {
                                       "Update_Maker": {
@@ -1062,7 +1071,7 @@
                                   },
                                   "Get_manager_(V2)": {
                                     "runAfter": {
-                                      "Set_Email": [
+                                      "Set_isEnabled": [
                                         "Succeeded"
                                       ]
                                     },
@@ -1122,6 +1131,72 @@
                                     },
                                     "expression": "@outputs('Get_manager_(V2)')['statusCode']",
                                     "type": "Switch"
+                                  },
+                                  "Set_isEnabled": {
+                                    "runAfter": {
+                                      "Set_Email": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                      "name": "isEnabled",
+                                      "value": "@outputs('Get_user_profile_(V2)')?['body/accountEnabled']"
+                                    }
+                                  },
+                                  "if_account_disabled_and_that_means_orphan_set_it_as_orphan": {
+                                    "actions": {
+                                      "Set_isOrphan_true_-_disabled_user": {
+                                        "runAfter": {},
+                                        "type": "SetVariable",
+                                        "inputs": {
+                                          "name": "isOrphan",
+                                          "value": "@true"
+                                        }
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "expression": {
+                                      "and": [
+                                        {
+                                          "equals": [
+                                            "@parameters('Disabled Users are Orphaned (admin_DisabledUsersareOrphaned)')",
+                                            "@true"
+                                          ]
+                                        },
+                                        {
+                                          "equals": [
+                                            "@outputs('Get_user_profile_(V2)')?['body/accountEnabled']",
+                                            "@false"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "type": "If"
+                                  },
+                                  "Find_Maker": {
+                                    "runAfter": {
+                                      "if_account_disabled_and_that_means_orphan_set_it_as_orphan": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "ListRecords",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_makers",
+                                        "$select": "admin_makerid",
+                                        "$filter": "admin_makerid eq @{triggerBody()['text']}"
+                                      },
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                      }
+                                    }
                                   }
                                 }
                               },
@@ -1508,7 +1583,8 @@
                           "userid": "@{first(outputs('Maker_checked_today')?['body/value'])?['admin_makerid']}",
                           "useremail": "@{first(outputs('Maker_checked_today')?['body/value'])?['admin_userprincipalname']}",
                           "usermanagerid": "@{first(outputs('Maker_checked_today')?['body/value'])?['admin_managerid']}",
-                          "usermanagername": "abc"
+                          "usermanagername": "abc",
+                          "userisenabled": "@{first(outputs('Maker_checked_today')?['body/value'])?['admin_accountenabled']}"
                         },
                         "schema": {
                           "type": "object",
@@ -1577,6 +1653,11 @@
                               "title": "userManagerName",
                               "x-ms-dynamically-added": true,
                               "type": "string"
+                            },
+                            "userisenabled": {
+                              "title": "userIsEnabled",
+                              "x-ms-dynamically-added": true,
+                              "type": "boolean"
                             }
                           }
                         }
@@ -1638,7 +1719,7 @@
                     },
                     "parameters": {
                       "entityName": "admin_makers",
-                      "$select": "admin_makerisorphaned, admin_userisserviceprinciple, admin_company, admin_department, admin_displayname, admin_city, admin_country, admin_preferredlanguage, admin_makerid, admin_userprincipalname, admin_managerid",
+                      "$select": "admin_makerisorphaned, admin_userisserviceprinciple, admin_company, admin_department, admin_displayname, admin_city, admin_country, admin_preferredlanguage, admin_makerid, admin_userprincipalname, admin_managerid, admin_accountenabled",
                       "$filter": "admin_makerid eq @{triggerBody()['text']} and modifiedon gt @{addDays(utcNow(), -1)}"
                     },
                     "authentication": {
@@ -1697,9 +1778,30 @@
           },
           "type": "Scope",
           "description": "will rethink a way to make the rest less costly and called. but adding early bail here for now"
+        },
+        "Initialize_isEnabled": {
+          "runAfter": {
+            "Initialize_isOrphan": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "dfd6c5fa-821e-4a60-9cab-793104b90f9f"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isEnabled",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
         }
       }
-    }
+    },
+    "templateName": ""
   },
   "schemaVersion": "1.0.0.0"
 }
