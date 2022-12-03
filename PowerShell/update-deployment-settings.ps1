@@ -114,8 +114,10 @@
                         }
                     }
                     elseif($configurationVariableName.StartsWith("canvasshare.aadGroupId.", "CurrentCultureIgnoreCase")) {
-                        $schemaName = $configurationVariableName -replace "canvasshare.aadGroupId.", ""
-                        $roleVariable = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq "canvasshare.roleName.$schemaName" } | Select-Object -First 1
+                        $schemaSuffix = $configurationVariableName -replace "canvasshare.aadGroupId.", ""
+                        $schemaName = $configurationVariableName.Split(".")[2]
+
+                        $roleVariable = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq "canvasshare.roleName.$schemaSuffix" } | Select-Object -First 1
                         $canvasAppResults =  Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $schemaName -Fields displayname
                         if($canvasAppResults.Count -gt 0 -and $null -ne $roleVariable) {
                             $canvasAppResult = $canvasAppResults.CrmRecords[0]
