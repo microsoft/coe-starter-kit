@@ -1,0 +1,414 @@
+App As appinfo:
+    BackEnabled: =false
+    OnStart: |
+        =Set(
+            loadPrequVisible,
+            true
+        );
+        Concurrent(
+            // Set the app's theme.
+            Set(
+                AppTheme,
+                /* START THEME OBJECT */
+                {
+                    palette: {
+                        themePrimary: "#0078d4",
+                        themeLighterAlt: "#eff6fc",
+                        themeLighter: "#deecf9",
+                        themeLight: "#c7e0f4",
+                        themeTertiary: "#71afe5",
+                        themeSecondary: "#2b88d8",
+                        themeDarkAlt: "#106ebe",
+                        themeDark: "#005a9e",
+                        themeDarker: "#004578",
+                        neutralLighterAlt: "#faf9f8",
+                        neutralLighter: "#f3f2f1",
+                        neutralLight: "#edebe9",
+                        neutralQuaternaryAlt: "#e1dfdd",
+                        neutralQuaternary: "#d0d0d0",
+                        neutralTertiaryAlt: "#c8c6c4",
+                        neutralTertiary: "#a19f9d",
+                        neutralSecondary: "#605e5c",
+                        neutralPrimaryAlt: "#3b3a39",
+                        neutralPrimary: "#323130",
+                        neutralDark: "#201f1e",
+                        black: "#000000",
+                        white: "#ffffff"
+                    }
+                }
+                /* END THEME OBJECT */
+            );
+            Set(
+                AppThemeJson,
+                JSON(
+                    AppTheme,
+                    JSONFormat.IndentFour
+                )
+            ),
+            // Get config steps.
+            ClearCollect(
+                colSetupSteps,
+                Table(
+                    {
+                        ItemKey: "1",
+                        ItemLabel: "Confirm pre-requisites",
+                        ItemDescription: "The CoE Starter Kit requires access to your tenant's Power Platform environments. Therefore, the identity you set up the CoE Starter Kit requires admin privileges and licenses. Please confirm your account meets the prerequisites before continuing:"
+                    },
+                    {
+                        ItemKey: "2",
+                        ItemLabel: "Configure communication methods",
+                        ItemDescription: "How will you communicate with your admins, makers, and users? <br>
+        We recommend using three <a href='https://docs.microsoft.com/en-us/microsoft-365/admin/create-groups/compare-groups#microsoft-365-groups'>Microsoft 365 groups</a> for this, one for each persona. These groups need to email-enabled security group and can be associated with a Microsoft team for collaboration between the people in the group."
+                    },
+                    {
+                        ItemKey: "3",
+                        ItemLabel: "Configure mandatory settings",
+                        ItemDescription: "Configure mandatory variable values."
+                    },
+                    {
+                        ItemKey: "4",
+                        ItemLabel: "Configure inventory data source",
+                        ItemDescription: "Power Platform inventory, so knowledge about environments, apps, flows, chatbots in your tenant, is essential for the CoE Starter Kit to work. <br><br>Inventory can come from either the <a href='https://docs.microsoft.com/power-platform/admin/self-service-analytics'>Power Platform Admin Center Data Export</a> to your own Azure Data Lake Storage (recommended) or can be gathered using cloud flows that crawl your tenant to store inventory in Dataverse."
+                    },
+                    {
+                        ItemKey: "5",
+                        ItemLabel: "Run setup flows",
+                        ItemDescription: "The flows below configure mandatory data in your environment, and have to finish running before proceeding with the setup. During initial setup, these may take <b>15 mins</b> to run - select 'Refresh' until you see the flows running and until they've successfully finished running."
+                    },
+                    {
+                        ItemKey: "6",
+                        ItemLabel: "Run inventory flows",
+                        ItemDescription: "There are several flows required to gather the inventory and store it in Dataverse. Check to make sure all flows are on before proceeding."
+                    },
+                   // {ItemKey: "7",ItemLabel: "Configure dataflows", ItemDescription: "Power BI and Power Platform dataflows are used to transform and prepare the data for the CoE Starter Kit apps and flows to consume. Follow the steps below to configure the dataflows."},
+                    {
+                        ItemKey: "7",
+                        ItemLabel: "Share apps",
+                        ItemDescription: "The core components solution contains apps designed to give admins better visibility and overview of resources and usage in their environments.
+        <br>
+        Share these apps with other Power Platform admins and assign them the Power Platform Admin SR security role:"
+                    },
+                    {
+                        ItemKey: "8",
+                        ItemLabel: "Publish Power BI dashboard",
+                        ItemDescription: "The Power BI dashboard provides a holistic view with visualizations and insights into resources in your tenant: environments, apps, Power Automate flows, connectors, connection references, makers, and audit logs. Configure and publish the dashboard:"
+                    },
+                    {
+                        ItemKey: "9",
+                        ItemLabel: "Finish",
+                        ItemDescription: "Congratulations! You have successfully set up the inventory components of the CoE Starter Kit."
+                    }
+                )
+            );
+            Clear(colStepsCompleted),
+            Set(
+                myUserDetails,
+                'SetupWizard>GetUserDetails'.Run()
+            ),
+            
+            // Get a list of URLs for each region/cloud.
+            ClearCollect(
+                colRegionClouds,
+                Table(
+                    {
+                        region: "Commercial (Default)",
+                        makerUrl: "https://make.powerapps.com/",
+                        appUrl: "https://apps.powerapps.com/",
+                        graphUrl: "https://graph.microsoft.com/",
+                        automateUrl: "https://flow.microsoft.com/manage/environments/"
+                    },
+                    {
+                        region: "GCC",
+                        makerUrl: "https://make.gov.powerapps.us/",
+                        appUrl: "https://play.apps.appsplatform.us/",
+                        graphUrl: "https://graph.microsoft.com/",
+                        automateUrl: "https://gov.flow.microsoft.us/manage/environments/"
+                    },
+                    {
+                        region: "GCC High",
+                        makerUrl: "https://make.high.powerapps.us/",
+                        appUrl: "https://apps.high.powerapps.us/",
+                        graphUrl: "https://graph.microsoft.us/",
+                        automateUrl: "https://high.flow.microsoft.us/manage/environments/"
+                    },
+                    {
+                        region: "DoD",
+                        makerUrl: "https://make.apps.appsplatform.us/",
+                        appUrl: "https://play.apps.appsplatform.us/",
+                        graphUrl: "https://dod-graph.microsoft.us/",
+                        automateUrl: "https://flow.appsplatform.us/manage/environments/"
+                    }
+                )
+            );
+            Set(
+                myRegionCloud,
+                First(colRegionClouds)
+            ),
+            // Get a list of the data sources for inventory.
+            ClearCollect(
+                colDataSources,
+                {
+                    value: "Data export (Coming soon)",
+                    recommended: true,
+                    descripton: "You can export Power Platform inventory and usage data directly into Azure Data Lake Storage to use with your organization's line-of-business scenarios. Having the data in your own data lake also means that you can store data for the durations specified in your organization's data retention policies. Because the data is provided by the admin center, this is high in performance and low in cost.<br><br><strong>Note, Data Export has to be configured from the Power Platform Admin Center before proceeding: <a href+https://docs.microsoft.com/power-platform/admin/self-service-analytics#set-up-the-data-export-process-for-your-tenant>Set up data export for your tenant</a></strong>",
+                    setupStep: 5,
+                    isBYODL: true,
+                    isSyncFlows: false,
+                    isSelected: false,
+                    available: false
+                },
+                {
+                    value: "Cloud flows",
+                    recommended: false,
+                    descripton: "Cloud flows use Power Platform admin connectors to query and crawl your tenant and store inventory and usage data in Dataverse tables. This method is suitable for small tenants but can cause performance issues in larger tenants. If you have more than 10,000 apps or flows consider using Data Export instead.",
+                    setupStep: 5,
+                    isBYODL: false,
+                    isSyncFlows: true,
+                    isSelected: true,
+                    available: true
+                }
+            );
+            Set(
+                myDataSource,
+                Last(colDataSources)
+            ),
+            /*
+            ClearCollect(
+                colStepStatus,
+                {
+                    Id: 0,
+                    Label: "Not-started/Incomplete"
+                },
+                {
+                    Id: 1,
+                    Label: "Current"
+                },
+                {
+                    Id: 2,
+                    Label: "Complete"
+                },
+                {
+                    Id: 3,
+                    Label: "Error"
+                }
+            );
+        
+            ClearCollect(
+                colSetupSteps,
+                {
+                    Step: 1,
+                    Label: "Confirm Pre-requisites",
+                    Status: LookUp(colStepStatus,Id=1)
+                },
+                {
+                    Step: 2,
+                    Label: "Set communication methods",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 3,
+                    Label: "Configure mandatory settings",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 4,
+                    Label: "Choose inventory data source",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 5,
+                    Label: "Run setup flows",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 6,
+                    Label: "Run inventory flows",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 7,
+                    Label: "Enable dataflows",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 8,
+                    Label: "Share apps",
+                    Status: LookUp(colStepStatus,Id=0)
+                },
+                {
+                    Step: 9,
+                    Label: "Finish",
+                    Status: LookUp(colStepStatus,Id=0)
+                }
+            );
+            */
+             // Get CoE Solution details.
+            Set(
+                coeSolution,
+                LookUp(
+                    Solutions,
+                    uniquename = "CenterofExcellenceCoreComponents"
+                ).'Solution Identifier'
+            ),
+            Set(
+                coESolutionVersion,
+                LookUp(
+                    Solutions,
+                    uniquename = "CenterofExcellenceCoreComponents"
+                ).Version
+            ),
+            Set(
+                unmanagedSolutionID,
+                Text(
+                    LookUp(
+                            Solutions,
+                            Name = "Active"
+                    ).'Solution Identifier'
+                )
+            ),
+            Set(
+                upgradeStep,
+                1
+            ),
+            Set(showOptionalVars, false),
+            Set(
+                showUpgrade,
+                !IsBlank(
+                    LookUp(
+                        Solutions,
+                        uniquename = "CenterofExcellenceCoreComponents"
+                    ).'Updated On'
+                )
+            ),
+            Set(
+                showHelp,
+                false
+            ),
+            Set(startTimer,false),
+            // Get user details.
+            Set(
+                myUser,
+                Office365Users.MyProfileV2()
+            ),
+            // Get current environment details.
+            Set(
+                coeEnv,
+                'SetupWizard>GetCurrentEnvironment'.Run().currentenv
+            )
+            // Set(myUserDetails, 'SetupWizard>GetUserDetails'.Run()),
+            
+        );
+        Set(
+                loadPrequVisible,
+                false
+            );
+        Set(
+            lastConfig,
+            First(
+                SortByColumns(
+                    Filter(
+                        'Setup Wizard State metadata',
+                        Name = "Initial Setup",
+                        'Solution Name' = "CenterofExcellenceCoreComponents",
+                        'Solution Version' = coESolutionVersion
+                    ),
+                    "admin_lastcompletedstep",
+                    Descending
+                )
+            ).'Last Completed Step'
+        );
+        Set(
+            configStep,
+            If(
+                !IsBlank(lastConfig),
+                lastConfig,
+                1
+            )
+        );
+        IfError(
+        Patch(
+            colStepsCompleted,
+            Defaults(colStepsCompleted),
+            {Value: lastConfig}
+        ), Notify("Failed to update completed steps."));
+            //set communication methods
+        Set(
+            vAdminEnvVarID,
+            LookUp(
+                'Environment Variable Definitions',
+                'Schema Name' = "admin_AdminMail"
+            ).'Environment Variable Definition'
+        );
+        Set(
+            vMakerEnvVarID,
+            LookUp(
+                'Environment Variable Definitions',
+                'Schema Name' = "admin_PowerPlatformMakeSecurityGroup"
+            ).'Environment Variable Definition'
+        );
+        Set(
+            vUserVarID,
+            LookUp(
+                'Environment Variable Definitions',
+                'Schema Name' = "admin_PowerPlatformUserGroupID"
+            ).'Environment Variable Definition'
+        );
+        ClearCollect(
+            colCommunicate,
+            {
+                type: "Admin",
+                description: "Add your Power Platform admins to this group so you can communicate with each other and so you can be contacted by your Power Platform makers. In the CoE Starter Kit, this group is used to share apps with all admins, and emails are sent to this group for example notifications and alerts for our governance processes.",
+                configuredGroup: LookUp(
+                        'Environment Variable Values',
+                        'Environment Variable Definition'.'Environment Variable Definition' = GUID(vAdminEnvVarID)
+                ).Value,
+                schemaname: "admin_AdminMail",
+                addMembers: true
+            },
+            {
+                type: "Maker",
+                description: "Power Platform makers are automatically added to this group, so you have one group for all your makers. Use this group to communicate with your makers, share resources with your makers through this group (e.g. SharePoint wiki sites, Teams and Yammer groups). In the CoE Starter Kit, this group is used to share apps relevant to makers with makers.",
+                configuredGroup: LookUp(
+                        'Environment Variable Values',
+                        'Environment Variable Definition'.'Environment Variable Definition' = GUID(vMakerEnvVarID)
+                ).Value,
+                schemaname: "admin_PowerPlatformMakeSecurityGroup",
+                addMembers: false
+            },
+            {
+                type: "User",
+                description: "Add your Power Platform users to this group (for example, if you have an 'All Company' group) and use this group to contact your Power Platform users. In the CoE Starter Kit, this group is used to share apps relevant to all users with users.",
+                configuredGroup: LookUp(
+                        'Environment Variable Values',
+                        'Environment Variable Definition'.'Environment Variable Definition' = GUID(vUserVarID)
+                ).Value,
+                addMembers: false,
+                schemaname: "admin_PowerPlatformUserGroupID"
+            }
+        );
+        Set(
+            EnvVarDefnID,
+            LookUp(
+                'Environment Variable Definitions',
+                'Schema Name' = "admin_PowerAppEnvironmentVariable"
+            ).'Environment Variable Definition'
+        );
+        Set(
+            theAppMakerURL,
+            LookUp(
+                    'Environment Variable Values',
+                    'Environment Variable Definition'.'Environment Variable Definition' = GUID(EnvVarDefnID)
+            ).Value
+        );
+        If(
+            IsBlank(theAppMakerURL),
+            Set(
+                theAppMakerURL,
+                LookUp(
+                    'Environment Variable Definitions',
+                    'Environment Variable Definition' = GUID(EnvVarDefnID)
+                ).'Default Value'
+            )
+        );
+        Set(dummyCall, PowerAppsforAdmins.GetAdminConnectors(coeEnv));
+

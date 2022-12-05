@@ -1,0 +1,494 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Platform User Group ID (admin_PowerPlatformUserGroupID)": {
+          "defaultValue": "bc0a2924-f305-4b9d-8c46-db8cd38836cd",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerPlatformUserGroupID",
+            "description": "Inventory - Enter the ID of the Microsoft 365 group which will contain all your Power Platform Users (for example, end users that apps are shared with).  It is needed to communicate and share apps with them."
+          }
+        },
+        "Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)": {
+          "defaultValue": "f3374e9e-c5a1-452f-a305-9fa3de3b4050",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerPlatformMakeSecurityGroup",
+            "description": "Inventory - Enter the ID of the Microsoft 365 group which will contain all your Power Platform Makers.  It is needed to communicate and share apps with them."
+          }
+        },
+        "Admin eMail (admin_AdminMail)": {
+          "defaultValue": "PowerPlatformAdmins@powercattools.onmicrosoft.com",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdminMail",
+            "description": "Inventory - CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "metadata": {
+            "operationMetadataId": "99f42b2c-e7ca-4075-bca9-e28da9323964"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 1,
+              "subscriptionRequest/entityname": "admin_setupwizardstatemetadata",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filterexpression": "admin_name eq 'ShareApps'"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "List_CoE_apps": {
+          "runAfter": {
+            "Parse_JSON": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "cc7aff40-a0e0-4baf-96ee-f16ecb4c0b6b"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "admin_coesolutionmetadatas",
+              "$select": "admin_objectguid,admin_persona",
+              "$filter": "admin_objecttype eq 'CanvasApp' and  admin_coesolution eq 'Core'"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "List_Security_Roles": {
+          "runAfter": {
+            "List_CoE_apps": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0393c0f5-7a12-4c0d-bf6f-c8eb6981242c"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "roles",
+              "$select": "roleid,name",
+              "$filter": "startswith(name, 'Power Platform')"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Apply_to_each": {
+          "foreach": "@outputs('List_CoE_apps')?['body/value']",
+          "actions": {
+            "Switch_persona": {
+              "runAfter": {},
+              "cases": {
+                "Admin_persona": {
+                  "case": "Admin",
+                  "actions": {
+                    "Add_Admin_Group_to_Admin_Security_Role": {
+                      "runAfter": {},
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "1edb4715-b85b-ed11-9561-0022480819d7"
+                        },
+                        "body": {
+                          "text": "@parameters('Admin eMail (admin_AdminMail)')",
+                          "text_1": "@outputs('Get_Power_Platform_Admin_SR')",
+                          "boolean": true,
+                          "boolean_1": false
+                        }
+                      }
+                    },
+                    "Share_Admin_apps_with_Admin_Group": {
+                      "runAfter": {
+                        "Add_Admin_Group_to_Admin_Security_Role": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "6fda1b2d-3904-ec11-94ef-00224826a4d2"
+                        },
+                        "body": {
+                          "text": "@parameters('Admin eMail (admin_AdminMail)')",
+                          "text_1": "@items('Apply_to_each')?['admin_objectguid']",
+                          "text_2": "@body('Parse_JSON')?['tags']?['environmentName']",
+                          "text_3": "addviewer",
+                          "text_4": "app"
+                        }
+                      }
+                    }
+                  }
+                },
+                "Maker_persona": {
+                  "case": "Maker",
+                  "actions": {
+                    "Add_Maker_Group_to_Maker_Security_Role": {
+                      "runAfter": {},
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "1edb4715-b85b-ed11-9561-0022480819d7"
+                        },
+                        "body": {
+                          "text": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')",
+                          "text_1": "@outputs('Get_Power_Platform_Maker_SR')",
+                          "boolean": true,
+                          "boolean_1": false
+                        }
+                      }
+                    },
+                    "Share_Maker_apps_with_Maker_Group": {
+                      "runAfter": {
+                        "Add_Maker_Group_to_Maker_Security_Role": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "6fda1b2d-3904-ec11-94ef-00224826a4d2"
+                        },
+                        "body": {
+                          "text": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')",
+                          "text_1": "@items('Apply_to_each')?['admin_objectguid']",
+                          "text_2": "@body('Parse_JSON')?['tags']?['environmentName']",
+                          "text_3": "addviewer",
+                          "text_4": "app"
+                        }
+                      }
+                    },
+                    "Share_Maker_apps_with_Admin_Group": {
+                      "runAfter": {
+                        "Share_Maker_apps_with_Maker_Group": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "6fda1b2d-3904-ec11-94ef-00224826a4d2"
+                        },
+                        "body": {
+                          "text": "@parameters('Admin eMail (admin_AdminMail)')",
+                          "text_1": "@items('Apply_to_each')?['admin_objectguid']",
+                          "text_2": "@body('Parse_JSON')?['tags']?['environmentName']",
+                          "text_3": "addviewer",
+                          "text_4": "app"
+                        }
+                      }
+                    }
+                  }
+                },
+                "User_persona": {
+                  "case": "User",
+                  "actions": {
+                    "Add_User_Group_to_User_Security_Role": {
+                      "runAfter": {},
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "1edb4715-b85b-ed11-9561-0022480819d7"
+                        },
+                        "body": {
+                          "text": "@parameters('Power Platform User Group ID (admin_PowerPlatformUserGroupID)')",
+                          "text_1": "@outputs('Get_Power_Platform_User_SR')",
+                          "boolean": true,
+                          "boolean_1": false
+                        }
+                      }
+                    },
+                    "Share_User_apps_with_User_Group": {
+                      "runAfter": {
+                        "Add_User_Group_to_User_Security_Role": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "6fda1b2d-3904-ec11-94ef-00224826a4d2"
+                        },
+                        "body": {
+                          "text": "@parameters('Power Platform User Group ID (admin_PowerPlatformUserGroupID)')",
+                          "text_1": "@items('Apply_to_each')?['admin_objectguid']",
+                          "text_2": "@body('Parse_JSON')?['tags']?['environmentName']",
+                          "text_3": "addviewer",
+                          "text_4": "app"
+                        }
+                      }
+                    },
+                    "Share_User_apps_with_Maker_Group": {
+                      "runAfter": {
+                        "Share_User_apps_with_User_Group": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "6fda1b2d-3904-ec11-94ef-00224826a4d2"
+                        },
+                        "body": {
+                          "text": "@parameters('Power Platform Maker Group ID (admin_PowerPlatformMakeSecurityGroup)')",
+                          "text_1": "@items('Apply_to_each')?['admin_objectguid']",
+                          "text_2": "@body('Parse_JSON')?['tags']?['environmentName']",
+                          "text_3": "addviewer",
+                          "text_4": "app"
+                        }
+                      }
+                    },
+                    "Share_User_apps_with_Admin_Group": {
+                      "runAfter": {
+                        "Share_User_apps_with_Maker_Group": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "6fda1b2d-3904-ec11-94ef-00224826a4d2"
+                        },
+                        "body": {
+                          "text": "@parameters('Admin eMail (admin_AdminMail)')",
+                          "text_1": "@items('Apply_to_each')?['admin_objectguid']",
+                          "text_2": "@body('Parse_JSON')?['tags']?['environmentName']",
+                          "text_3": "addviewer",
+                          "text_4": "app"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "default": {
+                "actions": {}
+              },
+              "expression": "@items('Apply_to_each')?['admin_persona']",
+              "metadata": {
+                "operationMetadataId": "bdfc33d2-fbe9-410a-88d1-13364da467f3"
+              },
+              "type": "Switch"
+            }
+          },
+          "runAfter": {
+            "Get_Power_Platform_User_SR": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1cc07f5c-9a40-49ae-8ebb-ca97877b20a6"
+          },
+          "type": "Foreach"
+        },
+        "Power_Platform_Admin_SR": {
+          "runAfter": {
+            "List_Security_Roles": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8462dd5f-eb30-4ab4-b6e7-fce9c0c7d2e9"
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@outputs('List_Security_Roles')?['body/value']",
+            "where": "@contains(item()?['name'], 'Admin')"
+          }
+        },
+        "Get_Power_Platform_Admin_SR": {
+          "runAfter": {
+            "Power_Platform_User_SR": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3a7f5506-873c-4c4d-ba35-872820a062a7"
+          },
+          "type": "Compose",
+          "inputs": "@first(body('Power_Platform_Admin_SR'))['roleid']"
+        },
+        "Power_Platform_Maker_SR": {
+          "runAfter": {
+            "Power_Platform_Admin_SR": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8462dd5f-eb30-4ab4-b6e7-fce9c0c7d2e9"
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@outputs('List_Security_Roles')?['body/value']",
+            "where": "@contains(item()?['name'], 'Maker')"
+          }
+        },
+        "Power_Platform_User_SR": {
+          "runAfter": {
+            "Power_Platform_Maker_SR": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8462dd5f-eb30-4ab4-b6e7-fce9c0c7d2e9"
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@outputs('List_Security_Roles')?['body/value']",
+            "where": "@contains(item()?['name'], 'User')"
+          }
+        },
+        "Get_Power_Platform_Maker_SR": {
+          "runAfter": {
+            "Get_Power_Platform_Admin_SR": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3a7f5506-873c-4c4d-ba35-872820a062a7"
+          },
+          "type": "Compose",
+          "inputs": "@first(body('Power_Platform_Admin_SR'))['roleid']"
+        },
+        "Get_Power_Platform_User_SR": {
+          "runAfter": {
+            "Get_Power_Platform_Maker_SR": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "3a7f5506-873c-4c4d-ba35-872820a062a7"
+          },
+          "type": "Compose",
+          "inputs": "@first(body('Power_Platform_Admin_SR'))['roleid']"
+        },
+        "Compose": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "b8df527d-e506-44d7-811d-6b302992948a"
+          },
+          "type": "Compose",
+          "inputs": "@workflow()"
+        },
+        "Parse_JSON": {
+          "runAfter": {
+            "Compose": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b7b88928-438c-4700-9b8c-7a32e3b444c9"
+          },
+          "type": "ParseJson",
+          "inputs": {
+            "content": "@outputs('Compose')",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "object",
+                  "properties": {
+                    "flowDisplayName": {
+                      "type": "string"
+                    },
+                    "environmentName": {
+                      "type": "string"
+                    },
+                    "logicAppName": {
+                      "type": "string"
+                    },
+                    "environmentWorkflowId": {
+                      "type": "string"
+                    },
+                    "xrmWorkflowId": {
+                      "type": "string"
+                    },
+                    "environmentFlowSuspensionReason": {
+                      "type": "string"
+                    },
+                    "sharingType": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "run": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
