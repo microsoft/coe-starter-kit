@@ -130,12 +130,8 @@ function Remove-Code-From-Custom-Connectors-Where-Disabled
        Write-Host $connectornode.OuterXml
        $scriptoperationsnode = $connectornode.SelectSingleNode("//scriptoperations")
        $customcodeblobcontentnode = $connectornode.SelectSingleNode("//customcodeblobcontent")
-       Write-Host $scriptoperationsnode.InnerText
-       Write-Host $customcodeblobcontentnode.InnerText
-       if($null -ne $scriptoperationsnode -and $null -ne $customcodeblobcontentnode -and $scriptoperationsnode.InnerText -eq '[]') {
-         $connectornode.RemoveChild($scriptoperationsnode)
-         $connectornode.RemoveChild($customcodeblobcontentnode)
-       }
+       $connectornode.RemoveChild($scriptoperationsnode)
+       $connectornode.RemoveChild($customcodeblobcontentnode)
        $xml.Save($_.FullName)
      }
    }
