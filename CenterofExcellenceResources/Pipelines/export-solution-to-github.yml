@@ -1,110 +1,223 @@
-# This pipeline gets triggered manually or via an API call.  
-# It is a general purpose automation that allows you to export a solution from a Dataverse environment and commit it to a git branch.
-# It facilitates:
-# -Ensuring user can be part of the commit (instead of a generic user), thereby enabling tracking of who made what changes
-# -Reuse for any solution in any Dataverse environment
-
-# The following parameters need to be set when the pipeline is queued to run:
-# Branch: The name of the Azure DevOps Branch in the Repo above to which we are exporting our solution.
-# BranchToCreate: The name of the new Azure DevOps Branch to create in the Repo above to which we are exporting our solution (Optional).
-# CommitMessage: The commit message for this commit.
-# Data: Additional Data (e.g. JSON Payload) for the export to configure deployment pipelines
-# Email: The email of the user performing the commit.
-# Project: The name of the Azure DevOps Project to which we are exporting our solution.
-# Repo: The name of the Azure DevOps Repo to which we are exporting our solution.
-# ServiceConnectionName: The name of the service connection to Power Platform from which we'll be pulling the solution.
-# ServiceConnectionUrl: The url of the service connection to Power Platform from which we'll be pulling the solution.
-# SolutionName: The name of the solution being exported (i.e. Not the Display Name).
-# UserName: The Display name of the user performing the commit.
-# PortalSiteName: Power Apps Portal/Power Pages website name
+# Pipeline to create a Github release for the CoE Starter Kit solution
 parameters:
-- name: Branch
-  type: string
-- name: BranchToCreate
-  type: string
-  default: "Commit to existing branch specified in Branch parameter"
-- name: CommitMessage
-  type: string
-- name: Data
-  type: string
-  default: "[]"
-- name: Email
-  type: string
-- name: Project
-  type: string
-- name: Repo
-  type: string
-- name: ServiceConnectionName
-  type: string
-- name: ServiceConnectionUrl
-  type: string
-- name: SolutionName
-  type: string
-- name: UserName
-  type: string
-- name: PipelineId
-  type: string
-  default: "NA"
-- name: EnvironmentName
-  type: string
-  default: "NA"
-- name: BuildDefinitionId
-  type: string
-  default: "NA"
-- name: ImportUnmanaged
-  type: string
-  default: "NA"
-- name: PortalSiteName
-  type: string
-  default: "NA"
+- name: ReleaseMonthNumber
+  type: number
+- name: ReleaseYearNumber
+  type: number
+- name: CloseMilestoneIssues
+  type: boolean
+  default: false
+- name: DraftRelease
+  type: boolean
+  default: true
+- name: HotfixReleaseNumber
+  type: number
+  default: 0
 
 trigger: none
 pr: none
-
-name: export-${{parameters.SolutionName}}-to-git-branch
-
 resources:
   repositories:
-  - repository: PipelineRepo
+  - repository: PipelineRepo  # repository name (DO NOT CHANGE THIS VALUE) 
     type: github
-    ref: main
-    endpoint: powercat-alm
-    name: Microsoft/coe-alm-accelerator-templates
+    ref: main # If your pipeline templates are in a branch other than the default branch specify the branch here. Otherwise the default branch will be used by default.
+    endpoint: powercat-alm # Specifies the GitHub service connection for this setup.
+    name: Microsoft/coe-alm-accelerator-templates  #This is the name of the repo in the current project in Azure Devops that has the pipeline templates. If the repo is in a different project you can specify the project and repo using the format ProjectContainingTheBuildTemplates/RepositoryContainingTheBuildTemplates (https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema%2Cparameter-schema#type)
+pool:
+  vmImage: 'windows-2019'
 
 variables:
 - group: alm-accelerator-variable-group
 
-stages:
-- stage: export_solution_to_git
-  displayName: 'Export solution to git' 
-  jobs:
-  - job: export_solution_to_git
+steps:
+# Download the artifacts from the latest deployment of CenterofExcellenceAuditComponents to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '16' #CenterofExcellenceAuditComponents buildId
+    runVersion: 'latest'
+    patterns: '**/CenterofExcellenceAuditComponents*.zip'
+  displayName: 'Download CenterofExcellenceAuditComponents solution'
 
-    pool:
-      vmImage: 'windows-2022'
+# Download the artifacts from the latest deployment of the CenterofExcellenceAuditLogs to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '49' #CenterofExcellenceAuditLogs buildId
+    runVersion: 'latest'
+    patterns: '**/CenterofExcellenceAuditLogs*.zip'
+  displayName: 'Download CenterofExcellenceAuditLogs solutions'
 
-    steps:
+# Download the artifacts from the latest deployment of the CenterofExcellenceCoreComponents to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '13' #CenterofExcellenceCoreComponents buildId
+    runVersion: 'latest'
+    patterns: '**/CenterofExcellenceCoreComponents*.zip'
+  displayName: 'Download CenterofExcellenceCoreComponents solutions'
 
-    # Checkout Pipelines
-    - checkout: PipelineRepo
-      path: 'PipelineUtils'
-      displayName: 'Checkout Pipeline Branch'
+# Download the artifacts from the latest deployment of the CenterofExcellenceInnovationBacklog to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '43' #CenterofExcellenceInnovationBacklog buildId
+    runVersion: 'latest'
+    patterns: '**/CenterofExcellenceInnovationBacklog*.zip'
+  displayName: 'Download CenterofExcellenceInnovationBacklog solutions'
 
-    # Checkout our GitHub Branch
-    - checkout: self
-      displayName: 'Checkout Source Branch'    
+# Download the artifacts from the latest deployment of the CenterofExcellenceNurtureComponents to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '19' #CenterofExcellenceNurtureComponents buildId
+    runVersion: 'latest'
+    patterns: '**/CenterofExcellenceNurtureComponents*.zip'
+  displayName: 'Download CenterofExcellenceNurtureComponents solutions'
+
+# Download the artifacts from the latest deployment of the Theming to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '46' #Theming buildId
+    runVersion: 'latest'
+    patterns: '**/Theming*.zip'
+  displayName: 'Download Theming solutions'
+
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '30' #CenterofExcellenceALMAccelerator buildId
+    runVersion: 'latest'
+    patterns: '**/CenterofExcellenceALMAccelerator*.zip'
+  displayName: 'Download CenterofExcellenceALMAccelerator solution'
+
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '22' #admintaskanalysis_core buildId
+    runVersion: 'latest'
+    patterns: '**/admintaskanalysis_core*.zip'
+  displayName: 'Download Admin Task Analysis solution'
+
+- pwsh: |
+    New-Item -Path $(Pipeline.Workspace)\releaseassets -ItemType Directory
+    New-Item -Path $(Pipeline.Workspace)\assetstaging -ItemType Directory
+    Copy-Item '$(Pipeline.Workspace)\drop\*managed.zip' -Destination '$(Pipeline.Workspace)\assetstaging'
+    Copy-Item '$(Build.SourcesDirectory)\CenterofExcellenceResources\Release\Collateral\CoEStarterKit\*.*' -Destination '$(Pipeline.Workspace)\assetstaging'
+    $compress = @{
+      Path = '$(Pipeline.Workspace)\assetstaging\*.*'
+      CompressionLevel = 'Fastest'
+      DestinationPath = '$(Pipeline.Workspace)\releaseassets\CoEStarterKit.zip'
+    }
+    Compress-Archive @compress
+    Copy-Item '$(Pipeline.Workspace)\drop\*managed.zip' -Destination '$(Pipeline.Workspace)\releaseassets'
+    Remove-Item $(Pipeline.Workspace)\drop\*managed.zip -Recurse -Force -Confirm:$false
+    Remove-Item $(Pipeline.Workspace)\assetstaging -Recurse -Force -Confirm:$false
+    New-Item -Path $(Pipeline.Workspace)\assetstaging -ItemType Directory
+    Copy-Item '$(Pipeline.Workspace)/drop/admintaskanalysis_core*.zip' -Destination '$(Pipeline.Workspace)\assetstaging'
+    Copy-Item '$(Pipeline.Workspace)/drop/CenterofExcellence*.zip' -Destination '$(Pipeline.Workspace)\assetstaging'
+    Copy-Item '$(Pipeline.Workspace)/drop/Theming*.zip' -Destination '$(Pipeline.Workspace)\assetstaging'
+    Copy-Item '$(Pipeline.Workspace)/drop/ALMAccelerator*.zip' -Destination '$(Pipeline.Workspace)\assetstaging'
+    Copy-Item '$(Build.SourcesDirectory)\CenterofExcellenceResources\Release\Collateral\CoEStarterKit\*.*' -Destination '$(Pipeline.Workspace)\assetstaging'
     
-    - template: Pipelines\Templates\export-Solution-github.yml@PipelineRepo
-      parameters:
-        gitAccessUrl: $(GitAccessUrl)
-        project: ${{parameters.Project}}
-        repo: ${{parameters.Repo}}
-        branch: ${{parameters.Branch}}
-        branchToCreate: ${{parameters.BranchToCreate}}
-        commitMessage: ${{parameters.CommitMessage}}
-        email: ${{parameters.Email}}
-        serviceConnectionName: ${{parameters.ServiceConnectionName}}
-        serviceConnectionUrl: ${{parameters.ServiceConnectionUrl}}
-        solutionName: ${{parameters.SolutionName}}
-        userName: ${{parameters.UserName}}
-        configurationData: ${{parameters.Data}}
+    $compress = @{
+      Path = '$(Pipeline.Workspace)\assetstaging\*.*'
+      CompressionLevel = 'Fastest'
+      DestinationPath = '$(Pipeline.Workspace)/releaseassets/CoEStarterKit-Unmanaged.zip'
+    }
+    Compress-Archive @compress
+  displayName: 'Prepare release assets'
+
+# Download the artifacts from the latest deployment of the ALMAcceleratorSampleSolution to production.
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '125' #ALMAcceleratorSampleSolution buildId
+    runVersion: 'latest'
+    patterns: '**/ALMAcceleratorSampleSolution*.zip'
+  displayName: 'Download ALMAcceleratorSampleSolution solutions'
+
+- pwsh: |
+    Remove-Item $(Pipeline.Workspace)\assetstaging -Recurse -Force -Confirm:$false
+    New-Item -Path $(Pipeline.Workspace)\assetstaging -ItemType Directory
+    Remove-Item $(Pipeline.Workspace)\drop\ALMAcceleratorSampleSolution*managed.zip -Force -Confirm:$false
+    Copy-Item '$(Pipeline.Workspace)\drop\ALMAcceleratorSampleSolution*.zip' -Destination '$(Pipeline.Workspace)\assetstaging\'
+    $compress = @{
+      Path = '$(Pipeline.Workspace)\assetstaging\*.*'
+      CompressionLevel = 'Fastest'
+      DestinationPath = '$(Pipeline.Workspace)\releaseassets\Samples.zip'
+    }
+    Compress-Archive @compress
+  displayName: 'Prepare sample release assets'
+
+- task: DownloadPipelineArtifact@2
+  inputs:
+    source: 'specific'
+    project: 'coe-starter-kit-github'
+    pipeline: '1760' #coe-cli buildId
+    runVersion: 'latest'
+    patterns: '**'
+  displayName: 'Download cole-cli executables'
+
+- pwsh: |
+    Get-ChildItem -Path 'D:\' -recurse
+    Remove-Item $(Pipeline.Workspace)\assetstaging -Recurse -Force -Confirm:$false
+    New-Item -Path $(Pipeline.Workspace)\assetstaging -ItemType Directory
+    New-Item -Path $(Pipeline.Workspace)\assetstaging\Coe-Cli -ItemType Directory
+    Copy-Item '$(Pipeline.Workspace)\drop\Coe-Cli\**' -Destination '$(Pipeline.Workspace)\assetstaging\Coe-Cli'
+    $compress = @{
+      Path = '$(Pipeline.Workspace)\assetstaging\**'
+      CompressionLevel = 'Fastest'
+      DestinationPath = '$(Pipeline.Workspace)\releaseassets\coe-cli.zip'
+    }
+    Compress-Archive @compress
+    $templateTag = 'CenterofExcellenceALMAccelerator-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}}'
+    $templateTitle = 'ALM Accelerator For Power Platform $(ReleaseMonthName) ${{parameters.ReleaseYearNumber}}'
+    if(${{parameters.HotfixReleaseNumber}} -ne 0) {
+        $templateTag = 'CenterofExcellenceALMAccelerator-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}}-HF${{parameters.HotfixReleaseNumber}}'
+        $templateTitle = 'ALM Accelerator For Power Platform $(ReleaseMonthName) ${{parameters.ReleaseYearNumber}} - Hotfix ${{parameters.HotfixReleaseNumber}}'
+    }
+    Write-Host "##vso[task.setvariable variable=TemplateTag]$templateTag"
+    Write-Host "##vso[task.setvariable variable=TemplateTitle]$templateTitle"
+  displayName: 'Prepare coe-cli release assets'
+
+- template: Pipelines\Templates\create-release-github.yml@PipelineRepo
+  parameters:
+    gitHubApiUrl: 'microsoft/coe-starter-kit'
+    solutionName: 'CoEStarterKit'
+    solutionDisplayName: 'CoE Starter Kit'
+    releaseMonth: ${{parameters.ReleaseMonthNumber}}
+    releaseYear: ${{parameters.ReleaseYearNumber}}
+    connectionName: 'powercat-alm'
+    releaseNotesPath: 'CenterofExcellenceResources/Release/Notes/'
+    issueClosingComment: 'This has been fixed in the latest release. Please install [the latest version of the toolkit](https://aka.ms/CoEStarterKitDownload) following the instructions for [installing updates](https://docs.microsoft.com/power-platform/guidance/coe/setup#installing-updates). Note that if you do not remove the unmanaged layers as described there you will not receive updates from us.'
+    closeIssues: ${{parameters.CloseMilestoneIssues}}
+    isDraft: ${{parameters.DraftRelease}}
+    isPreRelease: false
+    hotfixReleaseNumber: ${{parameters.HotfixReleaseNumber}}
+    queryHeadingDelimited: "label:alm-accelerator label:bug|### ALM Accelerator - *BUGS*|label:alm-accelerator label:enhancement|### ALM Accelerator - *FEATURES*|label:alm-accelerator -label:enhancement -label:bug|### ALM Accelerator - *OTHER*|label:coe-starter-kit label:bug|### CoE Starter Kit - *BUGS*|label:coe-starter-kit label:enhancement|### CoE Starter Kit - *FEATURES*|label:coe-starter-kit -label:enhancement -label:bug|### CoE Starter Kit - *OTHER*"
+
+- task: GitHubRelease@1
+  inputs:
+    gitHubConnection: 'powercat-alm'
+    repositoryName: 'microsoft/coe-alm-accelerator-templates'
+    target: main
+    tagSource: 'userSpecifiedTag'
+    tag: $(TemplateTag)
+    title: $(TemplateTitle)
+    releaseNotesSource: 'inline'
+    releaseNotesInline: 'Public preview release of the ALM Accelerator For Power Platform.<br />See https://github.com/microsoft/coe-starter-kit/releases/tag/CoEStarterKit-$(ReleaseMonthName)${{parameters.ReleaseYearNumber}} for details.'
+    addChangeLog: false #The OOB changelog doesn't allow for filtering based on milestone so we created our own changelog above
+    isDraft: ${{parameters.DraftRelease}} #Always mark as draft for someone to review before publishing
+    isPreRelease: false
+  displayName: 'Create ALM Accelerator For Power Platform Template Release'
