@@ -93,7 +93,7 @@ function reset-solution-xml-build-number
    }
 }
 
-function Format-JSON-Files
+function Format-JSON-Files 
 {
     param (
         [Parameter(Mandatory)] [String]$solutionComponentsPath
@@ -107,4 +107,37 @@ function Format-JSON-Files
        $formatted | Out-File $_.FullName -Encoding utf8NoBOM
      }
    }
+}
+
+function Remove-Code-From-Custom-Connectors-Where-Disabled
+{
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName
+    )
+	
+   Write-Host $repo
+   Write-Host $solutionName
+   $connectorspath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\src\Connectors";
+   Write-Host $connectorspath
+
+   if(-not [string]::IsNullOrEmpty($connectorspath)) {
+     Get-ChildItem -Path "$connectorspath" -Recurse -Filter *.xml | 
+     ForEach-Object {
+       $xml = [xml](Get-Content $_.FullName)
+       $connectornode = $xml.SelectSingleNode("//Connector")
+       Write-Host $connectornode.OuterXml
+       $scriptoperationsnode = $connectornode.SelectSingleNode("//scriptoperations")
+       $customcodeblobcontentnode = $connectornode.SelectSingleNode("//customcodeblobcontent")
+       Write-Host $scriptoperationsnode.InnerText
+       Write-Host $customcodeblobcontentnode.InnerText
+       if($null -ne $scriptoperationsnode -and $null -ne $customcodeblobcontentnode -and $scriptoperationsnode.InnerText -eq '[]') {
+         $connectornode.RemoveChild($scriptoperationsnode)
+         $connectornode.RemoveChild($customcodeblobcontentnode)
+       }
+       $xml.Save($_.FullName)
+     }
+   }
+	
 }
