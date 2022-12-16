@@ -303,12 +303,39 @@ steps:
     Write-Host "websiteName - $websiteName"
   displayName: "Fetch Portal Website Name"
 
+- pwsh: |
+    $fileCount = 0
+    if('$(EnvironmentName)'.Contains("EnvironmentName")) {
+        write-Host "EnvironmentName variable is not provided in pipeline"
+    }
+    else{
+        write-Host "EnvironmentName variable provided in pipeline. Value - $(EnvironmentName)"
+        . "$env:POWERSHELLPATH/portal-functions.ps1"
+        $fileCount = Validate-Profile-Name "$(Build.SourcesDirectory)\$(Build.Repository.Name)\${{parameters.solutionName}}\PowerPages\$(WebsiteName)\" "$(EnvironmentName)"
+    }
+    echo "##vso[task.setvariable variable=ProfileFileCount]$fileCount"
+  condition: and(succeeded(), ne(variables['WebsiteName'], 'NA'))
+  displayName: "Fetch Portal Deployment Profile"
+
+  # If Deployment Profile is not Provided
 - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.upload-paportal.PowerPlatformUploadPaportal@2
-  displayName: 'Upload Power Page ${{parameters.solutionName}}'
+  displayName: 'Upload Power Page ${{parameters.solutionName}} - No Profile'
   inputs:
     authenticationType: PowerPlatformSPN
     PowerPlatformSPN: '${{parameters.serviceConnectionName}}'
     UploadPath: '$(Build.SourcesDirectory)\$(Build.Repository.Name)\${{parameters.solutionName}}\PowerPages\$(WebsiteName)\'
     Environment: '${{parameters.serviceConnectionUrl}}'
-  condition: and(succeeded(), ne(variables['WebsiteName'], 'NA'))
+  condition: and(succeeded(), ne(variables['WebsiteName'], 'NA'), eq(variables['ProfileFileCount'], '0'))
+
+  # If Deployment Profile is Provided
+- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.upload-paportal.PowerPlatformUploadPaportal@2
+  displayName: 'Upload Power Page ${{parameters.solutionName}} with Deployment Profile - $(EnvironmentName)'
+  inputs:
+    authenticationType: PowerPlatformSPN
+    PowerPlatformSPN: '${{parameters.serviceConnectionName}}'
+    UploadPath: '$(Build.SourcesDirectory)\$(Build.Repository.Name)\${{parameters.solutionName}}\PowerPages\$(WebsiteName)\'
+    Environment: '${{parameters.serviceConnectionUrl}}'
+    DeploymentProfile: '$(EnvironmentName)'
+  condition: and(succeeded(), ne(variables['WebsiteName'], 'NA'), eq(variables['ProfileFileCount'], '1'))
+
 - template: Hooks\deploy-solution-post-hook.yml

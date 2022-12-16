@@ -25,6 +25,30 @@
     return $websiteName
 }
 
+function Validate-Profile-Name
+{
+    param (
+        [Parameter(Mandatory)] [String]$websiteRepoPath,
+        [Parameter(Mandatory)] [String]$passedProfileName
+    )
+
+    $filesCount = 0
+    $profileName = "NA"
+    Write-Host "websiteRepoPath - $websiteRepoPath"
+    $deploymentProfilePath = "$websiteRepoPath\deployment-profiles"
+    if(Test-Path "$deploymentProfilePath")
+    {
+        $filesCount = (Get-ChildItem -Path "$deploymentProfilePath" | Where-Object { $_.Name -like "$passedProfileName.*" } | Measure-Object).Count
+    }
+    else
+    {
+       Write-Host "Deployment Profile folder unavailable under unpacked website folder. Path - $deploymentProfilePath"
+    }
+
+    Write-Host "Deployment Profile File Count - $filesCount"
+    return $filesCount
+}
+
 function Clean-Website-Folder
 {
     param (
@@ -77,4 +101,27 @@ function Fetch-Website-ID
     }
     Write-Host "websiteId - $websiteId"
     echo "##vso[task.setvariable variable=WebsiteId]$websiteId"
+}
+
+function Portal-Upload-With-Profile{
+    param (
+        [Parameter(Mandatory)] [String]$pacPath,
+        [Parameter(Mandatory)] [String]$serviceConnectionUrl,
+        [Parameter(Mandatory)] [String]$clientId,
+        [Parameter(Mandatory)] [String]$clientSecret,
+        [Parameter(Mandatory)] [String]$tenantID,
+        [Parameter(Mandatory)] [String]$websitePath,
+        [Parameter(Mandatory)] [String]$profileName
+    )
+	
+    $pacexepath = "$pacPath\pac.exe"
+    if(Test-Path "$pacexepath")
+    {
+        # Trigger Auth
+        Invoke-Expression -Command "$pacexepath auth create --url $serviceConnectionUrl --name ppdev --applicationId $clientId --clientSecret $clientSecret --tenant $tenantID"
+
+        $pacCommand = "paportal upload --path $websitePath --deploymentProfile $profileName"
+        Write-Host "Triggering Sync - $pacCommand"
+        Invoke-Expression -Command "$pacexepath $pacCommand"
+    }
 }
