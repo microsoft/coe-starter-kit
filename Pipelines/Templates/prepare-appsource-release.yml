@@ -1,0 +1,207 @@
+# This template read solutions from 'releaseassets' and generate a AppSourcePackage
+parameters:
+- name: solutionsFolderPath
+  type: string
+- name: parAppSourcePackageProjectPath
+  type: string
+- name: packageFileName
+  type: string
+- name: appSourceFolderName
+  type: string
+- name: generateAppSourcePackage
+  type: boolean
+  default: false 
+
+steps:
+# Checkout Tools Repo
+- checkout: Self
+
+# Checkout ALM Repo
+- checkout: PipelineRepo
+  path: 'PipelineUtils'
+  displayName: 'Checkout Pipeline Branch'
+
+- pwsh: |
+    $packageFileName = "${{parameters.packageFileName}}"
+    $appSourceFolderName = "${{parameters.appSourceFolderName}}"
+    $generateAppSourcePackage = "${{parameters.generateAppSourcePackage}}"
+    Write-Host "packageFileName - $packageFileName"
+    Write-Host "appSourceFolderName - $appSourceFolderName"
+    Write-Host "generateAppSourcePackage - $generateAppSourcePackage"
+    Write-Host "##vso[task.setVariable variable=RunAppSourceTasks]$generateAppSourcePackage"
+  displayName: 'Print Params'  
+  
+- pwsh: |
+    $assetsPath = "$(Pipeline.Workspace)\releaseassets"
+    if(Test-Path "$assetsPath"){
+        Get-ChildItem "$assetsPath" -Recurse
+    }
+    else{
+        Write-Host "Invalid assets path - " $assetsPath
+    }
+  displayName: 'Print initial releaseassets'
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))  
+
+- pwsh: |
+    $releaseZipname = "${{parameters.appSourceFolderName}}"
+    if('$(Build.BuildNumber)'.Contains("Build.BuildNumber")) {
+        Write-Host "Build number unavailable"
+    }
+    else{
+        $releaseZipname = $releaseZipname + "_$(Build.BuildNumber)"
+    }
+
+    # Suffix extension (i.e.,zip) 
+    $releaseZipname = $releaseZipname + ".zip"
+    Write-Host "releaseZipname - $releaseZipname"
+    Write-Host "##vso[task.setVariable variable=appSourceReleasePackageName]$releaseZipname"
+  displayName: 'Set appSourceReleasePackageName'
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    $assetsPath = '$(Build.SourcesDirectory)'
+    if(Test-Path "$assetsPath"){
+        Get-ChildItem "$assetsPath" -Recurse
+    }
+    else{
+        Write-Host "Invalid assets path - " $assetsPath
+    }
+  displayName: 'Print (Build.SourcesDirectory)'
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))  
+  
+- pwsh: |
+    $assetsPath = '$(Pipeline.Workspace)/PipelineUtils'
+    if(Test-Path "$assetsPath"){
+        Get-ChildItem "$assetsPath" -Recurse
+    }
+    else{
+        Write-Host "Invalid assets path - " $assetsPath
+    }
+  displayName: 'Print PipelineUtils'
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+  
+- pwsh: |
+      . "$(Pipeline.Workspace)/PipelineUtils/PowerShell/app-source-helper.ps1"
+      install-pac-cli ""
+  displayName: 'Install and set pac tools path'
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+  
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath"
+    $solutionsFolderPath = "${{parameters.solutionsFolderPath}}"
+    Write-Host "appSourcePackageProjectPath - $appSourcePackageProjectPath"
+    Write-Host "solutionsFolderPath - $solutionsFolderPath"
+    $appSourceInputFilePath = "$appSourcePackageProjectPath\appsource_input.json"
+
+    . "$(Pipeline.Workspace)/PipelineUtils/PowerShell/app-source-helper.ps1"
+    add-solution-references-to-package-project "$(pacPath)" "$appSourcePackageProjectPath" "$solutionsFolderPath" "$appSourceInputFilePath"
+  displayName: "Add solution references to package project"
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath"
+    
+    . "$(Pipeline.Workspace)/PipelineUtils/PowerShell/app-source-helper.ps1"
+    trigger-dotnet-publish "$appSourcePackageProjectPath"
+  displayName: "Trigger dotnet publish"
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectBinPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath\bin"    
+    if(Test-Path "$appSourcePackageProjectBinPath"){
+        Get-ChildItem "$appSourcePackageProjectBinPath" -Recurse
+    }
+    else{
+        Write-Host "appSourcePackageProject bin unavailable at - $appSourcePackageProjectBinPath"
+    }
+  displayName: 'Print AppsourcePackageProject bin post publish'
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath"
+    $appSourceAssetsPath = "$appSourcePackageProjectPath\AppSourceAssets"
+    $releaseAssetsDirectory = "$(Pipeline.Workspace)\releaseassets"
+
+    . "$(Pipeline.Workspace)/PipelineUtils/PowerShell/app-source-helper.ps1"
+    copy-published-assets-to-AppSourceAssets "$appSourcePackageProjectPath" "$appSourceAssetsPath" "${{parameters.packageFileName}}" "$(Pipeline.Workspace)\releaseassets"
+  displayName: "Move built pdpkg to AppSourceAssets"
+  condition: and(succeeded(), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath"
+    $appSourceAssetsPath = "$appSourcePackageProjectPath\AppSourceAssets"
+    $inputFilePath = "$appSourceAssetsPath\Input.xml"
+    
+    if(Test-Path "$inputFilePath"){
+        . "$(Pipeline.Workspace)/PipelineUtils/PowerShell/app-source-helper.ps1"
+        update-input-file "$inputFilePath" "${{parameters.packageFileName}}" "$(SolutionAnchorName)"
+    }
+    else{
+        Write-Host "Input.xml unavailable at - $inputFilePath"
+    }
+  displayName: "Update InputFile from AppSourceAssets"
+  condition: and(succeeded(), eq(variables['AppSourcePackageFound'], 'true'), eq(variables['RunAppSourceTasks'], 'true'))
+  
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath"
+    $appSourceAssetsPath = "$appSourcePackageProjectPath\AppSourceAssets"
+    if(Test-Path "$appSourceAssetsPath"){
+        Get-ChildItem "$appSourceAssetsPath" -Recurse
+    }
+    else{
+        Write-Host "appSourceAssetsPath unavailable at - $appSourceAssetsPath"
+    }
+  displayName: 'Print AppSourceAssets folder'  
+  condition: and(succeeded(), eq(variables['AppSourcePackageFound'], 'true'), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    $projectPath = "${{parameters.parAppSourcePackageProjectPath}}"
+    $appSourcePackageProjectPath = "$(Build.SourcesDirectory)\$(Build.Repository.Name)\$projectPath"
+    $appSourceAssetsPath = "$appSourcePackageProjectPath\AppSourceAssets"
+    $appSourcePackagePath = "$(Agent.BuildDirectory)"
+    $appSourcePackageFolderName = "AppsourcePackage"
+    
+    . "$(Pipeline.Workspace)/PipelineUtils/PowerShell/app-source-helper.ps1"
+    pack-and-move-assets-to-AppSourcePackage "$appSourceAssetsPath" "$appSourcePackagePath" "$(appSourceReleasePackageName)" "$appSourcePackageFolderName"
+  displayName: "Move AppSourceAssets to AppsourcePackage and compress"
+  condition: and(succeeded(), eq(variables['AppSourcePackageFound'], 'true'), eq(variables['RunAppSourceTasks'], 'true'))
+
+- pwsh: |
+    if(Test-Path "$(Agent.BuildDirectory)\AppsourcePackage"){
+        Get-ChildItem "$(Agent.BuildDirectory)\AppsourcePackage" -Recurse
+    }
+    else{
+        Write-Host "Invalid path (Agent.BuildDirectory)\AppsourcePackage"
+    }
+  displayName: 'Print AppsourcePackage'
+  condition: and(succeeded(), eq(variables['AppSourcePackageFound'], 'true'), eq(variables['RunAppSourceTasks'], 'true'))
+ 
+- pwsh: |
+    Write-Host "AppSourceReleasePackageName - " $(appSourceReleasePackageName)
+    $sourceDirectory  = "$(Agent.BuildDirectory)\AppsourcePackage\$(appSourceReleasePackageName)"
+    $destinationDirectory = "$(Pipeline.Workspace)\releaseassets"
+    If(Test-Path "$sourceDirectory"){
+        Copy-item -Force -Recurse -Verbose "$sourceDirectory" -Destination $destinationDirectory
+    }
+    else{
+        Write-Host "AppsourcePackage Folder unavailable - $sourceDirectory"
+    }
+  displayName: 'Copy AppsourcePackage to Releaseassets'
+  condition: and(succeeded(), eq(variables['AppSourcePackageFound'], 'true'), eq(variables['RunAppSourceTasks'], 'true'))
+  
+- pwsh: |
+    $assetsPath = "$(Pipeline.Workspace)\releaseassets"
+    if(Test-Path "$assetsPath"){
+        Get-ChildItem "$assetsPath" -Recurse
+    }
+    else{
+        Write-Host "Invalid assets path - " $assetsPath
+    }
+  displayName: 'Print final releaseassets'
+  condition: and(succeeded(), eq(variables['AppSourcePackageFound'], 'true'), eq(variables['RunAppSourceTasks'], 'true'))
