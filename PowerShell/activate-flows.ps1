@@ -319,8 +319,7 @@ function Get-OwnerFlowActivations {
                             $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
                             #Activate the workflow using the owner.
                             $sortOrder = [int]::MaxValue
-                            #$activateFlow = 'true'
-                            $activateFlow = 'false'
+                            $activateFlow = 'true'
                             if ($null -ne $activationConfigs) {
                                 Write-Host "Retrieving activation config"
                                 $activationConfig = $activationConfigs | Where-Object { $_.solutionComponentUniqueName -eq $solutionComponent.objectid } | Select-Object -First 1

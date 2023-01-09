@@ -100,17 +100,23 @@
                     }
                     #Set environment variable variables
                     elseif($configurationVariableName.StartsWith("environmentvariable.", "CurrentCultureIgnoreCase")) {
-                        $schemaName = $configurationVariableName -replace "environmentvariable.", ""
-                        $envVarResults =  Get-CrmRecords -conn $conn -EntityLogicalName environmentvariabledefinition -FilterAttribute "schemaname" -FilterOperator "eq" -FilterValue $schemaName -Fields type
-                        if ($envVarResults.Count -gt 0){
-                            $type = $envVarResults.CrmRecords[0].type_Property.Value.Value
-                            if(-not [string]::IsNullOrEmpty($configurationVariableValue)) {
+                        Write-Host "configurationVariableValue - $configurationVariableValue"
+                        if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
+                        {
+                            $schemaName = $configurationVariableName -replace "environmentvariable.", ""
+                            $envVarResults =  Get-CrmRecords -conn $conn -EntityLogicalName environmentvariabledefinition -FilterAttribute "schemaname" -FilterOperator "eq" -FilterValue $schemaName -Fields type
+                            if ($envVarResults.Count -gt 0){
+                                $type = $envVarResults.CrmRecords[0].type_Property.Value.Value
+                                Write-Host "configurationVariableValue is not null or empty - $configurationVariableValue"
                                 $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="#{$configurationVariableName}#"}
                                 if($usePlaceholders.ToLower() -eq 'false') {
                                     $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="$configurationVariableValue"}
                                 }
-                                $environmentVariables.Add($envVar)
+                                $environmentVariables.Add($envVar)                                
                             }
+                        }
+                        else{
+                            Write-Host "Environment variable $configurationVariableName is Null or Empty"
                         }
                     }
                     elseif($configurationVariableName.StartsWith("canvasshare.aadGroupId.", "CurrentCultureIgnoreCase")) {
