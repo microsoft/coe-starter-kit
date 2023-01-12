@@ -1227,7 +1227,7 @@ class DevOpsCommand {
             let response: any = await this.getUrl(contentUrl, config)
             if (response?.content != null) {
                 let commit = <GitChange>{}
-                commit.changeType = VersionControlChangeType.Add
+                commit.changeType = VersionControlChangeType.All
                 commit.item = <GitItem>{}
                 commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
                 commit.newContent = <ItemContent>{}
