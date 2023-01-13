@@ -939,21 +939,41 @@ class DevOpsCommand {
 
             let newGitCommit = <GitCommitRef>{}
             newGitCommit.comment = "Add DevOps Pipeline"
-            if (typeof args.settings["environments"] === "string") {
-                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), args.settings["environments"].split('|').map(element => {
-                    return element.toLowerCase();
-                }))
-            }
-            else {
-                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), ['validation', 'test', 'prod'])
-            }
+            newGitCommit.changes = []
             let gitPush = <GitPush>{}
             gitPush.refUpdates = [newRef]
             gitPush.commits = [newGitCommit]
 
             this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
-            await gitApi.createPush(gitPush, projectRepo.id, project.name)
+            this.logger?.info(JSON.stringify(gitPush))
+            try {
+                let result = await gitApi.createPush(gitPush, projectRepo.id, project.name)
+                result.refUpdates.forEach(refUpdate => {
+                    this.logger?.info(util.format('Created branch %s', refUpdate?.newObjectId))
+                })
+            }
+            catch (error) {
+                this.logger?.info(`An error occurred while creating the branch gitApi.createPush: ${error}`)
+                throw error
+            }
 
+            try {
+                if (typeof args.settings["environments"] === "string") {
+                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), args.settings["environments"].split('|').map(element => {
+                        return element.toLowerCase();
+                    }))
+                }
+                else {
+                    newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), ['validation', 'test', 'prod'])
+                }
+    
+                gitPush.commits = [newGitCommit]
+                await gitApi.createPush(gitPush, projectRepo.id, project.name)
+            }
+            catch (error) {
+                this.logger?.info(`An error occurred while creating the branch gitApi.createPush2: ${error}`)
+                throw error
+            }
             if (repositoryName?.length > 0) {
                 this.logger?.info(util.format("Repo %s not found", repositoryName))
                 this.logger?.info('Did you mean?')
