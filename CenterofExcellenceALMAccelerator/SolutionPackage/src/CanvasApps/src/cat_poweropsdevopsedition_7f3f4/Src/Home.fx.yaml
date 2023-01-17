@@ -41,7 +41,7 @@ Home As screen:
             ClearCollect(
                 DeploymentUserSettings,
                 AddColumns(
-                    'Deployment User Settings',
+                    Filter('Deployment User Settings', Status = 'Status (Deployment User Settings)'.Active),
                     "DisplayName",
                     Name
                 )
@@ -112,7 +112,7 @@ Home As screen:
             ClearCollect(
                 DeploymentProfiles,
                 AddColumns(
-                    DeploymentUserSetting.'Deployment Profiles',
+                    Filter(DeploymentUserSetting.'Deployment Profiles', Status = 'Status (Deployment Profiles)'.Active),
                     "DisplayName",
                     Name,
                     "PipelineProject",
@@ -4957,7 +4957,7 @@ Home As screen:
                 ChevronHoverBackground: =ColorFade(cmbDeploymentEnvironmentUrl.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(cmbDeploymentEnvironmentUrl.ChevronFill, 20%)
                 DefaultSelectedItems: =First(Filter(AllEnvironments, LookUp('Deployment Environments', 'Deployment Environment' = ThisItem.'Deployment Environment'.'Deployment Environment').URL in Url))
-                DisplayFields: =["DisplayName","Url"]
+                DisplayFields: =["id","Url"]
                 DisplayMode: |-
                     =If(
                         IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Profile Updates') Or DeploymentUserSetting.'Profile Updates' = 'A Yes or No boolean'.Allowed,
@@ -4974,8 +4974,8 @@ Home As screen:
                 NoSelectionText: ="Select a Deployment Environment"
                 OnChange: =true
                 PressedBorderColor: =cmbDeploymentEnvironmentUrl.HoverBorderColor
-                SearchFields: =["DisplayName"]
-                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"DisplayName")
+                SearchFields: =["id"]
+                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"id")
                 SelectMultiple: =false
                 Template: =ListItemTemplate.Double
                 Tooltip: ="Select the deployment environment for this deployment stage"
@@ -6208,31 +6208,57 @@ Home As screen:
                     "group"
                 )
             );
-            Clear(ProfileBuilds);
+            Clear(OrgProjects);
             ForAll(
                 Filter(
                     DistinctOrgProjectProfiles,
                     !IsBlankOrError(cat_azdoorganization) And (!IsBlankOrError(cat_azdoproject) Or !IsBlankOrError(cat_azdopipelineproject))
                 ),
                 Collect(
-                    ProfileBuilds,
+                    OrgProjects,
                     {
-                        Builds: CustomAzureDevOps.GetBuilds(
-                            cat_azdoorganization,
-                            If(
-                                IsBlankOrError(cat_azdopipelineproject),
-                                cat_azdoproject,
-                                cat_azdopipelineproject
-                            ),
-                            {queryOrder: "queueTimeDescending"}
-                        ).value,
-                        Org: cat_azdoorganization,
-                        Project: If(
-                            IsBlankOrError(cat_azdopipelineproject),
-                            cat_azdoproject,
-                            cat_azdopipelineproject
-                        )
+                        Organization: cat_azdoorganization,
+                        Projects: CustomAzureDevOps.GetProjects(cat_azdoorganization).value
                     }
+                )
+            );
+            Clear(ProfileBuilds);
+            ForAll(
+                DistinctOrgProjectProfiles As profile,
+                If(
+                    !IsBlankOrError(
+                        LookUp(
+                            LookUp(
+                                OrgProjects,
+                                Organization = profile.cat_azdoorganization
+                            ).Projects,
+                            name = If(
+                                IsBlankOrError(profile.cat_azdopipelineproject),
+                                profile.cat_azdoproject,
+                                profile.cat_azdopipelineproject
+                            )
+                        )
+                    ),
+                    Collect(
+                        ProfileBuilds,
+                        {
+                            Builds: CustomAzureDevOps.GetBuilds(
+                                profile.cat_azdoorganization,
+                                If(
+                                    IsBlankOrError(profile.cat_azdopipelineproject),
+                                    profile.cat_azdoproject,
+                                    profile.cat_azdopipelineproject
+                                ),
+                                {queryOrder: "queueTimeDescending"}
+                            ).value,
+                            Org: profile.cat_azdoorganization,
+                            Project: If(
+                                IsBlankOrError(profile.cat_azdopipelineproject),
+                                profile.cat_azdoproject,
+                                profile.cat_azdopipelineproject
+                            )
+                        }
+                    )
                 )
             );
             UpdateContext(
