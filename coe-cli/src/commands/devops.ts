@@ -3,7 +3,7 @@ import * as azdev from "azure-devops-node-api"
 import { IHeaders, IRequestHandler } from "azure-devops-node-api/interfaces/common/VsoBaseInterfaces";
 import util from "util"
 import * as CoreInterfaces from 'azure-devops-node-api/interfaces/CoreInterfaces';
-import { GitVersionDescriptor, GitVersionType, GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus } from 'azure-devops-node-api/interfaces/GitInterfaces';
+import { GitVersionDescriptor, GitVersionType, GitRefUpdate, GitCommitRef, GitPush, GitChange, VersionControlChangeType, GitItem, ItemContentType, GitRef, GitImportRequest, GitRepositoryCreateOptions, GitImportRequestParameters, GitImportGitSource, GitAsyncOperationStatus, VersionControlRecursionType } from 'azure-devops-node-api/interfaces/GitInterfaces';
 import * as gitm from "azure-devops-node-api/GitApi"
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces';
 import { GitHubCommand } from './github';
@@ -940,28 +940,40 @@ class DevOpsCommand {
             let newGitCommit = <GitCommitRef>{}
             newGitCommit.comment = "Add DevOps Pipeline"
             if (typeof args.settings["environments"] === "string") {
-                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), args.settings["environments"].split('|').map(element => {
+                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, projectRepo, pipelineRepo, sourceRef[0].name, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), args.settings["environments"].split('|').map(element => {
                     return element.toLowerCase();
                 }))
             }
             else {
-                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, pipelineRepo, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), ['validation', 'test', 'prod'])
+                newGitCommit.changes = await this.getGitCommitChanges(args, gitApi, projectRepo, pipelineRepo, sourceRef[0].name, args.destinationBranch, this.withoutRefsPrefix(projectRepo.defaultBranch), ['validation', 'test', 'prod'])
             }
-            let gitPush = <GitPush>{}
-            gitPush.refUpdates = [newRef]
-            gitPush.commits = [newGitCommit]
-
-            this.logger?.info(util.format('Pushing new branch %s', args.destinationBranch))
-            await gitApi.createPush(gitPush, projectRepo.id, project.name)
-
-            if (repositoryName?.length > 0) {
-                this.logger?.info(util.format("Repo %s not found", repositoryName))
-                this.logger?.info('Did you mean?')
-                projectRepos.forEach(repo => {
-                    if (repo.name.startsWith(repositoryName[0])) {
-                        this.logger?.info(repo.name)
-                    }
-                });
+            if(newGitCommit.changes.length == 0) {
+                //Create new branch without any changes
+                let newRef = <GitRefUpdate>{};
+                newRef.newObjectId = sourceRef[0].objectId
+                newRef.oldObjectId = "0000000000000000000000000000000000000000"
+                newRef.name = util.format("refs/heads/%s", args.destinationBranch)
+                gitApi.updateRefs([newRef], projectRepo.id, project.name)
+                this.logger?.info(`Created branch ${args.destinationBranch}`)
+            }
+            else {
+                //Create new branch with updates to pipeline templates
+                let gitPush = <GitPush>{}
+                gitPush.refUpdates = [newRef]
+                gitPush.commits = [newGitCommit]
+    
+                this.logger?.info(util.format('Pushing new branch %s: %s', args.destinationBranch, JSON.stringify(gitPush)))
+                await gitApi.createPush(gitPush, projectRepo.id, project.name)
+    
+                if (repositoryName?.length > 0) {
+                    this.logger?.info(util.format("Repo %s not found", repositoryName))
+                    this.logger?.info('Did you mean?')
+                    projectRepos.forEach(repo => {
+                        if (repo.name.startsWith(repositoryName[0])) {
+                            this.logger?.info(repo.name)
+                        }
+                    });
+                }
             }
         }
         return projectRepo;
@@ -1193,7 +1205,7 @@ class DevOpsCommand {
         }
     }
 
-    async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, pipelineRepo: GitRepository, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
+    async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, projectRepo: GitRepository, pipelineRepo: GitRepository, sourceBranch: string, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
         let pipelineProject = args.pipelineProject?.length > 0 ? args.pipelineProject : args.projectName
         let results: GitChange[] = []
 
@@ -1213,40 +1225,46 @@ class DevOpsCommand {
 
         for (var i = 0; i < names.length; i++) {
             this.logger?.info(util.format("Getting changes for %s", names[i]));
-            let version: GitVersionDescriptor = <GitVersionDescriptor>{};
-            version.versionType = GitVersionType.Branch;
-            let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
-            if (typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
-                templatePath = args.settings[`${names[i]}-buildtemplate`]
-            }
 
-            let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args);
-            let contentUrl = `${devOpsOrgUrl}${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&versionDescriptor.version=${this.withoutRefsPrefix(pipelineRepo.defaultBranch)}&versionDescriptor.versionType=branch&api-version=5.0`
-            this.logger?.info(util.format("Getting content from %s", contentUrl));
+            let repoTemplatePath = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+            let existingItem = await gitApi.getItem(projectRepo.id, repoTemplatePath, args.projectName, null, VersionControlRecursionType.None, false, true, false, <GitVersionDescriptor>{ versionType: GitVersionType.Branch, version: this.withoutRefsPrefix(sourceBranch)})
 
-            let response: any = await this.getUrl(contentUrl, config)
-            if (response?.content != null) {
-                let commit = <GitChange>{}
-                commit.changeType = VersionControlChangeType.Add
-                commit.item = <GitItem>{}
-                commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
-                commit.newContent = <ItemContent>{}
-
-                commit.newContent.content = response?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
-                commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${pipelineProject}/${pipelineRepo.name}`)
-                commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
-
-                let variableGroup = args.settings[names[i] + "-variablegroup"]
-                if (typeof variableGroup !== "undefined" && variableGroup != '') {
-                    commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+            this.logger?.info(util.format("Existing item %s", existingItem?.path));
+            if (typeof existingItem === "undefined" || existingItem == null) {
+                this.logger?.info(util.format("Pipeline template does not exist %s", repoTemplatePath));
+                let templatePath = util.format("/Pipelines/build-deploy-%s-SampleSolution.yml", names[i])
+                if (typeof args.settings[`${names[i]}-buildtemplate`] === "string") {
+                    templatePath = args.settings[`${names[i]}-buildtemplate`]
                 }
 
-                commit.newContent.contentType = ItemContentType.RawText
+                let devOpsOrgUrl = Environment.getDevOpsOrgUrl(args);
+                let contentUrl = `${devOpsOrgUrl}${pipelineProject}/_apis/git/repositories/${args.pipelineRepository}/items?path=${templatePath}&includeContent=true&versionDescriptor.version=${this.withoutRefsPrefix(pipelineRepo.defaultBranch)}&versionDescriptor.versionType=branch&api-version=5.0`
+                this.logger?.info(util.format("Getting content from %s", contentUrl));
 
-                results.push(commit)
-            } else {
-                this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${JSON.stringify(response)}`);
-                throw response
+                let response: any = await this.getUrl(contentUrl, config)
+                if (response?.content != null) {
+                    let commit = <GitChange>{}
+                    commit.changeType = VersionControlChangeType.Add
+                    commit.item = <GitItem>{}
+                    commit.item.path = util.format("/%s/deploy-%s-%s.yml", destinationBranch, names[i], destinationBranch)
+                    commit.newContent = <ItemContent>{}
+
+                    commit.newContent.content = response?.content.toString().replace(/BranchContainingTheBuildTemplates/g, defaultBranch)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/RepositoryContainingTheBuildTemplates/g, `${pipelineProject}/${pipelineRepo.name}`)
+                    commit.newContent.content = (commit.newContent.content)?.replace(/SampleSolutionName/g, destinationBranch)
+
+                    let variableGroup = args.settings[names[i] + "-variablegroup"]
+                    if (typeof variableGroup !== "undefined" && variableGroup != '') {
+                        commit.newContent.content = (commit.newContent.content)?.replace(/alm-accelerator-variable-group/g, variableGroup)
+                    }
+
+                    commit.newContent.contentType = ItemContentType.RawText
+
+                    results.push(commit)
+                } else {
+                    this.logger?.info(`Error creating new pipeline definition for ${names[i]}: ${JSON.stringify(response)}`);
+                    throw response
+                }
             }
         }
         return results;
