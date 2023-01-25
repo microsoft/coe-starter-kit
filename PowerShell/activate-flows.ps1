@@ -84,7 +84,7 @@ function Invoke-ActivateFlows {
             $flowsDeactivatedThisPass = $false
             foreach ($flowToDeactivate in $flowsToDeactivate) {
                 try {
-                    if($flowToDeactivate.solutionComponentUniqueName -ne $null -and $flowToDeactivate.solutionComponentUniqueName -ne ''){
+                    if($null -ne $flowToDeactivate.solutionComponentUniqueName -and $flowToDeactivate.solutionComponentUniqueName -ne ''){
                         $existingStatus = get-workflow-dv-status $flowToDeactivate.solutionComponentUniqueName $token $dataverseHost
                         if ($existingStatus -ne 0) {
                             Write-Host "Dectivating Flow: " $flowToDeactivate.solutionComponentName
@@ -102,7 +102,7 @@ function Invoke-ActivateFlows {
                     Write-Host $_
                 }
             }
-        } while ($flowsActivatedThisPass)
+        } while ($flowsDeactivatedThisPass)
 
         if ($throwOnComplete) {
             throw
@@ -139,6 +139,7 @@ function Get-UserConfiguredFlowActivations {
     # Turn on specified list of flows using a specified user.
     # This should be an ordered list of flows that must be turned on before any other dependent (parent) flows can be turned on.
     if ($null -ne $activationConfigs) {
+        $throwOnComplete = $false
         foreach ($activateConfig in $activationConfigs) {
             if ($activateConfig.activateAsUser -ne '' -and $activateConfig.solutionComponentUniqueName -ne '' -and $activateConfig.activate -ne 'false') {
                 $existingActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
@@ -168,9 +169,14 @@ function Get-UserConfiguredFlowActivations {
                     }
                     else {
                         Write-Host "##vso[task.logissue type=warning]A specified user record was not found in the target environment. Verify your deployment configuration and try again."
+                        $throwOnComplete = $true
                     }
                 }
             }
+        }
+
+        if($throwOnComplete) {
+            throw
         }
     }
 }
@@ -295,9 +301,10 @@ function Get-OwnerFlowActivations {
 
         $config = Get-Content $solutionComponentOwnershipConfiguration | ConvertFrom-Json
         $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
-        print-flows "Inside Get-OwnerFlowActivations; Prinitng Active Flows" $flowsToActivate
+        print-flows "Inside Get-OwnerFlowActivations; Printing Active Flows" $flowsToActivate
 
         Write-Host "activationConfigs - " $activationConfigs
+        $throwOnComplete = $false
         foreach ($ownershipConfig in $config) {
             $existingActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $ownershipConfig.solutionComponentUniqueName } | Select-Object -First 1
             if ($null -eq $existingActivation) {
@@ -349,13 +356,19 @@ function Get-OwnerFlowActivations {
                         }
                         else {
                             Write-Host "##vso[task.logissue type=warning]A specified user record was not found in the target environment. Verify your deployment configuration and try again."
+                            $throwOnComplete = $true
                         }
                     }
                     else {
                         Write-Host "##vso[task.logissue type=warning]A specified flow was not found in the target environment. Verify your deployment configuration and try again."
+                        $throwOnComplete = $true
                     }
                 }
             }
+        }
+
+        if($throwOnComplete) {
+            throw
         }
     }    
 }

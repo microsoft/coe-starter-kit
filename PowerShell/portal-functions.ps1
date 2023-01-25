@@ -54,10 +54,9 @@ function Clean-Website-Folder
     param (
         [Parameter(Mandatory)] [String]$sourcesDirectory,
         [Parameter(Mandatory)] [String]$repo,
-        [Parameter(Mandatory)] [String]$solutionName,        
-        [Parameter(Mandatory)] [String]$websiteName
+        [Parameter(Mandatory)] [String]$solutionName     
     )
-    $portalWebsitePath = "$sourcesDirectory\$repo\$solutionName\PowerPages\$websiteName\"
+    $portalWebsitePath = "$sourcesDirectory\$repo\$solutionName\PowerPages\"
     if(Test-Path "$portalWebsitePath"){
       Remove-Item "$portalWebsitePath\*" -Recurse -Force
     }
