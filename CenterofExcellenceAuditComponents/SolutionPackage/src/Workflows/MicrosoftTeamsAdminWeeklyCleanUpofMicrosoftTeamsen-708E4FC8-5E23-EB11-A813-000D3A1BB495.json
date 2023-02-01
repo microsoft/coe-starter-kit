@@ -1,15 +1,6 @@
 {
   "properties": {
     "connectionReferences": {
-      "shared_commondataserviceforapps": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
-        },
-        "api": {
-          "name": "shared_commondataserviceforapps"
-        }
-      },
       "shared_powerplatformforadmins_1": {
         "runtimeSource": "embedded",
         "connection": {
@@ -26,6 +17,24 @@
         },
         "api": {
           "name": "shared_teams"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Outlook"
+        },
+        "api": {
+          "name": "shared_office365"
         }
       }
     },
@@ -46,15 +55,15 @@
           "type": "String",
           "metadata": {
             "schemaName": "admin_AdminMail",
-            "description": "Inventory - CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
+            "description": "CoE Admin eMail. Email address used in flows to send notifications to admins; this should be either your email address or a distribution list"
           }
         },
         "ProductionEnvironment (admin_ProductionEnvironment)": {
-          "defaultValue": false,
+          "defaultValue": true,
           "type": "Bool",
           "metadata": {
             "schemaName": "admin_ProductionEnvironment",
-            "description": "Inventory - Yes by default. Set to No if you are creating a dev type envt. This will allow some flows to set target users to the admin instead of resource owners"
+            "description": "Yes by default. Set to No if you are creating a dev type envt. This will allow some flows to set target users to the admin instead of resource owners"
           }
         },
         "Individual Admin (admin_ApprovalAdmin)": {
@@ -62,23 +71,7 @@
           "type": "String",
           "metadata": {
             "schemaName": "admin_ApprovalAdmin",
-            "description": "Inventory - REQUIRED. An individual admin's email. Some actions (approvals / team chats) cannot accept a group/DL. So this env variable is for those instances in the kit. "
-          }
-        },
-        "Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)": {
-          "defaultValue": "en-US",
-          "type": "String",
-          "metadata": {
-            "schemaName": "admin_AdmineMailPreferredLanguage",
-            "description": "Inventory - The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US"
-          }
-        },
-        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
-          "defaultValue": "https://flow.microsoft.com/manage/environments/",
-          "type": "String",
-          "metadata": {
-            "schemaName": "admin_PowerAutomateEnvironmentVariable",
-            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+            "description": "REQUIRED. An individual admin's email. Some actions (approvals / team chats) cannot accept a group/DL. So this env variable is for those instances in the kit. "
           }
         }
       },
@@ -103,6 +96,416 @@
         }
       },
       "actions": {
+        "Apply_to_each_Teams_Environment": {
+          "foreach": "@outputs('List_7_day_environments')?['body/value']",
+          "actions": {
+            "Check_if_Business_Justification_has_been_provided": {
+              "actions": {
+                "Delete_Environment": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "09089d5d-8c24-4ba7-8fcb-b40978236abc"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_powerplatformforadmins_1",
+                      "operationId": "Remove-AdminEnvironment",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                    },
+                    "parameters": {
+                      "environment": "@items('Apply_to_each_Teams_Environment')?['admin_environmentid']",
+                      "api-version": "2018-10-01"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Deletion_Failed": {
+                  "runAfter": {
+                    "Delete_Environment": [
+                      "Failed"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "fb25d0c3-4cb9-4f70-b2c1-c151ed3b4e29"
+                  },
+                  "type": "Compose",
+                  "inputs": "Deletion Failed"
+                },
+                "Update_if_deletion_succeeded": {
+                  "actions": {
+                    "Update_-_Mark_Environment_as_Deleted": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "f3155247-b9a4-46cf-a611-5b10cbd0bcc8"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_environments",
+                          "recordId": "@items('Apply_to_each_Teams_Environment')?['admin_environmentid']",
+                          "item/admin_environmentdeleted": true,
+                          "item/admin_environmentdeletedon": "@utcNow()"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "New_Team_mail_to_Maker": {
+                      "runAfter": {
+                        "Update_-_Mark_Environment_as_Deleted": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e76f2441-8996-4bc9-ae80-b946d15a600c"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_teams_1",
+                          "operationId": "PostUserNotification",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                        },
+                        "parameters": {
+                          "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), items('Apply_to_each_Teams_Environment')?['admin_maker/admin_userprincipalname'])};",
+                          "PostNotificationRequest/messageBody": "Your Microsoft Teams Power Platform environment has been deleted, as you did not provide a business justification or your provided justification has been rejected by the reviewer.  ",
+                          "PostNotificationRequest/messageTitle": "Your Microsoft Teams environment: @{items('Apply_to_each_Teams_Environment')?['admin_displayname']}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Append_to_array_variable": {
+                      "runAfter": {
+                        "New_Team_mail_to_Maker": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a18beaf0-228b-4717-93aa-b63bf0391dce"
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "varDeletedEnvs",
+                        "value": {
+                          "Name": "@outputs('Update_-_Mark_Environment_as_Deleted')?['body/admin_displayname']",
+                          "Owner": "@outputs('Update_-_Mark_Environment_as_Deleted')?['body/admin_environmentmakerdisplayname']"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Deletion_Failed": [
+                      "Skipped"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "4af9535e-f3e3-4d49-b289-3094c5c1f506"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "Has_Admin_Rejected": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@parameters('ProductionEnvironment (admin_ProductionEnvironment)')",
+                      "@true"
+                    ]
+                  },
+                  {
+                    "or": [
+                      {
+                        "equals": [
+                          "@empty(items('Apply_to_each_Teams_Environment')?['admin_makerrequirementbusinessjustification'])",
+                          "@true"
+                        ]
+                      },
+                      {
+                        "equals": [
+                          "@items('Apply_to_each_Teams_Environment')?['admin_adminmicrosoftteamsenvironmentstatus']",
+                          597910001
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "46adf421-0648-4d97-98bd-e7ec31889bfa"
+              },
+              "type": "If"
+            },
+            "Compose": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "bd04047f-cb53-4327-842d-8c240df8b85c"
+              },
+              "type": "Compose",
+              "inputs": "@items('Apply_to_each_Teams_Environment')"
+            },
+            "Has_Admin_Rejected": {
+              "runAfter": {
+                "Is_Business_Justification_Empty": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9b624b45-78aa-49be-bc8d-6750313cbc7d"
+              },
+              "type": "Compose",
+              "inputs": "@items('Apply_to_each_Teams_Environment')?['admin_adminmicrosoftteamsenvironmentstatus']"
+            },
+            "Is_Business_Justification_Empty": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9ae5158c-b9f7-480c-8d72-2139de196fd0"
+              },
+              "type": "Compose",
+              "inputs": "@empty(items('Apply_to_each_Teams_Environment')?['admin_makerrequirementbusinessjustification'])"
+            }
+          },
+          "runAfter": {
+            "List_90_day_environments_": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "35508f36-081c-4d20-bbff-bd46addc89ec"
+          },
+          "type": "Foreach"
+        },
+        "Apply_to_each_Teams_Environment_-_90_days": {
+          "foreach": "@outputs('List_90_day_environments_')?['body/value']",
+          "actions": {
+            "Check_if_inactivity_after_90_days_2": {
+              "actions": {
+                "Delete_Environment_4": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "992b3fa6-8802-4858-a78c-3f601301a0d2"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_powerplatformforadmins_1",
+                      "operationId": "Remove-AdminEnvironment",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                    },
+                    "parameters": {
+                      "environment": "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_environmentid']",
+                      "api-version": "2018-10-01"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Deletion_Failed_90_days": {
+                  "runAfter": {
+                    "Delete_Environment_4": [
+                      "Failed"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "858ece90-fc25-4803-99d9-75e8173e86f9"
+                  },
+                  "type": "Compose",
+                  "inputs": "Delete Failed"
+                },
+                "Inactive_Team_mail_to_Maker": {
+                  "runAfter": {
+                    "Update_-_Mark_Environment_as_Deleted_4": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "bdf7bec3-5fc3-44b0-915f-fe0bd02d7203"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_teams_1",
+                      "operationId": "PostUserNotification",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                    },
+                    "parameters": {
+                      "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), items('Apply_to_each_Teams_Environment_-_90_days')?['admin_maker/admin_userprincipalname'])};",
+                      "PostNotificationRequest/messageBody": "Your Microsoft Teams Power Platform environment has been deleted due to 90 days of inactivity.",
+                      "PostNotificationRequest/messageTitle": "Your Microsoft Teams environment: @{items('Apply_to_each_Teams_Environment_-_90_days')?['admin_displayname']}"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Update_-_Mark_Environment_as_Deleted_4": {
+                  "runAfter": {
+                    "Deletion_Failed_90_days": [
+                      "Skipped",
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "f5f77522-3d90-41a3-9bfb-3730c15b0939"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "UpdateRecord",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_environments",
+                      "recordId": "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_environmentid']",
+                      "item/admin_environmentdeleted": true,
+                      "item/admin_environmentdeletedon": "@utcNow()"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Append_to_array_variable_2": {
+                  "runAfter": {
+                    "Inactive_Team_mail_to_Maker": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0eef9982-2cd4-4b07-ab88-d02244e34e62"
+                  },
+                  "type": "AppendToArrayVariable",
+                  "inputs": {
+                    "name": "varDeletedEnvs",
+                    "value": {
+                      "Name": "@outputs('Update_-_Mark_Environment_as_Deleted_4')?['body/admin_displayname']",
+                      "Owner": "@outputs('Update_-_Mark_Environment_as_Deleted_4')?['body/admin_environmentmakerdisplayname']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Compose_2": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@parameters('ProductionEnvironment (admin_ProductionEnvironment)')",
+                      "@true"
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_numberofapps']",
+                      0
+                    ]
+                  },
+                  {
+                    "equals": [
+                      "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_numberofflows']",
+                      0
+                    ]
+                  }
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "05fe8860-c6f0-41df-b2ce-790f166a0df4"
+              },
+              "type": "If"
+            },
+            "Compose_2": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f684f5e8-9ea7-416c-8ee5-678e29caed16"
+              },
+              "type": "Compose",
+              "inputs": "@items('Apply_to_each_Teams_Environment_-_90_days')"
+            }
+          },
+          "runAfter": {
+            "List_90_day_environments_": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d5afb54f-6209-4f07-af96-d4d2ecdd0d78"
+          },
+          "type": "Foreach"
+        },
+        "Create_New_Envs_-_HTML_table": {
+          "runAfter": {
+            "List_environments_coming_up_for_review": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1d7bc8e9-44a3-480b-beb9-5546b8f3f9cb"
+          },
+          "type": "Table",
+          "inputs": {
+            "from": "@outputs('List_new_Teams_environments')?['body/value']",
+            "format": "HTML",
+            "columns": [
+              {
+                "header": "Name",
+                "value": "@item()?['admin_displayname']"
+              },
+              {
+                "header": "Owner",
+                "value": "@item()?['admin_environmentmakerdisplayname']"
+              },
+              {
+                "header": "Justification",
+                "value": "@item()?['admin_makerrequirementbusinessjustification']"
+              }
+            ]
+          }
+        },
+        "Create_Review_Envs_-_HTML_table": {
+          "runAfter": {
+            "Create_New_Envs_-_HTML_table": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "89a6c030-17fe-47be-9155-ee3de00d6160"
+          },
+          "type": "Table",
+          "inputs": {
+            "from": "@outputs('List_environments_coming_up_for_review')?['body/value']",
+            "format": "HTML",
+            "columns": [
+              {
+                "header": "Name",
+                "value": "@item()?['admin_displayname']"
+              },
+              {
+                "header": "Owner",
+                "value": "@item()?['admin_environmentmakerdisplayname']"
+              },
+              {
+                "header": "Justification",
+                "value": "@item()?['admin_makerrequirementbusinessjustification']"
+              },
+              {
+                "header": "Review",
+                "value": "@item()?['admin_adminreviewon']"
+              }
+            ]
+          }
+        },
         "Get_7_days_in_the_past": {
           "runAfter": {
             "Get_90_days_in_the_past": [
@@ -153,6 +556,162 @@
             ]
           }
         },
+        "List_7_day_environments": {
+          "runAfter": {
+            "Initialize_variable_2": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d8189d33-ebfb-4cb3-83c2-72308ed5db3e"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "admin_environments",
+              "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname",
+              "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and admin_businessjustificationdate le @{body('Get_7_days_in_the_past')} and  admin_businessjustificationdate ne null and admin_adminmicrosoftteamsenvironmentstatus ne 597910000",
+              "$expand": "admin_Maker($select=admin_userisserviceprinciple,admin_userprincipalname)"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "List_90_day_environments_": {
+          "runAfter": {
+            "List_7_day_environments": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "456ba7ff-b465-4b2b-ac48-7901e7237c40"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "admin_environments",
+              "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname",
+              "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and  admin_environmentcreatedon le @{body('Get_90_days_in_the_past')} and admin_excusefromemptyenvironmentcleanup ne true",
+              "$expand": "admin_Maker($select=admin_userisserviceprinciple,admin_userprincipalname)"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "List_environments_coming_up_for_review": {
+          "runAfter": {
+            "List_new_Teams_environments": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "edca37c4-ac3b-465b-875e-70e46240e574"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "admin_environments",
+              "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname,admin_adminreviewon",
+              "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and  admin_adminreviewon gt @{utcNow()}  and admin_adminreviewon lt  @{addDays(utcNow(), 7)}"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "List_new_Teams_environments": {
+          "runAfter": {
+            "Apply_to_each_Teams_Environment": [
+              "Succeeded"
+            ],
+            "Apply_to_each_Teams_Environment_-_90_days": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5ffaf641-eadd-4f96-943f-015e066e351e"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "admin_environments",
+              "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname",
+              "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and  admin_environmentcreatedon gt @{body('Get_7_days_in_the_past')} and admin_makerrequirementbusinessjustification ne null"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Send_mail_if_either_array_non-empty": {
+          "actions": {
+            "Summary_mail_to_Admins": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "945318e8-94ab-40fa-a9bd-622fd278bdf2"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365",
+                  "operationId": "SendEmailV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "emailMessage/To": "@variables('adminEmail')",
+                  "emailMessage/Subject": "Microsoft Teams Environment Creation and Deletion review",
+                  "emailMessage/Body": "<p>In the past 7 days, the following Microsoft Teams environments have been created and require review - please open the Power Platform Admin View and approve/reject the business justification of these environments.<br>\n<br>\n@{body('Create_New_Envs_-_HTML_table')}<br>\n<br>\nIn the next 7 days, the following Microsoft Teams environments are coming up for review:<br>\n<br>\n@{body('Create_Review_Envs_-_HTML_table')}<br>\n<br>\nThe following Microsoft Teams environments have been deleted today:<br>\n@{body('Create_Deleted_Envs_-_HTML_table')}<br>\n<br>\nDeleted environments can be restored for 7 days via: <a href=\"https://admin.powerplatform.microsoft.com/environments/deleted\">https://admin.powerplatform.microsoft.com/environments/deleted</a>&nbsp;</p>"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Create_Deleted_Envs_-_HTML_table": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "or": [
+              {
+                "greater": [
+                  "@length(outputs('List_environments_coming_up_for_review')?['body/value'])",
+                  0
+                ]
+              },
+              {
+                "greater": [
+                  "@length(outputs('List_new_Teams_environments')?['body/value'])",
+                  0
+                ]
+              },
+              {
+                "greater": [
+                  "@length(variables('varDeletedEnvs'))",
+                  0
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "58e0abe5-da4c-4888-8390-b0afb6043d0d"
+          },
+          "type": "If"
+        },
         "Initialize_variable_2": {
           "runAfter": {
             "Initialize_variable": [
@@ -172,878 +731,20 @@
             ]
           }
         },
-        "Initialize_emailGUID": {
+        "Create_Deleted_Envs_-_HTML_table": {
           "runAfter": {
-            "Initialize_variable_2": [
+            "Create_Review_Envs_-_HTML_table": [
               "Succeeded"
             ]
           },
           "metadata": {
-            "operationMetadataId": "dad8eca6-7937-47c0-aa57-f2d48dd1c5a2"
+            "operationMetadataId": "7ea414a8-5143-4d7d-ac51-b0ddb5a8b063"
           },
-          "type": "InitializeVariable",
+          "type": "Table",
           "inputs": {
-            "variables": [
-              {
-                "name": "emailGUID",
-                "type": "string"
-              }
-            ]
+            "from": "@variables('varDeletedEnvs')",
+            "format": "HTML"
           }
-        },
-        "Weekly_Clean_Up_of_Microsoft_Teams_environments_SCOPE": {
-          "actions": {
-            "List_7_day_environments": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "d8189d33-ebfb-4cb3-83c2-72308ed5db3e"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_environments",
-                  "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname",
-                  "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and admin_businessjustificationdate le @{body('Get_7_days_in_the_past')} and  admin_businessjustificationdate ne null and admin_adminmicrosoftteamsenvironmentstatus ne 597910000",
-                  "$expand": "admin_Maker($select=admin_userisserviceprinciple,admin_userprincipalname)"
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "List_90_day_environments_": {
-              "runAfter": {
-                "List_7_day_environments": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "456ba7ff-b465-4b2b-ac48-7901e7237c40"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_environments",
-                  "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname",
-                  "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and  admin_environmentcreatedon le @{body('Get_90_days_in_the_past')} and admin_excusefromemptyenvironmentcleanup ne true",
-                  "$expand": "admin_Maker($select=admin_userisserviceprinciple,admin_userprincipalname)"
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "Apply_to_each_Teams_Environment": {
-              "foreach": "@outputs('List_7_day_environments')?['body/value']",
-              "actions": {
-                "Check_if_Business_Justification_has_been_provided": {
-                  "actions": {
-                    "Delete_Environment": {
-                      "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "09089d5d-8c24-4ba7-8fcb-b40978236abc"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_powerplatformforadmins_1",
-                          "operationId": "Remove-AdminEnvironment",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                        },
-                        "parameters": {
-                          "environment": "@items('Apply_to_each_Teams_Environment')?['admin_environmentid']",
-                          "api-version": "2018-10-01"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    },
-                    "Deletion_Failed": {
-                      "runAfter": {
-                        "Delete_Environment": [
-                          "Failed"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "fb25d0c3-4cb9-4f70-b2c1-c151ed3b4e29"
-                      },
-                      "type": "Compose",
-                      "inputs": "Deletion Failed"
-                    },
-                    "Update_if_deletion_succeeded": {
-                      "actions": {
-                        "Update_-_Mark_Environment_as_Deleted": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "f3155247-b9a4-46cf-a611-5b10cbd0bcc8"
-                          },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_commondataserviceforapps",
-                              "operationId": "UpdateRecord",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                            },
-                            "parameters": {
-                              "entityName": "admin_environments",
-                              "recordId": "@items('Apply_to_each_Teams_Environment')?['admin_environmentid']",
-                              "item/admin_environmentdeleted": true,
-                              "item/admin_environmentdeletedon": "@utcNow()"
-                            },
-                            "authentication": "@parameters('$authentication')"
-                          }
-                        },
-                        "New_Team_mail_to_Maker": {
-                          "runAfter": {
-                            "Update_-_Mark_Environment_as_Deleted": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "e76f2441-8996-4bc9-ae80-b946d15a600c"
-                          },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_teams_1",
-                              "operationId": "PostUserNotification",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
-                            },
-                            "parameters": {
-                              "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), items('Apply_to_each_Teams_Environment')?['admin_maker/admin_userprincipalname'])};",
-                              "PostNotificationRequest/messageBody": "Your Microsoft Teams Power Platform environment has been deleted, as you did not provide a business justification or your provided justification has been rejected by the reviewer.  ",
-                              "PostNotificationRequest/messageTitle": "Your Microsoft Teams environment: @{items('Apply_to_each_Teams_Environment')?['admin_displayname']}"
-                            },
-                            "authentication": "@parameters('$authentication')"
-                          }
-                        },
-                        "Append_to_array_variable": {
-                          "runAfter": {
-                            "New_Team_mail_to_Maker": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "a18beaf0-228b-4717-93aa-b63bf0391dce"
-                          },
-                          "type": "AppendToArrayVariable",
-                          "inputs": {
-                            "name": "varDeletedEnvs",
-                            "value": {
-                              "Name": "@outputs('Update_-_Mark_Environment_as_Deleted')?['body/admin_displayname']",
-                              "Owner": "@outputs('Update_-_Mark_Environment_as_Deleted')?['body/admin_environmentmakerdisplayname']"
-                            }
-                          }
-                        }
-                      },
-                      "runAfter": {
-                        "Deletion_Failed": [
-                          "Skipped"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "4af9535e-f3e3-4d49-b289-3094c5c1f506"
-                      },
-                      "type": "Scope"
-                    }
-                  },
-                  "runAfter": {
-                    "Has_Admin_Rejected": [
-                      "Succeeded"
-                    ]
-                  },
-                  "expression": {
-                    "and": [
-                      {
-                        "equals": [
-                          "@parameters('ProductionEnvironment (admin_ProductionEnvironment)')",
-                          "@true"
-                        ]
-                      },
-                      {
-                        "or": [
-                          {
-                            "equals": [
-                              "@empty(items('Apply_to_each_Teams_Environment')?['admin_makerrequirementbusinessjustification'])",
-                              "@true"
-                            ]
-                          },
-                          {
-                            "equals": [
-                              "@items('Apply_to_each_Teams_Environment')?['admin_adminmicrosoftteamsenvironmentstatus']",
-                              597910001
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "46adf421-0648-4d97-98bd-e7ec31889bfa"
-                  },
-                  "type": "If"
-                },
-                "Compose": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "bd04047f-cb53-4327-842d-8c240df8b85c"
-                  },
-                  "type": "Compose",
-                  "inputs": "@items('Apply_to_each_Teams_Environment')"
-                },
-                "Has_Admin_Rejected": {
-                  "runAfter": {
-                    "Is_Business_Justification_Empty": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "9b624b45-78aa-49be-bc8d-6750313cbc7d"
-                  },
-                  "type": "Compose",
-                  "inputs": "@items('Apply_to_each_Teams_Environment')?['admin_adminmicrosoftteamsenvironmentstatus']"
-                },
-                "Is_Business_Justification_Empty": {
-                  "runAfter": {
-                    "Compose": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "9ae5158c-b9f7-480c-8d72-2139de196fd0"
-                  },
-                  "type": "Compose",
-                  "inputs": "@empty(items('Apply_to_each_Teams_Environment')?['admin_makerrequirementbusinessjustification'])"
-                }
-              },
-              "runAfter": {
-                "List_90_day_environments_": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "35508f36-081c-4d20-bbff-bd46addc89ec"
-              },
-              "type": "Foreach"
-            },
-            "Apply_to_each_Teams_Environment_-_90_days": {
-              "foreach": "@outputs('List_90_day_environments_')?['body/value']",
-              "actions": {
-                "Check_if_inactivity_after_90_days_2": {
-                  "actions": {
-                    "Delete_Environment_4": {
-                      "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "992b3fa6-8802-4858-a78c-3f601301a0d2"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_powerplatformforadmins_1",
-                          "operationId": "Remove-AdminEnvironment",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                        },
-                        "parameters": {
-                          "environment": "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_environmentid']",
-                          "api-version": "2018-10-01"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    },
-                    "Deletion_Failed_90_days": {
-                      "runAfter": {
-                        "Delete_Environment_4": [
-                          "Failed"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "858ece90-fc25-4803-99d9-75e8173e86f9"
-                      },
-                      "type": "Compose",
-                      "inputs": "Delete Failed"
-                    },
-                    "Inactive_Team_mail_to_Maker": {
-                      "runAfter": {
-                        "Update_-_Mark_Environment_as_Deleted_4": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "bdf7bec3-5fc3-44b0-915f-fe0bd02d7203"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_teams_1",
-                          "operationId": "PostUserNotification",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
-                        },
-                        "parameters": {
-                          "PostNotificationRequest/recipient/to": "@{if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Individual Admin (admin_ApprovalAdmin)'), items('Apply_to_each_Teams_Environment_-_90_days')?['admin_maker/admin_userprincipalname'])};",
-                          "PostNotificationRequest/messageBody": "Your Microsoft Teams Power Platform environment has been deleted due to 90 days of inactivity.",
-                          "PostNotificationRequest/messageTitle": "Your Microsoft Teams environment: @{items('Apply_to_each_Teams_Environment_-_90_days')?['admin_displayname']}"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    },
-                    "Update_-_Mark_Environment_as_Deleted_4": {
-                      "runAfter": {
-                        "Deletion_Failed_90_days": [
-                          "Skipped",
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "f5f77522-3d90-41a3-9bfb-3730c15b0939"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_commondataserviceforapps",
-                          "operationId": "UpdateRecord",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                        },
-                        "parameters": {
-                          "entityName": "admin_environments",
-                          "recordId": "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_environmentid']",
-                          "item/admin_environmentdeleted": true,
-                          "item/admin_environmentdeletedon": "@utcNow()"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    },
-                    "Append_to_array_variable_2": {
-                      "runAfter": {
-                        "Inactive_Team_mail_to_Maker": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "0eef9982-2cd4-4b07-ab88-d02244e34e62"
-                      },
-                      "type": "AppendToArrayVariable",
-                      "inputs": {
-                        "name": "varDeletedEnvs",
-                        "value": {
-                          "Name": "@outputs('Update_-_Mark_Environment_as_Deleted_4')?['body/admin_displayname']",
-                          "Owner": "@outputs('Update_-_Mark_Environment_as_Deleted_4')?['body/admin_environmentmakerdisplayname']"
-                        }
-                      }
-                    }
-                  },
-                  "runAfter": {
-                    "Compose_2": [
-                      "Succeeded"
-                    ]
-                  },
-                  "expression": {
-                    "and": [
-                      {
-                        "equals": [
-                          "@parameters('ProductionEnvironment (admin_ProductionEnvironment)')",
-                          "@true"
-                        ]
-                      },
-                      {
-                        "equals": [
-                          "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_numberofapps']",
-                          0
-                        ]
-                      },
-                      {
-                        "equals": [
-                          "@items('Apply_to_each_Teams_Environment_-_90_days')?['admin_numberofflows']",
-                          0
-                        ]
-                      }
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "05fe8860-c6f0-41df-b2ce-790f166a0df4"
-                  },
-                  "type": "If"
-                },
-                "Compose_2": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "f684f5e8-9ea7-416c-8ee5-678e29caed16"
-                  },
-                  "type": "Compose",
-                  "inputs": "@items('Apply_to_each_Teams_Environment_-_90_days')"
-                }
-              },
-              "runAfter": {
-                "List_90_day_environments_": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "d5afb54f-6209-4f07-af96-d4d2ecdd0d78"
-              },
-              "type": "Foreach"
-            },
-            "List_new_Teams_environments": {
-              "runAfter": {
-                "Apply_to_each_Teams_Environment": [
-                  "Succeeded"
-                ],
-                "Apply_to_each_Teams_Environment_-_90_days": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "5ffaf641-eadd-4f96-943f-015e066e351e"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_environments",
-                  "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname",
-                  "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and  admin_environmentcreatedon gt @{body('Get_7_days_in_the_past')}"
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "List_environments_coming_up_for_review": {
-              "runAfter": {
-                "List_new_Teams_environments": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "edca37c4-ac3b-465b-875e-70e46240e574"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_environments",
-                  "$select": "admin_environmentdeleted,admin_makerrequirementbusinessjustification,admin_environmentcreatedon,admin_adminmicrosoftteamsenvironmentstatus,admin_numberofapps,admin_numberofflows,admin_displayname,admin_environmentmakerdisplayname,admin_adminreviewon",
-                  "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and  admin_adminmicrosoftteamsenvironmentstatus eq null and admin_makerrequirementbusinessjustification ne null"
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "Create_New_Envs_-_HTML_table": {
-              "runAfter": {
-                "List_environments_coming_up_for_review": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "1d7bc8e9-44a3-480b-beb9-5546b8f3f9cb"
-              },
-              "type": "Table",
-              "inputs": {
-                "from": "@outputs('List_new_Teams_environments')?['body/value']",
-                "format": "HTML",
-                "columns": [
-                  {
-                    "header": "Name",
-                    "value": "@item()?['admin_displayname']"
-                  },
-                  {
-                    "header": "Owner",
-                    "value": "@item()?['admin_environmentmakerdisplayname']"
-                  },
-                  {
-                    "header": "Justification",
-                    "value": "@item()?['admin_makerrequirementbusinessjustification']"
-                  }
-                ]
-              }
-            },
-            "Create_Review_Envs_-_HTML_table": {
-              "runAfter": {
-                "Create_New_Envs_-_HTML_table": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "89a6c030-17fe-47be-9155-ee3de00d6160"
-              },
-              "type": "Table",
-              "inputs": {
-                "from": "@outputs('List_environments_coming_up_for_review')?['body/value']",
-                "format": "HTML",
-                "columns": [
-                  {
-                    "header": "Name",
-                    "value": "@item()?['admin_displayname']"
-                  },
-                  {
-                    "header": "Owner",
-                    "value": "@item()?['admin_environmentmakerdisplayname']"
-                  },
-                  {
-                    "header": "Justification",
-                    "value": "@item()?['admin_makerrequirementbusinessjustification']"
-                  },
-                  {
-                    "header": "Review",
-                    "value": "@item()?['admin_adminreviewon']"
-                  }
-                ]
-              }
-            },
-            "Create_Deleted_Envs_-_HTML_table": {
-              "runAfter": {
-                "Create_Review_Envs_-_HTML_table": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "7ea414a8-5143-4d7d-ac51-b0ddb5a8b063"
-              },
-              "type": "Table",
-              "inputs": {
-                "from": "@variables('varDeletedEnvs')",
-                "format": "HTML"
-              }
-            },
-            "Send_mail_if_either_array_non-empty": {
-              "actions": {
-                "Summary_mail_to_Admins": {
-                  "runAfter": {
-                    "Get_Row_-_Summary_mail_to_Admins": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "3379db54-f36d-40af-a2c5-71ae16511e4e"
-                  },
-                  "type": "Workflow",
-                  "inputs": {
-                    "host": {
-                      "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
-                    },
-                    "body": {
-                      "email": "@parameters('Admin eMail (admin_AdminMail)')",
-                      "text": "@outputs('Get_a_row_by_ID')?['body/admin_subject']",
-                      "text_1": "@{outputs('Get_a_row_by_ID')?['body/admin_body']}\n<strong><u>New Environments:</u></strong>\n@{if(equals(length(outputs('List_new_Teams_environments')?['body/value']), 0), '<br>None', body('Create_New_Envs_-_HTML_table'))}\n<br><br>\n<strong><u>Upcoming for review:</u></strong>\n@{if(equals(length(outputs('List_environments_coming_up_for_review')?['body/value']), 0), '<br>None', body('Create_Review_Envs_-_HTML_table'))}\n<br><br>\n<strong><u>Deleted Today:</u></strong>\n@{if(equals(length(variables('varDeletedEnvs')), 0), '<br>None', body('Create_Deleted_Envs_-_HTML_table'))}\n",
-                      "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
-                      "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
-                      "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])",
-                      "text_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_importance'], null), '', outputs('Get_a_row_by_ID')?['body/admin_importance'])"
-                    }
-                  },
-                  "description": "a02604e4-6086-ed11-81ac-0022480813ff"
-                },
-                "Get_Row_-_Summary_mail_to_Admins": {
-                  "actions": {
-                    "emailGUID_to_en-US": {
-                      "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "3c46d691-0f2a-4c36-9611-c2c7de1ec33d"
-                      },
-                      "type": "Compose",
-                      "inputs": "a02604e4-6086-ed11-81ac-0022480813ff"
-                    },
-                    "List_emails_for_preferred_language": {
-                      "runAfter": {
-                        "emailGUID_to_en-US": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_commondataserviceforapps",
-                          "operationId": "ListRecords",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                        },
-                        "parameters": {
-                          "entityName": "admin_customizedemails",
-                          "$select": "admin_customizedemailid",
-                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')}'"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    },
-                    "Set_emailGUID_to_localized_row": {
-                      "runAfter": {
-                        "List_emails_for_preferred_language": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
-                      },
-                      "type": "SetVariable",
-                      "inputs": {
-                        "name": "emailGUID",
-                        "value": "@{if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']), 0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))}"
-                      },
-                      "description": "if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']),0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))"
-                    },
-                    "Get_a_row_by_ID": {
-                      "runAfter": {
-                        "Set_emailGUID_to_localized_row": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_commondataserviceforapps",
-                          "operationId": "GetItem",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                        },
-                        "parameters": {
-                          "entityName": "admin_customizedemails",
-                          "recordId": "@variables('emailGUID')",
-                          "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject, admin_importance"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      }
-                    }
-                  },
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
-                  },
-                  "type": "Scope"
-                }
-              },
-              "runAfter": {
-                "Create_Deleted_Envs_-_HTML_table": [
-                  "Succeeded"
-                ]
-              },
-              "expression": {
-                "or": [
-                  {
-                    "greater": [
-                      "@length(outputs('List_environments_coming_up_for_review')?['body/value'])",
-                      0
-                    ]
-                  },
-                  {
-                    "greater": [
-                      "@length(outputs('List_new_Teams_environments')?['body/value'])",
-                      0
-                    ]
-                  },
-                  {
-                    "greater": [
-                      "@length(variables('varDeletedEnvs'))",
-                      0
-                    ]
-                  }
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "58e0abe5-da4c-4888-8390-b0afb6043d0d"
-              },
-              "type": "If"
-            }
-          },
-          "runAfter": {
-            "Initialize_emailGUID": [
-              "Succeeded"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "226bdf61-6081-4773-ae64-22e859e1b172"
-          },
-          "type": "Scope"
-        },
-        "Error_Handling": {
-          "actions": {
-            "Create_a_new_record_-_Sync_Flow_Errors": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "CreateRecord",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_syncflowerrorses",
-                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
-                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
-                },
-                "authentication": "@parameters('$authentication')",
-                "retryPolicy": {
-                  "type": "exponential",
-                  "count": 10,
-                  "interval": "PT10S"
-                }
-              }
-            },
-            "Terminate": {
-              "runAfter": {
-                "Update_Last_Run_Fail": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
-              },
-              "type": "Terminate",
-              "inputs": {
-                "runStatus": "Failed",
-                "runError": {
-                  "code": "500",
-                  "message": "Get Environments Failed"
-                }
-              }
-            },
-            "Get_ID_Fail": {
-              "runAfter": {
-                "Create_a_new_record_-_Sync_Flow_Errors": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "$select": "admin_coesolutionmetadataid",
-                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
-                  "$top": 1
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "Update_Last_Run_Fail": {
-              "runAfter": {
-                "Get_ID_Fail": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "UpdateRecord",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
-                  "item/admin_lastrun": "@utcNow()",
-                  "item/admin_lastrunpassed": false
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            }
-          },
-          "runAfter": {
-            "Weekly_Clean_Up_of_Microsoft_Teams_environments_SCOPE": [
-              "Failed"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
-          },
-          "type": "Scope"
-        },
-        "Update_last_run_as_pass": {
-          "actions": {
-            "Update_Last_Run_Successful": {
-              "runAfter": {
-                "Get_ID_Pass": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "UpdateRecord",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
-                  "item/admin_lastrun": "@utcNow()",
-                  "item/admin_lastrunpassed": true
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "Get_ID_Pass": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "$select": "admin_coesolutionmetadataid",
-                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
-                  "$top": 1
-                },
-                "authentication": "@parameters('$authentication')"
-              }
-            },
-            "Catch_-_not_ready_to_take_last_run_date": {
-              "runAfter": {
-                "Update_Last_Run_Successful": [
-                  "Failed"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
-              },
-              "type": "Compose",
-              "inputs": "Catch - not ready to take last run date"
-            }
-          },
-          "runAfter": {
-            "Error_Handling": [
-              "Skipped"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
-          },
-          "type": "Scope"
         }
       },
       "outputs": {}

@@ -9,15 +9,6 @@
         "api": {
           "name": "shared_powerplatformforadmins"
         }
-      },
-      "shared_commondataserviceforapps": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
-        },
-        "api": {
-          "name": "shared_commondataserviceforapps"
-        }
       }
     },
     "definition": {
@@ -31,14 +22,6 @@
         "$authentication": {
           "defaultValue": {},
           "type": "SecureObject"
-        },
-        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
-          "defaultValue": "https://flow.microsoft.com/manage/environments/",
-          "type": "String",
-          "metadata": {
-            "schemaName": "admin_PowerAutomateEnvironmentVariable",
-            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
-          }
         }
       },
       "triggers": {
@@ -90,6 +73,159 @@
         }
       },
       "actions": {
+        "Respond_to_a_PowerApp_or_flow": {
+          "runAfter": {
+            "Compose": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f4d94164-79f3-42d4-a17c-e1fe47023bfc"
+          },
+          "type": "Response",
+          "kind": "PowerApp",
+          "inputs": {
+            "statusCode": 200,
+            "body": {
+              "code": "@variables('var_statusCode')",
+              "message": "@variables('var_statusReason')",
+              "errormessages": "@{outputs('Compose')}"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "title": "Code",
+                  "x-ms-dynamically-added": true,
+                  "type": "number"
+                },
+                "message": {
+                  "title": "Message",
+                  "x-ms-dynamically-added": true,
+                  "type": "string"
+                },
+                "errormessages": {
+                  "title": "ErrorMessages",
+                  "x-ms-dynamically-added": true,
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "Add_Environment_to_target_Policy's_list": {
+          "actions": {
+            "Filter_array": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "d28e2969-098e-42f7-8583-94325fb4c038"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@variables('arr_newEnvironmentList')",
+                "where": "@equals(item()?['name'], variables('var_environmentId'))"
+              }
+            },
+            "Check_if_Environment_already_in_Policy": {
+              "actions": {},
+              "runAfter": {
+                "Filter_array": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Append_to_array_variable": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "928213dd-8f8b-4806-9738-645697aec62b"
+                    },
+                    "type": "AppendToArrayVariable",
+                    "inputs": {
+                      "name": "arr_newEnvironmentList",
+                      "value": {
+                        "name": "@{outputs('Get_Environment_as_Admin')?['body/name']}",
+                        "id": "@{outputs('Get_Environment_as_Admin')?['body/id']}",
+                        "type": "@{outputs('Get_Environment_as_Admin')?['body/type']}"
+                      }
+                    }
+                  },
+                  "Update_DLP_Policy_V2": {
+                    "runAfter": {
+                      "Append_to_array_variable": [
+                        "Succeeded"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "5c06a274-99a0-4ef0-99d4-08aa5bf07cc7"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_powerplatformforadmins_1",
+                        "operationId": "UpdatePolicyV2",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                      },
+                      "parameters": {
+                        "policy": "@outputs('Get_DLP_Policy_V2')?['body/name']",
+                        "body/displayName": "@outputs('Get_DLP_Policy_V2')?['body/displayName']",
+                        "body/defaultConnectorsClassification": "@outputs('Get_DLP_Policy_V2')?['body/defaultConnectorsClassification']",
+                        "body/connectorGroups": "@outputs('Get_DLP_Policy_V2')?['body/connectorGroups']",
+                        "body/environmentType": "@outputs('Get_DLP_Policy_V2')?['body/environmentType']",
+                        "body/environments": "@variables('arr_newEnvironmentList')",
+                        "api-version": "2018-10-01"
+                      },
+                      "authentication": {
+                        "type": "Raw",
+                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(body('Filter_array'))",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "11437f7e-6bbf-470f-84ca-dda2811dc791"
+              },
+              "type": "If"
+            },
+            "Reset_Environments_Variable": {
+              "runAfter": {
+                "Check_if_Environment_already_in_Policy": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "4d7c6784-234f-4624-a2e2-0a2029c09cee"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "arr_newEnvironmentList",
+                "value": [
+                  {
+                    "name": "@{outputs('Get_Environment_as_Admin')?['body/name']}",
+                    "id": "@{outputs('Get_Environment_as_Admin')?['body/id']}",
+                    "type": "@{outputs('Get_Environment_as_Admin')?['body/type']}"
+                  }
+                ]
+              }
+            }
+          },
+          "runAfter": {
+            "Get_Data": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "432054e0-8f6d-4dcb-aceb-2e6b4d6d4f28"
+          },
+          "type": "Scope"
+        },
         "Initialize_variable_-_Policy_Id": {
           "runAfter": {},
           "metadata": {
@@ -147,6 +283,111 @@
           },
           "description": "Used for response"
         },
+        "Get_Data": {
+          "actions": {
+            "Get_DLP_Policy_V2": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "fc3ff542-d57a-4a03-a81c-494246a4b86f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_powerplatformforadmins_1",
+                  "operationId": "GetPolicyV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                },
+                "parameters": {
+                  "policy": "@variables('var_policyId')"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                }
+              }
+            },
+            "Get_Environment_as_Admin": {
+              "runAfter": {
+                "Set_variable_-_Policy_Environments": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f3ad4d3b-0f2c-43a4-8b5b-ac398ae36ca8"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_powerplatformforadmins_1",
+                  "operationId": "GetSingleEnvironment",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                },
+                "parameters": {
+                  "environment": "@variables('var_environmentId')",
+                  "api-version": "2018-10-01"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                }
+              }
+            },
+            "Set_variable_-_Policy_Environments": {
+              "runAfter": {
+                "Get_DLP_Policy_V2": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "60d06e27-a806-4bb3-ba01-f7224045d42e"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "arr_newEnvironmentList",
+                "value": "@outputs('Get_DLP_Policy_V2')?['body/environments']"
+              }
+            },
+            "OnlyEnvironments_Policies": {
+              "runAfter": {
+                "Get_Environment_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "786403b2-3be0-4d6a-aa6c-8723dd963b9a"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@outputs('List_DLP_Policies_V2')?['body/value']",
+                "where": "@equals(item()?['environmentType'], 'OnlyEnvironments')"
+              }
+            },
+            "ExceptEnvironments_Policies": {
+              "runAfter": {
+                "OnlyEnvironments_Policies": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "65d0119a-fe2f-4da7-8cf5-c8cacbc3a1dc"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@outputs('List_DLP_Policies_V2')?['body/value']",
+                "where": "@equals(item()?['environmentType'], 'ExceptEnvironments')"
+              }
+            }
+          },
+          "runAfter": {
+            "List_DLP_Policies_V2": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "fd3fd675-2e49-48a3-b908-cdc2cae85c82"
+          },
+          "type": "Scope"
+        },
         "Initialize_variable_-_New_Environment_List": {
           "runAfter": {
             "Initialize_variable_-_Status_Reason": [
@@ -184,6 +425,29 @@
                 "value": "OK"
               }
             ]
+          }
+        },
+        "List_DLP_Policies_V2": {
+          "runAfter": {
+            "Initialize_variable": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "918d7518-8255-498b-92a9-a51e67a899e3"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_powerplatformforadmins_1",
+              "operationId": "ListPoliciesV2",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+            },
+            "parameters": {},
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            }
           }
         },
         "Initialize_variable_-_Replace_All_Include_Policies": {
@@ -246,519 +510,103 @@
             ]
           }
         },
-        "Apply_policy_scope": {
+        "Compose": {
+          "runAfter": {
+            "Check_input_to_Exclude_Environment_from_all_\"Except_Environment\"_Policies": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d8e1b9cb-f415-480b-bb56-43650e539f68"
+          },
+          "type": "Compose",
+          "inputs": "@variables('arr_errorMessages')"
+        },
+        "Check_input_to_Remove_Environment_from_other_\"Only_Environment\"_Policies": {
           "actions": {
-            "List_DLP_Policies_V2": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "918d7518-8255-498b-92a9-a51e67a899e3"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_powerplatformforadmins_1",
-                  "operationId": "ListPoliciesV2",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                },
-                "parameters": {},
-                "authentication": {
-                  "type": "Raw",
-                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                }
-              }
-            },
-            "Get_Data": {
+            "Remove_Environment_from_other_\"Include\"_Policies": {
               "actions": {
-                "Get_DLP_Policy_V2": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "fc3ff542-d57a-4a03-a81c-494246a4b86f"
-                  },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_powerplatformforadmins_1",
-                      "operationId": "GetPolicyV2",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                    },
-                    "parameters": {
-                      "policy": "@variables('var_policyId')"
-                    },
-                    "authentication": {
-                      "type": "Raw",
-                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                    }
-                  }
-                },
-                "Get_Environment_as_Admin": {
-                  "runAfter": {
-                    "Set_variable_-_Policy_Environments": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "f3ad4d3b-0f2c-43a4-8b5b-ac398ae36ca8"
-                  },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_powerplatformforadmins_1",
-                      "operationId": "GetSingleEnvironment",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                    },
-                    "parameters": {
-                      "environment": "@variables('var_environmentId')",
-                      "api-version": "2018-10-01"
-                    },
-                    "authentication": {
-                      "type": "Raw",
-                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                    }
-                  }
-                },
-                "Set_variable_-_Policy_Environments": {
-                  "runAfter": {
-                    "Get_DLP_Policy_V2": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "60d06e27-a806-4bb3-ba01-f7224045d42e"
-                  },
-                  "type": "SetVariable",
-                  "inputs": {
-                    "name": "arr_newEnvironmentList",
-                    "value": "@outputs('Get_DLP_Policy_V2')?['body/environments']"
-                  }
-                },
-                "OnlyEnvironments_Policies": {
-                  "runAfter": {
-                    "Get_Environment_as_Admin": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "786403b2-3be0-4d6a-aa6c-8723dd963b9a"
-                  },
-                  "type": "Query",
-                  "inputs": {
-                    "from": "@outputs('List_DLP_Policies_V2')?['body/value']",
-                    "where": "@equals(item()?['environmentType'], 'OnlyEnvironments')"
-                  }
-                },
-                "ExceptEnvironments_Policies": {
-                  "runAfter": {
-                    "OnlyEnvironments_Policies": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "65d0119a-fe2f-4da7-8cf5-c8cacbc3a1dc"
-                  },
-                  "type": "Query",
-                  "inputs": {
-                    "from": "@outputs('List_DLP_Policies_V2')?['body/value']",
-                    "where": "@equals(item()?['environmentType'], 'ExceptEnvironments')"
-                  }
-                }
-              },
-              "runAfter": {
-                "List_DLP_Policies_V2": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "fd3fd675-2e49-48a3-b908-cdc2cae85c82"
-              },
-              "type": "Scope"
-            },
-            "Add_Environment_to_target_Policy's_list": {
-              "actions": {
-                "Filter_array": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "d28e2969-098e-42f7-8583-94325fb4c038"
-                  },
-                  "type": "Query",
-                  "inputs": {
-                    "from": "@variables('arr_newEnvironmentList')",
-                    "where": "@equals(item()?['name'], variables('var_environmentId'))"
-                  }
-                },
-                "Check_if_Environment_already_in_Policy": {
-                  "actions": {},
-                  "runAfter": {
-                    "Filter_array": [
-                      "Succeeded"
-                    ]
-                  },
-                  "else": {
-                    "actions": {
-                      "Append_to_array_variable": {
-                        "runAfter": {},
-                        "metadata": {
-                          "operationMetadataId": "928213dd-8f8b-4806-9738-645697aec62b"
-                        },
-                        "type": "AppendToArrayVariable",
-                        "inputs": {
-                          "name": "arr_newEnvironmentList",
-                          "value": {
-                            "name": "@{outputs('Get_Environment_as_Admin')?['body/name']}",
-                            "id": "@{outputs('Get_Environment_as_Admin')?['body/id']}",
-                            "type": "@{outputs('Get_Environment_as_Admin')?['body/type']}"
-                          }
-                        }
-                      },
-                      "Update_DLP_Policy_V2": {
-                        "runAfter": {
-                          "Append_to_array_variable": [
-                            "Succeeded"
-                          ]
-                        },
-                        "metadata": {
-                          "operationMetadataId": "5c06a274-99a0-4ef0-99d4-08aa5bf07cc7"
-                        },
-                        "type": "OpenApiConnection",
-                        "inputs": {
-                          "host": {
-                            "connectionName": "shared_powerplatformforadmins_1",
-                            "operationId": "UpdatePolicyV2",
-                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                          },
-                          "parameters": {
-                            "policy": "@outputs('Get_DLP_Policy_V2')?['body/name']",
-                            "body/displayName": "@outputs('Get_DLP_Policy_V2')?['body/displayName']",
-                            "body/defaultConnectorsClassification": "@outputs('Get_DLP_Policy_V2')?['body/defaultConnectorsClassification']",
-                            "body/connectorGroups": "@outputs('Get_DLP_Policy_V2')?['body/connectorGroups']",
-                            "body/environmentType": "@outputs('Get_DLP_Policy_V2')?['body/environmentType']",
-                            "body/environments": "@variables('arr_newEnvironmentList')",
-                            "api-version": "2018-10-01"
-                          },
-                          "authentication": {
-                            "type": "Raw",
-                            "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "expression": {
-                    "greater": [
-                      "@length(body('Filter_array'))",
-                      0
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "11437f7e-6bbf-470f-84ca-dda2811dc791"
-                  },
-                  "type": "If"
-                },
-                "Reset_Environments_Variable": {
-                  "runAfter": {
-                    "Check_if_Environment_already_in_Policy": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "4d7c6784-234f-4624-a2e2-0a2029c09cee"
-                  },
-                  "type": "SetVariable",
-                  "inputs": {
-                    "name": "arr_newEnvironmentList",
-                    "value": [
-                      {
-                        "name": "@{outputs('Get_Environment_as_Admin')?['body/name']}",
-                        "id": "@{outputs('Get_Environment_as_Admin')?['body/id']}",
-                        "type": "@{outputs('Get_Environment_as_Admin')?['body/type']}"
-                      }
-                    ]
-                  }
-                }
-              },
-              "runAfter": {
-                "Get_Data": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "432054e0-8f6d-4dcb-aceb-2e6b4d6d4f28"
-              },
-              "type": "Scope"
-            },
-            "Check_input_to_Remove_Environment_from_other_\"Only_Environment\"_Policies": {
-              "actions": {
-                "Remove_Environment_from_other_\"Include\"_Policies": {
+                "Apply_to_each_Include_Policy": {
+                  "foreach": "@body('OnlyEnvironments_Policies')",
                   "actions": {
-                    "Apply_to_each_Include_Policy": {
-                      "foreach": "@body('OnlyEnvironments_Policies')",
-                      "actions": {
-                        "Updated_Environments_list_length": {
-                          "runAfter": {
-                            "Filter_array_-_Remove_Environment": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "263dff64-6fd7-4d7a-a1d8-2258dfc9f5f1"
-                          },
-                          "type": "Compose",
-                          "inputs": "@int(length(body('Filter_array_-_Remove_Environment')))"
-                        },
-                        "Initial_Environments_list_length": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "e81b36e0-12b0-4906-b08c-9b9635a6bc94"
-                          },
-                          "type": "Compose",
-                          "inputs": "@int(length(item()?['environments']))"
-                        },
-                        "Filter_array_-_Remove_Environment": {
-                          "runAfter": {
-                            "Initial_Environments_list_length": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "d28e2969-098e-42f7-8583-94325fb4c038"
-                          },
-                          "type": "Query",
-                          "inputs": {
-                            "from": "@item()?['environments']",
-                            "where": "@not(equals(item()?['name'], variables('var_environmentId')))"
-                          }
-                        },
-                        "Display_conditional_values": {
-                          "runAfter": {
-                            "Updated_Environments_list_length": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "dfc66358-5373-428c-aebc-0727d701d6c4"
-                          },
-                          "type": "Compose",
-                          "inputs": "@{outputs('Initial_Environments_list_length')} == @{outputs('Updated_Environments_list_length')} ? @{equals(outputs('Updated_Environments_list_length'),outputs('Initial_Environments_list_length'))}"
-                        },
-                        "Skip_Policy_if_it_is_the_last_Environment": {
-                          "actions": {
-                            "Add_Policy_to_skippedPolicies_list": {
-                              "runAfter": {},
-                              "metadata": {
-                                "operationMetadataId": "1222cef7-8276-4627-9649-6ea5c8846f90"
-                              },
-                              "type": "AppendToArrayVariable",
-                              "inputs": {
-                                "name": "arr_skippedPolicies",
-                                "value": {
-                                  "displayName": "@{items('Apply_to_each_Include_Policy')?['displayName']}",
-                                  "name": "@{items('Apply_to_each_Include_Policy')?['name']}"
-                                }
-                              },
-                              "description": "Used to notify admin whether any policies were skipped to avoid ZeroEnvironment error state"
-                            }
-                          },
-                          "runAfter": {
-                            "Display_conditional_values": [
-                              "Succeeded"
-                            ]
-                          },
-                          "else": {
-                            "actions": {
-                              "Remove_Environment_from_Policy_if_found": {
-                                "actions": {
-                                  "Update_DLP_Policy_V2_2": {
-                                    "runAfter": {},
-                                    "metadata": {
-                                      "operationMetadataId": "55aa8ee4-6848-4e95-8531-3c66cdc9cc04"
-                                    },
-                                    "type": "OpenApiConnection",
-                                    "inputs": {
-                                      "host": {
-                                        "connectionName": "shared_powerplatformforadmins_1",
-                                        "operationId": "UpdatePolicyV2",
-                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
-                                      },
-                                      "parameters": {
-                                        "policy": "@item()?['name']",
-                                        "body/displayName": "@items('Apply_to_each_Include_Policy')?['displayName']",
-                                        "body/defaultConnectorsClassification": "@item()?['defaultConnectorsClassification']",
-                                        "body/connectorGroups": "@item()?['connectorGroups']",
-                                        "body/environmentType": "@item()?['environmentType']",
-                                        "body/environments": "@body('Filter_array_-_Remove_Environment')",
-                                        "api-version": "2018-10-01"
-                                      },
-                                      "authentication": {
-                                        "type": "Raw",
-                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                                      }
-                                    }
-                                  }
-                                },
-                                "runAfter": {},
-                                "else": {
-                                  "actions": {
-                                    "Path:_Do_not_update_Policy": {
-                                      "runAfter": {},
-                                      "metadata": {
-                                        "operationMetadataId": "4b79a49f-5266-4994-a261-b624564f5b26"
-                                      },
-                                      "type": "Compose",
-                                      "inputs": "Environment was not found in this policy."
-                                    }
-                                  }
-                                },
-                                "expression": {
-                                  "and": [
-                                    {
-                                      "not": {
-                                        "equals": [
-                                          "@outputs('Initial_Environments_list_length')",
-                                          "@outputs('Updated_Environments_list_length')"
-                                        ]
-                                      }
-                                    },
-                                    {
-                                      "greater": [
-                                        "@outputs('Updated_Environments_list_length')",
-                                        0
-                                      ]
-                                    }
-                                  ]
-                                },
-                                "metadata": {
-                                  "operationMetadataId": "b8ba1f9e-f7bd-4b52-9eeb-063f9bbcbcc0"
-                                },
-                                "type": "If"
-                              }
-                            }
-                          },
-                          "expression": {
-                            "and": [
-                              {
-                                "equals": [
-                                  "@outputs('Updated_Environments_list_length')",
-                                  0
-                                ]
-                              },
-                              {
-                                "equals": [
-                                  "@first(item()?['environments'])?['name']",
-                                  "@variables('var_environmentId')"
-                                ]
-                              }
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "597a7e35-c078-407e-b813-3fbb45298535"
-                          },
-                          "type": "If"
-                        }
-                      },
-                      "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "47d7bd96-0e49-4df3-8b3a-428794a74c7d"
-                      },
-                      "type": "Foreach"
-                    },
-                    "Condition": {
-                      "actions": {
-                        "Append_to_array_variable_2": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "77d9ad2b-096a-4f89-8b47-65f45b7bf088"
-                          },
-                          "type": "AppendToArrayVariable",
-                          "inputs": {
-                            "name": "arr_errorMessages",
-                            "value": {
-                              "message": "The following DLP Policies were not modified because the provided Environment was the last Environment in the Policy's list. Please modify or delete the these Policies manually in the Power Platform Admin Center: @{variables('arr_skippedPolicies')}"
-                            }
-                          }
-                        }
-                      },
+                    "Updated_Environments_list_length": {
                       "runAfter": {
-                        "Apply_to_each_Include_Policy": [
+                        "Filter_array_-_Remove_Environment": [
                           "Succeeded"
                         ]
                       },
-                      "expression": {
-                        "greater": [
-                          "@length(variables('arr_skippedPolicies'))",
-                          0
+                      "metadata": {
+                        "operationMetadataId": "263dff64-6fd7-4d7a-a1d8-2258dfc9f5f1"
+                      },
+                      "type": "Compose",
+                      "inputs": "@int(length(body('Filter_array_-_Remove_Environment')))"
+                    },
+                    "Initial_Environments_list_length": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "e81b36e0-12b0-4906-b08c-9b9635a6bc94"
+                      },
+                      "type": "Compose",
+                      "inputs": "@int(length(item()?['environments']))"
+                    },
+                    "Filter_array_-_Remove_Environment": {
+                      "runAfter": {
+                        "Initial_Environments_list_length": [
+                          "Succeeded"
                         ]
                       },
                       "metadata": {
-                        "operationMetadataId": "06f363e6-ef62-4d85-a757-8ca48efdd236"
+                        "operationMetadataId": "d28e2969-098e-42f7-8583-94325fb4c038"
                       },
-                      "type": "If"
-                    }
-                  },
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "8c530881-fa23-42e3-a776-c4df012540e9"
-                  },
-                  "type": "Scope"
-                }
-              },
-              "runAfter": {
-                "Add_Environment_to_target_Policy's_list": [
-                  "Succeeded"
-                ]
-              },
-              "expression": {
-                "equals": [
-                  "@triggerBody()?['boolean']",
-                  "@true"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "d5386365-33e7-4b05-9110-76b12a5457d0"
-              },
-              "type": "If"
-            },
-            "Check_input_to_Exclude_Environment_from_all_\"Except_Environment\"_Policies": {
-              "actions": {
-                "Exclude_from_all_Exclude_Policies": {
-                  "actions": {
-                    "Apply_to_each_Exclude_Policy": {
-                      "foreach": "@body('ExceptEnvironments_Policies')",
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@item()?['environments']",
+                        "where": "@not(equals(item()?['name'], variables('var_environmentId')))"
+                      }
+                    },
+                    "Display_conditional_values": {
+                      "runAfter": {
+                        "Updated_Environments_list_length": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "dfc66358-5373-428c-aebc-0727d701d6c4"
+                      },
+                      "type": "Compose",
+                      "inputs": "@{outputs('Initial_Environments_list_length')} == @{outputs('Updated_Environments_list_length')} ? @{equals(outputs('Updated_Environments_list_length'),outputs('Initial_Environments_list_length'))}"
+                    },
+                    "Skip_Policy_if_it_is_the_last_Environment": {
                       "actions": {
-                        "Filter_array_-_Check_if_Environment_is_in_list": {
+                        "Add_Policy_to_skippedPolicies_list": {
                           "runAfter": {},
                           "metadata": {
-                            "operationMetadataId": "d28e2969-098e-42f7-8583-94325fb4c038"
+                            "operationMetadataId": "1222cef7-8276-4627-9649-6ea5c8846f90"
                           },
-                          "type": "Query",
+                          "type": "AppendToArrayVariable",
                           "inputs": {
-                            "from": "@items('Apply_to_each_Exclude_Policy')?['environments']",
-                            "where": "@equals(item()?['name'], variables('var_environmentId'))"
-                          }
-                        },
-                        "Check_if_Environments_list_already_had_this_environment": {
-                          "actions": {},
-                          "runAfter": {
-                            "Filter_array_-_Check_if_Environment_is_in_list": [
-                              "Succeeded"
-                            ]
+                            "name": "arr_skippedPolicies",
+                            "value": {
+                              "displayName": "@{items('Apply_to_each_Include_Policy')?['displayName']}",
+                              "name": "@{items('Apply_to_each_Include_Policy')?['name']}"
+                            }
                           },
-                          "else": {
+                          "description": "Used to notify admin whether any policies were skipped to avoid ZeroEnvironment error state"
+                        }
+                      },
+                      "runAfter": {
+                        "Display_conditional_values": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Remove_Environment_from_Policy_if_found": {
                             "actions": {
-                              "Add_to_Exception_Environments_list": {
+                              "Update_DLP_Policy_V2_2": {
                                 "runAfter": {},
                                 "metadata": {
-                                  "operationMetadataId": "c693ebaf-6256-44e5-9144-c9773bd558a0"
-                                },
-                                "type": "Compose",
-                                "inputs": "@union(item()?['environments'],variables('arr_newEnvironmentList'))"
-                              },
-                              "Update_DLP_Policy_V2_3": {
-                                "runAfter": {
-                                  "Add_to_Exception_Environments_list": [
-                                    "Succeeded"
-                                  ]
-                                },
-                                "metadata": {
-                                  "operationMetadataId": "c2cd6e84-333a-4409-93af-d78c7a33270c"
+                                  "operationMetadataId": "55aa8ee4-6848-4e95-8531-3c66cdc9cc04"
                                 },
                                 "type": "OpenApiConnection",
                                 "inputs": {
@@ -768,12 +616,12 @@
                                     "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
                                   },
                                   "parameters": {
-                                    "policy": "@items('Apply_to_each_Exclude_Policy')?['name']",
-                                    "body/displayName": "@items('Apply_to_each_Exclude_Policy')?['displayName']",
-                                    "body/defaultConnectorsClassification": "@items('Apply_to_each_Exclude_Policy')?['defaultConnectorsClassification']",
-                                    "body/connectorGroups": "@items('Apply_to_each_Exclude_Policy')?['connectorGroups']",
-                                    "body/environmentType": "@items('Apply_to_each_Exclude_Policy')?['environmentType']",
-                                    "body/environments": "@outputs('Add_to_Exception_Environments_list')",
+                                    "policy": "@item()?['name']",
+                                    "body/displayName": "@items('Apply_to_each_Include_Policy')?['displayName']",
+                                    "body/defaultConnectorsClassification": "@item()?['defaultConnectorsClassification']",
+                                    "body/connectorGroups": "@item()?['connectorGroups']",
+                                    "body/environmentType": "@item()?['environmentType']",
+                                    "body/environments": "@body('Filter_array_-_Remove_Environment')",
                                     "api-version": "2018-10-01"
                                   },
                                   "authentication": {
@@ -782,308 +630,242 @@
                                   }
                                 }
                               }
-                            }
-                          },
-                          "expression": {
-                            "greater": [
-                              "@length(body('Filter_array_-_Check_if_Environment_is_in_list'))",
+                            },
+                            "runAfter": {},
+                            "else": {
+                              "actions": {
+                                "Path:_Do_not_update_Policy": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "4b79a49f-5266-4994-a261-b624564f5b26"
+                                  },
+                                  "type": "Compose",
+                                  "inputs": "Environment was not found in this policy."
+                                }
+                              }
+                            },
+                            "expression": {
+                              "and": [
+                                {
+                                  "not": {
+                                    "equals": [
+                                      "@outputs('Initial_Environments_list_length')",
+                                      "@outputs('Updated_Environments_list_length')"
+                                    ]
+                                  }
+                                },
+                                {
+                                  "greater": [
+                                    "@outputs('Updated_Environments_list_length')",
+                                    0
+                                  ]
+                                }
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "b8ba1f9e-f7bd-4b52-9eeb-063f9bbcbcc0"
+                            },
+                            "type": "If"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "and": [
+                          {
+                            "equals": [
+                              "@outputs('Updated_Environments_list_length')",
                               0
                             ]
                           },
-                          "metadata": {
-                            "operationMetadataId": "2b1da5e5-7d91-4143-b233-8132f68d4c54"
-                          },
-                          "type": "If"
-                        }
+                          {
+                            "equals": [
+                              "@first(item()?['environments'])?['name']",
+                              "@variables('var_environmentId')"
+                            ]
+                          }
+                        ]
                       },
-                      "runAfter": {},
                       "metadata": {
-                        "operationMetadataId": "29d82e1a-c95c-4783-a96d-dc506a4587d0"
+                        "operationMetadataId": "597a7e35-c078-407e-b813-3fbb45298535"
                       },
-                      "type": "Foreach"
+                      "type": "If"
                     }
                   },
                   "runAfter": {},
                   "metadata": {
-                    "operationMetadataId": "e7e20e87-0947-472c-8149-ab15d2bb9b95"
+                    "operationMetadataId": "47d7bd96-0e49-4df3-8b3a-428794a74c7d"
                   },
-                  "type": "Scope"
-                }
-              },
-              "runAfter": {
-                "Check_input_to_Remove_Environment_from_other_\"Only_Environment\"_Policies": [
-                  "Succeeded"
-                ]
-              },
-              "expression": {
-                "equals": [
-                  "@triggerBody()?['boolean_1']",
-                  "@true"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "2d5d6121-c0c2-4413-970a-79111fdbc40a"
-              },
-              "type": "If"
-            },
-            "Compose": {
-              "runAfter": {
-                "Check_input_to_Exclude_Environment_from_all_\"Except_Environment\"_Policies": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "d8e1b9cb-f415-480b-bb56-43650e539f68"
-              },
-              "type": "Compose",
-              "inputs": "@variables('arr_errorMessages')"
-            },
-            "Respond_to_a_PowerApp_or_flow": {
-              "runAfter": {
-                "Compose": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "f4d94164-79f3-42d4-a17c-e1fe47023bfc"
-              },
-              "type": "Response",
-              "kind": "PowerApp",
-              "inputs": {
-                "statusCode": 200,
-                "body": {
-                  "code": "@variables('var_statusCode')",
-                  "message": "@variables('var_statusReason')",
-                  "errormessages": "@{outputs('Compose')}"
+                  "type": "Foreach"
                 },
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "title": "Code",
-                      "x-ms-dynamically-added": true,
-                      "type": "number"
-                    },
-                    "message": {
-                      "title": "Message",
-                      "x-ms-dynamically-added": true,
-                      "type": "string"
-                    },
-                    "errormessages": {
-                      "title": "ErrorMessages",
-                      "x-ms-dynamically-added": true,
-                      "type": "string"
+                "Condition": {
+                  "actions": {
+                    "Append_to_array_variable_2": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "77d9ad2b-096a-4f89-8b47-65f45b7bf088"
+                      },
+                      "type": "AppendToArrayVariable",
+                      "inputs": {
+                        "name": "arr_errorMessages",
+                        "value": {
+                          "message": "The following DLP Policies were not modified because the provided Environment was the last Environment in the Policy's list. Please modify or delete the these Policies manually in the Power Platform Admin Center: @{variables('arr_skippedPolicies')}"
+                        }
+                      }
                     }
-                  }
+                  },
+                  "runAfter": {
+                    "Apply_to_each_Include_Policy": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "greater": [
+                      "@length(variables('arr_skippedPolicies'))",
+                      0
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "06f363e6-ef62-4d85-a757-8ca48efdd236"
+                  },
+                  "type": "If"
                 }
-              }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "8c530881-fa23-42e3-a776-c4df012540e9"
+              },
+              "type": "Scope"
             }
           },
           "runAfter": {
-            "Initialize_variable": [
+            "Add_Environment_to_target_Policy's_list": [
               "Succeeded"
             ]
           },
-          "metadata": {
-            "operationMetadataId": "ac162a16-9a4e-4424-91a1-afb1d909a285"
-          },
-          "type": "Scope"
-        },
-        "Error_Handling": {
-          "actions": {
-            "Create_a_new_record_-_Sync_Flow_Errors": {
-              "runAfter": {},
-              "metadata": {
-                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "CreateRecord",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_syncflowerrorses",
-                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
-                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
-                },
-                "authentication": {
-                  "type": "Raw",
-                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                },
-                "retryPolicy": {
-                  "type": "exponential",
-                  "count": 10,
-                  "interval": "PT10S"
-                }
-              }
-            },
-            "Terminate": {
-              "runAfter": {
-                "Update_Last_Run_Fail": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
-              },
-              "type": "Terminate",
-              "inputs": {
-                "runStatus": "Failed",
-                "runError": {
-                  "code": "500",
-                  "message": "Get Environments Failed"
-                }
-              }
-            },
-            "Get_ID_Fail": {
-              "runAfter": {
-                "Create_a_new_record_-_Sync_Flow_Errors": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "$select": "admin_coesolutionmetadataid",
-                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
-                  "$top": 1
-                },
-                "authentication": {
-                  "type": "Raw",
-                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                }
-              }
-            },
-            "Update_Last_Run_Fail": {
-              "runAfter": {
-                "Get_ID_Fail": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "UpdateRecord",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
-                  "item/admin_lastrun": "@utcNow()",
-                  "item/admin_lastrunpassed": false
-                },
-                "authentication": {
-                  "type": "Raw",
-                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                }
-              }
-            }
-          },
-          "runAfter": {
-            "Apply_policy_scope": [
-              "Failed"
+          "expression": {
+            "equals": [
+              "@triggerBody()?['boolean']",
+              "@true"
             ]
           },
           "metadata": {
-            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+            "operationMetadataId": "d5386365-33e7-4b05-9110-76b12a5457d0"
           },
-          "type": "Scope"
+          "type": "If"
         },
-        "Update_last_run_as_pass": {
+        "Check_input_to_Exclude_Environment_from_all_\"Except_Environment\"_Policies": {
           "actions": {
-            "Update_Last_Run_Successful": {
-              "runAfter": {
-                "Get_ID_Pass": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
-              },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "UpdateRecord",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
-                  "item/admin_lastrun": "@utcNow()",
-                  "item/admin_lastrunpassed": true
-                },
-                "authentication": {
-                  "type": "Raw",
-                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            "Exclude_from_all_Exclude_Policies": {
+              "actions": {
+                "Apply_to_each_Exclude_Policy": {
+                  "foreach": "@body('ExceptEnvironments_Policies')",
+                  "actions": {
+                    "Filter_array_-_Check_if_Environment_is_in_list": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d28e2969-098e-42f7-8583-94325fb4c038"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@items('Apply_to_each_Exclude_Policy')?['environments']",
+                        "where": "@equals(item()?['name'], variables('var_environmentId'))"
+                      }
+                    },
+                    "Check_if_Environments_list_already_had_this_environment": {
+                      "actions": {},
+                      "runAfter": {
+                        "Filter_array_-_Check_if_Environment_is_in_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Add_to_Exception_Environments_list": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "c693ebaf-6256-44e5-9144-c9773bd558a0"
+                            },
+                            "type": "Compose",
+                            "inputs": "@union(item()?['environments'],variables('arr_newEnvironmentList'))"
+                          },
+                          "Update_DLP_Policy_V2_3": {
+                            "runAfter": {
+                              "Add_to_Exception_Environments_list": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "c2cd6e84-333a-4409-93af-d78c7a33270c"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_powerplatformforadmins_1",
+                                "operationId": "UpdatePolicyV2",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                              },
+                              "parameters": {
+                                "policy": "@items('Apply_to_each_Exclude_Policy')?['name']",
+                                "body/displayName": "@items('Apply_to_each_Exclude_Policy')?['displayName']",
+                                "body/defaultConnectorsClassification": "@items('Apply_to_each_Exclude_Policy')?['defaultConnectorsClassification']",
+                                "body/connectorGroups": "@items('Apply_to_each_Exclude_Policy')?['connectorGroups']",
+                                "body/environmentType": "@items('Apply_to_each_Exclude_Policy')?['environmentType']",
+                                "body/environments": "@outputs('Add_to_Exception_Environments_list')",
+                                "api-version": "2018-10-01"
+                              },
+                              "authentication": {
+                                "type": "Raw",
+                                "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(body('Filter_array_-_Check_if_Environment_is_in_list'))",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2b1da5e5-7d91-4143-b233-8132f68d4c54"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "29d82e1a-c95c-4783-a96d-dc506a4587d0"
+                  },
+                  "type": "Foreach"
                 }
-              }
-            },
-            "Get_ID_Pass": {
+              },
               "runAfter": {},
               "metadata": {
-                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+                "operationMetadataId": "e7e20e87-0947-472c-8149-ab15d2bb9b95"
               },
-              "type": "OpenApiConnection",
-              "inputs": {
-                "host": {
-                  "connectionName": "shared_commondataserviceforapps",
-                  "operationId": "ListRecords",
-                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                },
-                "parameters": {
-                  "entityName": "admin_coesolutionmetadatas",
-                  "$select": "admin_coesolutionmetadataid",
-                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
-                  "$top": 1
-                },
-                "authentication": {
-                  "type": "Raw",
-                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                }
-              }
-            },
-            "Catch_-_not_ready_to_take_last_run_date": {
-              "runAfter": {
-                "Update_Last_Run_Successful": [
-                  "Failed"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
-              },
-              "type": "Compose",
-              "inputs": "Catch - not ready to take last run date"
+              "type": "Scope"
             }
           },
           "runAfter": {
-            "Error_Handling": [
-              "Skipped"
+            "Check_input_to_Remove_Environment_from_other_\"Only_Environment\"_Policies": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "equals": [
+              "@triggerBody()?['boolean_1']",
+              "@true"
             ]
           },
           "metadata": {
-            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+            "operationMetadataId": "2d5d6121-c0c2-4413-970a-79111fdbc40a"
           },
-          "type": "Scope"
+          "type": "If"
         }
       }
     },
-    "templateName": ""
+    "templateName": null
   },
   "schemaVersion": "1.0.0.0"
 }
