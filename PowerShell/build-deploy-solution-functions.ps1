@@ -245,6 +245,9 @@ function set-deployment-variable
                 Write-Host $settingsJson
                 $settingsJson | Out-File $variableValue -Encoding utf8NoBOM
             }
+            else{
+                Write-Host "No WebHook settings found"
+            }
         }
     }
 

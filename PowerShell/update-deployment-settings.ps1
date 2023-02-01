@@ -44,6 +44,7 @@
     {
         $connectionReferences = [System.Collections.ArrayList]@()
         $environmentVariables = [System.Collections.ArrayList]@()
+        $webHookUrls = [System.Collections.ArrayList]@()
         $canvasApps = [System.Collections.ArrayList]@()
         $customConnectorSharings = [System.Collections.ArrayList]@()
         $flowOwnerships = [System.Collections.ArrayList]@()
@@ -117,6 +118,24 @@
                         }
                         else{
                             Write-Host "Environment variable $configurationVariableName is Null or Empty"
+                        }
+                    }
+                    #Set WebHook URL variables
+                    elseif($configurationVariableName.StartsWith("webhookurl.", "CurrentCultureIgnoreCase")) {
+                        if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
+                        {
+                            $schemaName = $configurationVariableName -replace "webhookurl.", ""
+                            $endPointResults =  Get-CrmRecords -conn $conn -EntityLogicalName "serviceendpoint" -FilterAttribute "name" -FilterOperator "eq" -FilterValue $schemaName -Fields "name"
+                            if ($endPointResults.Count -gt 0){
+                                $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="#{$configurationVariableName}#"}
+                                if($usePlaceholders.ToLower() -eq 'false') {
+                                    $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="$configurationVariableValue"}
+                                }
+                                $webHookUrls.Add($envVar)                                
+                            }
+                        }
+                        else{
+                            Write-Host "Service Endpoint variable $configurationVariableName is Null or Empty"
                         }
                     }
                     elseif($configurationVariableName.StartsWith("canvasshare.aadGroupId.", "CurrentCultureIgnoreCase")) {
@@ -274,6 +293,8 @@
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'FlowShareWithGroupTeamConfiguration' -Value $flowSharings
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupCanvasConfiguration' -Value $canvasApps
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupTeamConfiguration' -Value $groupTeams
+            $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'WebhookUrls' -Value $webHookUrls
+
             #Convert the updated configuration to json and store in customDeploymentSettings.json
             Write-Host "Creating custom deployment settings"
             $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
