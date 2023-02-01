@@ -1,0 +1,551 @@
+Screen1 As screen:
+    LoadingSpinnerColor: =RGBA(0, 120, 212, 1)
+    OnVisible: |-
+        =//turn on spinner
+        Set(Loader, true);
+        Set(LoaderText, "Loading Flows");
+        
+        //colors and icons
+        UpdateContext({ColorYes: "rgb(223, 246, 221)"});
+        UpdateContext({ColorYesDark: "rgb(16, 124, 16)"});
+        UpdateContext({ColorNo: "rgb(253, 231, 233)"});
+        UpdateContext({ColorNoDark: "rgb(168, 0, 0)"});
+        UpdateContext({ErrorButton: "data:image/svg+xml," & EncodeUrl("<svg xmlns='http://www.w3.org/2000/svg' width='25' height='25' viewBox='0 0 25 25'>
+          <circle cx='8' cy='8' r='8' fill='#a4262c' /> <circle cx='8' cy='11.445' r='1.239' fill='#fff' /><path d='M8.185,3.886h-1.3L7.22,9.632H8.78l.331-5.746Z' fill='#fff' />
+        </svg>")});
+        
+        //sort order defaults
+        UpdateContext({flowSortOrder: SortOrder.Ascending});
+        UpdateContext({sortByName: true, sortBySolutions: false, sortByArea: false, sortByState: false, sortByLastRun: false, sortByPassed: false, sortByUnamanged: false});
+        
+        //references
+        Set(CoE_Envt, Text(First(Filter(Environments, isCOE = 'isCOE (Environments)'.Yes)).Environment));
+        Set(UnmanagedSolutionID, Text(First(Filter(Solutions, Name = "Active")).'Solution Identifier'));
+        IsError(ClearCollect(TempFlowCollection, PowerAutomateManagement.ListFlowsInEnvironment(CoE_Envt).value)); //Get flows for refetching 
+        
+        //start the collection
+        Clear(FlowsWithMetadata);
+        ForAll(Filter('CoE Solution Metadata', ObjectType="CloudFlows"),
+            Collect(FlowsWithMetadata,
+            {
+                //basics
+                theName: ObjectName,
+                theSolution: CoESolution,
+                theArea: CoESolutionArea,
+                theLink: ObjectURL,
+        
+                //metadata
+                theGUID: ObjectGUID,
+                theSoltuionGUID: ObjectSolutionGUID,
+                theSolutionID: SolutionID,
+                theFlowIsManaged: If(ObjectIsManaged = 'ObjectIsManaged (CoE Solution Metadata)'.Yes, true, false),
+                thePublishedState: If(ObjectGUID = "unpublished", false, true),
+                theIsErrorState: false,
+                theIsErrorButton: "",
+                RecordSelected: false,
+        
+                //state
+                theState: If(ObjectGUID = "refetch", "Started", "Stopped"),
+                theStateText: "",
+        
+                //unmanaged layer
+                theFlowHasUnmanagedLayer: false, //will populate correctly below
+                theFlowHasUnmanagedLayerImage: "",
+        
+                //last run date and passed
+                theLastRunUnknown: If(LastRun < Date(2000, 1, 1) || IsEmpty(LastRun), true, false),
+                theLastRunDate:  LastRun,
+                theLastRunDateText: Text(LastRun, DateTimeFormat.ShortDate),
+                theLastRunPassed: If(LastRunPassed = 'LastRunPassed (CoE Solution Metadata)'.Yes, true, false),
+                theLastRunPassedTag: "",
+                theLastRunPassedTagColor: "",
+                theLastRunPassedTagBorderColor: ""
+            }
+            )); 
+        
+        //update backend with GUIDs for items published since last metadata run
+        ForAll(Filter(FlowsWithMetadata, theGUID = "unpublished" || theGUID = "refetch" || IsBlank(theGUID)), 
+            //if now published
+            If(CountRows(Filter(TempFlowCollection, properties.displayName = theName))>0, 
+                UpdateIf('CoE Solution Metadata', ObjectName = theName, {ObjectGUID: First(Filter(TempFlowCollection, properties.displayName = theName)).name})));
+        
+        
+        //update local collection  items published since last metadata run
+        UpdateIf(FlowsWithMetadata, theGUID = "unpublished" || theGUID = "refetch" || IsBlank(theGUID),
+        {
+            theGUID: If(CountRows(Filter(TempFlowCollection, properties.displayName = theName))>0, 
+                First(Filter(TempFlowCollection, properties.displayName = theName)).name, "unpublished")
+        });
+        
+        
+        //get state and layers
+        UpdateIf(FlowsWithMetadata, theGUID <> "unpublished" && theGUID <> "refetch" && !IsBlank(theGUID),
+        {
+        //    theState: IfError(PowerAutomateManagement.AdminGetFlow(CoE_Envt, ThisRecord.theGUID).properties.state, "Error"),
+            theState: IfError(PowerAutomateManagement.GetFlow(CoE_Envt, ThisRecord.theGUID).properties.state, "Error"), //switch to this so Admin SR can use
+            theFlowHasUnmanagedLayer: If(And(theFlowIsManaged = true, Text(First(Filter(Processes, 'Process Name'= theName)).solutionid)=UnmanagedSolutionID), true, false)
+        });
+        
+        //update rest of the columns
+        UpdateIf(FlowsWithMetadata, true,
+        {
+            //state
+            theStateText: If(theState = "Error", "Error", If(theState = "Started", "On", "Off")),
+                
+            //unmanaged layer
+            theFlowHasUnmanagedLayerImage: If(theFlowHasUnmanagedLayer, "icon:MapLayers", ""),
+        
+            //last run date and passed
+            theLastRunDateText: If(theLastRunUnknown, "", Text(theLastRunDate, DateTimeFormat.ShortDate)),
+            theLastRunPassedTag: If(theLastRunUnknown, "", If(theLastRunPassed, "Passed", "Failed")),
+            theLastRunPassedTagColor: If(theLastRunUnknown, "", If(theLastRunPassed, ColorYes, ColorNo)),
+            theLastRunPassedTagBorderColor: If(theLastRunUnknown, "", If(theLastRunPassed, ColorYesDark, ColorNoDark))
+        });
+        
+        //select first row
+        UpdateIf(FlowsWithMetadata, theName = First(SortByColumns(FlowsWithMetadata, "theName", flowSortOrder)).theName, {RecordSelected: true});
+        UpdateContext({ctxTableEvent: "SetSelection"&Text(Rand())});
+        
+        //Create pivot data
+        Clear(col_Area);
+        Collect(col_Area, {ItemKey: "allSolutions", ItemDisplayName: "All solution areas"});
+        ForAll(
+            Distinct(FlowsWithMetadata, theArea),
+            Collect(col_Area, {ItemKey: Result, ItemDisplayName: Result} )
+        );
+        RemoveIf(col_Area, IsBlank(ItemKey));
+        
+        //turn off spinner
+        Set(Loader, false);
+        Set(LoaderText, "");
+
+    MainContentContainer As groupContainer.verticalAutoLayoutContainer:
+        Height: =Parent.Height
+        LayoutDirection: =LayoutDirection.Vertical
+        LayoutMode: =LayoutMode.Auto
+        PaddingBottom: =10
+        Width: =Parent.Width
+        ZIndex: =2
+
+        ActionHeader As groupContainer.verticalAutoLayoutContainer:
+            Fill: =RGBA(243, 242, 241, 1)
+            FillPortions: =0
+            Height: =44
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutJustifyContent: =LayoutJustifyContent.SpaceBetween
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =32
+            PaddingRight: =32
+            ZIndex: =1
+
+            "CommandBar As 'Fluent Command Bar (1.0.18)'.pcfdataset":
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                Height: =32
+                Items: |-
+                    =Table(
+                        {
+                            ItemKey: "turnOnOff",
+                            ItemDisplayName: "Turn " & If(FlowList.Selected.theState = "Started", "off", "on"),
+                            ItemIconName: "PowerButton",
+                            ItemEnabled: If(CountRows(FlowList.SelectedItems) = 1, true, false),
+                            ItemVisible: true
+                    
+                        },
+                        {
+                            ItemKey: "details",
+                            ItemDisplayName: "Flow details",
+                            ItemIconName: "info",
+                            ItemEnabled: If(CountRows(FlowList.SelectedItems) = 1, true, false),
+                            ItemVisible: true
+                        },
+                        {
+                            ItemKey: "history",
+                            ItemDisplayName: "Run history",
+                            ItemIconName: "FullHistory",
+                            ItemEnabled: If(CountRows(FlowList.SelectedItems) = 1, true, false),
+                            ItemVisible: true
+                        },
+                        {
+                            ItemKey: "analytics",
+                            ItemDisplayName: "Run analytics",
+                            ItemIconName: "Chart",
+                            ItemEnabled: If(CountRows(FlowList.SelectedItems) = 1, true, false),
+                            ItemVisible: true
+                        },
+                        {
+                            ItemKey: "layers",
+                            ItemDisplayName: "Remove solution layers",
+                            ItemIconName: "MapLayers",
+                            ItemEnabled: If(CountRows(FlowList.SelectedItems) = 1 && FlowList.Selected.theFlowHasUnmanagedLayer = true, true, false),
+                            ItemVisible: true
+                        }
+                    )
+                LayoutMinHeight: =44
+                LayoutMinWidth: =200
+                OnChange: =false
+                OnSelect: |-
+                    =Switch(Self.Selected.ItemKey,
+                    
+                    "details",    
+                        //browse to flow details
+                        Launch(FlowList.Selected.theLink),
+                    
+                    "layers", 
+                        Launch(theAppMakerURL & "environments/" & CoE_Envt & "/solutions/" & 
+                            FlowList.Selected.theSolutionID & "/objects/workflow/" & FlowList.Selected.theSoltuionGUID & "/layers"),
+                    
+                    "history",
+                        Launch(theFlowMakerURL & CoE_Envt & "/solutions/" & 
+                            FlowList.Selected.theSolutionID & "/flows/" & FlowList.Selected.theGUID & "/runs"),
+                    
+                    "analytics", 
+                        Launch(theFlowMakerURL & CoE_Envt & "/solutions/" & 
+                            FlowList.Selected.theSolutionID & "/flows/" & FlowList.Selected.theGUID & "/analytics"),
+                    
+                    "turnOnOff", 
+                       //turn on or off the flow
+                        UpdateContext({TurnOnOffTheGUID: FlowList.Selected.theGUID});
+                        UpdateContext({TurnOnOffTheSolutionGUID: FlowList.Selected.theSoltuionGUID});
+                        UpdateContext({JustPublished: If(FlowList.Selected.thePublishedState, false, true)});
+                        UpdateContext({TurnOnOffTheFlowName: FlowList.Selected.theName});
+                    
+                        //if draft, activate which will also turn on
+                        If(!FlowList.Selected.thePublishedState,
+                            Set(Loader, true); Set(LoaderText, "Activating " & FlowList.Selected.theName);
+                            Patch(Processes, LookUp(Processes, 'Process Name' = FlowList.Selected.theName), {Status: 'Status (Processes)'.Activated});
+                            UpdateIf('CoE Solution Metadata', ObjectSolutionGUID=TurnOnOffTheSolutionGUID, {ObjectGUID: "refetch"});
+                            UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, 
+                                {theGUID: "refetch", thePublishedState: true, theIsErrorState: false, theIsErrorButton: "", theState: "Started", theStateText: "On"})
+                        );
+                    
+                        //if still need GUID, fetch it
+                        If(TurnOnOffTheGUID = "refetch", 
+                            //get new GUID (name from connector)
+                            Set(Loader, true); Set(LoaderText, "Fetching ID for recently activated flow " & FlowList.Selected.theName);
+                            ClearCollect(TempFlowCollection, PowerAutomateManagement.ListFlowsInEnvironment(CoE_Envt).value);
+                            UpdateContext({TurnOnOffTheGUID: If(CountRows(TempFlowCollection)>0, 
+                                First(Filter(TempFlowCollection, properties.displayName = FlowList.Selected.theName)).name, "fail")});
+                            //update if successful
+                            If(TurnOnOffTheGUID <> "fail", 
+                                //if publish failed show error
+                                UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, {theIsErrorState: true, theIsErrorButton: ErrorButton}),
+                                //else update
+                                UpdateIf('CoE Solution Metadata', ObjectSolutionGUID=TurnOnOffTheSolutionGUID, {ObjectGUID: TurnOnOffTheGUID});
+                                UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, 
+                                    {theGUID: If(IsBlank(TurnOnOffTheGUID), "refetch", TurnOnOffTheGUID), thePublishedState: true, theIsErrorState: false, theIsErrorButton: "", 
+                                    theState: "Started", theStateText: "On"});
+                        ));
+                    
+                        //if was already published turn on or off
+                        If(!JustPublished,
+                            Set(Loader, true); Set(LoaderText, If(FlowList.Selected.theState = "Stopped", "Turning ON: ", "Turning OFF: ") & FlowList.Selected.theName);
+                    
+                        If(FlowList.Selected.theState = "Stopped", 
+                            If('CommandCenterApp>SetCoEFlowsState'.Run(CoE_Envt, true, TurnOnOffTheGUID).return = "pass", 
+                                UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, 
+                                {theState: "Started", theIsErrorState: false, theIsErrorButton: "", theStateText: "On"}),
+                                UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, {theIsErrorState: true, theIsErrorButton: ErrorButton})),
+                            If('CommandCenterApp>SetCoEFlowsState'.Run(CoE_Envt, false, TurnOnOffTheGUID).return = "pass", 
+                                UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, 
+                                {theState: "Stopped", theIsErrorState: false, theIsErrorButton: "", theStateText: "Off"}),
+                                UpdateIf(FlowsWithMetadata, theSoltuionGUID=TurnOnOffTheSolutionGUID, {theIsErrorState: true, theIsErrorButton: ErrorButton})));
+                        );
+                    
+                        //set selection back in place
+                        UpdateIf(FlowsWithMetadata, theName = TurnOnOffTheFlowName, {RecordSelected: true});
+                        UpdateIf(FlowsWithMetadata, theName <> TurnOnOffTheFlowName, {RecordSelected: false});
+                        UpdateContext({ctxTableEvent: "SetSelection"&Text(Rand())});
+                    
+                    
+                        Set(Loader, false); Set(LoaderText, "")
+                    
+                    )
+                Theme: =SearchBoxThemeJson
+                Visible: =true
+                Width: =Parent.Width - Parent.PaddingLeft - Parent.PaddingRight
+                X: =0
+                Y: =0
+                ZIndex: =4
+
+            "txt_FlowSearch As 'Fluent SearchBox (1.0.18) Preview'":
+                AlignInContainer: =AlignInContainer.Center
+                DisplayMode: =DisplayMode.Edit
+                Height: =33
+                LayoutMinHeight: =33
+                LayoutMinWidth: =200
+                PlaceHolderText: ="Search"
+                Theme: =SearchBoxThemeJson
+                Visible: =true
+                Width: =300
+                X: =0
+                Y: =0
+                ZIndex: =5
+
+        HeaderDivider As rectangle:
+            AlignInContainer: =AlignInContainer.Stretch
+            BorderColor: =RGBA(166, 166, 166, 1)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            DisabledFill: =RGBA(166, 166, 166, 1)
+            Fill: =RGBA(225, 223, 221, 1)
+            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+            Height: =1
+            HoverFill: =RGBA(225, 223, 221, 1)
+            PressedFill: =RGBA(225, 223, 221, 1)
+            Width: =1366
+            Y: =72
+            ZIndex: =2
+
+        Header_1 As groupContainer.verticalAutoLayoutContainer:
+            FillPortions: =0
+            Height: =100
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =40
+            PaddingRight: =40
+            PaddingTop: =32
+            ZIndex: =4
+
+            Header_1lbl As Label:
+                AutoHeight: =true
+                DisplayMode: =DisplayMode.Edit
+                FontSize: =18
+                FontWeight: =FontWeight.Semibold
+                Height: =43
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                PaddingStart: =0  
+                Text: ="CoE flows"
+                Width: =320
+                X: =35
+                Y: =15
+                ZIndex: =1
+
+        pivotContainer As groupContainer.horizontalAutoLayoutContainer:
+            FillPortions: =0
+            Height: =45
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =32
+            PaddingRight: =32
+            ZIndex: =5
+
+            "Pivot As 'Fluent Pivot (1.0.18)'.pcfdataset":
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                Height: =Parent.Height
+                Items: =SortByColumns(col_Area, "ItemDisplayName")
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                OnChange: =false
+                OnSelect: =false
+                Theme: =AppThemeJson
+                Width: =200
+                X: =0
+                Y: =0
+                ZIndex: =1
+
+                ItemDisplayName1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="ItemDisplayName"
+                    FieldName: ="ItemDisplayName"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =1
+                    ZIndex: =42
+
+        BodyContainer As groupContainer.horizontalAutoLayoutContainer:
+            LayoutGap: =20
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =40
+            PaddingRight: =40
+            ZIndex: =6
+
+            "FlowList As 'Fluent Details List (1.0.18)'.pcfdataset":
+                ColPaddingLeft: =""
+                columns_Items: |-
+                    =Table(
+                        {ColName:"theName",ColDisplayName:"Flow",ColWidth:400,ColRowHeader:true,ColResizable:true, ColSortable:true},
+                        {ColName:"theSolution",ColDisplayName:"Solution",ColWidth:100,ColRowHeader:true,ColResizable:true, ColSortable:true},
+                        {ColName:"theArea",ColDisplayName:"Solution Area",ColWidth:175,ColRowHeader:true,ColResizable:true, ColSortable:true},
+                        {ColName:"theStateText",ColDisplayName:"State",ColWidth:125,ColRowHeader:true,ColResizable:true, ColSortable:true},
+                        {ColName:"theLastRunDateText",ColDisplayName:"Last Run",ColWidth:100,ColRowHeader:true,ColResizable:true, ColHideWhenBlank: true, ColSortable:true},
+                        {ColName:"theLastRunPassedTag",ColDisplayName:"Last Run Passed",ColWidth:125,ColRowHeader:true,ColResizable:true, ColSortable:true,
+                                ColCellType: "tag", ColTagColorColumn: "theLastRunPassedTagColor", ColTagBorderColorColumn: "theLastRunPassedTagBorderColor"},
+                        {ColName:"theFlowHasUnmanagedLayerImage",ColDisplayName:"Solution Layers",ColWidth:135,ColRowHeader:false,ColResizable:false, ColSortable: true, ColCellType: "clickableimage"}
+                        )
+                Compact: =false
+                CurrentSortColumn: =""
+                CurrentSortDirection: ='''PowerCAT.FluentDetailsList.CurrentSortDirection'''.Ascending
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1.5
+                Height: =Parent.Height
+                InputEvent: =ctxTableEvent
+                Items: |-
+                    =SortByColumns(
+                    Filter(
+                        If("allSolutions" in Pivot.Selected.ItemKey || IsBlank(Pivot.Selected.ItemKey),
+                            FlowsWithMetadata,
+                            Filter(FlowsWithMetadata, theArea = Pivot.Selected.ItemKey)), 
+                        txt_FlowSearch.SearchText in theName || txt_FlowSearch.SearchText in theSolution || txt_FlowSearch.SearchText in theArea), 
+                    If(sortByName, "theName", If(sortBySolutions, "theSolution", If(sortByArea, "theArea", If(sortByState, "theState", If(sortByLastRun, "theLastRunDate", If(sortByPassed, "theLastRunPassedTag", If(sortByUnamanged, "theFlowHasUnmanagedLayer", "theName"))))))),
+                    If(flowSortOrder = "ascending", Ascending, Descending))
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                OnChange: |-
+                    =If(Self.EventName="CellAction",
+                        UpdateContext({SelectedFlow: LookUp(FlowsWithMetadata, theName = FlowList.EventRowKey)});
+                        UpdateIf(FlowsWithMetadata, theName = FlowList.EventRowKey, {RecordSelected: true});
+                        UpdateIf(FlowsWithMetadata, theName <> FlowList.EventRowKey, {RecordSelected: false});
+                        UpdateContext({ctxTableEvent: "SetSelection"&Text(Rand())});
+                    
+                    	Switch(Self.EventColumn,
+                     
+                         //browse to flow solution layers
+                        "theFlowHasUnmanagedLayerImage", 
+                            If(CountRows(FlowList.SelectedItems) = 1, Launch(theAppMakerURL & "environments/" & CoE_Envt & "/solutions/" & 
+                            FlowList.Selected.theSolutionID & "/objects/workflow/" & SelectedFlow.theSoltuionGUID & "/layers")))
+                    );
+                    
+                    If(Self.EventName="Sort", 
+                    	Switch(Self.SortEventColumn,
+                        "theName", 
+                        UpdateContext({sortByName: true, sortBySolutions: false, sortByArea: false, sortByState: false, sortByLastRun: false, sortByPassed: false, sortByUnamanged: false});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)}),
+                    
+                        "theSolution",
+                        UpdateContext({sortByName: false, sortBySolutions: true, sortByArea: false, sortByState: false, sortByLastRun: false, sortByPassed: false, sortByUnamanged: false});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)}),
+                    
+                        "theArea",
+                        UpdateContext({sortByName: false, sortBySolutions: false, sortByArea: true, sortByState: false, sortByLastRun: false, sortByPassed: false, sortByUnamanged: false});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)}),
+                    
+                        "theStateText",
+                        UpdateContext({sortByName: false, sortBySolutions: false, sortByArea: false, sortByState: true, sortByLastRun: false, sortByPassed: false, sortByUnamanged: false});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)}),
+                    
+                        "theLastRunDateText",
+                        UpdateContext({sortByName: false, sortBySolutions: false, sortByArea: false, sortByState: false, sortByLastRun: true, sortByPassed: false, sortByUnamanged: false});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)}),
+                    
+                        "theLastRunPassedTag",
+                        UpdateContext({sortByName: false, sortBySolutions: false, sortByArea: false, sortByState: false, sortByLastRun: false, sortByPassed: true, sortByUnamanged: false});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)}),
+                    
+                        "theFlowHasUnmanagedLayerImage",
+                        UpdateContext({sortByName: false, sortBySolutions: false, sortByArea: false, sortByState: false, sortByLastRun: false, sortByPassed: false, sortByUnamanged: true});
+                        UpdateContext({flowSortOrder:If(flowSortOrder = SortOrder.Ascending, SortOrder.Descending, SortOrder.Ascending)})
+                    ))
+                OnSelect: =false
+                RaiseOnRowSelectionChangeEvent: =false
+                RecordKey: ="theName"
+                RecordSelected: =""
+                SelectionAlwaysVisible: =false
+                SelectRowsOnFocus: =false
+                Theme: =AppThemeJson
+                Visible: =true
+                Width: =Parent.Width
+                X: =25
+                Y: =127
+                ZIndex: =1
+
+                theName1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theName"
+                    FieldName: ="theName"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =3
+                    ZIndex: =17
+
+                theArea1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theArea"
+                    FieldName: ="theArea"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =6
+                    ZIndex: =18
+
+                theSolution1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theSolution"
+                    FieldName: ="theSolution"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =5
+                    ZIndex: =19
+
+                theLinkImage1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theLinkImage"
+                    FieldName: ="theLinkImage"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =1
+                    ZIndex: =38
+
+                theLastRunDateText1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theLastRunDateText"
+                    FieldName: ="theLastRunDateText"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =7
+                    ZIndex: =43
+
+                theLastRunPassedTag1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theLastRunPassedTag"
+                    FieldName: ="theLastRunPassedTag"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =10
+                    ZIndex: =44
+
+                theFlowHasUnmanagedLayerImage1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theFlowHasUnmanagedLayerImage"
+                    FieldName: ="theFlowHasUnmanagedLayerImage"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =2
+                    ZIndex: =45
+
+                theIsErrorButton1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theIsErrorButton"
+                    FieldName: ="theIsErrorButton"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =11
+                    ZIndex: =47
+
+                RecordSelected1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="RecordSelected"
+                    FieldName: ="RecordSelected"
+                    FieldType: ="b"
+                    FieldVariantName: ="textualColumn"
+                    Order: =10
+                    ZIndex: =50
+
+                theStateText1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theStateText"
+                    FieldName: ="theStateText"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =6
+                    ZIndex: =51
+
+    "Spinner As 'Fluent Spinner (1.0.18) Preview'":
+        DisplayMode: =DisplayMode.Edit
+        Height: =Parent.Height
+        Label: =LoaderText
+        Theme: =AppThemeJson
+        Visible: =Loader
+        Width: =Parent.Width
+        X: =0
+        Y: =0
+        ZIndex: =3
+
