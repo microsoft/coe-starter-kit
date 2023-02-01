@@ -28,13 +28,13 @@
           "name": "shared_flowmanagement"
         }
       },
-      "shared_office365": {
+      "shared_commondataserviceforapps": {
         "runtimeSource": "embedded",
         "connection": {
-          "connectionReferenceLogicalName": "new_CoEGovO365Outlook"
+          "connectionReferenceLogicalName": "admin_CoEGovDataverse"
         },
         "api": {
-          "name": "shared_office365"
+          "name": "shared_commondataserviceforapps"
         }
       },
       "shared_approvals": {
@@ -92,7 +92,7 @@
           }
         },
         "ProductionEnvironment (admin_ProductionEnvironment)": {
-          "defaultValue": true,
+          "defaultValue": false,
           "type": "Bool",
           "metadata": {
             "schemaName": "admin_ProductionEnvironment",
@@ -129,6 +129,14 @@
           "metadata": {
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
             "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)": {
+          "defaultValue": "en-US",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdmineMailPreferredLanguage",
+            "description": "Inventory - The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US"
           }
         }
       },
@@ -177,7 +185,7 @@
               "type": "Query",
               "inputs": {
                 "from": "@outputs('List_approved_approvals')?['body/value']",
-                "where": "@equals(item()?['admin_appname'], '')"
+                "where": "@equals(item()?['admin_appname'], items('Create_Archival_Request_for_Each')?['admin_flowid'])"
               }
             },
             "Get_Assignee_Scope": {
@@ -224,6 +232,21 @@
                         "name": "isReassigned",
                         "value": "@true"
                       }
+                    },
+                    "Set_varAssigneePreferredLanguage_to_admins": {
+                      "runAfter": {
+                        "Set_var_isReassigned_to_True": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "beebcfc0-6213-474d-930b-cbb859e71c0c"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "varAssigneePreferredLanuguage",
+                        "value": "@parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')"
+                      }
                     }
                   },
                   "runAfter": {
@@ -247,7 +270,7 @@
                           },
                           "parameters": {
                             "id": "@variables('FlowOwnerID')",
-                            "$select": "displayName, mail, statusCode"
+                            "$select": "displayName, mail, statusCode, preferredLanguage"
                           },
                           "authentication": "@parameters('$authentication')",
                           "retryPolicy": {
@@ -299,6 +322,18 @@
                                   "name": "isReassigned",
                                   "value": "@false"
                                 }
+                              },
+                              "Set_varAssigneePreferredLanguage_to_Owners": {
+                                "runAfter": {
+                                  "Set_var_isReassigned_to_False": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "varAssigneePreferredLanuguage",
+                                  "value": "@{if(equals(outputs('Recheck_Orphan_Status')?['body/preferredLanguage'], null), 'en-US', outputs('Recheck_Orphan_Status')?['body/preferredLanguage'])}"
+                                }
                               }
                             }
                           },
@@ -335,6 +370,18 @@
                                 "inputs": {
                                   "name": "isReassigned",
                                   "value": "@true"
+                                }
+                              },
+                              "Set_varAssigneePreferredLanguage_to_admins_for_new_Orphan": {
+                                "runAfter": {
+                                  "Set_var_isReassigned_to_True_for_new_Orphan": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "varAssigneePreferredLanuguage",
+                                  "value": "@parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')"
                                 }
                               }
                             }
@@ -736,29 +783,125 @@
                     }
                   }
                 },
-                "Send_an_email_-_backup_reminder": {
+                "Send_Backup_Reminder": {
+                  "actions": {
+                    "Get_Row_-_Backup_reminder": {
+                      "actions": {
+                        "emailGUID_to_en-US": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "3c46d691-0f2a-4c36-9611-c2c7de1ec33d"
+                          },
+                          "type": "Compose",
+                          "inputs": "fbc4c3d0-6086-ed11-81ac-0022480813ff"
+                        },
+                        "List_emails_for_preferred_language": {
+                          "runAfter": {
+                            "emailGUID_to_en-US": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_customizedemails",
+                              "$select": "admin_customizedemailid",
+                              "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{variables('varAssigneePreferredLanuguage')}'"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Set_emailGUID_to_localized_row": {
+                          "runAfter": {
+                            "List_emails_for_preferred_language": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "emailGUID",
+                            "value": "@{if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']), 0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))}"
+                          },
+                          "description": "if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']),0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))"
+                        },
+                        "Get_a_row_by_ID": {
+                          "runAfter": {
+                            "Set_emailGUID_to_localized_row": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "GetItem",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_customizedemails",
+                              "recordId": "@variables('emailGUID')",
+                              "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject, admin_importance"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
+                      },
+                      "type": "Scope"
+                    },
+                    "Backup_reminder": {
+                      "runAfter": {
+                        "Get_Row_-_Backup_reminder": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "9f30ef69-1a11-4fc7-b518-633cd5a9355f"
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                        },
+                        "body": {
+                          "email": "@variables('varAssignee')",
+                          "text": "@{outputs('Get_a_row_by_ID')?['body/admin_subject']} @{body('See_if_Flow_Still_Exists')['properties']['displayName']}",
+                          "text_1": "@{outputs('Get_a_row_by_ID')?['body/admin_body']}<br><br>\n<b>Flow Environment</b>:  @{items('Create_Archival_Request_for_Each')?['admin_flowenvironment/admin_displayname']}<br>\n<b>Flow</b>:  <a href=\"@{outputs('FlowLink')}\">@{body('See_if_Flow_Still_Exists')['properties']['displayName']}</a><br>\n<b>Approved on</b>: @{outputs('Date_Approved')}<br>\n<b>Estmimated date of deletion</b>: @{outputs('Date_to_Delete')}<br>@{if(equals(outputs('Reset_value_Flow_Archive_Request_Ignored_Since')?['body/admin_workflowentityid'], null), '.', ', however, since this flow is part of a solution, automatic deletion is not possible. You will need to delete the flow or the entire solution manually.')}",
+                          "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                          "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                          "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])",
+                          "text_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_importance'], null), '', outputs('Get_a_row_by_ID')?['body/admin_importance'])"
+                        }
+                      },
+                      "description": "fbc4c3d0-6086-ed11-81ac-0022480813ff"
+                    }
+                  },
                   "runAfter": {
                     "Catch_-_flow_already_deleted": [
                       "Skipped"
                     ]
                   },
                   "metadata": {
-                    "operationMetadataId": "1f30990d-7731-48d6-bef0-0a9baaf6ece6"
+                    "operationMetadataId": "3d4b5742-5be5-495a-b75b-bf40ce3d59f9"
                   },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_office365",
-                      "operationId": "SendEmailV2",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
-                    },
-                    "parameters": {
-                      "emailMessage/To": "@variables('varAssignee')",
-                      "emailMessage/Subject": "Reminder to back up your Flow: @{body('See_if_Flow_Still_Exists')['properties']['displayName']}",
-                      "emailMessage/Body": "@{variables('htmlHeader')}\n@{variables('htmlBodyStart')}\n\n<p>\nAs a reminder, you approved removal of this flow from the tenant on @{outputs('Date_Approved')}.\n<br>\nThe flow will therefore be removed from the tenant sometime after @{outputs('Date_to_Delete')} @{if(equals(outputs('Reset_value_Flow_Archive_Request_Ignored_Since')?['body/admin_workflowentityid'], null), '.', ', however, since this flow is part of a solution, automatic deletion is not possible. You will need to delete the flow or the entire solution manually.')}\n<br><br>\n<b>Flow Environment</b>:  @{items('Create_Archival_Request_for_Each')?['admin_flowenvironment/admin_displayname']}<br>\n<b>Flow</b>:  <a href=\"@{outputs('FlowLink')}\">@{body('See_if_Flow_Still_Exists')['properties']['displayName']}</a>\n<br><br>\nIf you want to retain a copy of this flow for later restore in the event that you change your mind, please do so now.\n<br>\nIf you would like to stop recieving these reminders ahead of deletion, please delete on your side, and you will not be prompted again.\n<br><br>\nThank you for using the Power Platform!\n<br>\n</p>\n</li>\n</ol>\n</p>\n@{variables('htmlBodyStop')}"
-                    },
-                    "authentication": "@parameters('$authentication')"
-                  }
+                  "type": "Scope"
                 }
               },
               "runAfter": {
@@ -776,7 +919,7 @@
                     "type": "Query",
                     "inputs": {
                       "from": "@outputs('List_rejected_approvals')?['body/value']",
-                      "where": "@equals(item()?['admin_appname'], '')"
+                      "where": "@equals(item()?['admin_appname'], items('Create_Archival_Request_for_Each')?['admin_flowid'])"
                     }
                   },
                   "See_if_Rejected": {
@@ -807,35 +950,6 @@
                               "parameters": {
                                 "entityName": "admin_archiveapprovals",
                                 "recordId": "@items('Apply_to_each_other_ignored_approval')?['admin_archiveapprovalid']"
-                              },
-                              "authentication": "@parameters('$authentication')",
-                              "retryPolicy": {
-                                "type": "exponential",
-                                "count": 10,
-                                "interval": "PT10S"
-                              }
-                            }
-                          },
-                          "Reset_value_Flow_Archive_Request_Ignored_Since_2": {
-                            "runAfter": {
-                              "Delete_ignored_approval_request": [
-                                "Succeeded"
-                              ]
-                            },
-                            "metadata": {
-                              "operationMetadataId": "23a004fc-b591-4e40-929c-5a89c4bc290f"
-                            },
-                            "type": "OpenApiConnection",
-                            "inputs": {
-                              "host": {
-                                "connectionName": "shared_commondataserviceforapps_2",
-                                "operationId": "UpdateRecord",
-                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                              },
-                              "parameters": {
-                                "entityName": "admin_flows",
-                                "recordId": "@items('Create_Archival_Request_for_Each')?['admin_flowid']",
-                                "item/admin_flowarchiverequestignoredsince": "@null"
                               },
                               "authentication": "@parameters('$authentication')",
                               "retryPolicy": {
@@ -884,6 +998,35 @@
                             "minimumItemCount": 100000
                           }
                         }
+                      },
+                      "Reset_value_Flow_Archive_Request_Ignored_Since_2": {
+                        "runAfter": {
+                          "Apply_to_each_other_ignored_approval": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "23a004fc-b591-4e40-929c-5a89c4bc290f"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connectionName": "shared_commondataserviceforapps_2",
+                            "operationId": "UpdateRecord",
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                          },
+                          "parameters": {
+                            "entityName": "admin_flows",
+                            "recordId": "@items('Create_Archival_Request_for_Each')?['admin_flowid']",
+                            "item/admin_flowarchiverequestignoredsince": "@null"
+                          },
+                          "authentication": "@parameters('$authentication')",
+                          "retryPolicy": {
+                            "type": "exponential",
+                            "count": 10,
+                            "interval": "PT10S"
+                          }
+                        }
                       }
                     },
                     "runAfter": {
@@ -893,30 +1036,6 @@
                     },
                     "else": {
                       "actions": {
-                        "Create_an_approval": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "27c59339-770f-4bab-aa00-20559915c94f"
-                          },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_approvals",
-                              "operationId": "CreateAnApproval",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals"
-                            },
-                            "parameters": {
-                              "approvalType": "BasicAwaitAll",
-                              "ApprovalCreationInput/title": "This flow appears to be unused; can we delete?  @{items('Create_Archival_Request_for_Each')?['admin_displayname']}",
-                              "ApprovalCreationInput/assignedTo": "@{variables('varAssignee')};",
-                              "ApprovalCreationInput/details": "@{if(equals(variables('isReassigned'), true), 'OWNER DOES NOT EXIST. APPROVAL SENT TO ADMIN.', '')}\nYou own a flow that has not been modified recently.\n\nLast Modified: @{outputs('Date_Last_Modified')}\n\nWe want to make sure it is still useful, as if it is not then we would like to remove it to keep our Power Platform tenant tidy. \n\nPlease confirm this flow is no longer being used and can be deleted by approving this task; or provide a business justification if you reject. \n\n**Flow Name:** @{items('Create_Archival_Request_for_Each')?['admin_displayname']}\n**Flow ID:** @{items('Create_Archival_Request_for_Each')?['admin_flowid']}\n**Environment:** @{items('Create_Archival_Request_for_Each')?['admin_flowenvironment/admin_displayname']}\n\n**Notes:**\n1) If you are not using the flow anymore but do not yet want to delete it, you can turn the flow off and it will no longer be considered for deletion.\n\n2) If you select approve, the flow will be deleted from the tenant in three weeks, so please manually archive a copy ahead of that date if you believe you will want access in the future. \n\n3) If you select reject, consider performing a re-save or turn off your flow to avoid receving this email again in another month. \n\n**To clean up all outstanding requests about old apps and flows:**\n@{if(equals(variables('CleanUpTextType'), 0), 'View flow approvals in the CoE environment', '')}\n@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), 'Use this app: [Clean Up App](', '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), variables('CleanUpAppURL'), '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 1), 'If you dont have permission use this instead: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 1), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 1), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 3), 'View all approvals: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 3), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 3), ')', '')}\n",
-                              "ApprovalCreationInput/itemLink": "@outputs('FlowLink')",
-                              "ApprovalCreationInput/enableNotifications": true,
-                              "ApprovalCreationInput/enableReassignment": true
-                            },
-                            "authentication": "@parameters('$authentication')"
-                          }
-                        },
                         "Switch:_Was_Approval_Creation_Successful": {
                           "runAfter": {
                             "Create_an_approval": [
@@ -928,27 +1047,109 @@
                             "Failure_Case": {
                               "case": 400,
                               "actions": {
-                                "Send_admin_email_-_cant_do_approval": {
+                                "Get_Row_-_Cant_do_approval": {
+                                  "actions": {
+                                    "emailGUID_to_en-US_2": {
+                                      "runAfter": {},
+                                      "metadata": {
+                                        "operationMetadataId": "3c46d691-0f2a-4c36-9611-c2c7de1ec33d"
+                                      },
+                                      "type": "Compose",
+                                      "inputs": "fdc4c3d0-6086-ed11-81ac-0022480813ff"
+                                    },
+                                    "List_emails_for_preferred_language_2": {
+                                      "runAfter": {
+                                        "emailGUID_to_en-US_2": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                                      },
+                                      "type": "OpenApiConnection",
+                                      "inputs": {
+                                        "host": {
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "ListRecords",
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_customizedemails",
+                                          "$select": "admin_customizedemailid",
+                                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US_2')}' and admin_language eq '@{parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')}'"
+                                        },
+                                        "authentication": "@parameters('$authentication')"
+                                      }
+                                    },
+                                    "Set_emailGUID_to_localized_row_2": {
+                                      "runAfter": {
+                                        "List_emails_for_preferred_language_2": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
+                                      },
+                                      "type": "SetVariable",
+                                      "inputs": {
+                                        "name": "emailGUID",
+                                        "value": "@{if(greater(length(outputs('List_emails_for_preferred_language_2')?['body/value']), 0), first(body('List_emails_for_preferred_language_2')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US_2'))}"
+                                      },
+                                      "description": "if(greater(length(outputs('List_emails_for_preferred_language_2')?['body/value']), 0), first(body('List_emails_for_preferred_language_2')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US_2'))"
+                                    },
+                                    "Get_a_row_by_ID_2": {
+                                      "runAfter": {
+                                        "Set_emailGUID_to_localized_row_2": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                                      },
+                                      "type": "OpenApiConnection",
+                                      "inputs": {
+                                        "host": {
+                                          "connectionName": "shared_commondataserviceforapps",
+                                          "operationId": "GetItem",
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_customizedemails",
+                                          "recordId": "@variables('emailGUID')",
+                                          "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject, admin_importance"
+                                        },
+                                        "authentication": "@parameters('$authentication')"
+                                      }
+                                    }
+                                  },
                                   "runAfter": {},
-                                  "type": "OpenApiConnection",
+                                  "type": "Scope"
+                                },
+                                "Cant_do_approval": {
+                                  "runAfter": {
+                                    "Get_Row_-_Cant_do_approval": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "47e0295c-4f8e-4fe5-b5d4-a05d2fb728e9"
+                                  },
+                                  "type": "Workflow",
                                   "inputs": {
                                     "host": {
-                                      "connectionName": "shared_office365",
-                                      "operationId": "SendEmailV2",
-                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                                      "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
                                     },
-                                    "parameters": {
-                                      "emailMessage/To": "@variables('adminMail')",
-                                      "emailMessage/Subject": "Flow maker @{variables('varAssigneeDisplayName')} does not have permissions to perform Archive Approval",
-                                      "emailMessage/Body": "@{variables('htmlHeader')}\n@{variables('htmlBodyStart')}\n\n<p> @{items('Create_Archival_Request_for_Each')?['admin_flowmakerdisplayname']} was recently prompted to archive the following flow:<br>\n<br>\n<strong>Display Name</strong>: @{items('Create_Archival_Request_for_Each')?['admin_displayname']}<br>\n<strong>Environment</strong>: @{items('Create_Archival_Request_for_Each')?['admin_flowenvironment/admin_displayname']} <br>\n<strong>Flow ID</strong>: @{items('Create_Archival_Request_for_Each')?['admin_flowid']}<br>\n<br>\nThe request to approve deletion was unable to process as the user has insufficient permissions to the CoE Environment. Please give them permissions to Approvals in the CoE to proceed.<br>\n</p>\n@{variables('htmlBodyStop')}"
-                                    },
-                                    "authentication": "@parameters('$authentication')",
-                                    "retryPolicy": {
-                                      "type": "exponential",
-                                      "count": 10,
-                                      "interval": "PT10S"
+                                    "body": {
+                                      "email": "@variables('adminMail')",
+                                      "text": "@{outputs('Get_a_row_by_ID_2')?['body/admin_subject']} @{variables('varAssigneeDisplayName')}",
+                                      "text_1": "@{outputs('Get_a_row_by_ID_2')?['body/admin_body']} <br>\n<strong>Display Name</strong>: @{items('Create_Archival_Request_for_Each')?['admin_displayname']}<br>\n<strong>Environment</strong>: @{items('Create_Archival_Request_for_Each')?['admin_flowenvironment/admin_displayname']} <br>\n<strong>Flow ID</strong>: @{items('Create_Archival_Request_for_Each')?['admin_flowid']}<br>",
+                                      "email_1": "@if(equals(outputs('Get_a_row_by_ID_2')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID_2')?['body/admin_cc'])",
+                                      "email_2": "@if(equals(outputs('Get_a_row_by_ID_2')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID_2')?['body/admin_sendonbehalf'])",
+                                      "email_3": "@if(equals(outputs('Get_a_row_by_ID_2')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID_2')?['body/admin_replyto'])",
+                                      "text_2": "@if(equals(outputs('Get_a_row_by_ID_2')?['body/admin_importance'], null), '', outputs('Get_a_row_by_ID_2')?['body/admin_importance'])"
                                     }
-                                  }
+                                  },
+                                  "description": "fdc4c3d0-6086-ed11-81ac-0022480813ff"
                                 }
                               }
                             },
@@ -1045,13 +1246,13 @@
                                     "or": [
                                       {
                                         "equals": [
-                                          "",
+                                          "@items('Create_Archival_Request_for_Each')?['admin_flowarchiverequestignoredsince']",
                                           "@null"
                                         ]
                                       },
                                       {
                                         "lessOrEquals": [
-                                          "",
+                                          "@items('Create_Archival_Request_for_Each')?['admin_flowarchiverequestignoredsince']",
                                           "@addDays(utcNow(),-10000)"
                                         ]
                                       }
@@ -1070,6 +1271,115 @@
                             "operationMetadataId": "a2bf8ae1-b82d-4be8-b7e8-95ae3eb071e0"
                           },
                           "type": "Switch"
+                        },
+                        "Get_Row_-_Create_approval": {
+                          "actions": {
+                            "emailGUID_to_en-US_3": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "3c46d691-0f2a-4c36-9611-c2c7de1ec33d"
+                              },
+                              "type": "Compose",
+                              "inputs": "fe4d14da-6086-ed11-81ac-0022480813ff"
+                            },
+                            "List_emails_for_preferred_language_3": {
+                              "runAfter": {
+                                "emailGUID_to_en-US_3": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "29188a43-3a3a-46da-a4f6-f162180d8254"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_customizedemails",
+                                  "$select": "admin_customizedemailid",
+                                  "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US_3')}' and admin_language eq '@{variables('varAssigneePreferredLanuguage')}'"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "Set_emailGUID_to_localized_row_3": {
+                              "runAfter": {
+                                "List_emails_for_preferred_language_3": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "1e1c0a09-41a6-4b3d-a558-df89f10ca738"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "emailGUID",
+                                "value": "@{if(greater(length(outputs('List_emails_for_preferred_language_3')?['body/value']), 0), first(body('List_emails_for_preferred_language_3')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US_3'))}"
+                              },
+                              "description": "if(greater(length(outputs('List_emails_for_preferred_language_3')?['body/value']), 0), first(body('List_emails_for_preferred_language_3')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US_3'))"
+                            },
+                            "Get_a_row_by_ID_3": {
+                              "runAfter": {
+                                "Set_emailGUID_to_localized_row_3": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "c34df6f5-d327-47a2-8e25-e33c207762e2"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "GetItem",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_customizedemails",
+                                  "recordId": "@variables('emailGUID')",
+                                  "$select": "admin_body, admin_cc, admin_replyto, admin_sendonbehalf, admin_subject, admin_importance"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "74c8fe2a-d9bd-4ab1-a2a7-1ceffc6c9c18"
+                          },
+                          "type": "Scope"
+                        },
+                        "Create_an_approval": {
+                          "runAfter": {
+                            "Get_Row_-_Create_approval": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "27c59339-770f-4bab-aa00-20559915c94f"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_approvals",
+                              "operationId": "CreateAnApproval",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals"
+                            },
+                            "parameters": {
+                              "approvalType": "BasicAwaitAll",
+                              "ApprovalCreationInput/title": "@{outputs('Get_a_row_by_ID_3')?['body/admin_subject']} @{items('Create_Archival_Request_for_Each')?['admin_displayname']}",
+                              "ApprovalCreationInput/assignedTo": "@{variables('varAssignee')};",
+                              "ApprovalCreationInput/details": "@{if(equals(variables('isReassigned'), true), 'OWNER DOES NOT EXIST. APPROVAL SENT TO ADMIN.', '')}\n\n@{outputs('Get_a_row_by_ID_3')?['body/admin_body']} @{if(equals(variables('CleanUpTextType'), 0), 'View flow approvals in the CoE environment', '')}\n@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), 'Use this app: [Clean Up App](', '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), variables('CleanUpAppURL'), '')}@{if(or(equals(variables('CleanUpTextType'), 1), equals(variables('CleanUpTextType'), 2)), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 1), 'If you dont have permission use this instead: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 1), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 1), ')', '')}\n@{if(equals(variables('CleanUpTextType'), 3), 'View all approvals: [Flow Approvals UX](', '')}@{if(equals(variables('CleanUpTextType'), 3), variables('ApprovalsURL'), '')}@{if(equals(variables('CleanUpTextType'), 3), ')', '')}\n\n**Flow Information**\nFlow Name: @{items('Create_Archival_Request_for_Each')?['admin_displayname']}\nFlow ID: @{items('Create_Archival_Request_for_Each')?['admin_flowid']}\nEnvironment: @{items('Create_Archival_Request_for_Each')?['admin_flowenvironment/admin_displayname']}\nLast Modified: @{outputs('Date_Last_Modified')}\n",
+                              "ApprovalCreationInput/itemLink": "@outputs('FlowLink')",
+                              "ApprovalCreationInput/enableNotifications": true,
+                              "ApprovalCreationInput/enableReassignment": true
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
                         }
                       }
                     },
@@ -1199,7 +1509,7 @@
         },
         "Initialize_htmlHeader_(style)": {
           "runAfter": {
-            "Initialize_varAssigneeDisplayName": [
+            "Initialize_varAssigneePreferredLanuguage": [
               "Succeeded"
             ]
           },
@@ -1777,7 +2087,7 @@
         },
         "Power_Automate_Environment_Variable": {
           "runAfter": {
-            "Initialize_var_CleanUpAppURL": [
+            "Initialize_emailGUID": [
               "Succeeded"
             ]
           },
@@ -1786,6 +2096,222 @@
           },
           "type": "Compose",
           "inputs": "@parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)')"
+        },
+        "Initialize_emailGUID": {
+          "runAfter": {
+            "Initialize_var_CleanUpAppURL": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "dad8eca6-7937-47c0-aa57-f2d48dd1c5a2"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "emailGUID",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_varAssigneePreferredLanuguage": {
+          "runAfter": {
+            "Initialize_varAssigneeDisplayName": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8fb0767d-fbef-4336-839b-41b61e6d78da"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varAssigneePreferredLanuguage",
+                "type": "string",
+                "value": "en-US"
+              }
+            ]
+          }
+        },
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Create_Archival_Request_for_Each": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
         }
       },
       "outputs": {}
