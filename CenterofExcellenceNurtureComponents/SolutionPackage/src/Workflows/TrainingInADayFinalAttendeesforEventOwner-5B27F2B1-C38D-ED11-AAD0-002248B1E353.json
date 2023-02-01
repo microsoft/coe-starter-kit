@@ -1,0 +1,500 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_77293"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)": {
+          "defaultValue": "en-US",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_AdmineMailPreferredLanguage",
+            "description": "Inventory - The preferred language for the emails sent to the admin email alias, which is specified in theAdmin eMail environment variable. Default is en-US"
+          }
+        },
+        "ProductionEnvironment (admin_ProductionEnvironment)": {
+          "defaultValue": true,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_ProductionEnvironment",
+            "description": "Inventory - Yes by default. Set to No if you are creating a dev type envt. This will allow some flows to set target users to the admin instead of resource owners"
+          }
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2023-01-06T10:00:00Z"
+          },
+          "metadata": {
+            "operationMetadataId": "fc298abe-91c7-41fe-a416-cba730d958db"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Final_Attendees_for_Event_Owner_SCOPE": {
+          "actions": {
+            "Get_future_time": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "d112f360-8394-4a13-9bc8-00c4a217ca47"
+              },
+              "type": "Expression",
+              "kind": "GetFutureTime",
+              "inputs": {
+                "interval": 1,
+                "timeUnit": "Day"
+              }
+            },
+            "List_rows": {
+              "runAfter": {
+                "Get_future_time": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f5e4db99-93c3-4463-a126-af0117007817"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_inadayevents",
+                  "$select": "admin_inadayeventid, admin_languagecode, admin_name, admin_starttime, admin_eventorganizer",
+                  "$filter": "admin_starttime gt @{utcNow()}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Filter_array": {
+              "runAfter": {
+                "List_rows": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "0209e72a-7f39-4996-a87d-e557363e8aeb"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@outputs('List_rows')?['body/value']",
+                "where": "@equals(formatDateTime(item()?['admin_starttime'], 'yyyy-MM-dd'), formatDateTime(body('Get_future_time'), 'yyyy-MM-dd'))"
+              }
+            },
+            "Apply_to_each_upcoming_event": {
+              "foreach": "@body('Filter_array')",
+              "actions": {
+                "List_attendees": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "e33d847b-f620-4b08-892b-55eeb087dc98"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_inadayattendeeses",
+                      "$select": "admin_attendeeemail, admin_name",
+                      "$filter": "_admin_registeredevent_value eq @{items('Apply_to_each_upcoming_event')?['admin_inadayeventid']}"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Create_HTML_table": {
+                  "runAfter": {
+                    "List_attendees": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "ab71dc18-ba9b-4f6c-8d51-5281228d5466"
+                  },
+                  "type": "Table",
+                  "inputs": {
+                    "from": "@outputs('List_attendees')?['body/value']",
+                    "format": "HTML"
+                  }
+                },
+                "Condition": {
+                  "actions": {
+                    "PreferredLanguage": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "371eb71f-8759-4f8f-9700-5a3b1e9bf69d"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)'), if(equals(items('Apply_to_each_upcoming_event')?['admin_languagecode'], null), 'en-US', items('Apply_to_each_upcoming_event')?['admin_languagecode']))"
+                    },
+                    "Get_Row_-_Send_training_attendee_list_to_event_organizer": {
+                      "actions": {
+                        "emailGUID_to_en-US": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "2050329b-5ece-4692-b2e3-ed98714b5425"
+                          },
+                          "type": "Compose",
+                          "inputs": "0c2d5026-7d8b-ed11-81ac-0022480819d7"
+                        },
+                        "List_emails_for_preferred_language": {
+                          "runAfter": {
+                            "emailGUID_to_en-US": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "05cf8762-8d99-4152-943c-af316e292567"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_customizedemails",
+                              "$select": "admin_customizedemailid",
+                              "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{outputs('PreferredLanguage')}'"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Set_emailGUID_to_localized_row": {
+                          "runAfter": {
+                            "List_emails_for_preferred_language": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "cc2a7241-7af8-4879-bb28-e8c9d58d3127"
+                          },
+                          "type": "Compose",
+                          "inputs": "@if(greater(length(outputs('List_emails_for_preferred_language')?['body/value']), 0), first(body('List_emails_for_preferred_language')?['value'])['admin_customizedemailid'], outputs('emailGUID_to_en-US'))"
+                        },
+                        "Get_a_row_by_ID": {
+                          "runAfter": {
+                            "Set_emailGUID_to_localized_row": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2e3e98c5-1ecc-41e2-b1bb-8cc61629acf8"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "GetItem",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_customizedemails",
+                              "recordId": "@outputs('Set_emailGUID_to_localized_row')"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "SendTo": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "5f23f727-9a79-465e-a7cd-76229d250eba"
+                      },
+                      "type": "Scope"
+                    },
+                    "Send_training_attendee_list_to_event_organizer": {
+                      "runAfter": {
+                        "Get_Row_-_Send_training_attendee_list_to_event_organizer": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a209c2dc-dea8-4dcf-99c0-8d64025253dd"
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
+                        },
+                        "body": {
+                          "email": "@outputs('SendTo')",
+                          "text": "@{outputs('Get_a_row_by_ID')?['body/admin_subject']} @{items('Apply_to_each_upcoming_event')?['admin_name']}",
+                          "text_1": "@{outputs('Get_a_row_by_ID')?['body/admin_body']}\n<b>Event details:</b> <br>\nName: @{items('Apply_to_each_upcoming_event')?['admin_name']} <br>\nDate: @{formatDateTime(items('Apply_to_each_upcoming_event')?['admin_starttime'], 'dd MMM yyyy')}<br><br>\nAttendee count: @{length(outputs('List_attendees')?['body/value'])}<br><br>\n<b>Registered attendees:</b>\n@{body('Create_HTML_table')}",
+                          "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
+                          "email_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'], null), '', outputs('Get_a_row_by_ID')?['body/admin_sendonbehalf'])",
+                          "email_3": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_replyto'], null), '', outputs('Get_a_row_by_ID')?['body/admin_replyto'])",
+                          "text_2": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_importance'], null), '', outputs('Get_a_row_by_ID')?['body/admin_importance'])"
+                        }
+                      }
+                    },
+                    "SendTo": {
+                      "runAfter": {
+                        "PreferredLanguage": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e302e1bd-889f-495d-85d0-c7f531e6363f"
+                      },
+                      "type": "Compose",
+                      "inputs": "@items('Apply_to_each_upcoming_event')?['admin_eventorganizer']"
+                    }
+                  },
+                  "runAfter": {
+                    "Create_HTML_table": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "greater": [
+                      "@length(outputs('List_attendees')?['body/value'])",
+                      0
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d67d5365-4bf7-4b80-b665-73e06f29749f"
+                  },
+                  "type": "If"
+                }
+              },
+              "runAfter": {
+                "Filter_array": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "71098c70-89ad-423d-a762-cf8f65bf3447"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "38b1f3f0-1125-4620-9cb7-eed7ed95a555"
+          },
+          "type": "Scope"
+        },
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Final_Attendees_for_Event_Owner_SCOPE": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
