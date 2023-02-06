@@ -37,32 +37,44 @@ function Invoke-ActivateFlows {
 
     $flowsToActivate = [System.Collections.ArrayList]@()
 
-    Get-UserConfiguredFlowActivations $activateFlowConfiguration $conn $flowsToActivate $token $dataverseHost
+    #Connection Reference based Flow Activations must be first as they shouldn't be overridden by owner based activations
     Get-ConnectionReferenceFlowActivations $solutionName $connectionReferences $activateFlowConfiguration $conn $flowsToActivate
+    #Owner based Flow Activations must be second as they can't override the connection reference based activations
     Get-OwnerFlowActivations $solutionComponentOwnershipConfiguration $activateFlowConfiguration $conn $flowsToActivate
+    #User Configured Flow Activations must be last as they should override all other configurations based on the user's input
+    Get-UserConfiguredFlowActivations $activateFlowConfiguration $conn $flowsToActivate $token $dataverseHost
     
-    print-flows "Printing total active flows" $flowsToActivate
+    Write-Flows "Printing total active flows" $flowsToActivate
 
     Write-Host "Activating flows..."
     #Activate any flows added to the collection based on sort order
-    $impersonationConn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
     $flowsToActivate = $flowsToActivate | Sort-Object -Property sortOrder
-    $flowsActivatedThisPass = $false
+    $flowsActivatedDeactivatedThisPass = $false
     $throwOnComplete = $false
     do {
         $throwOnComplete = $false
-        $flowsActivatedThisPass = $false
+        $flowsActivatedDeactivatedThisPass = $false
         foreach ($flowToActivate in $flowsToActivate) {
+            $impersonationConn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
             try {
-                if ($flowToActivate.solutionComponent.statecode -ne 1) {
-                    Write-Host "Activating Flow: " $flowToActivate.solutionComponent.name
-                    $impersonationConn.OrganizationWebProxyClient.CallerId = $flowToActivate.impersonationCallerId
+                if ($flowToActivate.activate -eq 'false' -and $flowToActivate.solutionComponent.statecode -ne 0) {
+                    Write-Host "Deactivating Flow: " $flowToActivate.solutionComponent.name
+                    Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $flowToActivate.solutionComponent.workflowid -StateCode 0 -StatusCode 1
+                    $flowToActivate.solutionComponent.statecode = 0
+                    $flowsActivatedDeactivatedThisPass = $true
+                }
+                elseif ($flowToActivate.activate -ne 'false' -and $flowToActivate.solutionComponent.statecode -ne 1) {
+                    Write-Host "Activating Flow: " $flowToActivate.solutionComponent.name " as: " $flowToActivate.impersonationCallerId
+                    if($flowToActivate.impersonationCallerId -ne '') {
+                        $impersonationConn.OrganizationWebProxyClient.CallerId = $flowToActivate.impersonationCallerId
+                    }
+                    Write-Host "Impersonation Connection CallerId: " $impersonationConn.OrganizationWebProxyClient.CallerId
                     Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $flowToActivate.solutionComponent.workflowid -StateCode 1 -StatusCode 2
                     $flowToActivate.solutionComponent.statecode = 1
-                    $flowsActivatedThisPass = $true
+                    $flowsActivatedDeactivatedThisPass = $true
                 }
                 else{
-                    Write-Host "Workflow " $flowToActivate.solutionComponentName " already activated at target"
+                    Write-Host "Workflow " $flowToActivate.solutionComponent.name " already activated/deactivated at target"
                 }
             }
             catch {
@@ -71,45 +83,10 @@ function Invoke-ActivateFlows {
                 Write-Host $_
             }
         }
-    } while ($flowsActivatedThisPass)
+    } while ($flowsActivatedDeactivatedThisPass)
 
-    Write-Host "Getting flows to deactivate..."
-    $flowsToDeactivate = get-flows-to-deactivate $activateFlowConfiguration $flowsToActivate
-    if($flowsToDeactivate.Count -gt 0){
-        $flowsToDeactivate = $flowsToDeactivate | Sort-Object -Property sortOrder    
-        print-flows "Printing flows to deactivate" $flowsToDeactivate
-        $flowsDeactivatedThisPass = $false
-        do {
-            $throwOnComplete = $false
-            $flowsDeactivatedThisPass = $false
-            foreach ($flowToDeactivate in $flowsToDeactivate) {
-                try {
-                    if($null -ne $flowToDeactivate.solutionComponentUniqueName -and $flowToDeactivate.solutionComponentUniqueName -ne ''){
-                        $existingStatus = get-workflow-dv-status $flowToDeactivate.solutionComponentUniqueName $token $dataverseHost
-                        if ($existingStatus -ne 0) {
-                            Write-Host "Dectivating Flow: " $flowToDeactivate.solutionComponentName
-                            Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $flowToDeactivate.solutionComponentUniqueName -StateCode 0 -StatusCode 1
-                            $flowsDeactivatedThisPass = $true
-                        }
-                        else{
-                            Write-Host "Workflow " $flowToDeactivate.solutionComponentName " already deactivated at target"
-                        }
-                    }
-                }
-                catch {
-                    $throwOnComplete = $true
-                    Write-Host "##vso[task.logissue type=warning]Flow could not be deactivated. Continuing with flow deactivation until no more flows can be deactivated. If this is a result of a child flow not being deactivated before it's parent consider ordering your flows to avoid this message."
-                    Write-Host $_
-                }
-            }
-        } while ($flowsDeactivatedThisPass)
-
-        if ($throwOnComplete) {
-            throw
-        }
-    }
-    else{
-		Write-Host "No flows to deactivate"
+    if ($throwOnComplete) {
+        throw
     }
 }
 
@@ -141,36 +118,38 @@ function Get-UserConfiguredFlowActivations {
     if ($null -ne $activationConfigs) {
         $throwOnComplete = $false
         foreach ($activateConfig in $activationConfigs) {
-            if ($activateConfig.activateAsUser -ne '' -and $activateConfig.solutionComponentUniqueName -ne '' -and $activateConfig.activate -ne 'false') {
-                $existingActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
-                if ($null -eq $existingActivation) {
-                    $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $activateConfig.solutionComponentUniqueName -Fields clientdata, category, statecode, name
-                    $existingStatus = get-workflow-dv-status $activateConfig.solutionComponentUniqueName $token $dataverseHost
-
+            if ($activateConfig.solutionComponentUniqueName -ne '') {
+                $flowActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
+                $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $activateConfig.solutionComponentUniqueName -Fields clientdata, category, statecode, name
+                $impersonationCallerId = ''
+                if($activateConfig.activateAsUser -ne '') {
                     $systemUserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "internalemailaddress" -FilterOperator "eq" -FilterValue $activateConfig.activateAsUser -Fields systemuserid
                     if ($systemUserResult.Count -gt 0) {
                         $impersonationCallerId = $systemUserResult.CrmRecords[0].systemuserid
-                        #$existingStatus = $workflow.statecode_Property.Value
-                        Write-Host "existingStatus - "$existingStatus
-                        #Activate the workflow using the specified user.
-                        #if ($existingStatus -ne 1) {
-                            Write-Host "1 - Adding flow " $activateConfig.solutionComponentName " to activation collection"
-                            $flowActivation = [PSCustomObject]@{}
-                            $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponentUniqueName' -Value $activateConfig.solutionComponentUniqueName
-                            $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponentName' -Value $activateConfig.solutionComponentName
-                            $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponent' -Value $workflow
-                            $flowActivation | Add-Member -MemberType NoteProperty -Name 'impersonationCallerId' -Value $impersonationCallerId
-                            $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $activateConfig.sortOrder
-                            $flowsToActivate.Add($flowActivation)
-                        #}
-                        #else{
-                        #    Write-Host "Flow " $activateConfig.solutionComponentName " is already activated at target"
-                        #}
                     }
                     else {
                         Write-Host "##vso[task.logissue type=warning]A specified user record was not found in the target environment. Verify your deployment configuration and try again."
                         $throwOnComplete = $true
                     }
+                }
+
+                if ($null -eq $flowActivation) {
+                    Write-Host "1 - Adding flow " $activateConfig.solutionComponentName " to activation collection"
+                    $flowActivation = [PSCustomObject]@{}
+                    $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponentUniqueName' -Value $activateConfig.solutionComponentUniqueName
+                    $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponent' -Value $workflow
+                    $flowActivation | Add-Member -MemberType NoteProperty -Name 'impersonationCallerId' -Value $impersonationCallerId
+                    $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $activateConfig.sortOrder
+                    $flowActivation | Add-Member -MemberType NoteProperty -Name 'activate' -Value $activateConfig.activate
+                    $flowsToActivate.Add($flowActivation)
+                }
+                elseif($impersonationCallerId -ne '') {
+                    Write-Host "1 - Updating existing flow activation " $activateConfig.solutionComponentName
+                    $flowActivation.solutionComponentUniqueName = $activateConfig.solutionComponentUniqueName
+                    $flowActivation.solutionComponent = $workflow
+                    $flowActivation.impersonationCallerId = $impersonationCallerId
+                    $flowActivation.activate = $activateConfig.activate
+                    $flowActivation.sortOrder = $activateConfig.sortOrder
                 }
             }
         }
@@ -263,10 +242,11 @@ function Get-ConnectionReferenceFlowActivations {
                                                     $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponent' -Value $workflow
                                                     $flowActivation | Add-Member -MemberType NoteProperty -Name 'impersonationCallerId' -Value $impersonationCallerId
                                                     $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $sortOrder
+                                                    $flowActivation | Add-Member -MemberType NoteProperty -Name 'activate' -Value $activateFlow
                                                     $flowsToActivate.Add($flowActivation)
                                                 }
                                                 else {
-                                                    Write-Host "Excluding flow " $activationConfig.solutionComponentName "from activation collection"
+                                                    Write-Host "Excluding flow " $activationConfig.workflow.name "from activation collection"
                                                 }
                                             }
                                         }
@@ -301,7 +281,7 @@ function Get-OwnerFlowActivations {
 
         $config = Get-Content $solutionComponentOwnershipConfiguration | ConvertFrom-Json
         $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
-        print-flows "Inside Get-OwnerFlowActivations; Printing Active Flows" $flowsToActivate
+        Write-Flows "Inside Get-OwnerFlowActivations; Printing Active Flows" $flowsToActivate
 
         Write-Host "activationConfigs - " $activationConfigs
         $throwOnComplete = $false
@@ -340,7 +320,7 @@ function Get-OwnerFlowActivations {
                                 }
                             }
 
-                            if ($activateFlow -eq 'true') {
+                            if ($activateFlow -ne 'false') {
                                 Write-Host "3 - Adding flow " $ownershipConfig.solutionComponentName " to activation collection"
                                 $flowActivation = [PSCustomObject]@{}
     
@@ -348,6 +328,7 @@ function Get-OwnerFlowActivations {
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponent' -Value $workflow
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'impersonationCallerId' -Value $systemUserId
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $sortOrder
+                                $flowActivation | Add-Member -MemberType NoteProperty -Name 'activate' -Value $activateFlow
                                 $flowsToActivate.Add($flowActivation)
                             }
                             else{
@@ -373,7 +354,7 @@ function Get-OwnerFlowActivations {
     }    
 }
 
-function print-flows{
+function Write-Flows{
  param (
         [Parameter()] [String] [AllowEmptyString()]$message,        
         [Parameter()] [System.Collections.ArrayList] [AllowEmptyCollection()]$flowsToActivate
@@ -388,65 +369,7 @@ function print-flows{
         }
 		
         foreach ($flowToActivate in $flowsToActivate) {
-            Write-Host "Flow Name: " $flowToActivate.solutionComponentName
+            Write-Host "Flow Name: " $flowToActivate.solutionComponent.name
         }		
     }
-}
-
-function get-flows-to-deactivate{
- param (
-        [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration,        
-        [Parameter()] [System.Collections.ArrayList] [AllowEmptyCollection()]$flowsToActivate
-    )
-
-    Write-Host "Inside get-flows-to-deactivate"
-    $flowsToDeactivate = [System.Collections.ArrayList]@()
-    $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
-
-    if ($null -ne $activationConfigs) {
-        foreach ($activateConfig in $activationConfigs) {
-            $existingActivation = $null
-            if($flowsToActivate -ne $null -and $flowsToActivate.Count -gt 0){
-                $existingActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
-            }
-
-            # Add the flow configiration if its not in Flows to Activate list
-            if ($null -eq $existingActivation -and $activateConfig.activate -eq 'false') {
-                $flowDeactivation = [PSCustomObject]@{}
-                $flowDeactivation | Add-Member -MemberType NoteProperty -Name 'solutionComponentUniqueName' -Value $activateConfig.solutionComponentUniqueName
-                $flowDeactivation | Add-Member -MemberType NoteProperty -Name 'solutionComponentName' -Value $activateConfig.solutionComponentName
-                $flowDeactivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $activateConfig.sortOrder
-                Write-Host "Adding " $activateConfig.solutionComponentName " to deactivation list"
-                $flowsToDeactivate.Add($flowDeactivation)
-            }
-        }
-    }
-
-    return $flowsToDeactivate
-}
-
-function get-workflow-dv-status{
- param (
-        [Parameter(Mandatory)] [String] [AllowEmptyString()]$workflowId,        
-        [Parameter(Mandatory)] [String] [AllowEmptyString()]$token,        
-        [Parameter(Mandatory)] [String] [AllowEmptyString()]$dataverseHost        
-    )
-        $existingStatus = -1
-        # Check current status of workflow
-        $queryWorkflow = "workflows?`$select=clientdata,category,statecode,name&`$filter=(workflowid eq '$workflowId')"    
-
-        try{
-        Write-Host "Workflow Query - $queryWorkflow"
-        $workflowResponse = Invoke-DataverseHttpGet $token $dataverseHost $queryWorkflow
-        }
-        catch{
-        Write-Host "Error $queryWorkflow - $($_.Exception.Message)"
-        }
-
-        if($null -ne $workflowResponse.value -and $workflowResponse.value.count -gt 0){
-            $existingStatus = $workflowResponse.value[0].statecode
-            Write-Host "Workflow status is $existingStatus"
-        }
-
-        return $existingStatus
 }
