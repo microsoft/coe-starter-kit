@@ -1,0 +1,192 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_webcontents": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "cat_sharedwebcontents_0df3a"
+        },
+        "api": {
+          "name": "shared_webcontents"
+        }
+      },
+      "shared_powerappsforappmakers": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "cat_sharedpowerappsforappmakers_c4094"
+        },
+        "api": {
+          "name": "shared_powerappsforappmakers"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "eaa8454d-d00a-480b-aada-8fac397b50e3"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "ApplicationId",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_1": {
+                  "title": "EnvironmentId",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_2": {
+                  "title": "ConnectorName",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_3": {
+                  "title": "ConnectionId",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2",
+                "text_3"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Retrieve_the_Service_Principal": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "9e7b9229-2b2e-4e47-9fe7-73226e441af0"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_webcontents",
+              "operationId": "InvokeHttp",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+            },
+            "parameters": {
+              "request/method": "GET",
+              "request/url": "https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '@{triggerBody()['text']}'&$select=id"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Parse_JSON": {
+          "runAfter": {
+            "Retrieve_the_Service_Principal": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "51760289-d806-4e3e-999a-cbab4a3a2c46"
+          },
+          "type": "ParseJson",
+          "inputs": {
+            "content": "@body('Retrieve_the_Service_Principal')",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "@@odata.context": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Get_Service_Principal_ID": {
+          "runAfter": {
+            "Parse_JSON": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "abb247d1-5fac-4b79-9998-d75f96399b60"
+          },
+          "type": "Compose",
+          "inputs": "@first(body('Parse_JSON')?['value']).id"
+        },
+        "Share_the_Connection_with_the_Service_Principal": {
+          "runAfter": {
+            "Get_Service_Principal_ID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "00623840-4716-4887-8ab1-babedd55cd67"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_powerappsforappmakers",
+              "operationId": "Edit-ConnectionRoleAssignment",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforappmakers"
+            },
+            "parameters": {
+              "connectorName": "@triggerBody()['text_2']",
+              "connectionName": "@triggerBody()['text_3']",
+              "api-version": "2020-06-01",
+              "$filter": "environment eq '@{triggerBody()['text_1']}'",
+              "Content-Type": "application/json",
+              "body/put": [
+                {
+                  "properties/principal/id": "@{outputs('Get_Service_Principal_ID')}",
+                  "properties/principal/type": "ServicePrincipal",
+                  "properties/roleName": "CanView"
+                }
+              ]
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
