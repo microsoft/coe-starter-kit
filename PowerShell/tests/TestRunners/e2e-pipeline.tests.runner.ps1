@@ -22,6 +22,7 @@ function Invoke-E2E-Pipeline-Tests-Test($solutionName)
         SolutionName          = $solutionName
         UserName              = $testConfig.user
         PortalSiteName        = ''
+        CommitScope           = '1'
         PublishCustomizations = 'false'
     }    
     $container = New-PesterContainer -Path $path -Data $data

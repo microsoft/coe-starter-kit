@@ -159,6 +159,7 @@ Describe 'E2E-Pipeline-Test' {
                 PipelineId            = 0
                 PublishCustomizations = $PublishCustomizations
                 PortalSiteName        = $PortalSiteName
+                CommitScope           = $CommitScope
             }
         }
         [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $body)
@@ -199,6 +200,7 @@ Describe 'E2E-Pipeline-Test' {
                 PipelineId            = 0
                 PublishCustomizations = $PublishCustomizations
                 PortalSiteName        = $PortalSiteName
+                CommitScope           = $CommitScope
             } 
         }
     
