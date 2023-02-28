@@ -49,6 +49,29 @@ function Validate-Profile-Name
     return $filesCount
 }
 
+function Create-or-Override-Profile-File
+{
+    param (
+        [Parameter(Mandatory)] [String]$websiteRepoPath,
+        [Parameter(Mandatory)] [String]$passedProfileName,
+        [Parameter(Mandatory)] [String]$profileContent
+    )
+
+    $deploymentProfilePath = "$websiteRepoPath\deployment-profiles"
+
+    # Create deployment Profile Path
+    New-Item -ItemType Directory -Force -Path $deploymentProfilePath
+
+    if (!(Test-Path "$deploymentProfilePath\$passedProfileName.deployment.yml"))
+    {
+       New-Item -path "$deploymentProfilePath" -name "$passedProfileName.deployment.yml" -type "file" -value "$profileContent"
+       Write-Host "Created new yml file for $passedProfileName"
+    } else {
+      Set-Content -path "$deploymentProfilePath\$passedProfileName.deployment.yml" -value "$profileContent"
+      Write-Host "Overriden the Content of yml file for $passedProfileName"
+    }
+}
+
 function Clean-Website-Folder
 {
     param (

@@ -555,3 +555,163 @@ function Get-Flow-Component-Name{
     Write-Host "flowComponentName - $flowComponentName"
     return $flowComponentName
 }
+
+# Read 'Portal Settings File' attached to 'User Settings' for each Environment
+# Create or Override 'Portal Settings' files under .\PowerPages\Websitename\deployment-profiles
+function Set-PortalSettings-Files
+{
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$buildRepositoryName,
+        [Parameter(Mandatory)] [String]$serviceConnection,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [String]$webSiteName,
+        [Parameter()] [String]$token
+    )
+
+    . "$env:POWERSHELLPATH/dataverse-webapi-functions.ps1"
+    $dataverseHost = Get-HostFromUrl "$serviceConnection"
+    Write-Host "dataverseHost - $dataverseHost"
+
+    Write-Host "Inside Set-PortalSettings-Files"
+    $configurationData = $env:DEPLOYMENT_SETTINGS | ConvertFrom-Json
+
+    . "$env:POWERSHELLPATH/portal-functions.ps1"
+    $powerPagesFolderPath = "$buildSourceDirectory\$buildRepositoryName\$solutionName\PowerPages\$webSiteName\"
+    # Check if Power Pages folder available
+    if(Test-Path $powerPagesFolderPath){
+        #Loop through the build definitions we found and update the pipeline variables based on the placeholders we put in the deployment settings files.
+        foreach($configurationDataEnvironment in $configurationData)
+        {
+            $userSettingIdAvailable = $false
+            $environmentName = $configurationDataEnvironment.DeploymentEnvironmentName
+            Write-Host "EnvironmentName - $environmentName"
+            if($null -ne $configurationDataEnvironment -and $null -ne $configurationDataEnvironment.UserSettings) {
+                foreach($configurationVariable in $configurationDataEnvironment.UserSettings) {
+                    $configurationVariableName = $configurationVariable.Name
+                    $configurationVariableValue = $configurationVariable.Value
+                    if($configurationVariableName.StartsWith("UserSettingId", "CurrentCultureIgnoreCase")) {
+                        $userSettingIdAvailable = $true
+                        $userSettingId = $configurationVariableValue
+                        if (-not [string]::IsNullOrEmpty($userSettingId)){
+                            Write-Host "userSettingId - $userSettingId available for environment $environmentName"
+                            $responseUserSetting = Get-UserSetting-by-Id $token $dataverseHost $userSettingId
+                            if($null -ne $responseUserSetting -and $null -ne $responseUserSetting.value -and $responseUserSetting.value.count -gt 0){
+                               # Read portalsettingscontent
+                               $portalsettingsBase64content = Read-File-Content "$token" "$dataverseHost" "cat_portalsettingfile" "$userSettingId"
+                               # Convert Base64 to Plain Text
+                               $portalsettingscontent = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("$portalsettingsBase64content"))
+                               Write-Host "portalsettingscontent - $portalsettingscontent"
+                               if($portalsettingscontent){
+                                    Write-Host "Creating or overriding deployment setting file for $environmentName environment"
+                                    Create-or-Override-Profile-File "$buildSourceDirectory\$buildRepositoryName\$solutionName\PowerPages\$webSiteName\" "$environmentName" "$portalsettingscontent"
+                               }
+                               else{
+                                   Write-Host "portalsettingscontent is empty"
+                               }
+                            }
+                            else{
+                                Write-Host "User Setting with Id $userSettingId for $environmentName either invalid or does not have portalsettings file"
+                            }
+                        }
+                        else{
+                            Write-Host "User Setting Id is Null or Empty"
+                        }
+                    }
+                }
+            }
+
+            if($userSettingIdAvailable -eq $false){
+                Write-Host "UserSettingId variable unavailable for $environmentName environment"
+            }
+        }
+    }
+    else{
+        Write-Host "Power pages folder path $powerPagesFolderPath unavailable. Exiting."
+    }
+}
+
+# Fetch 'User Setting' record, if the 'Portal Settings Content' field has data. Else return $null
+function Get-UserSetting-by-Id {
+    param (
+        [Parameter(Mandatory)] [String]$token,
+        [Parameter(Mandatory)] [String]$dataverseHost,
+        [Parameter(Mandatory)] [String]$userSettingId
+    )
+    $responseUserSetting = $null
+    #$queryUserSetting = 'cat_usersettings?$filter=cat_portalsettingfile ne null and cat_usersettingid eq ' + "'$userSettingId'" + '&$select=cat_portalsettingscontent'
+    $queryUserSetting = 'cat_usersettings?$filter=cat_portalsettingfile ne null and cat_usersettingid eq ' + "'$userSettingId'" + '&$select=cat_usersettingid'
+    try{
+        Write-Host "User setting Query - $queryUserSetting"
+        $responseUserSetting = Invoke-DataverseHttpGet $token $dataverseHost $queryUserSetting
+    }
+    catch{
+        Write-Host "Error $queryUserSetting - $($_.Exception.Message)"
+    }
+
+    return $responseUserSetting
+}
+
+function Read-File-Content {
+    param (
+        [Parameter()] [String]$token,
+        [Parameter(Mandatory)] [String]$dataverseHost,
+        [Parameter(Mandatory)] [String]$fileAttributeName,
+        [Parameter()] [String]$userSettingId
+    )
+    Write-Host "Inside Read-File-Content"
+    $portalsettingsBase64content = $null
+
+    try{
+        $requestBody = @{
+            Target = @{
+                cat_usersettingid = "$userSettingId"
+                "@odata.type" = "Microsoft.Dynamics.CRM.cat_usersetting"
+            }
+            FileAttributeName = "$fileAttributeName"
+        } | ConvertTo-Json
+
+        Write-Host "requestBody - $requestBody"
+    
+        $requestUrlRemainder = "InitializeFileBlocksDownload"
+        $response = Invoke-DataverseHttpPost $token $dataverseHost $requestUrlRemainder $requestBody
+        Write-Host "response - $response"
+
+        if ($response -ne $null -and -not $response.IsEmpty){
+            # Read FileContinuationToken and call 'InitializeFileBlocksDownload'
+            $fileSizeInBytes = $response.FileSizeInBytes
+            $fileName = $response.FileName
+            $fileContinuationToken = $response.FileContinuationToken
+
+            Write-Host "fileContinuationToken - $fileContinuationToken"
+            Write-Host "fileSizeInBytes - $fileSizeInBytes"
+
+            $requestBody = @{
+               "Offset" = 0
+               "BlockLength" = $fileSizeInBytes
+               "FileContinuationToken" = "$fileContinuationToken"
+            } | ConvertTo-Json
+
+            Write-Host "requestBody - $requestBody"
+            $requestUrlRemainder = "DownloadBlock"
+            $responseDownloadBlock = Invoke-DataverseHttpPost $token $dataverseHost $requestUrlRemainder $requestBody
+            Write-Host "responseDownloadBlock - $responseDownloadBlock"
+
+            if($responseDownloadBlock){
+                $portalsettingsBase64content = $responseDownloadBlock.Data
+                Write-Host "Reading portalsettingsBase64content from responseDownloadBlock - $portalsettingsBase64content"
+            }
+            else{
+                Write-Host "DownloadBlock response is NullorEmpty"
+            }
+        }
+        else{
+            Write-Host "InitializeFileBlocksDownload response is NullorEmpty"
+        }
+    }
+    catch {
+        Write-Host "An error occurred in Read-File-Content: $($_.Exception.Message)"
+    }
+
+    return $portalsettingsBase64content
+}
