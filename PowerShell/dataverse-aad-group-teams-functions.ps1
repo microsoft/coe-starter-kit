@@ -15,10 +15,8 @@
     )
 
 	if($aadGroupTeamConfiguration -ne '') {
-        #$microsoftPowerAppsAdministrationPowerShellModule = '$(CoETools_Microsoft_PowerApps_Administration_PowerShell)'
         Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $powerAppsAdminModuleVersion -ArgumentList @{ NonInteractive = $true }
         Add-PowerAppsAccount -TenantID $tenantId -ApplicationId $clientId -ClientSecret $clientSecret
-        #$microsoftXrmDataPowerShellModule = '$(CoeTools_Microsoft_Xrm_Data_Powershell)'
         Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $XrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
         $conn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
 
@@ -64,16 +62,16 @@
               #Get business unit
               if($businessUnitId -ne '') {
                   $guidBU = [GUID]"$businessUnitId"
-                  #$businessUnitLookup = [PSCustomObject]@{"LogicalName"="businessunit"; "Id"=[guid]"$businessUnitId"}
                   $businessUnitLookup = (New-CrmEntityReference -EntityLogicalName businessunit -Id $guidBU)
                   $fields = @{ "name"=$aadGroupTeamName;"teamtype"=$teamTypeValue;"azureactivedirectoryobjectid"=[guid]$aadId;"businessunitid"=$businessUnitLookup }
               }
 
+              $applySecurityRoleRefresh = $true
               # Check if any Dataverse team with AAD security group already exists
-              $queryteamswithaadID = "teams?`$select=teamid,name&`$filter=(azureactivedirectoryobjectid eq '$aadId')"    
+              $queryteamswithaadID = "teams?`$select=teamid,name&`$filter=(azureactivedirectoryobjectid eq '$aadId')"
 
               try{
-                Write-Host "Teams with AAD Query - $queryteamswithaadID"
+                Write-Host "Checking if AAD group already mapped to DV teams in the target. 'Teams with AAD' Query - $queryteamswithaadID"
                 $aadGroupTeamswithAAD = Invoke-DataverseHttpGet $token $dataverseHost $queryteamswithaadID
               }
               catch{
@@ -82,10 +80,24 @@
 
               if($null -ne $aadGroupTeamswithAAD.value -and $aadGroupTeamswithAAD.value.count -gt 0){
                 $existingTeamName = $aadGroupTeamswithAAD.value[0].name
-                Write-Host "Dataverse team - $existingTeamName already mapped to AAD team id - $aadId"
+                Write-Host "Given AAD team with id - $aadId is already mapped to the Dataverse team - $existingTeamName"
+                # If already mapped team name not matches with Team name from Deployment setting skip the Security Role refresh
+                if ($existingTeamName -ne $aadGroupTeamName) {
+                    Write-Host "Existing team - $existingTeamName not matching with  aadGroupTeamName - $aadGroupTeamName. Cancelling Security Role refresh"
+                    $applySecurityRoleRefresh = $false
+                }else{
+                    Write-Host "Existing team - $existingTeamName matching with  aadGroupTeamName - $aadGroupTeamName. Proceeding with Security Role refresh"
+                }
               }
               else{
-                  $queryteams = "teams?`$select=teamid&`$filter=(name eq '$aadGroupTeamName')"    
+                Write-Host "Given AAD team with id - $aadId is not mapped to any Dataverse teams - $existingTeamName. Proceeding with creation or updation of Team."
+              }
+
+              # Perform Security Role refresh only if $applySecurityRoleRefresh is $true
+              if($applySecurityRoleRefresh){
+                  Write-Host "Checking and fetching the Team by name $aadGroupTeamName in the target environment"
+                  $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$aadGroupTeamName")
+                  $queryteams = "teams?`$select=teamid&`$filter=(name eq '$encodedFilterValue')"    
 
                   try{
                     Write-Host "Teams Query - $queryteams"
@@ -95,31 +107,31 @@
                     Write-Host "Error queryteams - $($_.Exception.Message)"
                   }
 
-                  #$aadGroupTeams = Get-CrmRecords -conn $conn -EntityLogicalName team -FilterAttribute "name" -FilterOperator "eq" -FilterValue $aadGroupTeamName -Fields teamid
                   if($null -ne $aadGroupTeams.value -and $aadGroupTeams.value.count -gt 0){
-                    Write-Host "Updating existing team with $fields"
+                    Write-Host "Team with name $aadGroupTeamName found. Updating the existing team - $aadGroupTeamName"
                     $aadGroupTeamId = $aadGroupTeams.value[0].teamid
                     Set-CrmRecord -conn $conn -EntityLogicalName team -Id $aadGroupTeamId -Fields $fields
                   } 
                   else {
-                    Write-Host "Creating new team with $fields"  
+                    Write-Host "Team with name $aadGroupTeamName not found. Creating a new team by name $aadGroupTeamName"  
                     $aadGroupTeamId = New-CrmRecord -conn $conn -EntityLogicalName team -Fields $fields
                   }
       
-                  Write-Host "aadGroupTeamId - $aadGroupTeamId"
-                    $queryaadGroupTeamRoles = "teamrolescollection?`$select=roleid&`$filter=(teamid eq '$aadGroupTeamId')"    
+                  Write-Host "Fetching the existing roles of Team $aadGroupTeamName"
+                  $queryaadGroupTeamRoles = "teamrolescollection?`$select=roleid&`$filter=(teamid eq '$aadGroupTeamId')"    
 
-                    try{
-                        Write-Host "aadGroupTeamRoles Query - $queryaadGroupTeamRoles"
-                        $aadGroupTeamRoles = Invoke-DataverseHttpGet $token $dataverseHost $queryaadGroupTeamRoles
-                    }
-                    catch{
-                        Write-Host "Error queryaadGroupTeamRoles - $($_.Exception.Message)"
-                    }
+                  try{
+                     Write-Host "aadGroupTeamRoles Query - $queryaadGroupTeamRoles"
+                     $existingAADGroupTeamRoles = Invoke-DataverseHttpGet $token $dataverseHost $queryaadGroupTeamRoles
+                  }
+                  catch{
+                     Write-Host "Error queryaadGroupTeamRoles - $($_.Exception.Message)"
+                  }
 
+                  Write-Host "Comparing the Team $aadGroupTeamName roles with roles passed in configuration settings "
                   foreach ($securityRoleName in $securityRoleNames){
-                    #$securityRoles = Get-CrmRecords -conn $conn -EntityLogicalName role -FilterAttribute "name" -FilterOperator "eq" -FilterValue $securityRoleName -Fields roleid
-                    $querysecurityRoles = "roles?`$select=roleid,name&`$filter=(name eq '$securityRoleName' and _businessunitid_value eq '$businessUnitId')"
+                    $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$securityRoleName")
+                    $querysecurityRoles = "roles?`$select=roleid,name&`$filter=(name eq '$encodedFilterValue' and _businessunitid_value eq '$businessUnitId')"
                     try{
                         Write-Host "Security Roles Query - $querysecurityRoles"
                         $securityRoles = Invoke-DataverseHttpGet $token $dataverseHost $querysecurityRoles
@@ -132,9 +144,9 @@
                         $securityRole = $securityRoles.value[0]
                         Write-Host "Checking whether role is already mapped to Team; Role Name - $securityRoleName; Id - " $securityRole.roleid
 
-                        if($null -ne $aadGroupTeamRoles.value -and $aadGroupTeamRoles.value.count -gt 0){
-                            # Add the role if its not already added
-                            if ($aadGroupTeamRoles.value.Where({$_.roleid -eq $securityRole.roleid}).Count -eq 0){
+                        if($null -ne $existingAADGroupTeamRoles.value -and $existingAADGroupTeamRoles.value.count -gt 0){
+                            # Add the role only if its not already added
+                            if ($existingAADGroupTeamRoles.value.Where({$_.roleid -eq $securityRole.roleid}).Count -eq 0){
                               Write-Host "Assigning additional Role - $securityRoleName to Team - $aadGroupTeamName"
                               Add-CrmSecurityRoleToTeam -conn $conn -TeamId $aadGroupTeamId -SecurityRoleId $securityRole.roleid
                             }
