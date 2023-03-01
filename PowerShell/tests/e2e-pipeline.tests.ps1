@@ -13,7 +13,7 @@
 
 param(
     $Org, $Project, $BranchToTest, $SourceBranch, $BranchToCreate, $CommitMessage, $Data, 
-    $Email, $Repo, $ServiceConnection, $SolutionName, $UserName, $PortalSiteName, $PublishCustomizations
+    $Email, $Repo, $ServiceConnection, $SolutionName, $UserName, $PortalSiteName, $PublishCustomizations, $CommitScope
 )
 
 class Helper {
@@ -229,7 +229,7 @@ Describe 'E2E-Pipeline-Test' {
         # Get the id of the PR validation pipeline using the PR id and wait for it to successfully complete
         $pullRequestId = $result.pullRequestId
         # sleep for 15 seconds to ensure the pipeline to validate the PR is kicked off (may need to tweak)
-        Start-Sleep -Seconds 15
+        Start-Sleep -Seconds 30
         $result = az pipelines runs list --org $Org --project $Project --branch "refs/pull/$pullRequestId/merge"
         $result = $result | ConvertFrom-Json -Depth 100
         $id = $result[0].id
@@ -239,7 +239,7 @@ Describe 'E2E-Pipeline-Test' {
         az repos pr set-vote --id $pullRequestId --org $Org --vote approve
         az repos pr update --id $pullRequestId --org $Org --status completed --squash true  --merge-commit-message $CommitMessage --delete-source-branch true
         # sleep for 15 seconds to ensure the pipeline to deploy to UAT environment is kicked off (may need to tweak)
-        Start-Sleep -Seconds 15
+        Start-Sleep -Seconds 30
         # Get the id of the pipeline to deploy to UAT and wait for it to successfully complete
         # TODO: See if we can improve the query below to be more precise.  Works when there isn't another pipeline running triggered from the same solution branch
         $result = az pipelines runs list --org $Org --project $Project --branch $SolutionName --top 1 --reason individualCI --query-order QueueTimeDesc
