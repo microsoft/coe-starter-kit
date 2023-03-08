@@ -309,7 +309,7 @@ function Get-OwnerFlowActivations {
                             $activateFlow = 'true'
                             if ($null -ne $activationConfigs) {
                                 Write-Host "Retrieving activation config"
-                                $activationConfig = $activationConfigs | Where-Object { $_.solutionComponentUniqueName -eq $solutionComponent.objectid } | Select-Object -First 1
+                                $activationConfig = $activationConfigs | Where-Object { $_.solutionComponentUniqueName -eq $ownershipConfig.solutionComponentUniqueName } | Select-Object -First 1
                                 if ($null -ne $activationConfig) {
                                     if($activationConfig.sortOrder -ne '') {
                                         $sortOrder = $activationConfig.sortOrder
