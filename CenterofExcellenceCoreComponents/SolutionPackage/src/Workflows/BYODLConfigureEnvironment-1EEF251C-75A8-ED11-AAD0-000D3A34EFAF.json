@@ -1,0 +1,221 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEBYODLDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_dataflows": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEBYODLPowerQuery"
+        },
+        "api": {
+          "name": "shared_dataflows"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "When_a_dataflow_refresh_completes": {
+          "recurrence": {
+            "interval": 1,
+            "frequency": "Minute"
+          },
+          "metadata": {
+            "operationMetadataId": "078cb879-2a7a-49c9-9a19-e178593658eb"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_dataflows",
+              "operationId": "OnRefreshComplete",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_dataflows"
+            },
+            "parameters": {
+              "workspaceType": "Environment",
+              "groupIdForOnRefreshComplete": "ecee3084-9c8f-e63b-b629-fa9ae762c919-31c688f59-us",
+              "dataflowIdForOnRefreshComplete": "56e4263e-e171-42e6-a0ad-55a0d7843f2a"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Get_Location_from_Header": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "df0fdfa8-dd92-4085-97b6-2a85f100bdff"
+          },
+          "type": "Compose",
+          "inputs": "@triggerOutputs()['headers']['Location']"
+        },
+        "List_Dataflow_Environment_Variables": {
+          "runAfter": {
+            "Compose_Group_ID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "19866533-3674-4f11-884e-55d496cd5ff8"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "entityName": "environmentvariabledefinitions",
+              "$select": "environmentvariabledefinitionid,environmentvariabledefinitionidunique,schemaname,displayname",
+              "$filter": "contains(schemaname,'CurrentEnvironment')"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Apply_to_each_environment_variable": {
+          "foreach": "@outputs('List_Dataflow_Environment_Variables')?['body/value']",
+          "actions": {
+            "Get_environment_variable_value": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "a163ca63-3d6c-42b6-9eed-571c68f999ab"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "environmentvariablevalues",
+                  "$select": "value",
+                  "$filter": "schemaname eq '@{items('Apply_to_each_environment_variable')?['schemaname']}'",
+                  "$expand": "EnvironmentVariableDefinitionId"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Condition": {
+              "actions": {
+                "Apply_to_each_existing_value": {
+                  "foreach": "@outputs('Get_environment_variable_value')?['body/value']",
+                  "actions": {
+                    "Update_current_value_of_environment_variable": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "b24411b3-e368-4cef-b0fc-660e4334e65e"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "environmentvariablevalues",
+                          "recordId": "@items('Apply_to_each_existing_value')?['environmentvariabledefinitionid/environmentvariabledefinitionid']",
+                          "item/schemaname": "@items('Apply_to_each_environment_variable')?['schemaname']",
+                          "item/value": "@outputs('Compose_Group_ID')"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "e028036f-a9c3-4bda-8013-66c60476ad62"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "Get_environment_variable_value": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Add_current_value_to_environment_variable": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "296f15db-200e-4b1c-b11b-45658947f61d"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_commondataserviceforapps",
+                        "operationId": "CreateRecord",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                      },
+                      "parameters": {
+                        "entityName": "environmentvariablevalues",
+                        "item/EnvironmentVariableDefinitionId@odata.bind": "environmentvariablevalues(@{items('Apply_to_each_environment_variable')?['environmentvariabledefinitionid']})",
+                        "item/schemaname": "@items('Apply_to_each_environment_variable')?['schemaname']",
+                        "item/value": "@outputs('Compose_Group_ID')"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(outputs('Get_environment_variable_value')?['body/value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2f3fdb5c-5f16-4aa2-8dfe-6e9b2ac332ee"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "List_Dataflow_Environment_Variables": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "eddae41f-bbe5-4dfa-b634-6b47e57e75ff"
+          },
+          "type": "Foreach"
+        },
+        "Compose_Group_ID": {
+          "runAfter": {
+            "Get_Location_from_Header": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "84ff2539-59fa-4208-ae7e-588b468012a9"
+          },
+          "type": "Compose",
+          "inputs": "@split(split(outputs('Get_Location_from_Header'), 'groups/')[1], '/dataflows')[0]"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
