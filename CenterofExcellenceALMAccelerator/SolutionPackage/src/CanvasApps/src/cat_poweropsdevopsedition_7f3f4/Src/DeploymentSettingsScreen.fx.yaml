@@ -1,6 +1,27 @@
 DeploymentSettingsScreen As screen:
     OnVisible: |-
         =Reset(chkShareAllConnections);
+        UpdateContext(
+            {
+                sortFlowEnabled: true,
+                showDeployDialog: true,
+                showDeploymentSettingsLoader: true,
+                showConnectionReferenceSettings: false,
+                showEnvironmentVariablesSettings: false,
+                showSharingSettings: false,
+                showOwnerSettings: false,
+                showConnectorSettings: false,
+                showGroupTeamsSettings: false,
+                showWebHookURLs: false,
+                showPortalConfig: false,
+                locCloseAfterSave: true,
+                locShareConnections: true,
+                locDeploymentEnvironmentLabel: "Select an Environment to Configure",
+                SolutionLoaderText: "LOADING...",
+                DeploymentSettingsLoadingText: "GETTING SOLUTION DEPENDENCIES...",
+                SaveDeploymentButtonText: "SAVE AND CLOSE"
+            }
+        );
         IfError(
             If(
                 !IsBlank(Param("configsoln")) And !IsBlank(Param("env")) And !IsBlank(Param("profile")) And !IsBlank(Param("step")),
@@ -28,10 +49,13 @@ DeploymentSettingsScreen As screen:
                                 FirstN(
                                     ClearCollect(
                                         splitCol,
-                                        ForAll(Split(
-                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            "."
-                                        ), {Result: ThisRecord.Value})
+                                        ForAll(
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            ),
+                                            {Result: ThisRecord.Value}
+                                        )
                                     ),
                                     2
                                 )
@@ -78,33 +102,10 @@ DeploymentSettingsScreen As screen:
                     )
                 );
                 Set(
-                    SelectedDeploymentStep,
-                    LookUp(
-                        'Deployment Steps',
-                        'Deployment Step' = GUID(Param("step"))
-                    )
+                    SelectedDeploymentEnvironmentId,
+                    Param("step")
                 );
-            );
-            UpdateContext(
-                {
-                    sortFlowEnabled: true,
-                    showDeployDialog: true,
-                    showDeploymentSettingsLoader: true,
-                    showConnectionReferenceSettings: false,
-                    showEnvironmentVariablesSettings: false,
-                    showSharingSettings: false,
-                    showOwnerSettings: false,
-                    showConnectorSettings: false,
-                    showGroupTeamsSettings: false,
-                    showWebHookURLs: false,
-                    showPortalConfig: false,
-                    locCloseAfterSave: true,
-                    locShareConnections: true,
-                    locDeploymentEnvironmentLabel: "Select an Environment to Configure",
-                    SolutionLoaderText: "LOADING...",
-                    DeploymentSettingsLoadingText: "GETTING SOLUTION DEPENDENCIES...",
-                    SaveDeploymentButtonText: "SAVE AND CLOSE"
-                }
+                UpdateContext({SaveDeploymentButtonText: "Save"});
             );
             ClearCollect(
                 DeploymentSteps,
@@ -146,17 +147,13 @@ DeploymentSettingsScreen As screen:
             If(
                 CountRows(DeploymentEnvironments) > 0,
                 If(
-                    IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
+                    IsBlankOrError(SelectedDeploymentEnvironmentId),
                     UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
                     UpdateContext(
                         {
                             SelectedDeploymentEnvironment: LookUp(
                                 DeploymentEnvironments,
-                                LookUp(
-                                    'Deployment Environments',
-                                    'Deployment Environment' = SelectedDeploymentStep.'Deployment Environment'.'Deployment Environment',
-                                    URL
-                                ) in EnvironmentUrl
+                                EnvironmentId = SelectedDeploymentEnvironmentId
                             )
                         }
                     )
@@ -184,50 +181,59 @@ DeploymentSettingsScreen As screen:
                     UpdateContext(
                         {
                             locSharepointFilter: Concat(
-                                ForAll(Distinct(
-                                    Filter(
-                                        EnvironmentDeploymentSettings,
-                                        StartsWith(
-                                            Name,
-                                            "environmentvariable."
-                                        ) And ".sharepoint." in Value
+                                ForAll(
+                                    Distinct(
+                                        Filter(
+                                            EnvironmentDeploymentSettings,
+                                            StartsWith(
+                                                Name,
+                                                "environmentvariable."
+                                            ) And ".sharepoint." in Value
+                                        ),
+                                        Value
                                     ),
-                                    Value
-                                ), {Result: ThisRecord.Value}),
+                                    {Result: ThisRecord.Value}
+                                ),
                                 "site:" & Result,
                                 " OR "
                             ),
                             locAADGroupFilters: Concat(
-                                ForAll(Distinct(
-                                    Filter(
-                                        EnvironmentDeploymentSettings,
-                                        (StartsWith(
-                                            Name,
-                                            "canvasshare.aadGroupId."
-                                        ) Or StartsWith(
-                                            Name,
-                                            "groupteam."
-                                        )) And !IsBlankOrError(Value)
+                                ForAll(
+                                    Distinct(
+                                        Filter(
+                                            EnvironmentDeploymentSettings,
+                                            (StartsWith(
+                                                Name,
+                                                "canvasshare.aadGroupId."
+                                            ) Or StartsWith(
+                                                Name,
+                                                "groupteam."
+                                            )) And !IsBlankOrError(Value)
+                                        ),
+                                        Value
                                     ),
-                                    Value
-                                ), {Result: ThisRecord.Value}),
+                                    {Result: ThisRecord.Value}
+                                ),
                                 "id eq '" & Result & "'",
                                 " OR "
                             ),
                             locEnvironmentUserFilters: Concat(
-                                ForAll(Distinct(
-                                    Filter(
-                                        EnvironmentDeploymentSettings,
-                                        (StartsWith(
-                                            Name,
-                                            "owner.ownerEmail."
-                                        ) Or StartsWith(
-                                            Name,
-                                            "flow.activation."
-                                        )) And !IsBlankOrError(Value)
+                                ForAll(
+                                    Distinct(
+                                        Filter(
+                                            EnvironmentDeploymentSettings,
+                                            (StartsWith(
+                                                Name,
+                                                "owner.ownerEmail."
+                                            ) Or StartsWith(
+                                                Name,
+                                                "flow.activation."
+                                            )) And !IsBlankOrError(Value)
+                                        ),
+                                        Value
                                     ),
-                                    Value
-                                ), {Result: ThisRecord.Value}),
+                                    {Result: ThisRecord.Value}
+                                ),
                                 "internalemailaddress eq '" & Result & "'",
                                 " or "
                             )
@@ -305,10 +311,13 @@ DeploymentSettingsScreen As screen:
                                 FirstN(
                                     ClearCollect(
                                         splitCol2,
-                                        ForAll(Split(
-                                            SelectedDeploymentEnvironment.EnvironmentUrl,
-                                            "."
-                                        ), {Result: ThisRecord.Value})
+                                        ForAll(
+                                            Split(
+                                                SelectedDeploymentEnvironment.EnvironmentUrl,
+                                                "."
+                                            ),
+                                            {Result: ThisRecord.Value}
+                                        )
                                     ),
                                     2
                                 )
@@ -328,10 +337,13 @@ DeploymentSettingsScreen As screen:
                         SearchDeploymentEnvironmentBUnits.Run(
                             Last(
                                 FirstN(
-                                    ForAll(Split(
-                                        SelectedDeploymentEnvironment.EnvironmentUrl,
-                                        "."
-                                    ), {Result: ThisRecord.Value}),
+                                    ForAll(
+                                        Split(
+                                            SelectedDeploymentEnvironment.EnvironmentUrl,
+                                            "."
+                                        ),
+                                        {Result: ThisRecord.Value}
+                                    ),
                                     2
                                 )
                             ).Result,
@@ -432,10 +444,13 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol1,
-                                                ForAll(Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
-                                                ), {Result: ThisRecord.Value})
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
+                                                )
                                             ),
                                             2
                                         )
@@ -458,7 +473,6 @@ DeploymentSettingsScreen As screen:
                                     EnvironmentDeploymentSettings,
                                     Name = "connectionreference.shared." & connectionreferencelogicalname
                                 ).Value
-                                
                             )
                         ),
                         Collect(
@@ -469,10 +483,13 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitColUrls,
-                                                ForAll(Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
-                                                ), {Result: ThisRecord.Value})
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
+                                                )
                                             ),
                                             2
                                         )
@@ -482,7 +499,7 @@ DeploymentSettingsScreen As screen:
                                 ),
                                 "CurrentValue",
                                 LookUp(
-                                    EnvironmentDeploymentSettings, 
+                                    EnvironmentDeploymentSettings,
                                     Name = "webhookurl." & name
                                 ).Value
                             )
@@ -495,10 +512,13 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol2,
-                                                ForAll(Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
-                                                ), {Result: ThisRecord.Value})
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
+                                                )
                                             ),
                                             2
                                         )
@@ -544,10 +564,13 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol3,
-                                                ForAll(Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
-                                                ), {Result: ThisRecord.Value})
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
+                                                )
                                             ),
                                             2
                                         )
@@ -589,10 +612,13 @@ DeploymentSettingsScreen As screen:
                                             FirstN(
                                                 ClearCollect(
                                                     splitCol4,
-                                                    ForAll(Split(
-                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                        "."
-                                                    ), {Result: ThisRecord.Value})
+                                                    ForAll(
+                                                        Split(
+                                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                            "."
+                                                        ),
+                                                        {Result: ThisRecord.Value}
+                                                    )
                                                 ),
                                                 2
                                             )
@@ -673,10 +699,13 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol5,
-                                                ForAll(Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
-                                                ), {Result: ThisRecord.Value})
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
+                                                )
                                             ),
                                             2
                                         )
@@ -702,10 +731,13 @@ DeploymentSettingsScreen As screen:
                                     FirstN(
                                         ClearCollect(
                                             splitCol6,
-                                            ForAll(Split(
-                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                "."
-                                            ), {Result: ThisRecord.Value})
+                                            ForAll(
+                                                Split(
+                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                    "."
+                                                ),
+                                                {Result: ThisRecord.Value}
+                                            )
                                         ),
                                         2
                                     )
@@ -3149,7 +3181,8 @@ DeploymentSettingsScreen As screen:
             HoverColor: =ColorFade(btnSaveDeployment.Color, 20%)
             HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
             OnSelect: |
-                =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                =UpdateContext({PreviousSaveButtonText: SaveDeploymentButtonText});
+                UpdateContext({SaveDeploymentButtonText: "SAVING..."});
                 //Save Deployment Settings
                 UpdateContext(
                     {
@@ -3458,7 +3491,7 @@ DeploymentSettingsScreen As screen:
                     {
                         locCloseAfterSave: true,
                         locShareConnections: true,
-                        SaveDeploymentButtonText: "SAVE AND CLOSE"
+                        SaveDeploymentButtonText: PreviousSaveButtonText
                     }
                 );
                 Reset(chkShareAllConnections);
@@ -5079,7 +5112,7 @@ DeploymentSettingsScreen As screen:
                             PowerAppsforMakers.GetApps().value,
                             properties.displayName = AppName && properties.environment.name = ExecutingEnvironment.tags.environmentName
                         )
-                    ).name & "?profile=" & SelectedConfigurationDeploymentProfile.'Deployment Profile' & "%26step=" & SelectedDeploymentStep.'Deployment Step' & "%26env=" & SelectedEnvironment.name & "%26configsoln=" & Text(SelectedSolutionToConfigure.solutionid)
+                    ).name & "?profile=" & SelectedConfigurationDeploymentProfile.'Deployment Profile' & "%26step=" & SelectedDeploymentEnvironment.EnvironmentId & "%26env=" & SelectedEnvironment.name & "%26configsoln=" & Text(SelectedSolutionToConfigure.solutionid)
                 );
                 Clear(MyPeople);
             PressedBorderColor: =btnSendRequest.Fill
