@@ -1,4 +1,4 @@
-﻿function Fix-Unset-GUIDs-In-New-Business-Rules
+﻿function Invoke-Fix-Unset-GUIDs-In-New-Business-Rules
 {
     param (
         [Parameter(Mandatory)] [String]$workflowsPath
@@ -20,7 +20,7 @@
      }
 }
 
-function verify-default-environment-variables-are-set
+function Invoke-Verify-Default-Environment-Variables-Are-Set
 {
     param (
         [Parameter()] [String]$outDefaultEnvironmentVariables,
@@ -50,7 +50,7 @@ function verify-default-environment-variables-are-set
     }
 }
 
-function Check-if-Configuration-Migration-Data-Exists
+function Invoke-Check-If-Configuration-Migration-Data-Exists
 {
     param (
         [Parameter()] [String]$path,

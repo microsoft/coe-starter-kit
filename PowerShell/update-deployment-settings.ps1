@@ -71,7 +71,7 @@
             $DeploymentEnvironmentUrl=$configurationDataEnvironment.DeploymentEnvironmentUrl
             $ServiceConnectionName=$configurationDataEnvironment.ServiceConnectionName
             if($null -ne $newBuildDefinitionVariables){
-                Create-Update-ServiceConnection-Parameters $DeploymentEnvironmentUrl $ServiceConnectionName $newBuildDefinitionVariables
+                Invoke-Create-Update-ServiceConnection-Parameters $DeploymentEnvironmentUrl $ServiceConnectionName $newBuildDefinitionVariables
             }
         }		
 
@@ -232,7 +232,7 @@
 
                 #See if the variable already exists
                 if($null -ne $newBuildDefinitionVariables) {
-                    $found = Check-Parameter $configurationVariableName $newBuildDefinitionVariables                
+                    $found = Get-Parameter-Exists $configurationVariableName $newBuildDefinitionVariables                
                     #Add the configuration variable to the list of pipeline variables if usePlaceholders is not false
                     if($usePlaceholders.ToLower() -ne 'false') {
                         #If the variable was not found create it 
@@ -459,23 +459,23 @@ function Set-BuildDefinitionVariables {
     }
 }
 
-function Create-Update-ServiceConnection-Parameters{
+function Invoke-Create-Update-ServiceConnection-Parameters{
     param (
         [Parameter()] [String]$DeploymentEnvironmentUrl,
         [Parameter()] [String]$ServiceConnectionName,
         [Parameter()] [PSCustomObject]$newBuildDefinitionVariables
     )
-    Write-Host "Inside Create-Update-ServiceConnection-Parameters"
+    Write-Host "Inside Invoke-Create-Update-ServiceConnection-Parameters"
     Write-Host "newBuildDefinitionVariables - $newBuildDefinitionVariables"
      if($null -ne $newBuildDefinitionVariables){
         #If the "ServiceConnection" variable was not found create it 
-        $found = Check-Parameter "ServiceConnection" $newBuildDefinitionVariables
+        $found = Get-Parameter-Exists "ServiceConnection" $newBuildDefinitionVariables
         if(!$found) { 
             $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name "ServiceConnection" -Value @{value = ''}
         }
 
         #If the "ServiceConnectionUrl" variable was not found create it 
-        $found = Check-Parameter "ServiceConnectionUrl" $newBuildDefinitionVariables
+        $found = Get-Parameter-Exists "ServiceConnectionUrl" $newBuildDefinitionVariables
         if(!$found) { 
             $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name "ServiceConnectionUrl" -Value @{value = ''}
         }
@@ -490,7 +490,7 @@ function Create-Update-ServiceConnection-Parameters{
     }
 }
 
-function Check-Parameter{
+function Get-Parameter-Exists{
     param (
         [Parameter()] [String]$configurationVariableName,
         [Parameter()] [PSCustomObject]$newBuildDefinitionVariables
@@ -604,7 +604,7 @@ function Set-PortalSettings-Files
                                Write-Host "portalsettingscontent - $portalsettingscontent"
                                if($portalsettingscontent){
                                     Write-Host "Creating or overriding deployment setting file for $environmentName environment"
-                                    Create-or-Override-Profile-File "$buildSourceDirectory\$buildRepositoryName\$solutionName\PowerPages\$webSiteName\" "$environmentName" "$portalsettingscontent"
+                                    Invoke-Create-Or-Override-Profile-File "$buildSourceDirectory\$buildRepositoryName\$solutionName\PowerPages\$webSiteName\" "$environmentName" "$portalsettingscontent"
                                }
                                else{
                                    Write-Host "portalsettingscontent is empty"
@@ -677,7 +677,7 @@ function Read-File-Content {
         $response = Invoke-DataverseHttpPost $token $dataverseHost $requestUrlRemainder $requestBody
         Write-Host "response - $response"
 
-        if ($response -ne $null -and -not $response.IsEmpty){
+        if ($null -ne $response -and -not $response.IsEmpty){
             # Read FileContinuationToken and call 'InitializeFileBlocksDownload'
             $fileSizeInBytes = $response.FileSizeInBytes
             $fileName = $response.FileName

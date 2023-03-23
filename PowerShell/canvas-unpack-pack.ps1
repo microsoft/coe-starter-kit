@@ -54,7 +54,7 @@
     }
 }
 
-function Share-Canvas-App-with-AAD-Group
+function Invoke-Share-Canvas-App-with-AAD-Group
 {
     param (
         [Parameter(Mandatory)] [String]$microsoftPowerAppsAdministrationPowerShellModule,

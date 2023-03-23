@@ -1,4 +1,4 @@
-﻿function Process-old-canvas-code-folder-structure
+﻿function Invoke-Process-Old-Canvas-Code-Folder-Structure
 {
     param (
         [Parameter(Mandatory)] [String]$sourcesDirectory,
@@ -41,7 +41,7 @@
    }
 }
 
-function Repack-Canvas-Apps
+function Invoke-Repack-Canvas-Apps
 {
     param (
         [Parameter(Mandatory)] [String]$sourcesDirectory,
@@ -115,7 +115,7 @@ function Repack-Canvas-Apps
    }
 }
 
-function Get-managed-solution-zip-path
+function Get-Managed-Solution-Zip-Path
 {
     param (
         [Parameter(Mandatory)] [String]$artifactDropPath,
@@ -161,7 +161,7 @@ function Get-unmanaged-solution-zip-path
    Write-Host "unmanagedSolutionPath - " $unmanagedSolutionPath
 }
 
-function Check-if-Deployment-Settings-Exist
+function Get-Does-Deployment-Settings-Exist
 {
     param (
         [Parameter()] [String]$environmentName,
@@ -217,7 +217,7 @@ function Check-if-Deployment-Settings-Exist
     }
 }
 
-function set-deployment-variable
+function Set-Deployment-Variable
 {
     param (
         [Parameter()] [String]$deploymentSettingsPath,
@@ -281,15 +281,15 @@ function Set-Solution-Exists
     $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "$solutionName" -Fields solutionid
     if ($solutions.Count -eq 0){
       # Set the SolutionExists as a global variable for use in other templates
-      echo "##vso[task.setvariable variable=SolutionExists]false"
+      Write-Host "##vso[task.setvariable variable=SolutionExists]false"
     }
     else {
       # Set the SolutionExists as a global variable for use in other templates
-      echo "##vso[task.setvariable variable=SolutionExists]true"
+      Write-Host "##vso[task.setvariable variable=SolutionExists]true"
     }
 }
 
-function update-solution-xml-with-build-number
+function Update-Solution-Xml-With-Build-Number
 {
     param (
         [Parameter(Mandatory)] [String]$solutionXMLPath,
@@ -300,13 +300,13 @@ function update-solution-xml-with-build-number
     [xml]$xmlDoc = Get-Content -Path $solutionXMLPath
     $version = $xmlDoc.ImportExportXml.SolutionManifest.Version
     Write-Host "Existing version - $version"
-    if(($version -ne $null) -and ($version -eq "0.0.0.0")){
+    if(($null -ne $version) -and ($version -eq "0.0.0.0")){
         $xmlDoc.ImportExportXml.SolutionManifest.Version ="$buildNumber"
         $xmlDoc.save("$solutionXMLPath")
     }
 }
 
-function flatten-JSON-files
+function Invoke-Flatten-JSON-Files
 {
     param (
         [Parameter(Mandatory)] [String]$solutionFolderPath
@@ -321,7 +321,7 @@ function flatten-JSON-files
     }
 }
 
-function get-managed-solution-zip-path
+function Get-Managed-Solution-Zip-Path
 {
     param (
         [Parameter(Mandatory)] [String]$artifactDropPath,

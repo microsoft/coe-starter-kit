@@ -1,4 +1,4 @@
-﻿function npm-install-pcf-Projects{
+﻿function Invoke-Npm-Install-Pcf-Projects{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory
     )
@@ -15,7 +15,7 @@
       }   
 }
 
-function npm-build-pcf-Projects{
+function Invoke-Npm-Build-Pcf-Projects{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo
@@ -35,7 +35,7 @@ function npm-build-pcf-Projects{
       } 
 }
 
-function pcf-Projects-install-npm{
+function Invoke-Pcf-Projects-Install-Npm{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo
@@ -46,13 +46,13 @@ function pcf-Projects-install-npm{
       {
         $fullPath = $pcfProj.FullName
         # Point cmd to pcfproj directory
-        set-cmd-Path "$fullPath"
+        Set-Cmd-Path "$fullPath"
         
         npm install
       } 
 }
 
-function set-cmd-Path{
+function Set-Cmd-Path{
      param (
             [Parameter(Mandatory)] [String]$filePath
      )
@@ -66,7 +66,7 @@ function set-cmd-Path{
     }
 }
 
-function add-codefirst-projects-to-cdsproj{
+function Add-Codefirst-Projects-To-Cdsproj{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo,
@@ -147,7 +147,7 @@ function add-codefirst-projects-to-cdsproj{
     }
 }
 
-function check-code-first-components{
+function Invoke-Check-Code-First-Components{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo,
@@ -164,7 +164,7 @@ function check-code-first-components{
     Write-Host "##vso[task.setvariable variable=codefirstexists;]$isCodeFirstProjectExists"
 }
 
-function set-pac-tools-path{
+function Set-Pac-Tools-Path{
     param (
         [Parameter(Mandatory)] [String]$agentOS
     )
@@ -176,10 +176,10 @@ function set-pac-tools-path{
        $pacToolsPath = $env:POWERPLATFORMTOOLS_PACCLIPATH + "\pac\tools"
    } 
 
-    echo "##vso[task.setvariable variable=pacPath]$pacToolsPath"
+    Write-Host "##vso[task.setvariable variable=pacPath]$pacToolsPath"
 }
 
-function pac-authenticate{
+function Invoke-Pac-Authenticate{
     param (
         [Parameter(Mandatory)] [String]$serviceConnectionUrl,
         [Parameter(Mandatory)] [String]$clientId,
@@ -200,7 +200,7 @@ function pac-authenticate{
     return $pacexepath
 }
 
-function clone-or-sync-solution{
+function Invoke-Clone-Or-Sync-Solution{
     param (
         [Parameter(Mandatory)] [String]$serviceConnectionUrl,
         [Parameter(Mandatory)] [String]$clientId,
@@ -210,7 +210,8 @@ function clone-or-sync-solution{
         [Parameter(Mandatory)] [String]$repo,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$pacPath,
-        [Parameter(Mandatory)] [String]$buildDirectory
+        [Parameter(Mandatory)] [String]$buildDirectory,
+        [Parameter(Mandatory)] [String]$processCanvasApps
     )
 	
 	$legacyFolderPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage"
@@ -231,7 +232,7 @@ function clone-or-sync-solution{
             $cdsProjfolderPath = [System.IO.Path]::GetDirectoryName("$cdsProjPath")
             Write-Host "Pointing to cdsproj folder path - " $cdsProjfolderPath
             Set-Location -Path $cdsProjfolderPath
-            $syncCommand = "solution sync --processCanvasApps true --packagetype Both --async"
+            $syncCommand = "solution sync --processCanvasApps $processCanvasApps --packagetype Both --async"
             Write-Host "Triggering Sync - $syncCommand"
             Invoke-Expression -Command "$pacexepath $syncCommand"
         }
@@ -243,7 +244,7 @@ function clone-or-sync-solution{
             }
 
             # Trigger Clone
-            $cloneCommand = "solution clone -n $solutionName --processCanvasApps true --outputDirectory ""$unpackfolderpath"" --packagetype Both --async"
+            $cloneCommand = "solution clone -n $solutionName --processCanvasApps $processCanvasApps --outputDirectory ""$unpackfolderpath"" --packagetype Both --async"
             Write-Host "Clone Command - $pacexepath $cloneCommand"
             Invoke-Expression -Command "$pacexepath $cloneCommand"
         }
@@ -260,7 +261,7 @@ function clone-or-sync-solution{
     }
 }
 
-function add-packagetype-node-to-cdsproj{
+function Add-Packagetype-Node-To-Cdsproj{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo,
@@ -279,7 +280,7 @@ function add-packagetype-node-to-cdsproj{
             Write-Host "Adding SolutionPackageType='Both' node"
             $newPropertyGroup = $xmlDoc.Project.AppendChild($xmlDoc.CreateElement("PropertyGroup",$xmlDoc.Project.NamespaceURI));
             $newSolPkgType = $newPropertyGroup.AppendChild($xmlDoc.CreateElement("SolutionPackageType",$xmlDoc.Project.NamespaceURI));
-            $newSolPkgTypeTextNode = $newSolPkgType.AppendChild($xmlDoc.CreateTextNode("Both"));
+            $newSolPkgType.AppendChild($xmlDoc.CreateTextNode("Both"));
 
             $xmlDoc.save("$cdsProjPath")
         }
@@ -293,7 +294,7 @@ function add-packagetype-node-to-cdsproj{
     }
 }
 
-function restructure-legacy-folders{
+function Invoke-Restructure-Legacy-Folders{
     param (
         [Parameter(Mandatory)] [String]$artifactStagingDirectory,
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -310,9 +311,9 @@ function restructure-legacy-folders{
     # New folder structure "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\$solutionName\src\{unpackedcomponents}"
     if(-not (Test-Path $cdsProjPath)){
         # Get Publisher Name
-        $publisherName = get-publisher-name "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\Other\Solution.xml"
+        $publisherName = Get-Publisher-Name "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\Other\Solution.xml"
         # Get Prefix Name
-        $publisherPrefix = get-publisher-prefix "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\Other\Solution.xml"
+        $publisherPrefix = Get-Publisher-Prefix "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\Other\Solution.xml"
 
         Write-Host "publisherName - $publisherName"
         Write-Host "publisherPrefix - $publisherPrefix"
@@ -349,7 +350,7 @@ function restructure-legacy-folders{
         {
             Copy-Item "$temp_cdsProjPath" -Destination "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\"
             Write-Host "Adding Package Type 'Both' to .cds proj file"
-            add-packagetype-node-to-cdsproj "$buildSourceDirectory" "$repo" "$solutionName"
+            Add-Packagetype-Node-To-Cdsproj "$buildSourceDirectory" "$repo" "$solutionName"
         }
         else{
             Write-Host "cdsproj file unavailble at temp path - $temp_cdsProjPath"
@@ -371,7 +372,7 @@ function restructure-legacy-folders{
     }
 }
 
-function get-publisher-name{
+function Get-Publisher-Name{
     param (
         [Parameter(Mandatory)] [String]$solutionFilePath
     )
@@ -388,7 +389,7 @@ function get-publisher-name{
     return $publisherName
 }
 
-function get-publisher-prefix{
+function Get-Publisher-Prefix{
     param (
         [Parameter(Mandatory)] [String]$solutionFilePath
     )
@@ -405,7 +406,7 @@ function get-publisher-prefix{
     return $publisherPrefix
 }
 
-function append-version-to-solutions{
+function Invoke-Append-Version-To-Solutions{
     param (
         [Parameter(Mandatory)] [String]$artifactStagingDirectory,
         [Parameter(Mandatory)] [String]$solutionName,
@@ -449,7 +450,7 @@ function append-version-to-solutions{
     }
 }
 
-function check-test-projects{
+function Invoke-Check-Test-Projects{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo,
@@ -459,7 +460,7 @@ function check-test-projects{
     $testProjectsPath = "$buildSourceDirectory\$repo\$solutionName\Test"
     If(Test-Path "$testProjectsPath")
     {
-        $testProjectFiles = Get-ChildItem -Path "$testProjectsPath" -Filter *.csproj -Recurse
+        csProjectFiles = Get-ChildItem -Path "$testProjectsPath" -Filter *.csproj -Recurse
         foreach($csProject in $csProjectFiles)
         {     
             # Add only Plugin type csproj; Skip others

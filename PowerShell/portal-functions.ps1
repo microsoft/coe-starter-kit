@@ -11,7 +11,7 @@
     Write-Host "solutionUnpackedFolder - $solutionUnpackedFolder"
     if(Test-Path "$solutionUnpackedFolder")
     {
-        $matchedFolders = Get-ChildItem "$solutionUnpackedFolder" -Directory | select Name
+        $matchedFolders = Get-ChildItem "$solutionUnpackedFolder" -Directory | Select-Object Name
         Write-Host "matchedFolders - $matchedFolders"
 
         if($matchedFolders){
@@ -25,7 +25,7 @@
     return $websiteName
 }
 
-function Validate-Profile-Name
+function Invoke-Validate-Profile-Name
 {
     param (
         [Parameter(Mandatory)] [String]$websiteRepoPath,
@@ -33,7 +33,6 @@ function Validate-Profile-Name
     )
 
     $filesCount = 0
-    $profileName = "NA"
     Write-Host "websiteRepoPath - $websiteRepoPath"
     $deploymentProfilePath = "$websiteRepoPath\deployment-profiles"
     if(Test-Path "$deploymentProfilePath")
@@ -49,7 +48,7 @@ function Validate-Profile-Name
     return $filesCount
 }
 
-function Create-or-Override-Profile-File
+function Invoke-Create-Or-Override-Profile-File
 {
     param (
         [Parameter(Mandatory)] [String]$websiteRepoPath,
@@ -72,7 +71,7 @@ function Create-or-Override-Profile-File
     }
 }
 
-function Clean-Website-Folder
+function Invoke-Clean-Website-Folder
 {
     param (
         [Parameter(Mandatory)] [String]$sourcesDirectory,
@@ -88,7 +87,7 @@ function Clean-Website-Folder
     }
 }
 
-function Fetch-Website-ID
+function Get-Website-ID
 {
     param (
         [Parameter()] [String]$websiteName,
@@ -122,10 +121,10 @@ function Fetch-Website-ID
         }
     }
     Write-Host "websiteId - $websiteId"
-    echo "##vso[task.setvariable variable=WebsiteId]$websiteId"
+    Write-Host "##vso[task.setvariable variable=WebsiteId]$websiteId"
 }
 
-function Portal-Upload-With-Profile{
+function Invoke-Portal-Upload-With-Profile{
     param (
         [Parameter(Mandatory)] [String]$pacPath,
         [Parameter(Mandatory)] [String]$serviceConnectionUrl,

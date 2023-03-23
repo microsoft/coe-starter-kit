@@ -22,9 +22,9 @@ function Update-WebHookUrls {
 
         foreach ($configuration in $webHookConfigCollection) {
             # Retrieve Service End Point
-            if ($configuration.SchemaName -ne $null) {
+            if ($null -ne $configuration.SchemaName) {
                 Write-Host "Fetching Service endpoint by Name - " $configuration.SchemaName
-                $serviceEndPointId = Get-service-endpoint-by-name $configuration.SchemaName $token $dataverseHost
+                $serviceEndPointId = Get-Service-Endpoint-By-Name $configuration.SchemaName $token $dataverseHost
 
                 if($serviceEndPointId -ne -1){
                     Write-Host "Updating serviceendpoint URL to - "$configuration.Value
@@ -35,7 +35,7 @@ function Update-WebHookUrls {
     }
 }
 
-function Get-service-endpoint-by-name{
+function Get-Service-Endpoint-By-Name{
  param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$endPointName,        
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$token,        

@@ -1,4 +1,4 @@
-﻿function add-solution-references-to-package-project{
+﻿function Invoke-Add-Solution-References-To-Package-Project{
      param (
         [Parameter(Mandatory)] [String]$pacPath,
         [Parameter(Mandatory)] [String]$appSourcePackageProjectPath,
@@ -12,13 +12,13 @@
             $pacexepath = "$pacPath\pac.exe"
             if(Test-Path "$pacexepath")
             {
-                Get-ChildItem "$solutionsFolderPath" | Where {$_.Name -match '_managed.zip'} |
+                Get-ChildItem "$solutionsFolderPath" | Where-Object {$_.Name -match '_managed.zip'} |
                 #Get-ChildItem "$solutionsFolderPath" -Filter *.managed.zip | 
                 Foreach-Object {
                     $solutionName = $_.Name
                     $solutionPath = $_.FullName
                     Write-Host "Fetching import order of Solution - " $solutionName
-                    $importOrder = get-solution-import-order "$appSourceInputFilePath" "$solutionName"
+                    $importOrder = Get-Solution-Import-Order "$appSourceInputFilePath" "$solutionName"
                     $pacCommand = "package add-solution --path $solutionPath --import-order $importOrder --import-mode async"
                     Write-Host "Pac Command - $pacCommand"
                     if($importOrder -ne 0){
@@ -50,7 +50,7 @@
     }
 }
 
-function get-solution-import-order{
+function Get-Solution-Import-Order{
     param(
         [Parameter(Mandatory)] [String]$appSourceInputFilePath,
         [Parameter(Mandatory)] [String]$solutionName       
@@ -78,7 +78,7 @@ function get-solution-import-order{
     return $importOrder;
 }
 
-function trigger-dotnet-publish{
+function Invoke-Trigger-Dotnet-Publish{
     param(
         [Parameter(Mandatory)] [String]$appSourcePackageProjectPath
     )
@@ -94,7 +94,7 @@ function trigger-dotnet-publish{
 }
 
 # Copy the .zip folder generated in either bin\debug or bin\release and move it to "AppSourcePackageProject\AppSourceAssets"
-function copy-published-assets-to-AppSourceAssets{
+function Copy-Published-Assets-To-AppSourceAssets{
     param(
         [Parameter(Mandatory)] [String]$appSourcePackageProjectPath,
         [Parameter(Mandatory)] [String]$appSourceAssetsPath,
@@ -110,7 +110,7 @@ function copy-published-assets-to-AppSourceAssets{
         $pdpkgFileCount = (Get-ChildItem "$appSourcePackageProjectPath\$binPath" -Filter *pdpkg.zip | Measure-Object).Count
         Write-Host "Count of .pdpkg.zip from $appSourcePackageProjectPath\$binPath - "$pdpkgFileCount
         if($pdpkgFileCount -gt 0){
-            copy-pdpkg-file "$appSourcePackageProjectPath" "$packageFileName" "$appSourceAssetsPath" "$binPath"           
+            Copy-Pdpkg-File "$appSourcePackageProjectPath" "$packageFileName" "$appSourceAssetsPath" "$binPath"           
             $appSourcePackageFound = $true
         }
         else{
@@ -123,7 +123,7 @@ function copy-published-assets-to-AppSourceAssets{
         $pdpkgFileCount = (Get-ChildItem "$appSourcePackageProjectPath\$binPath" -Filter *pdpkg.zip | Measure-Object).Count
         Write-Host "Count of .pdpkg.zip from $appSourcePackageProjectPath\$binPath - "$pdpkgFileCount
         if($pdpkgFileCount -gt 0){
-            copy-pdpkg-file "$appSourcePackageProjectPath" "$packageFileName" "$appSourceAssetsPath" "$binPath"           
+            Copy-Pdpkg-File "$appSourcePackageProjectPath" "$packageFileName" "$appSourceAssetsPath" "$binPath"           
             $appSourcePackageFound = $true
         }
         else{
@@ -138,7 +138,7 @@ function copy-published-assets-to-AppSourceAssets{
     Write-Host "##vso[task.setVariable variable=AppSourcePackageFound]$appSourcePackageFound"
 }
 
-function pack-and-move-assets-to-AppSourcePackage{
+function Invoke-Pack-And-Move-Assets-To-AppSourcePackage{
     param(
         [Parameter(Mandatory)] [String]$appSourceAssetsPath,
         [Parameter(Mandatory)] [String]$appSourcePackagePath,
@@ -168,7 +168,7 @@ function pack-and-move-assets-to-AppSourcePackage{
     }
 }
 
-function update-input-file{
+function Update-Input-File{
     param (
         [Parameter(Mandatory)] [String]$inputFilePath,
         [Parameter(Mandatory)] [String]$packageFileName,
@@ -192,15 +192,10 @@ function update-input-file{
     }
 }
 
-function install-pac-cli{
+function Install-Pac-Cli{
 	param(
         [Parameter()] [String]$nugetPackageVersion		
 	)
-    #NOTE: Add new versions of canvas unpack and the associated pac CLI version to the versionDictionary to ensure unpacked versions are packed correctly.
-    #.24 is the only version supported in the release of our pipelines the latest version of PAC CLI should be used until a new version is available at which time we
-    #would add new versions here
-    $versionDictionary = @{ "0.24" = ""}
-
     $nugetPackage = "Microsoft.PowerApps.CLI"
     $outFolder = "pac"
     if($nugetPackageVersion -ne '') {
@@ -211,10 +206,10 @@ function install-pac-cli{
     }
     $pacNugetFolder = Get-ChildItem $outFolder | Where-Object {$_.Name -match $nugetPackage + "."}
     $pacPath = $pacNugetFolder.FullName + "\tools"
-    echo "##vso[task.setvariable variable=pacPath]$pacPath"	
+    Write-Host "##vso[task.setvariable variable=pacPath]$pacPath"	
 }
 
-function copy-pdpkg-file{
+function Copy-Pdpkg-File{
     param (
         [Parameter(Mandatory)] [String]$appSourcePackageProjectPath,
         [Parameter(Mandatory)] [String]$packageFileName,
