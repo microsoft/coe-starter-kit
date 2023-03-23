@@ -222,7 +222,15 @@
                         if($null -ne $teamBusinessUnit) {
                             $teamBusinessUnitValue = $teamBusinessUnit.Value
                         }
-                        $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="#{$businessUnitVariableName}#"; "aadSecurityGroupId"="#{$configurationVariableName}#"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
+                        $teamSkipRolesVariableName = $configurationVariableName.Replace("groupTeam", "teamnameskiproles")
+                        Write-Host "teamSkipRolesVariableName - $teamSkipRolesVariableName"
+                        $teamSkipRoles = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq $teamSkipRolesVariableName } | Select-Object -First 1
+                        $teamSkipRolesValue = ""
+                        if($null -ne $teamSkipRoles) {
+                            $teamSkipRolesValue = $teamSkipRoles.Value
+                        }
+                        Write-Host "teamSkipRolesValue - $teamSkipRolesValue"
+                        $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="#{$businessUnitVariableName}#"; "aadSecurityGroupId"="#{$configurationVariableName}#"; "dataverseSecurityRoleNames"=@($teamGroupRoles);"skipRolesDeletion"=$teamSkipRolesValue;}
                         if($usePlaceholders.ToLower() -eq 'false') {
                             $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="$teamBusinessUnitValue"; "aadSecurityGroupId"="$configurationVariableValue"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
                         }

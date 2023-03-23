@@ -42,18 +42,18 @@
 
         $config = Get-Content "$aadGroupTeamConfiguration" | ConvertFrom-Json
 
-        Write-Host "config - $config"
-
         foreach ($c in $config){
           $aadGroupTeamName = $c.aadGroupTeamName
           $businessUnitId = $c.aadGroupTeamBusinessUnitId
           $aadId = $c.aadSecurityGroupId
-          $securityRoleNames = $c.dataverseSecurityRoleNames
+          $securityRoleNamesfromConfig = $c.dataverseSecurityRoleNames
+          $skipRolesDeletion = $c.skipRolesDeletion
 
           Write-Host "aadGroupTeamName - $aadGroupTeamName"
           Write-Host "businessUnitId - $businessUnitId"
           Write-Host "aadId - $aadId"
-          Write-Host "securityRoleNames - $securityRoleNames"
+          Write-Host "securityRoleNames - $securityRoleNamesfromConfig"
+          Write-Host "skipRolesDeletion - $skipRolesDeletion"
           if($aadGroupTeamName -ne '' -and $aadId -ne '') {
               $teamTypeValue = New-CrmOptionSetValue -Value 2
 
@@ -97,6 +97,7 @@
               if($applySecurityRoleRefresh){
                   Write-Host "Checking and fetching the Team by name $aadGroupTeamName in the target environment"
                   $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$aadGroupTeamName")
+                  # Fetch Team by Name
                   $queryteams = "teams?`$select=teamid&`$filter=(name eq '$encodedFilterValue')"    
 
                   try{
@@ -107,62 +108,87 @@
                     Write-Host "Error queryteams - $($_.Exception.Message)"
                   }
 
+                  $newTeamCreated = $false
                   if($null -ne $aadGroupTeams.value -and $aadGroupTeams.value.count -gt 0){
                     Write-Host "Team with name $aadGroupTeamName found. Updating the existing team - $aadGroupTeamName"
                     $aadGroupTeamId = $aadGroupTeams.value[0].teamid
                     Set-CrmRecord -conn $conn -EntityLogicalName team -Id $aadGroupTeamId -Fields $fields
                   } 
                   else {
+                    $newTeamCreated = $true
                     Write-Host "Team with name $aadGroupTeamName not found. Creating a new team by name $aadGroupTeamName"  
                     $aadGroupTeamId = New-CrmRecord -conn $conn -EntityLogicalName team -Fields $fields
                   }
       
-                  Write-Host "Fetching the existing roles of Team $aadGroupTeamName"
-                  $queryaadGroupTeamRoles = "teamrolescollection?`$select=roleid&`$filter=(teamid eq '$aadGroupTeamId')"    
-
-                  try{
-                     Write-Host "aadGroupTeamRoles Query - $queryaadGroupTeamRoles"
-                     $existingAADGroupTeamRoles = Invoke-DataverseHttpGet $token $dataverseHost $queryaadGroupTeamRoles
+                  $existingDVTeamRolesNonConfig = $null
+                  # Skip role fetch, if Team is newly created
+                  if($newTeamCreated -eq $false){
+                      Write-Host "Fetching the existing roles of the existing Team $aadGroupTeamName"
+                      $queryaadGroupTeamRoles = "teamrolescollection?`$select=roleid&`$filter=(teamid eq '$aadGroupTeamId')"
+                      try{
+                         Write-Host "aadGroupTeamRoles Query - $queryaadGroupTeamRoles"
+                         $existingDVTeamRolesNonConfig = Invoke-DataverseHttpGet $token $dataverseHost $queryaadGroupTeamRoles
+                      }
+                      catch{
+                         Write-Host "Error queryaadGroupTeamRoles - $($_.Exception.Message)"
+                      }
                   }
-                  catch{
-                     Write-Host "Error queryaadGroupTeamRoles - $($_.Exception.Message)"
-                  }
 
-                  Write-Host "Comparing the Team $aadGroupTeamName roles with roles passed in configuration settings "
-                  foreach ($securityRoleName in $securityRoleNames){
-                    $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$securityRoleName")
+                  $dvRoleofConfigIds = New-Object System.Collections.ArrayList
+                  Write-Host "Query Dataverse for the Team $aadGroupTeamName roles passed in configuration settings "
+                  foreach ($securityRoleNamefromConfig in $securityRoleNamesfromConfig){
+                    $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$securityRoleNamefromConfig")
                     $querysecurityRoles = "roles?`$select=roleid,name&`$filter=(name eq '$encodedFilterValue' and _businessunitid_value eq '$businessUnitId')"
                     try{
                         Write-Host "Security Roles Query - $querysecurityRoles"
-                        $securityRoles = Invoke-DataverseHttpGet $token $dataverseHost $querysecurityRoles
+                        $responseDVSecurityRoleofConfig = Invoke-DataverseHttpGet $token $dataverseHost $querysecurityRoles
                     }
                     catch{
                         Write-Host "Error querysecurityRoles - $($_.Exception.Message)"
                     }
 
-                    if($null -ne $securityRoles.value -and $securityRoles.value.count -gt 0){
-                        $securityRole = $securityRoles.value[0]
-                        Write-Host "Checking whether role is already mapped to Team; Role Name - $securityRoleName; Id - " $securityRole.roleid
+                    if($null -ne $responseDVSecurityRoleofConfig.value -and $responseDVSecurityRoleofConfig.value.count -gt 0){
+                        $dvSecurityRoleofConfig = $responseDVSecurityRoleofConfig.value[0]
+                        Write-Host "Checking whether role is already mapped to Team; Role Name - $securityRoleNamefromConfig; Id - " $dvSecurityRoleofConfig.roleid
+                        $dvRoleofConfigIds.Add($dvSecurityRoleofConfig.roleid)
 
-                        if($null -ne $existingAADGroupTeamRoles.value -and $existingAADGroupTeamRoles.value.count -gt 0){
+                        if($null -ne $existingDVTeamRolesNonConfig.value -and $existingDVTeamRolesNonConfig.value.count -gt 0){
                             # Add the role only if its not already added
-                            if ($existingAADGroupTeamRoles.value.Where({$_.roleid -eq $securityRole.roleid}).Count -eq 0){
-                              Write-Host "Assigning additional Role - $securityRoleName to Team - $aadGroupTeamName"
-                              Add-CrmSecurityRoleToTeam -conn $conn -TeamId $aadGroupTeamId -SecurityRoleId $securityRole.roleid
+                            if ($existingDVTeamRolesNonConfig.value.Where({$_.roleid -eq $dvSecurityRoleofConfig.roleid}).Count -eq 0){
+                              Write-Host "Assigning additional Role - $securityRoleNamefromConfig to Team - $aadGroupTeamName"
+                              Add-CrmSecurityRoleToTeam -conn $conn -TeamId $aadGroupTeamId -SecurityRoleId $dvSecurityRoleofConfig.roleid
                             }
                             else{
-                              Write-Host "Role - $securityRoleName already assigned to Team - $aadGroupTeamName"
+                              Write-Host "Role - $securityRoleNamefromConfig already assigned to Team - $aadGroupTeamName"
                             }
                         }
                         else{
                             # Add role for newly created team
-                            Write-Host "Assigning Role - $securityRoleName to Team - $aadGroupTeamName"
-                            Add-CrmSecurityRoleToTeam -conn $conn -TeamId $aadGroupTeamId -SecurityRoleId $securityRole.roleid
+                            Write-Host "Assigning Role - $securityRoleNamefromConfig to Team - $aadGroupTeamName"
+                            Add-CrmSecurityRoleToTeam -conn $conn -TeamId $aadGroupTeamId -SecurityRoleId $dvSecurityRoleofConfig.roleid
                         }
                     }
                     else {
-                        Write-Host "##vso[task.logissue type=warning]A specified security role ($securityRoleName) was not found in the target environment. Verify your deployment configuration and try again."
+                        Write-Host "##vso[task.logissue type=warning]A specified security role ($securityRoleNamefromConfig) was not found in the target environment. Verify your deployment configuration and try again."
                     }
+                  }
+
+                  # Feature to remove additional DV roles
+                  if($skipRolesDeletion -eq "false" -and $securityRoleNamesfromConfig -ne $null -and !$newTeamCreated){
+                    Write-Host "Admin chosen to remove additional roles not part of configurations"
+                    if($null -ne $existingDVTeamRolesNonConfig.value -and $existingDVTeamRolesNonConfig.value.count -gt 0){
+                        #Check if DVRole 
+                        foreach ($existingDVTeamRoleNonConfig in $existingDVTeamRolesNonConfig.value){
+                            if (-not $dvRoleofConfigIds.Contains($existingDVTeamRoleNonConfig.roleid)) {
+                                # Removing the Role from Team
+                                Write-Host "Removing the " $existingDVTeamRoleNonConfig.roleid " from Team - $aadGroupTeamName"
+                                Remove-CrmSecurityRoleFromTeam -conn $conn -TeamId $aadGroupTeamId -SecurityRoleId $existingDVTeamRoleNonConfig.roleid
+                            }                            
+                        }
+                    }
+                  }
+                  else{
+                    Write-Host "Skipping removal of additional roles from Team - $aadGroupTeamName"
                   }
               }
             }
