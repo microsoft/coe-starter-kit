@@ -123,7 +123,7 @@ steps:
   inputs:
     authenticationType: PowerPlatformSPN
     PowerPlatformSPN: ${{parameters.serviceConnectionName}}
-  condition: and(ne('${{parameters.publishCustomizations}}', 'false'),ne('${{parameters.commitScope}}', '3'), and(succeeded(), ne(variables.PublishCustomizationsBeforeExport, 'false')))
+  condition: and(ne('${{parameters.publishCustomizations}}', 'false'),or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')), and(succeeded(), ne(variables.PublishCustomizationsBeforeExport, 'false')))
 
 - pwsh: |
     # Default to true when no variable is set on the pipeline
@@ -139,7 +139,7 @@ steps:
         Remove-Item "$canvasAppsFolderPath" -Force -Recurse
     }
   displayName: 'Set localProcessCanvasApps variable'
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 - template: Hooks\export-solution-unpack-pre-hook.yml
 
@@ -152,13 +152,13 @@ steps:
       . "$env:POWERSHELLPATH/code-first-functions.ps1"
       Invoke-Clone-Or-Sync-Solution "${{parameters.serviceConnectionUrl}}" "$(connectionVariables.BuildTools.ApplicationId)" "$(connectionVariables.BuildTools.ClientSecret)" "$(connectionVariables.BuildTools.TenantId)" "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}" "$(pacPath)" "$(Agent.BuildDirectory)" "$(localProcessCanvasApps)"
   displayName: 'pac - Clone or Sync Solution'
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 - pwsh: |
     . "$env:POWERSHELLPATH/code-first-functions.ps1"
     Add-Packagetype-Node-To-Cdsproj "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}"
   displayName: 'Add Packagetype Node to cdsproj'
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 - template: Hooks\export-solution-manipulate-pre-hook.yml
 
@@ -167,7 +167,7 @@ steps:
    . "$env:POWERSHELLPATH/export-solution-functions.ps1"
    reset-solution-xml-build-number "$solutionXMLPath"  
   displayName: 'Update Solution XML with Build Number'
-  condition: and(succeeded(), ne(variables.UseSolutionVersionFromDataverse, 'true'),ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), ne(variables.UseSolutionVersionFromDataverse, 'true'),or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 # TEMPORARY until Solution export supports not exporting custom connector configurations
 # We need to clear out the contents of any *_connectionparameters.json file.  This is to ensure those valuse
@@ -179,7 +179,7 @@ steps:
    }
   displayName: 'Clear contents of *_connectionparameters.json files'
   enabled: true
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 - pwsh: |
     if (Test-Path $(Build.ArtifactStagingDirectory)\${{parameters.solutionName}}_managed.zip) {
@@ -190,7 +190,7 @@ steps:
     }
   displayName: 'Delete solution zip files'
   enabled: true
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
   
 # TEMPORARY until SolutionPackager supports formatting json files on unpack we
 # update all the json files to be pretty-print / formatted so they are easier to read in source control.
@@ -201,7 +201,7 @@ steps:
    Format-JSON-Files "$solutionComponentsPath"
   displayName: 'Format JSON files'
   enabled: true
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
   
 # TEMPORARY until solution exports new business rules with non-empty GUIDs
 # We need to set empty GUIDs output when a business rule is first exported.  This is to ensure that
@@ -211,13 +211,13 @@ steps:
    . "$env:POWERSHELLPATH/export-solution-functions.ps1"
     Invoke-Fix-Unset-GUIDs-In-New-Business-Rules "$workflowsPath"
   displayName: 'Fix unset GUIDs in new Business Rules'
-  condition: and(succeeded(), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 - pwsh: |
    $envvardefinitionPath = "$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src\environmentvariabledefinitions"
    Get-ChildItem -Path "$envvardefinitionPath" -Recurse -Filter environmentvariablevalues.json | Remove-Item
   displayName: 'Verify Environment Variable Current Value Not Exported'
-  condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), eq(variables.DoNotExportCurrentEnvironmentVariableValues, 'true'), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 
 # TEMPORARY there's an issue in the platform that causes custom code to be included in 
@@ -228,7 +228,7 @@ steps:
    . "$env:POWERSHELLPATH/export-solution-functions.ps1"
     Remove-Code-From-Custom-Connectors-Where-Disabled "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}"
   displayName: 'Remove Code from Custom Connectors Where Disabled'
-  condition: and(succeeded(), eq(variables.DisableCustomConnectorCode, 'true'),ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), eq(variables.DisableCustomConnectorCode, 'true'),or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
 - template: Hooks\export-solution-update-deploymentsettings-pre-hook.yml
 
@@ -284,13 +284,13 @@ steps:
    . "$env:POWERSHELLPATH/export-solution-functions.ps1"
     Invoke-Verify-Default-Environment-Variables-Are-Set "$(outDefaultEnvironmentVariables)" "$envvardefinitionPath"
   displayName: 'Verify Default Environment Variables Are Set'
-  condition: and(succeeded(), eq(variables.VerifyDefaultEnvironmentVariableValues, 'true'), ne('${{parameters.commitScope}}', '3'))
+  condition: and(succeeded(), eq(variables.VerifyDefaultEnvironmentVariableValues, 'true'), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
 
-- template: set-website-variable.yml
-  parameters:
-   serviceConnectionUrl: '${{parameters.serviceConnectionUrl}}'
-   websiteName: '${{parameters.portalSiteName}}'
-   commitScope: '${{parameters.commitScope}}'
+#- template: set-website-variable.yml
+#  parameters:
+#   serviceConnectionUrl: '${{parameters.serviceConnectionUrl}}'
+#   websiteName: '${{parameters.portalSiteName}}'
+#   commitScope: '${{parameters.commitScope}}'
 
 - template: Hooks\export-power-page-pre-hook.yml
 
@@ -303,7 +303,8 @@ steps:
     solutionName: '${{parameters.solutionName}}'
     websiteName: '${{parameters.portalSiteName}}'
     commitScope: '${{parameters.commitScope}}'
-    configurationData: '${{parameters.configurationData}}'
+    configurationData: '${{parameters.configurationData}}' 
+    buildSourceDirectory: '$(Build.SourcesDirectory)'
 
 - template: Hooks\export-power-page-post-hook.yml
 
