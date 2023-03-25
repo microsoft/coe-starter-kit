@@ -314,9 +314,9 @@ function Invoke-Flatten-JSON-Files
 
     Get-ChildItem -Path "$solutionFolderPath" -Recurse -Filter *.json |
     ForEach-Object {
-        $fileContent = (Get-Content $_.FullName) -join ' '
+        $fileContent = (Get-Content -LiteralPath $_.FullName) -join ' '
         if(-not [string]::IsNullOrWhiteSpace($fileContent)) {
-            Set-Content $_.FullName $fileContent -Encoding utf8NoBOM
+            Set-Content -LiteralPath $_.FullName $fileContent -Encoding utf8NoBOM
         }
     }
 }
