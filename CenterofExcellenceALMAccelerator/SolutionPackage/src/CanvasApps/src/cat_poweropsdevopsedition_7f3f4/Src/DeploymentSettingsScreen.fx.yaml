@@ -1,6 +1,27 @@
 DeploymentSettingsScreen As screen:
     OnVisible: |-
         =Reset(chkShareAllConnections);
+        UpdateContext(
+            {
+                sortFlowEnabled: true,
+                showDeployDialog: true,
+                showDeploymentSettingsLoader: true,
+                showConnectionReferenceSettings: false,
+                showEnvironmentVariablesSettings: false,
+                showSharingSettings: false,
+                showOwnerSettings: false,
+                showConnectorSettings: false,
+                showGroupTeamsSettings: false,
+                showWebHookURLs: false,
+                showPortalConfig: false,
+                locCloseAfterSave: true,
+                locShareConnections: true,
+                locDeploymentEnvironmentLabel: "Select an Environment to Configure",
+                SolutionLoaderText: "LOADING...",
+                DeploymentSettingsLoadingText: "GETTING SOLUTION DEPENDENCIES...",
+                SaveDeploymentButtonText: "SAVE AND CLOSE"
+            }
+        );
         IfError(
             If(
                 !IsBlank(Param("configsoln")) And !IsBlank(Param("env")) And !IsBlank(Param("profile")) And !IsBlank(Param("step")),
@@ -28,9 +49,12 @@ DeploymentSettingsScreen As screen:
                                 FirstN(
                                     ClearCollect(
                                         splitCol,
-                                        Split(
-                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            "."
+                                        ForAll(
+                                            Split(
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                "."
+                                            ),
+                                            {Result: ThisRecord.Value}
                                         )
                                     ),
                                     2
@@ -78,33 +102,10 @@ DeploymentSettingsScreen As screen:
                     )
                 );
                 Set(
-                    SelectedDeploymentStep,
-                    LookUp(
-                        'Deployment Steps',
-                        'Deployment Step' = GUID(Param("step"))
-                    )
+                    SelectedDeploymentEnvironmentId,
+                    Param("step")
                 );
-            );
-            UpdateContext(
-                {
-                    sortFlowEnabled: true,
-                    showDeployDialog: true,
-                    showDeploymentSettingsLoader: true,
-                    showConnectionReferenceSettings: false,
-                    showEnvironmentVariablesSettings: false,
-                    showSharingSettings: false,
-                    showOwnerSettings: false,
-                    showConnectorSettings: false,
-                    showGroupTeamsSettings: false,
-                    showWebHookURLs: false,
-                    showPortalConfig: false,
-                    locCloseAfterSave: true,
-                    locShareConnections: true,
-                    locDeploymentEnvironmentLabel: "Select an Environment to Configure",
-                    SolutionLoaderText: "LOADING...",
-                    DeploymentSettingsLoadingText: "GETTING SOLUTION DEPENDENCIES...",
-                    SaveDeploymentButtonText: "SAVE AND CLOSE"
-                }
+                UpdateContext({SaveDeploymentButtonText: "Save"});
             );
             ClearCollect(
                 DeploymentSteps,
@@ -146,17 +147,13 @@ DeploymentSettingsScreen As screen:
             If(
                 CountRows(DeploymentEnvironments) > 0,
                 If(
-                    IsBlankOrError(SelectedDeploymentStep) Or IsBlankOrError(SelectedDeploymentStep.'Deployment Environment'),
+                    IsBlankOrError(SelectedDeploymentEnvironmentId),
                     UpdateContext({SelectedDeploymentEnvironment: First(DeploymentEnvironments)}),
                     UpdateContext(
                         {
                             SelectedDeploymentEnvironment: LookUp(
                                 DeploymentEnvironments,
-                                LookUp(
-                                    'Deployment Environments',
-                                    'Deployment Environment' = SelectedDeploymentStep.'Deployment Environment'.'Deployment Environment',
-                                    URL
-                                ) in EnvironmentUrl
+                                EnvironmentId = SelectedDeploymentEnvironmentId
                             )
                         }
                     )
@@ -184,49 +181,58 @@ DeploymentSettingsScreen As screen:
                     UpdateContext(
                         {
                             locSharepointFilter: Concat(
-                                Distinct(
-                                    Filter(
-                                        EnvironmentDeploymentSettings,
-                                        StartsWith(
-                                            Name,
-                                            "environmentvariable."
-                                        ) And ".sharepoint." in Value
+                                ForAll(
+                                    Distinct(
+                                        Filter(
+                                            EnvironmentDeploymentSettings,
+                                            StartsWith(
+                                                Name,
+                                                "environmentvariable."
+                                            ) And ".sharepoint." in Value
+                                        ),
+                                        Value
                                     ),
-                                    Value
+                                    {Result: ThisRecord.Value}
                                 ),
                                 "site:" & Result,
                                 " OR "
                             ),
                             locAADGroupFilters: Concat(
-                                Distinct(
-                                    Filter(
-                                        EnvironmentDeploymentSettings,
-                                        (StartsWith(
-                                            Name,
-                                            "canvasshare.aadGroupId."
-                                        ) Or StartsWith(
-                                            Name,
-                                            "groupteam."
-                                        )) And !IsBlankOrError(Value)
+                                ForAll(
+                                    Distinct(
+                                        Filter(
+                                            EnvironmentDeploymentSettings,
+                                            (StartsWith(
+                                                Name,
+                                                "canvasshare.aadGroupId."
+                                            ) Or StartsWith(
+                                                Name,
+                                                "groupteam."
+                                            )) And !IsBlankOrError(Value)
+                                        ),
+                                        Value
                                     ),
-                                    Value
+                                    {Result: ThisRecord.Value}
                                 ),
                                 "id eq '" & Result & "'",
                                 " OR "
                             ),
                             locEnvironmentUserFilters: Concat(
-                                Distinct(
-                                    Filter(
-                                        EnvironmentDeploymentSettings,
-                                        (StartsWith(
-                                            Name,
-                                            "owner.ownerEmail."
-                                        ) Or StartsWith(
-                                            Name,
-                                            "flow.activation."
-                                        )) And !IsBlankOrError(Value)
+                                ForAll(
+                                    Distinct(
+                                        Filter(
+                                            EnvironmentDeploymentSettings,
+                                            (StartsWith(
+                                                Name,
+                                                "owner.ownerEmail."
+                                            ) Or StartsWith(
+                                                Name,
+                                                "flow.activation."
+                                            )) And !IsBlankOrError(Value)
+                                        ),
+                                        Value
                                     ),
-                                    Value
+                                    {Result: ThisRecord.Value}
                                 ),
                                 "internalemailaddress eq '" & Result & "'",
                                 " or "
@@ -305,9 +311,12 @@ DeploymentSettingsScreen As screen:
                                 FirstN(
                                     ClearCollect(
                                         splitCol2,
-                                        Split(
-                                            SelectedDeploymentEnvironment.EnvironmentUrl,
-                                            "."
+                                        ForAll(
+                                            Split(
+                                                SelectedDeploymentEnvironment.EnvironmentUrl,
+                                                "."
+                                            ),
+                                            {Result: ThisRecord.Value}
                                         )
                                     ),
                                     2
@@ -328,9 +337,12 @@ DeploymentSettingsScreen As screen:
                         SearchDeploymentEnvironmentBUnits.Run(
                             Last(
                                 FirstN(
-                                    Split(
-                                        SelectedDeploymentEnvironment.EnvironmentUrl,
-                                        "."
+                                    ForAll(
+                                        Split(
+                                            SelectedDeploymentEnvironment.EnvironmentUrl,
+                                            "."
+                                        ),
+                                        {Result: ThisRecord.Value}
                                     ),
                                     2
                                 )
@@ -432,9 +444,12 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol1,
-                                                Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
                                                 )
                                             ),
                                             2
@@ -458,7 +473,6 @@ DeploymentSettingsScreen As screen:
                                     EnvironmentDeploymentSettings,
                                     Name = "connectionreference.shared." & connectionreferencelogicalname
                                 ).Value
-                                
                             )
                         ),
                         Collect(
@@ -469,9 +483,12 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitColUrls,
-                                                Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
                                                 )
                                             ),
                                             2
@@ -482,7 +499,7 @@ DeploymentSettingsScreen As screen:
                                 ),
                                 "CurrentValue",
                                 LookUp(
-                                    EnvironmentDeploymentSettings, 
+                                    EnvironmentDeploymentSettings,
                                     Name = "webhookurl." & name
                                 ).Value
                             )
@@ -495,9 +512,12 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol2,
-                                                Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
                                                 )
                                             ),
                                             2
@@ -544,9 +564,12 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol3,
-                                                Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
                                                 )
                                             ),
                                             2
@@ -589,9 +612,12 @@ DeploymentSettingsScreen As screen:
                                             FirstN(
                                                 ClearCollect(
                                                     splitCol4,
-                                                    Split(
-                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                        "."
+                                                    ForAll(
+                                                        Split(
+                                                            SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                            "."
+                                                        ),
+                                                        {Result: ThisRecord.Value}
                                                     )
                                                 ),
                                                 2
@@ -673,9 +699,12 @@ DeploymentSettingsScreen As screen:
                                         FirstN(
                                             ClearCollect(
                                                 splitCol5,
-                                                Split(
-                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                    "."
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
                                                 )
                                             ),
                                             2
@@ -702,9 +731,12 @@ DeploymentSettingsScreen As screen:
                                     FirstN(
                                         ClearCollect(
                                             splitCol6,
-                                            Split(
-                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                "."
+                                            ForAll(
+                                                Split(
+                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                    "."
+                                                ),
+                                                {Result: ThisRecord.Value}
                                             )
                                         ),
                                         2
@@ -1012,7 +1044,7 @@ DeploymentSettingsScreen As screen:
             PressedFill: =drpDeployEnvironments.Color
             Tooltip: ="Select an Environment to Configure Deployment Settings"
             Visible: =!showNewDeployEnvironment
-            Width: =1630
+            Width: =1400
             X: =28
             Y: =137
             ZIndex: =15
@@ -1952,7 +1984,7 @@ DeploymentSettingsScreen As screen:
 
         "glrConnectionReferences As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Connection References"
-            Height: =597
+            Height: =590
             Items: =SolutionConnectionReferences
             Layout: =Layout.Vertical
             TemplatePadding: =0
@@ -2048,15 +2080,15 @@ DeploymentSettingsScreen As screen:
                                             Substitute(
                                                 Substitute(
                                                     Last(
-                                                        Split(
+                                                        ForAll(Split(
                                                             First(
-                                                                Split(
+                                                                ForAll(Split(
                                                                     ThisItem.CustomConnectorId,
                                                                     ","
-                                                                )
+                                                                ), {Result: ThisRecord.Value})
                                                             ).Result,
                                                             ":"
-                                                        )
+                                                        ), {Result: ThisRecord.Value})
                                                     ).Result,
                                                     """",
                                                     ""
@@ -2110,15 +2142,15 @@ DeploymentSettingsScreen As screen:
                                         Substitute(
                                             Substitute(
                                                 Last(
-                                                    Split(
+                                                    ForAll(Split(
                                                         First(
-                                                            Split(
+                                                            ForAll(Split(
                                                                 ThisItem.CustomConnectorId,
                                                                 ","
-                                                            )
+                                                            ), {Result: ThisRecord.Value})
                                                         ).Result,
                                                         ":"
-                                                    )
+                                                    ), {Result: ThisRecord.Value})
                                                 ).Result,
                                                 """",
                                                 ""
@@ -2145,10 +2177,10 @@ DeploymentSettingsScreen As screen:
                         IsBlankOrError(glrConnectionReferences.Selected.CustomConnectorId),
                         Launch(
                             "https://make.powerapps.com/environments/" & drpDeployEnvironments.Selected.EnvironmentId & "/connections/available?apiName=" & Last(
-                                Split(
+                                ForAll(Split(
                                     glrConnectionReferences.Selected.connectorid,
                                     "/"
-                                )
+                                ), {Result: ThisRecord.Value})
                             ).Result
                         ),
                         //Need to parse out the name of the connector from the expand query which returns a json string for some reason in the legacy connector.
@@ -2161,15 +2193,15 @@ DeploymentSettingsScreen As screen:
                                             Substitute(
                                                 Substitute(
                                                     Last(
-                                                        Split(
+                                                        ForAll(Split(
                                                             First(
-                                                                Split(
+                                                                ForAll(Split(
                                                                     glrConnectionReferences.Selected.CustomConnectorId,
                                                                     ","
-                                                                )
+                                                                ), {Result: ThisRecord.Value})
                                                             ).Result,
                                                             ":"
-                                                        )
+                                                        ), {Result: ThisRecord.Value})
                                                     ).Result,
                                                     """",
                                                     ""
@@ -2216,10 +2248,10 @@ DeploymentSettingsScreen As screen:
                         Set(
                             connectorName,
                             Last(
-                                Split(
+                                ForAll(Split(
                                     glrConnectionReferences.Selected.connectorid,
                                     "/"
-                                )
+                                ), {Result: ThisRecord.Value})
                             ).Result
                         );
                     If(
@@ -2295,10 +2327,10 @@ DeploymentSettingsScreen As screen:
                         Set(
                             connectorName,
                             Last(
-                                Split(
+                                ForAll(Split(
                                     glrConnectionReferences.Selected.connectorid,
                                     "/"
-                                )
+                                ), {Result: ThisRecord.Value})
                             ).Result
                         );
                     If(
@@ -2703,7 +2735,7 @@ DeploymentSettingsScreen As screen:
                 ZIndex: =1
 
             lblCanvasAppName_1 As label:
-                Height: =24
+                Height: =25
                 OnSelect: =Select(Parent)
                 PaddingBottom: =0
                 PaddingLeft: =0
@@ -2712,13 +2744,13 @@ DeploymentSettingsScreen As screen:
                 Size: =14
                 Text: =ThisItem.DisplayName
                 VerticalAlign: =VerticalAlign.Top
-                Width: =460
+                Width: =350
                 X: =58
                 Y: =10
                 ZIndex: =2
 
             lblCanvasAppLogicalName_1 As label:
-                Height: =Self.Size * 1.8
+                Height: =21
                 OnSelect: =Select(Parent)
                 PaddingBottom: =0
                 PaddingLeft: =0
@@ -2727,7 +2759,7 @@ DeploymentSettingsScreen As screen:
                 Size: =12
                 Text: =If(IsBlank(ThisItem.Value), First(ThisItem.AADGroups).displayName, LookUp(ThisItem.AADGroups, Text(id) = ThisItem.Value).displayName)
                 VerticalAlign: =VerticalAlign.Top
-                Width: =460
+                Width: =353
                 X: =58
                 Y: =35
                 ZIndex: =3
@@ -2769,8 +2801,8 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =txtGroupTeamName.Fill
                 Reset: =resetEnvironment
                 Tooltip: ="Enter a Value for this Environment Variable in the Target Environment"
-                Width: =300
-                X: =462
+                Width: =290
+                X: =399
                 Y: =10
                 ZIndex: =5
 
@@ -2778,13 +2810,13 @@ DeploymentSettingsScreen As screen:
                 ChevronHoverBackground: =ColorFade(cmbGroupTeamRoles.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(cmbGroupTeamRoles.ChevronFill, 20%)
                 DefaultSelectedItems: |-
-                    =Distinct(
+                    =ForAll(Distinct(
                         Filter(
                             GroupTeamSelectedRoles,
                             GroupTeamId = ThisItem.Id
                         ),
                         name
-                    )
+                    ), {Result: ThisRecord.Value})
                 DisplayFields: =["Result"]
                 Height: =46
                 HoverBorderColor: =ColorFade(cmbGroupTeamRoles.BorderColor, 20%)
@@ -2792,15 +2824,16 @@ DeploymentSettingsScreen As screen:
                 HoverFill: =ColorFade(cmbGroupTeamRoles.SelectionFill, 20%)
                 InputTextPlaceholder: ="Find Roles"
                 IsSearchable: =false
-                Items: =Distinct(SolutionSecurityRoles, name).Result
+                Items: |-
+                    =ForAll(Distinct(SolutionSecurityRoles, name), {Result: ThisRecord.Value}).Result
                 MoreItemsButtonColor: =Self.ChevronBackground
                 OnChange: =ThisItem.DisplayMode
                 OnSelect: =Select(Parent)
                 PressedBorderColor: =cmbGroupTeamRoles.HoverBorderColor
                 SearchFields: =["Result"]
                 SearchItems: =[]
-                Width: =330
-                X: =1455
+                Width: =290
+                X: =1329
                 Y: =10
                 ZIndex: =6
 
@@ -2826,8 +2859,8 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpGroupTeamGroups.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select an Existing AAD Group"
-                Width: =320
-                X: =1082
+                Width: =280
+                X: =992
                 Y: =10
                 ZIndex: =7
 
@@ -2967,7 +3000,7 @@ DeploymentSettingsScreen As screen:
                 Tooltip: ="Filter this list"
                 Visible: =showGroupTeamsSettings
                 Width: =35
-                X: =1410
+                X: =1284
                 Y: =17
                 ZIndex: =10
 
@@ -2996,10 +3029,70 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpGroupTeamBUs.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select an Existing AAD Group"
-                Width: =300
-                X: =772
+                Width: =280
+                X: =700
                 Y: =10
                 ZIndex: =11
+
+            tglSkipRoleDeletionGrpTeams As toggleSwitch:
+                Default: =ThisItem.SkipRoleDeletion
+                FalseFill: =Color.Red
+                FalseHoverFill: =ColorFade(tglSkipRoleDeletionGrpTeams.FalseFill, 20%)
+                HoverBorderColor: =ColorFade(tglSkipRoleDeletionGrpTeams.BorderColor, 20%)
+                OnChange: |-
+                    =Patch(
+                        GroupTeams,
+                        ThisItem,
+                        {SkipRoleDeletion: tglSkipRoleDeletionGrpTeams.Value}
+                    );
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =ColorFade(tglSkipRoleDeletionGrpTeams.BorderColor, -20%)
+                ShowLabel: =false
+                Tooltip: |-
+                    =If(
+                        !tglSkipRoleDeletionGrpTeams.Value,
+                        "You chose to delete any additional team roles that are not specified in the settings from the target.",
+                        "You chose not to delete any additional team roles that are not specified in the settings from the target."
+                    )
+                TrueFill: =Color.Blue
+                TrueHoverFill: =ColorFade(tglSkipRoleDeletionGrpTeams.TrueFill, 20%)
+                Visible: =false
+                X: =1685
+                Y: =17
+                ZIndex: =12
+
+            chkboxSkipRoleDeletionGrpTeams As checkbox:
+                Default: =ThisItem.SkipRoleDeletion
+                HoverBorderColor: =ColorFade(chkboxSkipRoleDeletionGrpTeams.BorderColor, 20%)
+                HoverColor: =ColorFade(chkboxSkipRoleDeletionGrpTeams.Color, 20%)
+                HoverFill: =ColorFade(chkboxSkipRoleDeletionGrpTeams.Fill, 20%)
+                OnCheck: |-
+                    =Patch(
+                        GroupTeams,
+                        ThisItem,
+                        {SkipRoleDeletion: chkboxSkipRoleDeletionGrpTeams.Value}
+                    );
+                OnSelect: =Select(Parent)
+                OnUncheck: |-
+                    =Patch(
+                        GroupTeams,
+                        ThisItem,
+                        {SkipRoleDeletion: chkboxSkipRoleDeletionGrpTeams.Value}
+                    );
+                PressedBorderColor: =ColorFade(chkboxSkipRoleDeletionGrpTeams.BorderColor, -20%)
+                PressedColor: =ColorFade(chkboxSkipRoleDeletionGrpTeams.Color, -20%)
+                PressedFill: =ColorFade(chkboxSkipRoleDeletionGrpTeams.Fill, -20%)
+                Text: =""
+                Tooltip: |-
+                    =If(
+                        !chkboxSkipRoleDeletionGrpTeams.Value,
+                        "You've chosen to delete any additional team roles that are not specified in the settings from the target.",
+                        "You've chosen not to delete any additional team roles that are not specified in the settings from the target."
+                    )
+                Width: =55
+                X: =1685
+                Y: =5
+                ZIndex: =13
 
         "glrWebHookURLs As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Environment Variables"
@@ -3122,7 +3215,8 @@ DeploymentSettingsScreen As screen:
             HoverColor: =ColorFade(btnSaveDeployment.Color, 20%)
             HoverFill: =ColorFade(btnSaveDeployment.Fill, 20%)
             OnSelect: |
-                =UpdateContext({SaveDeploymentButtonText: "SAVING..."});
+                =UpdateContext({PreviousSaveButtonText: SaveDeploymentButtonText});
+                UpdateContext({SaveDeploymentButtonText: "SAVING..."});
                 //Save Deployment Settings
                 UpdateContext(
                     {
@@ -3343,6 +3437,13 @@ DeploymentSettingsScreen As screen:
                     Collect(
                         DeploymentSettings,
                         {
+                            Name: "teamnameskiproles." & Id & "." & txtGroupTeamName.Text,
+                            Value: Text(chkboxSkipRoleDeletionGrpTeams.Value)
+                        }
+                    );
+                    Collect(
+                        DeploymentSettings,
+                        {
                             Name: "teamname." & Id,
                             Value: txtGroupTeamName.Text
                         }
@@ -3369,6 +3470,14 @@ DeploymentSettingsScreen As screen:
                         Value: Text(chkUpgradeSolution.Value)
                     }
                 );
+                Collect(
+                    DeploymentSettings,
+                    {
+                        Name: "IsUnmanaged",
+                        Value: Text(chkDeployUnmanaged.Value)
+                    }
+                );
+                
                 //Convert settings to json and store in user settings
                 UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
                 // Store 'UserSettings' ID to read Portal configuration file during Commit process
@@ -3424,7 +3533,7 @@ DeploymentSettingsScreen As screen:
                     {
                         locCloseAfterSave: true,
                         locShareConnections: true,
-                        SaveDeploymentButtonText: "SAVE AND CLOSE"
+                        SaveDeploymentButtonText: PreviousSaveButtonText
                     }
                 );
                 Reset(chkShareAllConnections);
@@ -3624,7 +3733,8 @@ DeploymentSettingsScreen As screen:
                         AADGroups: TeamAADGroups,
                         DisplayMode: DisplayMode.Edit,
                         FilterVisible: false,
-                        FilterIcon: Icon.FilterFlat
+                        FilterIcon: Icon.FilterFlat,
+                        SkipRoleDeletion: true
                     }
                 );
                 Collect(
@@ -3652,7 +3762,7 @@ DeploymentSettingsScreen As screen:
             Visible: =showGroupTeamsSettings
             Width: =45
             X: =1822
-            Y: =215
+            Y: =206
             ZIndex: =38
 
         chkUpgradeSolution As checkbox:
@@ -3870,7 +3980,7 @@ DeploymentSettingsScreen As screen:
             Color: =RGBA(0, 0, 0, 1)
             Fill: =RGBA(219, 219, 219, 1)
             FontWeight: =FontWeight.Semibold
-            Height: =77
+            Height: =60
             HoverColor: =RGBA(0, 0, 0, 1)
             PaddingLeft: =0
             PaddingTop: =7
@@ -3878,9 +3988,9 @@ DeploymentSettingsScreen As screen:
             Text: ="In order for your solution to be deployed successfully your connection(s) must be shared with the deployment user. Select 'Share' to agree to share your connection(s) before saving your deployment settings."
             Tooltip: =" Your deployment settings contain connection reference(s). In order for your solution to be deployed successfully your connection(s) must be shared with the deployment user. Select 'Share' to agree to share your connection(s) before saving your deployment settings."
             Visible: =showConnectionReferenceSettings And CountRows(SolutionConnectionReferences) > 0
-            Width: =1798
-            X: =24
-            Y: =257
+            Width: =1790
+            X: =33
+            Y: =265
             ZIndex: =47
 
         lblShareConnectionsNote_1 As label:
@@ -3889,7 +3999,7 @@ DeploymentSettingsScreen As screen:
             Color: =RGBA(0, 0, 0, 1)
             Fill: =RGBA(219, 219, 219, 1)
             FontWeight: =FontWeight.Semibold
-            Height: =77
+            Height: =60
             HoverColor: =RGBA(0, 0, 0, 1)
             PaddingLeft: =0
             PaddingTop: =0
@@ -3899,7 +4009,7 @@ DeploymentSettingsScreen As screen:
             Visible: =showConnectionReferenceSettings And CountRows(SolutionConnectionReferences) > 0
             Width: =62
             X: =1822
-            Y: =257
+            Y: =265
             ZIndex: =48
 
         icoConnectionSharingHelp As icon.Help:
@@ -4181,6 +4291,38 @@ DeploymentSettingsScreen As screen:
             Y: =219
             ZIndex: =52
 
+        lblDeployGroupTeamSkipDelete As label:
+            Align: =Align.Center
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Skip Role Deletion"
+            Visible: =showGroupTeamsSettings && !IsEmpty(glrGroupTeams.AllItems)
+            Width: =164
+            X: =1656
+            Y: =249
+            ZIndex: =53
+
+        iconHelpSkipRoles As icon.Help:
+            BorderColor: =ColorFade(iconHelpSkipRoles.Fill, -20%)
+            DisabledFill: =ColorFade(iconHelpSkipRoles.Fill, -80%)
+            Height: =24
+            HoverBorderColor: =ColorFade(iconHelpSkipRoles.BorderColor, 20%)
+            HoverColor: =ColorFade(iconHelpSkipRoles.Color, 20%)
+            HoverFill: =ColorFade(iconHelpSkipRoles.Fill, 20%)
+            Icon: =Icon.Help
+            PressedBorderColor: =ColorFade(iconHelpSkipRoles.BorderColor, -20%)
+            PressedColor: =ColorFade(iconHelpSkipRoles.Color, -20%)
+            PressedFill: =ColorFade(iconHelpSkipRoles.Fill, -20%)
+            Tooltip: ="Check 'Skip Role Deletion' in order to maintain any existing roles in the downstream environment. If you want to delete all existing roles then uncheck this option"
+            Visible: =showGroupTeamsSettings && !IsEmpty(glrGroupTeams.AllItems)
+            Width: =50
+            X: =1806
+            Y: =253
+            ZIndex: =54
+
         icoPortalConfigs As icon.Add:
             AccessibleLabel: ="Webhook URL Variables"
             BorderColor: =ColorFade(icoPortalConfigs.Fill, -20%)
@@ -4216,7 +4358,25 @@ DeploymentSettingsScreen As screen:
             Width: =lblDeployPortals.Width
             X: =lblDeployPortals.X
             Y: =219
-            ZIndex: =53
+            ZIndex: =55
+
+        chkDeployUnmanaged As checkbox:
+            Default: =If(deployunmanagedtag="true",true,false)
+            FontWeight: =FontWeight.Semibold
+            Height: =46
+            HoverBorderColor: =ColorFade(chkDeployUnmanaged.BorderColor, 20%)
+            HoverColor: =ColorFade(chkDeployUnmanaged.Color, 20%)
+            HoverFill: =ColorFade(chkDeployUnmanaged.Fill, 20%)
+            PressedBorderColor: =ColorFade(chkDeployUnmanaged.BorderColor, -20%)
+            PressedColor: =ColorFade(chkDeployUnmanaged.Color, -20%)
+            PressedFill: =ColorFade(chkDeployUnmanaged.Fill, -20%)
+            Text: ="Deploy Unmanaged"
+            Tooltip: ="Select to deploy to this environment as an unmanaged solution"
+            Visible: =!showSolutionComponentLoader
+            Width: =240
+            X: =1435
+            Y: =135
+            ZIndex: =56
 
         loaderSolutionComponents As Preloader:
             Height: =844
@@ -4227,7 +4387,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderSolutionComponents.IsLoading
             Width: =1920
             Y: =204
-            ZIndex: =54
+            ZIndex: =57
 
         loaderDeploymentEnvironment As Preloader:
             Height: =984
@@ -4238,7 +4398,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderDeploymentEnvironment.IsLoading
             Width: =1920
             Y: =64
-            ZIndex: =55
+            ZIndex: =58
 
     btnFunctionsDeploy As groupContainer:
         Height: =320
@@ -4287,37 +4447,43 @@ DeploymentSettingsScreen As screen:
                         UpdateContext(
                             {
                                 locSharepointFilter: Concat(
-                                    Distinct(
-                                        Filter(
-                                            EnvironmentDeploymentSettings,
-                                            StartsWith(
-                                                Name,
-                                                "environmentvariable."
-                                            ) And !IsBlankOrError(Value) And !IsBlank(
-                                                Find(
-                                                    "sharepoint",
-                                                    Value
+                                    ForAll(
+                                        Distinct(
+                                            Filter(
+                                                EnvironmentDeploymentSettings,
+                                                StartsWith(
+                                                    Name,
+                                                    "environmentvariable."
+                                                ) And !IsBlankOrError(Value) And !IsBlank(
+                                                    Find(
+                                                        "sharepoint",
+                                                        Value
+                                                    )
                                                 )
-                                            )
+                                            ),
+                                            Value
                                         ),
-                                        Value
+                                        {Result: ThisRecord.Value}
                                     ),
                                     "site:" & Result,
                                     " OR "
                                 ),
                                 locAADGroupFilters: Concat(
-                                    Distinct(
-                                        Filter(
-                                            EnvironmentDeploymentSettings,
-                                            (StartsWith(
-                                                Name,
-                                                "canvasshare.aadGroupId."
-                                            ) Or StartsWith(
-                                                Name,
-                                                "groupteam."
-                                            )) And !IsBlankOrError(Value)
+                                    ForAll(
+                                        Distinct(
+                                            Filter(
+                                                EnvironmentDeploymentSettings,
+                                                (StartsWith(
+                                                    Name,
+                                                    "canvasshare.aadGroupId."
+                                                ) Or StartsWith(
+                                                    Name,
+                                                    "groupteam."
+                                                )) And !IsBlankOrError(Value)
+                                            ),
+                                            Value
                                         ),
-                                        Value
+                                        {Result: ThisRecord.Value}
                                     ),
                                     "id eq '" & Result & "'",
                                     " OR "
@@ -4329,6 +4495,10 @@ DeploymentSettingsScreen As screen:
                                 solutionupgradetag: LookUp(
                                     EnvironmentDeploymentSettings,
                                     Name = "TriggerSolutionUpgrade"
+                                ).Value,
+                                deployunmanagedtag: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "IsUnmanaged"
                                 ).Value
                             }
                         );
@@ -4338,9 +4508,12 @@ DeploymentSettingsScreen As screen:
                                 SearchDeploymentEnvironmentTeams.Run(
                                     Last(
                                         FirstN(
-                                            Split(
-                                                SelectedDeploymentEnvironment.EnvironmentUrl,
-                                                "."
+                                            ForAll(
+                                                Split(
+                                                    SelectedDeploymentEnvironment.EnvironmentUrl,
+                                                    "."
+                                                ),
+                                                {Result: ThisRecord.Value}
                                             ),
                                             2
                                         )
@@ -4360,9 +4533,12 @@ DeploymentSettingsScreen As screen:
                                 SearchDeploymentEnvironmentBUnits.Run(
                                     Last(
                                         FirstN(
-                                            Split(
-                                                SelectedDeploymentEnvironment.EnvironmentUrl,
-                                                "."
+                                            ForAll(
+                                                Split(
+                                                    SelectedDeploymentEnvironment.EnvironmentUrl,
+                                                    "."
+                                                ),
+                                                {Result: ThisRecord.Value}
                                             ),
                                             2
                                         )
@@ -4378,9 +4554,12 @@ DeploymentSettingsScreen As screen:
                                 SearchDeploymentEnvironmentConnectors.Run(
                                     Last(
                                         FirstN(
-                                            Split(
-                                                SelectedDeploymentEnvironment.EnvironmentUrl,
-                                                "."
+                                            ForAll(
+                                                Split(
+                                                    SelectedDeploymentEnvironment.EnvironmentUrl,
+                                                    "."
+                                                ),
+                                                {Result: ThisRecord.Value}
                                             ),
                                             2
                                         )
@@ -4431,9 +4610,12 @@ DeploymentSettingsScreen As screen:
                                 EnvironmentDeploymentSettings As eds,
                                 eds.Name = "teamname." & Last(
                                     FirstN(
-                                        Split(
-                                            Name,
-                                            "."
+                                        ForAll(
+                                            Split(
+                                                Name,
+                                                "."
+                                            ),
+                                            {Result: ThisRecord.Value}
                                         ),
                                         2
                                     )
@@ -4442,9 +4624,12 @@ DeploymentSettingsScreen As screen:
                             "Id",
                             Last(
                                 FirstN(
-                                    Split(
-                                        Name,
-                                        "."
+                                    ForAll(
+                                        Split(
+                                            Name,
+                                            "."
+                                        ),
+                                        {Result: ThisRecord.Value}
                                     ),
                                     2
                                 )
@@ -4479,7 +4664,9 @@ DeploymentSettingsScreen As screen:
                             "FilterIcon",
                             Icon.FilterFlat,
                             "SelectedRoles",
-                            Data
+                            Data,
+                            "SkipRoleDeletion",
+                            true
                         )
                     );
                     // Add an empty row & Sort SharePoint sites
@@ -4517,9 +4704,12 @@ DeploymentSettingsScreen As screen:
                             );
                         );
                         ForAll(
-                            Split(
-                                gt.SelectedRoles,
-                                ","
+                            ForAll(
+                                Split(
+                                    gt.SelectedRoles,
+                                    ","
+                                ),
+                                {Result: ThisRecord.Value}
                             ),
                             Collect(
                                 GroupTeamSelectedRoles,
@@ -4736,9 +4926,12 @@ DeploymentSettingsScreen As screen:
                                     FilterIcon: Icon.FilterFlat,
                                     FilterVisible: false,
                                     Suffix: "." & Last(
-                                        Split(
-                                            lclCanvasDeploymentSetting.Name,
-                                            "."
+                                        ForAll(
+                                            Split(
+                                                lclCanvasDeploymentSetting.Name,
+                                                "."
+                                            ),
+                                            {Result: ThisRecord.Value}
                                         )
                                     ).Result,
                                     CurrentValue: lclCanvasDeploymentSetting.Value,
@@ -4791,9 +4984,12 @@ DeploymentSettingsScreen As screen:
                         UpdateContext(
                             {
                                 locConnectorSearchCriteria: Concat(
-                                    Distinct(
-                                        locUnsharedConnections,
-                                        connectorid
+                                    ForAll(
+                                        Distinct(
+                                            locUnsharedConnections,
+                                            connectorid
+                                        ),
+                                        {Result: ThisRecord.Value}
                                     ),
                                     "id eq '" & Result & "' or "
                                 )
@@ -4881,6 +5077,7 @@ DeploymentSettingsScreen As screen:
                     UpdateContext({errorMessage: FirstError.Message});
                     Notify("Error running pipeline: " & errorMessage);
                     Reset(chkShareAllConnections);
+                    
                 )
             PressedBorderColor: =fncLoadEnvironmentDeploymentSettings.Fill
             PressedColor: =fncLoadEnvironmentDeploymentSettings.Fill
@@ -4979,7 +5176,7 @@ DeploymentSettingsScreen As screen:
                             PowerAppsforMakers.GetApps().value,
                             properties.displayName = AppName && properties.environment.name = ExecutingEnvironment.tags.environmentName
                         )
-                    ).name & "?profile=" & SelectedConfigurationDeploymentProfile.'Deployment Profile' & "%26step=" & SelectedDeploymentStep.'Deployment Step' & "%26env=" & SelectedEnvironment.name & "%26configsoln=" & Text(SelectedSolutionToConfigure.solutionid)
+                    ).name & "?profile=" & SelectedConfigurationDeploymentProfile.'Deployment Profile' & "%26step=" & SelectedDeploymentEnvironment.EnvironmentId & "%26env=" & SelectedEnvironment.name & "%26configsoln=" & Text(SelectedSolutionToConfigure.solutionid)
                 );
                 Clear(MyPeople);
             PressedBorderColor: =btnSendRequest.Fill

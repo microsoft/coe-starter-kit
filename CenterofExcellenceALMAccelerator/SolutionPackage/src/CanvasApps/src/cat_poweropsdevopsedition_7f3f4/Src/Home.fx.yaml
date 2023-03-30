@@ -320,6 +320,10 @@ Home As screen:
                 {
                     Name: "Settings Only",
                     Id: 3
+                },
+                {
+                    Name: "Power Pages Only",
+                    Id: 4
                 }
             )
         );
@@ -737,10 +741,10 @@ Home As screen:
                                 FirstN(
                                     ClearCollect(
                                         splitCol3,
-                                        Split(
+                                        ForAll(Split(
                                             SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
                                             "."
-                                        )
+                                        ), {Result: ThisRecord.Value})
                                     ),
                                     2
                                 )
@@ -823,6 +827,7 @@ Home As screen:
                 Reset(drpAdoBranches);
                 Reset(tglCreateBranch);
                 Reset(drpCommitScope);
+                Reset(cmbSites);
                 UpdateContext({showCommitDialog: true});
             PressedBorderColor: =btnCommitAndPush.Fill
             PressedColor: =btnCommitAndPush.Fill
@@ -2286,256 +2291,262 @@ Home As screen:
             HoverBorderColor: =ColorFade(btnCommit.BorderColor, 20%)
             HoverColor: =ColorFade(btnCommit.Color, 20%)
             HoverFill: =ColorFade(btnCommit.Fill, 20%)
-            OnSelect: |-
-                =UpdateContext(
-                    {
-                        errorMessage: "",
-                        selectedConfigurationDeploymentProfile: LookUp(
-                            'Deployment Profiles',
-                            'Deployment Profile' = drpPushDeploymentProfiles.Selected.'Deployment Profile'
-                        )
-                    }
-                );
-                Set(
-                    SelectedSolutionToConfigure,
-                    glrSolutions.Selected
-                );
-                If(
-                    promoteStage = "PREPARE",
-                    Set(
-                        ReturnScreen,
-                        Home
-                    );
-                    Set(
-                        ReinitializeHome,
-                        false
-                    );
-                    Set(
-                        SelectedDeploymentStep,
-                        Blank()
-                    );
-                    Navigate(
-                        DeploymentSettingsScreen,
-                        ScreenTransition.Fade
-                    );
-                    UpdateContext({promoteStage: promoteSolutionLabel});
-                    ,
+            OnSelect: |
+                =If(
+                    drpCommitScope.Selected.Id = 4 && (tglPowerPagesExists.Value = false || IsBlank(cmbSites.Selected)),
+                    Notify(
+                        "Committing with a blank 'Power Pages' website is not allowed when 'Power Pages Only' option is chosen as the 'Scope'",
+                        NotificationType.Error
+                    ),
                     UpdateContext(
                         {
-                            selectedCommitProfile: LookUp(
+                            errorMessage: "",
+                            selectedConfigurationDeploymentProfile: LookUp(
                                 'Deployment Profiles',
-                                'Deployment Profile' = selectedConfigurationDeploymentProfile.'Deployment Profile'
+                                'Deployment Profile' = drpPushDeploymentProfiles.Selected.'Deployment Profile'
                             )
                         }
                     );
-                    //Try to find the export pipeline in either the Pipeline Project or the Solution Project
-                ClearCollect(
-                        locPipelines,
-                        AddColumns(
-                            CustomAzureDevOps.GetPipelines(
-                                selectedConfigurationDeploymentProfile.Organization,
-                                selectedConfigurationDeploymentProfile.Project
-                            ).value,
-                            "Project",
-                            selectedConfigurationDeploymentProfile.Project
-                        )
+                    Set(
+                        SelectedSolutionToConfigure,
+                        glrSolutions.Selected
                     );
                     If(
-                        !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
-                        AddColumns(
-                            CustomAzureDevOps.GetPipelines(
-                                selectedConfigurationDeploymentProfile.Organization,
-                                selectedConfigurationDeploymentProfile.'Pipeline Project'
-                            ).value,
-                            "Project",
-                            selectedConfigurationDeploymentProfile.'Pipeline Project'
-                        )
-                    );
-                    //See if an export pipeline exists for the specific solution
-                UpdateContext(
-                        {
-                            piplineToRun: LookUp(
-                                locPipelines,
-                                name = "export-solution-to-git-" & glrSolutions.Selected.uniquename
-                            )
-                        }
-                    );
-                    //If an export pipeline doesn't exist for the specific solution see if an export pipeline exists for the specific repo
-                If(
-                        IsBlankOrError(piplineToRun),
+                        promoteStage = "PREPARE",
+                        Set(
+                            ReturnScreen,
+                            Home
+                        );
+                        Set(
+                            ReinitializeHome,
+                            false
+                        );
+                        Set(
+                            SelectedDeploymentStep,
+                            Blank()
+                        );
+                        Navigate(
+                            DeploymentSettingsScreen,
+                            ScreenTransition.Fade
+                        );
+                        UpdateContext({promoteStage: promoteSolutionLabel});
+                        ,
                         UpdateContext(
                             {
-                                piplineToRun: LookUp(
-                                    locPipelines,
-                                    name = "export-solution-to-git-" & selectedConfigurationDeploymentProfile.Repository
+                                selectedCommitProfile: LookUp(
+                                    'Deployment Profiles',
+                                    'Deployment Profile' = selectedConfigurationDeploymentProfile.'Deployment Profile'
                                 )
-                            }
-                        )
-                    );
-                    //Otherwise we will default to the standard export pipeline
-                If(
-                        IsBlank(piplineToRun),
-                        UpdateContext(
-                            {
-                                piplineToRun: LookUp(
-                                    locPipelines,
-                                    name = "export-solution-to-git"
-                                )
-                            }
-                        )
-                    );
-                    ClearCollect(
-                        DeploymentSteps,
-                        Filter(
-                            'Deployment Steps',
-                            'Deployment Profile'.'Deployment Profile' = selectedConfigurationDeploymentProfile.'Deployment Profile'
-                        )
-                    );
-                    ClearCollect(
-                        locDeploymentEnvironments,
-                        AddColumns(
-                            DeploymentSteps,
-                            "SearchText",
-                            DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & 'Deployment Environment'.URL
-                        )
-                    );
-                    Clear(SolutionDeploymentSettings);
-                    ForAll(
-                        locDeploymentEnvironments As environment,
-                        Collect(
-                            SolutionDeploymentSettings,
-                            {
-                                EnvironmentUrl: LookUp(
-                                    AllEnvironments,
-                                    name = ExecutingEnvironment.tags.environmentName
-                                ).properties.linkedEnvironmentMetadata.instanceUrl,
-                                UserSettings: If(
-                                    IsBlankOrError(
-                                        LookUp(
-                                            'User Settings',
-                                            environment.SearchText in Name,
-                                            cat_data
-                                        )
-                                    ),
-                                    ParseDeploymentSettings.Run("[]"),
-                                    ParseDeploymentSettings.Run(
-                                        LookUp(
-                                            'User Settings',
-                                            environment.SearchText in Name,
-                                            cat_data
-                                        )
-                                    )
-                                ),
-                                DeploymentEnvironmentUrl: environment.'Deployment Environment'.URL,
-                                DeploymentEnvironmentName: environment.Name,
-                                ServiceConnectionName: environment.'Deployment Environment'.'Service Connection Name',
-                                VariableGroup: environment.'Deployment Environment'.'Variable Group Name',
-                                BuildName: "deploy-" & Lower(environment.Name) & "-" & SelectedSolutionToConfigure.uniquename,
-                                BuildTemplate: environment.'Build Template Path',
-                                StepType: environment.'Step Type',
-                                ApprovalType: environment.'Approval Type'
                             }
                         );
-                    );
-                    UpdateContext({debugText: JSON(SolutionDeploymentSettings)});
-                    UpdateContext(
-                        {
-                            promoteBuildId: IfError(
-                                CustomAzureDevOps.RunPipeline(
-                                    selectedCommitProfile.Organization,
-                                    piplineToRun.Project,
-                                    piplineToRun.id,
-                                    {
-                                        definition: {id: piplineIdToRun},
-                                        templateParameters: {
-                                            Project: selectedCommitProfile.Project,
-                                            Repo: selectedCommitProfile.Repository,
-                                            SolutionName: glrSolutions.Selected.uniquename,
-                                            Email: gblUser.Email,
-                                            UserName: gblUser.FullName,
-                                            CommitMessage: Substitute(
-                                                txtCommitMessage.Text,
-                                                """",
-                                                "'"
-                                            ),
-                                            Branch: drpAdoBranches.Selected.DisplayName,
-                                            BranchToCreate: If(
-                                                tglCreateBranch.Value,
-                                                txtBranchToCreate.Text,
-                                                "Commit to existing branch specified in Branch parameter"
-                                            ),
-                                            ServiceConnectionName: If(
-                                                !IsBlankOrError(selectedCommitProfile.'Service Connection Name'),
-                                                selectedCommitProfile.'Service Connection Name',
-                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl
-                                            ),
-                                            ServiceConnectionUrl: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                            PipelineId: piplineToRun.id,
-                                            Data: JSON(SolutionDeploymentSettings),
-                                            EnvironmentName: "NA",
-                                            BuildDefinitionId: "NA",
-                                            ImportUnmanaged: "NA",
-                                            PortalSiteName: If(
-                                                tglPowerPagesExists.Value && !IsBlankOrError(drpSites.Selected.adx_name),
-                                                drpSites.Selected.adx_name,
-                                                "NA"
-                                            ),
-                                            PublishCustomizations: tglPublishCustomizations.Value,
-                                            CommitScope: drpCommitScope.Selected.Id
-                                        }
-                                    }
-                                ).id,
-                                UpdateContext({errorMessage: FirstError.Message});
-                                Notify("Error running pipeline: " & errorMessage);
+                    //Try to find the export pipeline in either the Pipeline Project or the Solution Project
+                ClearCollect(
+                            locPipelines,
+                            AddColumns(
+                                CustomAzureDevOps.GetPipelines(
+                                    selectedConfigurationDeploymentProfile.Organization,
+                                    selectedConfigurationDeploymentProfile.Project
+                                ).value,
+                                "Project",
+                                selectedConfigurationDeploymentProfile.Project
                             )
-                        }
-                    );
-                    Patch(
-                        'Deployment Requests',
-                        {
-                            Name: Text(
-                                Now(),
-                                DateTimeFormat.ShortDateTime
-                            ) & " - " & glrSolutions.Selected.friendlyname,
-                            'Solution Name': glrSolutions.Selected.uniquename,
-                            'Deployment Profile': selectedConfigurationDeploymentProfile,
-                            'Request Type': [@Type].Promote,
-                            Target: If(
-                                locCreateNewBranch,
-                                txtBranchToCreate.Text,
-                                drpAdoBranches.Selected.DisplayName
-                            ),
-                            Source: If(
-                                locCreateNewBranch,
-                                drpAdoBranches.Selected.DisplayName
-                            ),
-                            'Build ID': If(
-                                IsBlankOrError(errorMessage),
-                                promoteBuildId
-                            ),
-                            Message: errorMessage
-                        }
-                    );
-                    Refresh('Deployment Requests');
-                    Reset(tglPublishBypassPrepare);
-                    Reset(tglCreateBranch);
-                    Reset(txtCommitMessage);
-                    Reset(txtBranchToCreate);
-                    If(
-                        txtBranchToCreate.Text <> "",
-                        UpdateContext({locBranchesDeploymentProfile: Blank()})
-                    );
-                    UpdateContext(
-                        {
-                            showDialogOverlay: false,
-                            showCommitDialog: false,
-                            locDefaultBranchForCommit: "",
-                            locNewBranchText: ""
-                        }
-                    );
-                    Select(tmrCheckBuildAndPullRequestStatuses);
-                    
-                )
+                        );
+                        If(
+                            !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                            AddColumns(
+                                CustomAzureDevOps.GetPipelines(
+                                    selectedConfigurationDeploymentProfile.Organization,
+                                    selectedConfigurationDeploymentProfile.'Pipeline Project'
+                                ).value,
+                                "Project",
+                                selectedConfigurationDeploymentProfile.'Pipeline Project'
+                            )
+                        );
+                    //See if an export pipeline exists for the specific solution
+                UpdateContext(
+                            {
+                                piplineToRun: LookUp(
+                                    locPipelines,
+                                    name = "export-solution-to-git-" & glrSolutions.Selected.uniquename
+                                )
+                            }
+                        );
+                    //If an export pipeline doesn't exist for the specific solution see if an export pipeline exists for the specific repo
+                If(
+                            IsBlankOrError(piplineToRun),
+                            UpdateContext(
+                                {
+                                    piplineToRun: LookUp(
+                                        locPipelines,
+                                        name = "export-solution-to-git-" & selectedConfigurationDeploymentProfile.Repository
+                                    )
+                                }
+                            )
+                        );
+                    //Otherwise we will default to the standard export pipeline
+                If(
+                            IsBlank(piplineToRun),
+                            UpdateContext(
+                                {
+                                    piplineToRun: LookUp(
+                                        locPipelines,
+                                        name = "export-solution-to-git"
+                                    )
+                                }
+                            )
+                        );
+                        ClearCollect(
+                            DeploymentSteps,
+                            Filter(
+                                'Deployment Steps',
+                                'Deployment Profile'.'Deployment Profile' = selectedConfigurationDeploymentProfile.'Deployment Profile'
+                            )
+                        );
+                        ClearCollect(
+                            locDeploymentEnvironments,
+                            AddColumns(
+                                DeploymentSteps,
+                                "SearchText",
+                                DeploymentSettingName & " - " & glrSolutions.Selected.uniquename & " - " & 'Deployment Environment'.URL
+                            )
+                        );
+                        Clear(SolutionDeploymentSettings);
+                        ForAll(
+                            locDeploymentEnvironments As environment,
+                            Collect(
+                                SolutionDeploymentSettings,
+                                {
+                                    EnvironmentUrl: LookUp(
+                                        AllEnvironments,
+                                        name = ExecutingEnvironment.tags.environmentName
+                                    ).properties.linkedEnvironmentMetadata.instanceUrl,
+                                    UserSettings: If(
+                                        IsBlankOrError(
+                                            LookUp(
+                                                'User Settings',
+                                                environment.SearchText in Name,
+                                                cat_data
+                                            )
+                                        ),
+                                        ParseDeploymentSettings.Run("[]"),
+                                        ParseDeploymentSettings.Run(
+                                            LookUp(
+                                                'User Settings',
+                                                environment.SearchText in Name,
+                                                cat_data
+                                            )
+                                        )
+                                    ),
+                                    DeploymentEnvironmentUrl: environment.'Deployment Environment'.URL,
+                                    DeploymentEnvironmentName: environment.Name,
+                                    ServiceConnectionName: environment.'Deployment Environment'.'Service Connection Name',
+                                    VariableGroup: environment.'Deployment Environment'.'Variable Group Name',
+                                    BuildName: "deploy-" & Lower(environment.Name) & "-" & SelectedSolutionToConfigure.uniquename,
+                                    BuildTemplate: environment.'Build Template Path',
+                                    StepType: environment.'Step Type',
+                                    ApprovalType: environment.'Approval Type'
+                                }
+                            );
+                        );
+                        UpdateContext({debugText: JSON(SolutionDeploymentSettings)});
+                        UpdateContext(
+                            {
+                                promoteBuildId: IfError(
+                                    CustomAzureDevOps.RunPipeline(
+                                        selectedCommitProfile.Organization,
+                                        piplineToRun.Project,
+                                        piplineToRun.id,
+                                        {
+                                            definition: {id: piplineIdToRun},
+                                            templateParameters: {
+                                                Project: selectedCommitProfile.Project,
+                                                Repo: selectedCommitProfile.Repository,
+                                                SolutionName: glrSolutions.Selected.uniquename,
+                                                Email: gblUser.Email,
+                                                UserName: gblUser.FullName,
+                                                CommitMessage: Substitute(
+                                                    txtCommitMessage.Text,
+                                                    """",
+                                                    "'"
+                                                ),
+                                                Branch: drpAdoBranches.Selected.DisplayName,
+                                                BranchToCreate: If(
+                                                    tglCreateBranch.Value,
+                                                    txtBranchToCreate.Text,
+                                                    "Commit to existing branch specified in Branch parameter"
+                                                ),
+                                                ServiceConnectionName: If(
+                                                    !IsBlankOrError(selectedCommitProfile.'Service Connection Name'),
+                                                    selectedCommitProfile.'Service Connection Name',
+                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl
+                                                ),
+                                                ServiceConnectionUrl: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                PipelineId: piplineToRun.id,
+                                                Data: JSON(SolutionDeploymentSettings),
+                                                EnvironmentName: "NA",
+                                                BuildDefinitionId: "NA",
+                                                ImportUnmanaged: "NA",
+                                                PortalSiteName: If(
+                                                    tglPowerPagesExists.Value && !IsBlankOrError(cmbSites.Selected),
+                                                    selectedSites,
+                                                    "NA"
+                                                ),
+                                                PublishCustomizations: tglPublishCustomizations.Value,
+                                                CommitScope: drpCommitScope.Selected.Id
+                                            }
+                                        }
+                                    ).id,
+                                    UpdateContext({errorMessage: FirstError.Message});
+                                    Notify("Error running pipeline: " & errorMessage);
+                                )
+                            }
+                        );
+                        Patch(
+                            'Deployment Requests',
+                            {
+                                Name: Text(
+                                    Now(),
+                                    DateTimeFormat.ShortDateTime
+                                ) & " - " & glrSolutions.Selected.friendlyname,
+                                'Solution Name': glrSolutions.Selected.uniquename,
+                                'Deployment Profile': selectedConfigurationDeploymentProfile,
+                                'Request Type': [@Type].Promote,
+                                Target: If(
+                                    locCreateNewBranch,
+                                    txtBranchToCreate.Text,
+                                    drpAdoBranches.Selected.DisplayName
+                                ),
+                                Source: If(
+                                    locCreateNewBranch,
+                                    drpAdoBranches.Selected.DisplayName
+                                ),
+                                'Build ID': If(
+                                    IsBlankOrError(errorMessage),
+                                    promoteBuildId
+                                ),
+                                Message: errorMessage
+                            }
+                        );
+                        Refresh('Deployment Requests');
+                        Reset(tglPublishBypassPrepare);
+                        Reset(tglCreateBranch);
+                        Reset(txtCommitMessage);
+                        Reset(txtBranchToCreate);
+                        If(
+                            txtBranchToCreate.Text <> "",
+                            UpdateContext({locBranchesDeploymentProfile: Blank()})
+                        );
+                        UpdateContext(
+                            {
+                                showDialogOverlay: false,
+                                showCommitDialog: false,
+                                locDefaultBranchForCommit: "",
+                                locNewBranchText: ""
+                            }
+                        );
+                        Select(tmrCheckBuildAndPullRequestStatuses);
+                    )
+                );
             PressedBorderColor: =btnCommit.Fill
             PressedColor: =btnCommit.Fill
             PressedFill: =btnCommit.Color
@@ -2816,7 +2827,6 @@ Home As screen:
 
             cntVerticalPortalSettings As groupContainer.verticalAutoLayoutContainer:
                 AlignInContainer: =AlignInContainer.SetByContainer
-                FillPortions: =0
                 Height: =150
                 LayoutDirection: =LayoutDirection.Vertical
                 LayoutMinHeight: =100
@@ -2839,7 +2849,7 @@ Home As screen:
                     FontWeight: =FontWeight.Semibold
                     HandleFill: =If(tglPowerPagesExists.Value, PrimaryColor1Value, PrimaryColor2Value)
                     HoverBorderColor: =ColorFade(tglPowerPagesExists.BorderColor, 20%)
-                    OnChange: =
+                    OnChange: =Reset(cmbSites);
                     PressedBorderColor: =ColorFade(tglPowerPagesExists.BorderColor, -20%)
                     TrueHoverFill: =ColorFade(tglPowerPagesExists.TrueFill, 20%)
                     TrueText: ="Include Power Pages"
@@ -2858,7 +2868,7 @@ Home As screen:
                     Height: =45
                     PaddingLeft: =0
                     PaddingTop: =0
-                    Text: ="Website"
+                    Text: ="Website(s)"
                     VerticalAlign: =VerticalAlign.Bottom
                     Visible: =tglPowerPagesExists.Value
                     Width: =498
@@ -2880,11 +2890,58 @@ Home As screen:
                     PressedBorderColor: =drpSites.HoverBorderColor
                     PressedColor: =drpSites.Fill
                     PressedFill: =drpSites.Color
-                    Visible: =tglPowerPagesExists.Value && !IsEmpty(PortalWebSites)
+                    Visible: =false//tglPowerPagesExists.Value && !IsEmpty(PortalWebSites)
                     Width: =497
                     X: =1
                     Y: =85
                     ZIndex: =3
+
+                cmbSites As combobox:
+                    ChevronHoverBackground: =ColorFade(cmbSites.ChevronBackground, 20%)
+                    ChevronHoverFill: =ColorFade(cmbSites.ChevronFill, 20%)
+                    DisplayFields: =["adx_name"]
+                    Height: =45
+                    HoverBorderColor: =ColorFade(cmbSites.BorderColor, 20%)
+                    HoverColor: =ColorFade(cmbSites.Color, 20%)
+                    HoverFill: =ColorFade(cmbSites.SelectionFill, 20%)
+                    InputTextPlaceholder: ="Search Website"
+                    Items: =SortByColumns(PortalWebSites, "Name", SortOrder.Ascending)
+                    MoreItemsButtonColor: =Self.ChevronBackground
+                    NoSelectionText: ="Select Website(s)"
+                    OnChange: |-
+                        =UpdateContext(
+                            {
+                                selectedSites: Concat(
+                                    cmbSites.SelectedItems,
+                                    ThisRecord.adx_name,
+                                    ","
+                                )
+                            }
+                        );
+                    OnSelect: |
+                        =
+                    PressedBorderColor: =cmbSites.HoverBorderColor
+                    SearchFields: =["adx_name"]
+                    SearchItems: =Search(SortByColumns(PortalWebSites, "Name", SortOrder.Ascending),cmbSites.SearchText,"adx_name")
+                    Tooltip: ="Select website(s)"
+                    Visible: =tglPowerPagesExists.Value && !IsEmpty(PortalWebSites)
+                    Width: =497
+                    ZIndex: =4
+
+                lblDisplaySites As label:
+                    FontWeight: =FontWeight.Lighter
+                    Size: =12
+                    Text: =selectedSites
+                    Visible: |-
+                        =false
+                        // Hide if the combox box has 1 selected item as comboxbox always displays the selected item.
+                        //If(
+                        //    CountRows(cmbSites.SelectedItems) > 1,
+                        //    true,
+                        //    false
+                        //)
+                    Width: =470
+                    ZIndex: =5
 
         cntVerticalProfileScope As groupContainer.verticalAutoLayoutContainer:
             Height: =333
@@ -3014,9 +3071,11 @@ Home As screen:
                     PressedColor: =ColorFade(icoCommitScopeHelp.Color, -20%)
                     PressedFill: =ColorFade(icoCommitScopeHelp.Fill, -20%)
                     Tooltip: |-
-                        ="'Solution and Settings' - Choose to export both Solution and Deployment Settings.
-                        'Solution Only' - Choose to export only Solution but not Deployment Settings.
-                        'Settings Only' - Choose to export only Deployment Settings but not Solution."
+                        ="'Solution and Settings' - Choose to export both Solution and Deployment Settings along with selected Power Pages website.
+                        'Solution Only' - Choose to export only Solution but not Deployment Settings along with selected Power Pages website.
+                        'Settings Only' - Choose to export only Deployment Settings but not Solution or selected Power Pages website.
+                        'Power Pages Only' - Choose to export only selected Power Pages website but not Solution or Deployment Settings.
+                        "
                     Width: =28
                     X: =1838
                     Y: =953
@@ -3033,7 +3092,11 @@ Home As screen:
                 HoverFill: =ColorFade(drpCommitScope.SelectionFill, 20%)
                 Items: =CommitScopeOptions
                 OnChange: =
-                OnSelect: =
+                OnSelect: |
+                    =If(
+                        drpCommitScope.Selected.Id = 4,
+                        Notify("Select 'Power Pages' Website by enabling 'Include Power Pages' toggle, before committing the solution")
+                    );
                 PressedBorderColor: =drpCommitScope.HoverBorderColor
                 PressedColor: =drpCommitScope.Fill
                 PressedFill: =drpCommitScope.Color
@@ -3154,7 +3217,7 @@ Home As screen:
                                         Data: "[]",
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
-                                        CommitScope: drpCommitScope.Selected.Id
+                                        CommitScope: "1"
                                     }
                                 }
                             ).id,
@@ -4742,7 +4805,7 @@ Home As screen:
                                         Data: "[]",
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
-                                        CommitScope: drpCommitScope.Selected.Id
+                                        CommitScope: "1"
                                     }
                                 }
                             ).id,
@@ -6257,10 +6320,10 @@ Home As screen:
                                     FirstN(
                                         ClearCollect(
                                             splitCol,
-                                            Split(
+                                            ForAll(Split(
                                                 SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
                                                 "."
-                                            )
+                                            ), {Result: ThisRecord.Value})
                                         ),
                                         2
                                     )
@@ -6450,26 +6513,26 @@ Home As screen:
                         {
                             repoId: build.repository.id,
                             solutionUniqueName: Last(
-                                Split(
+                                ForAll(Split(
                                     build.definition.name,
                                     "-"
-                                )
+                                ), {Result: ThisRecord.Value})
                             ).Result,
                             solutionName: LookUp(
                                 SelectedEnvironmentSolutions,
                                 uniquename = Last(
-                                    Split(
+                                    ForAll(Split(
                                         build.definition.name,
                                         "-"
-                                    )
+                                    ), {Result: ThisRecord.Value})
                                 ).Result
                             ).friendlyname,
                             environment: Last(
                                 FirstN(
-                                    Split(
+                                    ForAll(Split(
                                         build.definition.name,
                                         "-"
-                                    ),
+                                    ), {Result: ThisRecord.Value}),
                                     2
                                 )
                             ).Result
