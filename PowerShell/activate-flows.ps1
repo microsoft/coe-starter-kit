@@ -301,9 +301,10 @@ function Get-OwnerFlowActivations {
                     }
 
                     if ($null -ne $workflow) {
-                        $systemuserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "internalemailaddress" -FilterOperator "eq" -FilterValue $ownershipConfig.ownerEmail -Fields systemuserid
-                        if ($systemuserResult.Count -gt 0) {
-                            $systemUserId = $systemuserResult.CrmRecords[0].systemuserid
+                        $matchedUser = Get-User-By-Email-or-DomainName $ownershipConfig.ownerEmail $conn
+                        if ($matchedUser -ne $null) {
+                            $systemUserId = $matchedUser.systemuserid
+                            Write-Host "systemuserid - $systemUserId"
                             #Activate the workflow using the owner.
                             $sortOrder = [int]::MaxValue
                             $activateFlow = 'true'
@@ -372,4 +373,42 @@ function Write-Flows{
             Write-Host "Flow Name: " $flowToActivate.solutionComponent.name
         }		
     }
+}
+
+function Get-User-By-Email-or-DomainName{
+ param(
+    [Parameter()] [String] [AllowEmptyString()]$filterValue,
+    [Parameter(Mandatory)] [Microsoft.Xrm.Tooling.Connector.CrmServiceClient]$conn
+    )
+
+    $matchedUser = $null
+    $fetch = @"
+    <fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>
+      <entity name='systemuser'>
+        <attribute name='systemuserid' />
+        <filter type='and'>
+          <filter type='or'>
+            <condition attribute='internalemailaddress' operator='eq' value='$filterValue' />
+            <condition attribute='domainname' operator='eq' value='$filterValue' />
+          </filter>
+        </filter>
+      </entity>
+    </fetch>
+"@
+
+    Write-Host "Request XML - "$fetch
+    $records = Get-CrmRecordsByFetch -Fetch $fetch -conn $conn
+    try{
+        $json = ConvertTo-Json $records
+        Write-Host "Response - $json"        
+        
+        if($records -and $records.CrmRecords){  
+            $matchedUser = $records.CrmRecords[0]
+        }
+    }
+    catch {
+        Write-Host "An error occurred in Get-User-By-Email-or-DomainName: $($_.Exception.Message)"
+    }
+
+    return $matchedUser
 }

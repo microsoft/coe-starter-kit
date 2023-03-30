@@ -97,8 +97,8 @@ function Add-Codefirst-Projects-To-Cdsproj{
           foreach($pcfProj in $pcfProjectFiles)
           {     
             Write-Host "Adding Reference of Pcf Project - " $pcfProj.FullName
-            $pcfProjectPath = $pcfProj.FullName
-
+            $pcfProjectPath = "`"$($pcfProj.FullName)`""    
+			
             $addReferenceCommand = "solution add-reference --path $pcfProjectPath"
             Write-Host "Add Reference Command - $addReferenceCommand"
             Invoke-Expression -Command "$pacexepath $addReferenceCommand"
@@ -114,7 +114,7 @@ function Add-Codefirst-Projects-To-Cdsproj{
               {     
                 Write-Host "Adding Reference of Plugin Project - " $csProject.FullName
                 # Add only Plugin type csproj; Skip others
-                $csProjectPath = $csProject.FullName
+                $csProjectPath = "`"$($csProject.FullName)`""    
 
                 # Read csproj xml to determin project type
                 [xml]$xmlDoc = Get-Content -Path $csProjectPath
