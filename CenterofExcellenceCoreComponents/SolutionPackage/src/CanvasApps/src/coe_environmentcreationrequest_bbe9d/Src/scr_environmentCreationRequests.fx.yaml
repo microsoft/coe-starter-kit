@@ -1,9 +1,9 @@
 "scr_environmentCreationRequests As screen.'tabletLayout_HeaderAndGallery_ver3.0'":
     LoadingSpinnerColor: =RGBA(105, 121, 126, 1)
     OnVisible: |-
-        =If( !var_init, Select(btn_refresh); UpdateContext({ var_init : true }); );
+        =If( !var_init, Select(MainRefreshButton); UpdateContext({ var_init : true }); );
 
-    Container2 As groupContainer.verticalAutoLayoutContainer:
+    ScreenContainer As groupContainer.verticalAutoLayoutContainer:
         Height: =Parent.Height
         LayoutMode: =LayoutMode.Auto
         Width: =Parent.Width
@@ -27,8 +27,10 @@
             LayoutMinHeight: =640
             LayoutMinWidth: =640
             Width: =If(Navigation_1.IsExpanded, 200, 60)
+            ZIndex: =2
 
         Container3 As groupContainer.horizontalAutoLayoutContainer:
+            AlignInContainer: =AlignInContainer.SetByContainer
             FillPortions: =0
             Height: =50
             LayoutAlignItems: =LayoutAlignItems.Stretch
@@ -37,7 +39,7 @@
             LayoutMinWidth: =250
             LayoutMode: =LayoutMode.Auto
             Visible: =Text(Param("hideNavBar")) = "true"
-            ZIndex: =1
+            ZIndex: =3
 
             Title1 As label:
                 Color: =RGBA(255, 255, 255, 1)
@@ -52,21 +54,24 @@
                 Width: =Parent.Width
                 ZIndex: =2
 
-        Container7 As groupContainer.horizontalAutoLayoutContainer:
+        BodyContainer As groupContainer.horizontalAutoLayoutContainer:
+            LayoutDirection: =LayoutDirection.Vertical
             LayoutMinHeight: =100
             LayoutMinWidth: =250
             LayoutMode: =LayoutMode.Auto
-            ZIndex: =3
+            ZIndex: =4
 
-            Container6 As groupContainer.verticalAutoLayoutContainer:
+            MainContainer As groupContainer.verticalAutoLayoutContainer:
+                LayoutAlignItems: =LayoutAlignItems.Stretch
                 LayoutDirection: =LayoutDirection.Vertical
-                LayoutMinHeight: =100
+                LayoutMinHeight: =200
                 LayoutMinWidth: =250
                 LayoutMode: =LayoutMode.Auto
                 Y: =456
                 ZIndex: =3
 
                 Container4 As groupContainer.horizontalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.SetByContainer
                     Fill: =RGBA(243, 242, 241, 1)
                     FillPortions: =0
                     Height: =40
@@ -86,6 +91,7 @@
                             FillPortions: =0
                             LayoutMinHeight: =Parent.Height
                             LayoutMinWidth: =250
+                            Visible: =false
                             Width: =80
                             ZIndex: =1
 
@@ -139,7 +145,6 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
@@ -168,6 +173,7 @@
                             FillPortions: =0
                             LayoutMinHeight: =Parent.Height
                             LayoutMinWidth: =250
+                            Visible: =false
                             Width: =85
                             ZIndex: =2
 
@@ -224,69 +230,37 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
                                 HoverFill: =RGBA(0, 0, 0, 0.1)
                                 OnSelect: |-
-                                    =UpdateContext({ var_loading: true });
+                                    =UpdateContext({var_loading: true });Refresh('Environment Creation Requests');
                                     
-                                    Refresh('Environment Creation Requests');
                                     Concurrent(
-                                        /* Get all regions, currencies, and languages */
-                                        ClearCollect( col_regions, 
-                                            AddColumns(PowerPlatformforAdmins.ListSupportedLocations().value,
-                                            "DisplayName",properties.displayName & If(properties.isDefault," (default)"))
-                                        );
-                                        Concurrent(
-                                            ClearCollect(col_currencies, 
-                                            {name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentCurrencies(First(col_regions).name).value,"DisplayName",properties.localizedName))
-                                            ,
-                                            ClearCollect(col_languages, 
-                                            {name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentLanguages(First(col_regions).name).value,"DisplayName",properties.displayName))
-                                        )   
-                                    ,
-                                        /* Get all environments in tenant */
-                                        ClearCollect(col_makerEnvironments, PowerAppsforMakers.GetEnvironments().value);
-                                        UpdateContext({ varDefaultEnvironment : Coalesce( LookUp(col_makerEnvironments, properties.isDefault), First(col_makerEnvironments)) });
-                                        
-                                        /* Get all marketplace connectors */
-                                        ClearCollect(col_connectors, 
-                                            AddColumns(PowerAppsforMakers.GetConnectors({'$filter':"environment eq '"& varDefaultEnvironment.name &"'"}).value,
-                                            "DisplayName",properties.displayName,"Tier",properties.tier,"ImageUrl",properties.iconUri)
-                                        );
-                                    ,
-                                        /* Get entire existing makers table and user's maker profile */
-                                        ClearCollect(col_allmakers, Makers);
-                                        Set( var_myProfile, Office365Users.MyProfileV2() );
-                                        Set( var_myMakerRecord, First(Office365Users.SearchUserV2({searchTerm: var_myProfile.userPrincipalName, top: 1}).value) );
-                                    ,
-                                        Reset(gal_creationrequests);
-                                    ,
-                                        ClearCollect(col_makerPortalValues, LookUp('Environment Variable Definitions', 'Schema Name' = "admin_PowerAppEnvironmentVariable").'Environment Variable Values');
-                                        Set( var_makerPortal, First(col_makerPortalValues).Value );
-                                    ,
-                                        ClearCollect( col_statuses, Sort(Choices('Environment Creation Requests'.'Request status'), Text(Value), Ascending));
-                                        ,
-                                        Set( var_wikiEnvType, 
-                                            Coalesce( 
-                                                LookUp( 'Environment Variable Definitions', 'Schema Name' = "admin_WikiEnvironmentType" ).'Default Value', 
-                                                LookUp( 'Environment Variable Values', 'Schema Name' = "admin_WikiEnvironmentType" ).Value,
-                                                "Choose production type if you're ready to deploy. If you're still developing or testing, choose Sandbox for a non-production environment. Learn more about environment types in <a href='https://go.microsoft.com/fwlink/?linkid=2093069' style='color:purple;'>this overview</a>."
-                                            )
-                                        )
-                                        ,
-                                        /* Call the	ListGroups operation and save response to a variable */
-                                        Set( var_response, Office365Groups.ListGroups({'$filter':"securityEnabled eq true or groupTypes/any(s:s eq 'Unified')",'$top':500 }) );
+                                        // Get all regions, currencies, and languages
+                                    ClearCollect(col_regions,AddColumns(PowerPlatformforAdmins.ListSupportedLocations().value,"DisplayName",properties.displayName&If(properties.isDefault," (default)")));Concurrent(ClearCollect(col_currencies,{name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentCurrencies(First(col_regions).name).value,"DisplayName",properties.localizedName)),ClearCollect(col_languages,{name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentLanguages(First(col_regions).name).value,"DisplayName",properties.displayName))),
                                     
-                                        /* Parse the $skipToken value from the @odata.nextLink value in the response */
-                                        Set( var_nextLink, Last(Split( var_response.'@odata.nextLink', "=")).Result );
+                                        // Get all environments in tenant
+                                    ClearCollect(col_makerEnvironments,PowerAppsforMakers.GetEnvironments().value);UpdateContext({varDefaultEnvironment:Coalesce(LookUp(col_makerEnvironments,properties.isDefault),First(col_makerEnvironments))});
                                     
-                                        /* Save the response into a collection */
-                                        ClearCollect( col_groups, var_response.value );
-                                    );
-                                    UpdateContext({ var_loading: false });
+                                        // Get all marketplace connectors
+                                    ClearCollect(col_connectors,AddColumns(PowerAppsforMakers.GetConnectors({'$filter':"environment eq '"&varDefaultEnvironment.name&"'"}).value,"DisplayName",properties.displayName,"Tier",properties.tier,"ImageUrl",properties.iconUri));,
+                                    
+                                        // Get entire existing makers table and user's maker profile 
+                                    ClearCollect(col_allmakers,Makers);
+                                    Set(var_myProfile,Office365Users.MyProfileV2());Set(var_myMakerRecord,First(Office365Users.SearchUserV2({searchTerm:var_myProfile.userPrincipalName,top:1}).value));,Reset(gal_creationrequests);,ClearCollect(col_makerPortalValues,LookUp('Environment Variable Definitions','Schema Name'="admin_PowerAppEnvironmentVariable").'Environment Variable Values');Set(var_makerPortal,First(col_makerPortalValues).Value);,ClearCollect(col_statuses,Sort(Choices('Environment Creation Requests'.'Request status'),Text(Value),SortOrder.Ascending));,Set(var_wikiEnvType,Coalesce(LookUp('Environment Variable Definitions','Schema Name'="admin_WikiEnvironmentType").'Default Value',LookUp('Environment Variable Values','Schema Name'="admin_WikiEnvironmentType").Value,"Choose production type if you're ready to deploy. If you're still developing or testing, choose Sandbox for a non-production environment. Learn more about environment types in <a href='https://go.microsoft.com/fwlink/?linkid=2093069' style='color:purple;'>this overview</a>.")),
+                                    
+                                        // Call the	ListGroups operation and save response to a variable
+                                    Set(var_response,Office365Groups.ListGroups({'$filter':"securityEnabled eq true or groupTypes/any(s:s eq 'Unified')",'$top':500}));
+                                    
+                                        // Parse the $skipToken value from the @odata.nextLink value in the response 
+                                    Set(var_nextLink,Last(ForAll(Split(var_response.'@odata.nextLink',"="), {Result: ThisRecord.Value})).Result);
+                                    
+                                        // Save the response into a collection 
+                                    ClearCollect(col_groups,var_response.value);
+                                    /**/
+                                    ,"");UpdateContext({var_loading: false });
                                 PaddingLeft: =10
                                 PressedBorderColor: =ColorFade(Self.BorderColor, 0%)
                                 PressedColor: =RGBA(0, 0, 0, 1)
@@ -306,7 +280,7 @@
                             Height: =Parent.Height
                             LayoutMinHeight: =50
                             LayoutMinWidth: =250
-                            Visible: =!IsBlank(gal_creationrequests.Selected) && gal_creationrequests.Selected.'Request status' = 'Approval Status'.Pending
+                            Visible: =false //!IsBlank(gal_creationrequests.Selected) && gal_creationrequests.Selected.'Request status' = 'Approval Status'.Pending
                             Width: =90
                             ZIndex: =3
 
@@ -360,16 +334,12 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
                                 HoverFill: =RGBA(0, 0, 0, 0.1)
                                 OnSelect: |-
-                                    =Patch('Environment Creation Requests', gal_creationrequests.Selected, {
-                                        'Request status': 'Approval Status'.Cancelled,
-                                        Status: 'Status (Environment Creation Requests)'.Inactive 
-                                    });
+                                    =Patch('Environment Creation Requests', gal_creationrequests.Selected, {'Request status': 'Approval Status'.Cancelled,Status: 'Status (Environment Creation Requests)'.Inactive,Notes:"Requestor deleted request in the app"});
                                 PaddingLeft: =10
                                 PressedBorderColor: =ColorFade(Self.BorderColor, 0%)
                                 PressedColor: =RGBA(0, 0, 0, 1)
@@ -439,7 +409,6 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
@@ -517,7 +486,6 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
@@ -596,7 +564,6 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
@@ -676,7 +643,6 @@
                                 FocusedBorderColor: =Self.Fill
                                 FocusedBorderThickness: =0
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Normal
                                 Height: =Parent.Height
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
@@ -701,22 +667,23 @@
                                 Width: =Parent.Width
                                 ZIndex: =3
 
-                    Label10 As label:
-                        Align: =Align.Right
-                        AlignInContainer: =AlignInContainer.Stretch
-                        BorderColor: =RGBA(0, 0, 0, 0)
-                        BorderStyle: =BorderStyle.None
-                        BorderThickness: =2
-                        Color: =RGBA(214, 214, 214, 1)
-                        DisabledBorderColor: =RGBA(0, 0, 0, 0)
-                        DisabledColor: =RGBA(166, 166, 166, 1)
-                        FocusedBorderThickness: =4
-                        Font: =Font.'Segoe UI'
-                        Size: =8
-                        Text: ="0.2"
-                        Visible: =false
-                        X: =466
-                        ZIndex: =2
+                        "CommandBar1 As 'Fluent Command Bar (1.0.18)'.pcfdataset":
+                            DisplayMode: =DisplayMode.Edit
+                            FillPortions: =1
+                            Height: =200
+                            Items: |-
+                                =Table({ItemKey:"new",ItemDisplayName:"New",ItemIconName:"Add"},{ItemKey:"refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh"},{ItemKey:"delete",ItemDisplayName:"Delete",ItemIconName:"delete",ItemVisible:!IsBlank(NewEnvironmentRequestsDetailsList.Selected) && NewEnvironmentRequestsDetailsList.Selected.'Request status' = 'Approval Status'.Pending})
+                            LayoutMinHeight: =40
+                            LayoutMinWidth: =200
+                            OnSelect: |-
+                                =Switch(Self.Selected.ItemKey,
+                                "refresh", Select(MainRefreshButton);,
+                                "new", Select(NewEnvRequestButton);,
+                                "delete",Patch('Environment Creation Requests', NewEnvironmentRequestsDetailsList.Selected, {'Request status': 'Approval Status'.Cancelled,Status: 'Status (Environment Creation Requests)'.Inactive,Notes:"Requestor deleted request in the app"}););
+                            Width: =200
+                            X: =0
+                            Y: =0
+                            ZIndex: =8
 
                     cmb_status As combobox:
                         AlignInContainer: =AlignInContainer.Stretch
@@ -736,7 +703,7 @@
                         DisplayFields: =["Value"]
                         Fill: =Container4.Fill
                         Font: =Font.'Segoe UI'
-                        HoverBorderColor: =Purple
+                        HoverBorderColor: =Color.Purple
                         HoverColor: =RGBA(51, 51, 51, 1)
                         HoverFill: =Self.Fill
                         IsSearchable: =false
@@ -745,7 +712,7 @@
                         OnChange: =Set(var_selectedItem, Blank())
                         PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -30%)
                         PressedColor: =RGBA(255, 255, 255, 1)
-                        PressedFill: =Purple
+                        PressedFill: =Color.Purple
                         SearchFields: =["Value"]
                         SearchItems: =[]
                         SelectionColor: =RGBA(0, 0, 0, 1)
@@ -814,7 +781,8 @@
                             Width: =32
                             ZIndex: =2
 
-                Container1 As groupContainer.horizontalAutoLayoutContainer:
+                HeaderContainer As groupContainer.horizontalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.SetByContainer
                     FillPortions: =0
                     Height: =80
                     LayoutMinHeight: =100
@@ -823,7 +791,6 @@
                     ZIndex: =2
 
                     lbl_table_display As label:
-                        AlignInContainer: =AlignInContainer.Start
                         BorderColor: =RGBA(0, 0, 0, 0)
                         BorderStyle: =BorderStyle.None
                         BorderThickness: =2
@@ -833,15 +800,14 @@
                         FillPortions: =1
                         FocusedBorderThickness: =4
                         Font: =Font.'Segoe UI'
-                        FontWeight: =Normal
                         Height: =60
-                        PaddingLeft: =40
-                        Size: =16
-                        Text: =cmb_status.Selected.Value & " Environment Creation Requests (" & CountRows(gal_creationrequests.AllItems) & ")"
+                        PaddingLeft: =32
+                        Text: =cmb_status.Selected.Value & " Environment Creation Requests"
                         VerticalAlign: =VerticalAlign.Bottom
                         ZIndex: =1
 
                 c_requests As groupContainer.verticalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.SetByContainer
                     LayoutDirection: =LayoutDirection.Vertical
                     LayoutMinHeight: =100
                     LayoutMinWidth: =250
@@ -851,6 +817,99 @@
                     Visible: =!var_loading
                     ZIndex: =3
 
+                    sep_galheader As rectangle:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        BorderColor: =RGBA(0, 0, 0, 0)
+                        BorderStyle: =BorderStyle.None
+                        DisabledFill: =RGBA(166, 166, 166, 1)
+                        Fill: =RGBA(204, 204, 204, 1)
+                        FocusedBorderThickness: =4
+                        Height: =1
+                        HoverFill: =RGBA(105, 121, 126, 1)
+                        PressedFill: =RGBA(105, 121, 126, 1)
+                        ZIndex: =1
+
+                    "NewEnvironmentRequestsDetailsList As 'Fluent Details List (1.0.18)'.pcfdataset":
+                        AlignInContainer: =AlignInContainer.Stretch
+                        columns_Items: |-
+                            =Table({ColName:"coe_name",ColDisplayName:"ID",ColWidth:100,ColCellType:""},{ColName:"coe_envdisplayname",ColDisplayName:"Name",ColWidth:Self.Width-600},{ColName:"coe_envsku",ColDisplayName:"Type",ColWidth:100},{ColName:"coe_envregion",ColDisplayName:"Region",ColWidth:100},{ColName:"coe_requeststatus",ColDisplayName:"Status",ColWidth:100})
+                        DisplayMode: =DisplayMode.Edit
+                        FillPortions: =1
+                        Height: =200
+                        Items: =Filter('Environment Creation Requests', 'Environment Creation Requests (Views)'.'My Environment Creation Requests','Request status'=cmb_status.Selected.Value || IsBlank(cmb_status.Selected))
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        PageSize: =500
+                        RecordKey: ="coe_name"
+                        Width: =200
+                        X: =0
+                        Y: =0
+                        ZIndex: =2
+
+                        "'Request  No1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Request  No"
+                            FieldName: ="coe_name"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =1
+                            ZIndex: =9
+
+                        "'Environment display name1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Environment display name"
+                            FieldName: ="coe_envdisplayname"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =2
+                            ZIndex: =10
+
+                        "'Environment type1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Environment type"
+                            FieldName: ="coe_envsku"
+                            FieldType: ="l"
+                            FieldVariantName: ="textualColumn"
+                            Order: =3
+                            ZIndex: =11
+
+                        "'Environment region1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Environment region"
+                            FieldName: ="coe_envregion"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =4
+                            ZIndex: =12
+
+                        "'Created By1' As pcfDataField":
+                            FieldDisplayName: ="Created By"
+                            FieldName: ="createdby"
+                            FieldType: ="E"
+                            FieldVariantName: ="complexTypeColumn"
+                            Order: =5
+                            ZIndex: =13
+
+                        "'Created On1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Created On"
+                            FieldName: ="createdon"
+                            FieldType: ="d"
+                            FieldVariantName: ="textualColumn"
+                            Order: =6
+                            ZIndex: =14
+
+                        "'Has expiration date1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Has expiration date"
+                            FieldName: ="coe_canexpire"
+                            FieldType: ="l"
+                            FieldVariantName: ="textualColumn"
+                            Order: =7
+                            ZIndex: =15
+
+                        "'Request status1' As pcfDataField.textualColumn":
+                            FieldDisplayName: ="Request status"
+                            FieldName: ="coe_requeststatus"
+                            FieldType: ="l"
+                            FieldVariantName: ="textualColumn"
+                            Order: =8
+                            ZIndex: =16
+
                     Container8_1 As groupContainer.horizontalAutoLayoutContainer:
                         FillPortions: =0
                         Height: =50
@@ -859,7 +918,8 @@
                         LayoutMinWidth: =250
                         LayoutMode: =LayoutMode.Auto
                         PaddingLeft: =10
-                        ZIndex: =2
+                        Visible: =false
+                        ZIndex: =3
 
                         img_checkmark_2 As image:
                             BorderColor: =RGBA(0, 0, 0, 0)
@@ -897,7 +957,7 @@
                             HoverFill: =Self.Fill
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -925,7 +985,7 @@
                             HoverFill: =Self.Fill
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -953,7 +1013,7 @@
                             LayoutMinWidth: =100
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -981,7 +1041,7 @@
                             HoverFill: =Self.Fill
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -1009,7 +1069,7 @@
                             HoverFill: =Self.Fill
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -1018,18 +1078,6 @@
                             Text: ="Requested"
                             Width: =200
                             ZIndex: =6
-
-                    sep_galheader As rectangle:
-                        AlignInContainer: =AlignInContainer.Stretch
-                        BorderColor: =RGBA(0, 0, 0, 0)
-                        BorderStyle: =BorderStyle.None
-                        DisabledFill: =RGBA(166, 166, 166, 1)
-                        Fill: =RGBA(204, 204, 204, 1)
-                        FocusedBorderThickness: =4
-                        Height: =1
-                        HoverFill: =RGBA(105, 121, 126, 1)
-                        PressedFill: =RGBA(105, 121, 126, 1)
-                        ZIndex: =3
 
                     gal_creationrequests As gallery.galleryVertical:
                         BorderColor: =RGBA(166, 166, 166, 1)
@@ -1044,7 +1092,7 @@
                         TemplateFill: =If(ThisItem.IsSelected, RGBA(252,250,250,1))
                         TemplatePadding: =0
                         TemplateSize: =If(Self.Layout = Layout.Horizontal, Min(60, Self.Width - 60), Min(60, Self.Height - 60))
-                        Visible: =!var_loading
+                        Visible: =false
                         ZIndex: =4
 
                         c_environmentRequestRow As groupContainer.horizontalAutoLayoutContainer:
@@ -1111,7 +1159,7 @@
                                 BorderColor: =RGBA(0, 0, 0, 0)
                                 BorderStyle: =BorderStyle.None
                                 BorderThickness: =2
-                                Color: =If( ThisItem.'Has expiration date' && DateDiff(Today(), ThisItem.'Expiration date', Days) < 30 && ThisItem.'Request status'='Approval Status'.Live, Red, RGBA(151, 151, 151, 1))
+                                Color: =If( ThisItem.'Has expiration date' && DateDiff(Today(), ThisItem.'Expiration date', TimeUnit.Days) < 30 && ThisItem.'Request status'='Approval Status'.Live, Color.Red, RGBA(151, 151, 151, 1))
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(166, 166, 166, 1)
                                 FillPortions: =1
@@ -1203,7 +1251,6 @@
 
                 Label3 As label:
                     Align: =Align.Center
-                    AlignInContainer: =AlignInContainer.Stretch
                     BorderColor: =RGBA(0, 0, 0, 0)
                     BorderStyle: =BorderStyle.None
                     BorderThickness: =2
@@ -1218,13 +1265,158 @@
                     Visible: =var_loading
                     ZIndex: =4
 
+            HiddenContainer As groupContainer.horizontalAutoLayoutContainer:
+                FillPortions: =0
+                Height: =50
+                LayoutAlignItems: =LayoutAlignItems.Center
+                LayoutGap: =8
+                LayoutMinHeight: =100
+                LayoutMinWidth: =10
+                LayoutMode: =LayoutMode.Auto
+                PaddingLeft: =5
+                Visible: =false
+                ZIndex: =4
+
+                MainRefreshButton As button:
+                    BorderColor: =RGBA(0, 0, 0, 0)
+                    BorderThickness: =0
+                    DisabledBorderColor: =RGBA(0, 0, 0, 0)
+                    DisabledColor: =RGBA(166, 166, 166, 1)
+                    DisabledFill: =RGBA(244, 244, 244, 1)
+                    Fill: =RGBA(105, 121, 126, 1)
+                    FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+                    Font: =Font.'Segoe UI'
+                    FontWeight: =FontWeight.Semibold
+                    HoverBorderColor: =RGBA(0, 0, 0, 0)
+                    HoverColor: =RGBA(255, 255, 255, 1)
+                    HoverFill: =ColorFade(RGBA(105, 121, 126, 1), -10%)
+                    OnSelect: |-
+                        =UpdateContext({var_loading: true });Refresh('Environment Creation Requests');
+                        
+                        Concurrent(
+                            // Get all regions, currencies, and languages
+                        ClearCollect(col_regions,AddColumns(PowerPlatformforAdmins.ListSupportedLocations().value,"DisplayName",properties.displayName&If(properties.isDefault," (default)")));Concurrent(ClearCollect(col_currencies,{name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentCurrencies(First(col_regions).name).value,"DisplayName",properties.localizedName)),ClearCollect(col_languages,{name:""},AddColumns(PowerPlatformforAdmins.ListEnvironmentLanguages(First(col_regions).name).value,"DisplayName",properties.displayName))),
+                        
+                            // Get all environments in tenant
+                        ClearCollect(col_makerEnvironments,PowerAppsforMakers.GetEnvironments().value);UpdateContext({varDefaultEnvironment:Coalesce(LookUp(col_makerEnvironments,properties.isDefault),First(col_makerEnvironments))});
+                        
+                            // Get all marketplace connectors
+                        ClearCollect(col_connectors,AddColumns(PowerAppsforMakers.GetConnectors({'$filter':"environment eq '"&varDefaultEnvironment.name&"'"}).value,"DisplayName",properties.displayName,"Tier",properties.tier,"ImageUrl",properties.iconUri));,
+                        
+                            // Get entire existing makers table and user's maker profile 
+                        ClearCollect(col_allmakers,Makers);
+                        Set(var_myProfile,Office365Users.MyProfileV2());Set(var_myMakerRecord,First(Office365Users.SearchUserV2({searchTerm:var_myProfile.userPrincipalName,top:1}).value));,Reset(gal_creationrequests);,ClearCollect(col_makerPortalValues,LookUp('Environment Variable Definitions','Schema Name'="admin_PowerAppEnvironmentVariable").'Environment Variable Values');Set(var_makerPortal,First(col_makerPortalValues).Value);,ClearCollect(col_statuses,Sort(Choices('Environment Creation Requests'.'Request status'),Text(Value),SortOrder.Ascending));,Set(var_wikiEnvType,Coalesce(LookUp('Environment Variable Definitions','Schema Name'="admin_WikiEnvironmentType").'Default Value',LookUp('Environment Variable Values','Schema Name'="admin_WikiEnvironmentType").Value,"Choose production type if you're ready to deploy. If you're still developing or testing, choose Sandbox for a non-production environment. Learn more about environment types in <a href='https://go.microsoft.com/fwlink/?linkid=2093069' style='color:purple;'>this overview</a>.")),
+                        
+                            // Call the	ListGroups operation and save response to a variable
+                        Set(var_response,Office365Groups.ListGroups({'$filter':"securityEnabled eq true or groupTypes/any(s:s eq 'Unified')",'$top':500}));
+                        
+                            // Parse the $skipToken value from the @odata.nextLink value in the response 
+                        Set(var_nextLink,Last(ForAll(Split(var_response.'@odata.nextLink',"="), {Result: ThisRecord.Value})).Result);
+                        
+                            // Save the response into a collection 
+                        ClearCollect(col_groups,var_response.value);
+                        /**/
+                        ,"");UpdateContext({var_loading: false });
+                    PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
+                    PressedColor: =RGBA(255, 255, 255, 1)
+                    PressedFill: =ColorFade(RGBA(105, 121, 126, 1), -30%)
+                    RadiusBottomLeft: =2
+                    RadiusBottomRight: =2
+                    RadiusTopLeft: =2
+                    RadiusTopRight: =2
+                    Size: =15
+                    Text: ="Refresh"
+                    ZIndex: =1
+
+    EmptyContainer As groupContainer.verticalAutoLayoutContainer:
+        Height: =236
+        LayoutAlignItems: =LayoutAlignItems.Center
+        LayoutDirection: =LayoutDirection.Vertical
+        LayoutMode: =LayoutMode.Auto
+        Visible: =IsEmpty( gal_creationrequests.AllItems ) && !var_loading
+        X: =(Parent.Width - Self.Width) / 2
+        Y: =(Parent.Height - Self.Height) / 2
+        ZIndex: =2
+
+        EmptyImage As image:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledFill: =RGBA(0, 0, 0, 0)
+            FocusedBorderThickness: =4
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverFill: =RGBA(0, 0, 0, 0)
+            Image: ='No results'
+            PressedBorderColor: =RGBA(0, 0, 0, 0)
+            PressedFill: =RGBA(0, 0, 0, 0)
+            X: =633
+            Y: =246
+            ZIndex: =1
+
+        Label10 As label:
+            Align: =Align.Center
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            Color: =RGBA(51, 51, 51, 1)
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            FocusedBorderThickness: =4
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Semibold
+            Height: =58
+            Text: ="No requests"
+            VerticalAlign: =VerticalAlign.Top
+            Width: =234
+            X: =133
+            Y: =91
+            ZIndex: =2
+
+        NewEnvRequestButton As button:
+            BorderColor: =RGBA(0, 0, 0, 0)
+            BorderThickness: =0
+            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+            DisabledColor: =RGBA(166, 166, 166, 1)
+            DisabledFill: =RGBA(244, 244, 244, 1)
+            Fill: =var_powerappspurple
+            FocusedBorderColor: =ColorFade(Self.Fill, -75%)
+            FocusedBorderThickness: =1
+            Font: =Font.'Segoe UI'
+            FontWeight: =FontWeight.Semibold
+            HoverBorderColor: =RGBA(0, 0, 0, 0)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =ColorFade(var_powerappspurple, -10%)
+            OnSelect: |-
+                =//Select(btn_viewAvailablePolicies);
+                UpdateContext({ var_formTab : 0, var_formTabLabel: Self.Text });
+                Clear(col_makers); 
+                ClearCollect(col_selectedMakers, var_myMakerRecord); 
+                Clear(col_selectedConnectors);
+                ResetForm(Form1);
+                Reset(tin_searchConnectors);Reset(tin_searchMakers);
+                UpdateContext({var_showFormFlyout: true});
+                Set(var_resetSG, true); UpdateContext({ var_selectSecurityGroup: false });
+            PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
+            PressedColor: =RGBA(255, 255, 255, 1)
+            PressedFill: =ColorFade(var_powerappspurple, -30%)
+            RadiusBottomLeft: =2
+            RadiusBottomRight: =2
+            RadiusTopLeft: =2
+            RadiusTopRight: =2
+            Size: =10
+            Text: ="Submit a new request"
+            Width: =190
+            X: =155
+            ZIndex: =3
+
     c_act_dialog_group As groupContainer.manualLayoutContainer:
         Height: =300
         Visible: =var_showDialog
         Width: =600
         X: =(Parent.Width - Self.Width) / 2
         Y: =(Parent.Height - Self.Height) / 2 - 50
-        ZIndex: =2
+        ZIndex: =3
 
         Panel_1 As Panel:
             BoxShadowWidth: =4.6
@@ -1272,7 +1464,7 @@
                         FocusedBorderThickness: =4
                         Height: =Parent.Height
                         HoverBorderColor: =RGBA(0, 0, 0, 0)
-                        HoverColor: =Purple
+                        HoverColor: =Color.Purple
                         HoverFill: =RGBA(0, 0, 0, 0)
                         Icon: =Icon.Cancel
                         OnSelect: =Select(r_dialogOverlay);
@@ -1418,7 +1610,7 @@
         LayoutMode: =LayoutMode.Auto
         Visible: =var_showFormFlyout
         Width: =Parent.Width
-        ZIndex: =3
+        ZIndex: =4
 
         sep_securityGroupFlyout As rectangle:
             AlignInContainer: =AlignInContainer.Stretch
@@ -1485,7 +1677,7 @@
                     FillPortions: =1
                     FocusedBorderThickness: =4
                     Font: =Font.'Segoe UI'
-                    FontWeight: =Semibold
+                    FontWeight: =FontWeight.Semibold
                     PaddingBottom: =10
                     PaddingTop: =20
                     Size: =16
@@ -1592,7 +1784,7 @@
                                 =UpdateContext({ var_formTab : 0, var_formTabLabel: Self.Text });
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -1641,7 +1833,7 @@
                                 =UpdateContext({ var_formTab : 1 , var_formTabLabel: Self.Text });
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -1690,7 +1882,7 @@
                                 =UpdateContext({ var_formTab : 2 , var_formTabLabel: Self.Text });
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -1739,7 +1931,7 @@
                                 =UpdateContext({ var_formTab : 3 , var_formTabLabel: Self.Text });
                             PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                             PressedColor: =RGBA(0, 0, 0, 1)
-                            PressedFill: =White
+                            PressedFill: =Color.White
                             RadiusBottomLeft: =0
                             RadiusBottomRight: =0
                             RadiusTopLeft: =0
@@ -1872,7 +2064,7 @@
                                 HoverFill: =ColorFade(RGBA(105, 121, 126, 0.1), -10%)
                                 PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                                 PressedColor: =RGBA(0, 0, 0, 1)
-                                PressedFill: =White
+                                PressedFill: =Color.White
                                 RadiusBottomLeft: =0
                                 RadiusBottomRight: =0
                                 RadiusTopLeft: =0
@@ -1913,13 +2105,13 @@
                                 FillPortions: =1
                                 FocusedBorderColor: =ColorFade(Self.Fill, -75%)
                                 Font: =Font.'Segoe UI'
-                                FontWeight: =Semibold
+                                FontWeight: =FontWeight.Semibold
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 HoverColor: =RGBA(0, 0, 0, 1)
                                 HoverFill: =Self.Fill
                                 PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                                 PressedColor: =RGBA(0, 0, 0, 1)
-                                PressedFill: =White
+                                PressedFill: =Color.White
                                 RadiusBottomLeft: =0
                                 RadiusBottomRight: =0
                                 RadiusTopLeft: =0
@@ -1942,7 +2134,7 @@
 
                         gal_connectors As gallery.galleryVertical:
                             BorderColor: =RGBA(166, 166, 166, 1)
-                            Items: =Search(Sort(Filter('PowerApps Connectors', 'Is Custom Api' = 'Is Custom Api (PowerApps Connectors)'.No) , 'Connector Display Name', Ascending), tin_searchConnectors.Text,"admin_displayname")
+                            Items: =Search(Sort(Filter('PowerApps Connectors', 'Is Custom Api' = 'Is Custom Api (PowerApps Connectors)'.No) , 'Connector Display Name', SortOrder.Ascending), tin_searchConnectors.Text,"admin_displayname")
                             Layout: =Layout.Vertical
                             LayoutMinHeight: =287
                             LayoutMinWidth: =320
@@ -2241,7 +2433,7 @@
                             Height: =50
                             Required: =false
                             Update: =DataCardValue7.Selected
-                            Visible: =LookUp( 'Environment Variable Values', 'Schema Name'="admin_EnvRequestEnableCostTracking").Value = "yes"
+                            Visible: =true//LookUp( 'Environment Variable Values', 'Schema Name'="admin_EnvRequestEnableCostTracking").Value = "yes"
                             Width: =500
                             X: =0
                             Y: =4
@@ -2287,13 +2479,14 @@
                                 HoverBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -30%)
                                 HoverColor: =RGBA(51, 51, 51, 1)
                                 HoverFill: =RGBA(212, 212, 212, 1)
-                                Items: =Choices([@'Environment Creation Requests'].'Business Area')
+                                IsSearchable: =false
+                                Items: ='Environment Business Areas'
                                 PaddingLeft: =If(Self.DisplayMode = DisplayMode.Edit, 5, 0)
                                 PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -30%)
                                 PressedColor: =RGBA(255, 255, 255, 1)
                                 PressedFill: =RGBA(105, 121, 126, 1)
                                 SearchFields: =["admin_areaname"]
-                                SearchItems: =Search(Choices([@'Environment Creation Requests'].'Business Area'),DataCardValue7.SearchText,"admin_areaname")
+                                SearchItems: =[]
                                 SelectionFill: =RGBA(105, 121, 126, 1)
                                 SelectMultiple: =false
                                 Size: =12
@@ -2446,7 +2639,7 @@
                                 FalseText: ="No"
                                 FocusedBorderThickness: =4
                                 Font: =Font.'Segoe UI'
-                                HandleFill: =If(Self.Value, White, RGBA(133, 138, 140, 1))
+                                HandleFill: =If(Self.Value, Color.White, RGBA(133, 138, 140, 1))
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 OnUncheck: =Reset(ComboBox2);
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
@@ -2710,7 +2903,7 @@
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(166, 166, 166, 1)
                                 DisabledFill: =RGBA(244, 244, 244, 1)
-                                DisplayFields: =["name"]
+                                DisplayFields: =["DisplayName"]
                                 Font: =Font.'Segoe UI'
                                 HoverBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -30%)
                                 HoverColor: =RGBA(51, 51, 51, 1)
@@ -2719,8 +2912,8 @@
                                 PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -30%)
                                 PressedColor: =RGBA(255, 255, 255, 1)
                                 PressedFill: =RGBA(105, 121, 126, 1)
-                                SearchFields: =["name"]
-                                SearchItems: =Search(col_languages,ComboBox2_2.SearchText,"name")
+                                SearchFields: =["DisplayName"]
+                                SearchItems: =Search(col_languages,ComboBox2_2.SearchText,"DisplayName")
                                 SelectionFill: =RGBA(105, 121, 126, 1)
                                 SelectMultiple: =false
                                 Size: =13
@@ -3057,7 +3250,6 @@
                                     FocusedBorderColor: =Self.Fill
                                     FocusedBorderThickness: =0
                                     Font: =Font.'Segoe UI'
-                                    FontWeight: =Normal
                                     Height: =Parent.Height
                                     HoverBorderColor: =RGBA(0, 0, 0, 0)
                                     HoverColor: =var_powerappspurple
@@ -3512,7 +3704,7 @@
 
                             Icon10_1 As icon.Information:
                                 BorderColor: =RGBA(166, 166, 166, 1)
-                                Color: =Purple
+                                Color: =Color.Purple
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(220, 220, 220, 1)
                                 DisabledFill: =RGBA(0, 0, 0, 0)
@@ -3677,7 +3869,7 @@
 
                             Icon10 As icon.Information:
                                 BorderColor: =RGBA(166, 166, 166, 1)
-                                Color: =Purple
+                                Color: =Color.Purple
                                 DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                 DisabledColor: =RGBA(220, 220, 220, 1)
                                 DisabledFill: =RGBA(0, 0, 0, 0)
@@ -3792,7 +3984,7 @@
                                 FalseText: ="No"
                                 FocusedBorderThickness: =4
                                 Font: =Font.'Segoe UI'
-                                HandleFill: =If(Self.Value, White, RGBA(133, 138, 140, 1))
+                                HandleFill: =If(Self.Value, Color.White, RGBA(133, 138, 140, 1))
                                 HoverBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 Size: =13
@@ -3934,7 +4126,7 @@
                                     HoverFill: =ColorFade(RGBA(105, 121, 126, 0.1), -10%)
                                     PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                                     PressedColor: =RGBA(0, 0, 0, 1)
-                                    PressedFill: =White
+                                    PressedFill: =Color.White
                                     RadiusBottomLeft: =0
                                     RadiusBottomRight: =0
                                     RadiusTopLeft: =0
@@ -3975,7 +4167,7 @@
                                     Fill: =RGBA(0, 0, 0, 0)
                                     FocusedBorderColor: =ColorFade(Self.Fill, -75%)
                                     Font: =Font.'Segoe UI'
-                                    FontWeight: =Semibold
+                                    FontWeight: =FontWeight.Semibold
                                     HoverBorderColor: =RGBA(0, 0, 0, 0)
                                     HoverColor: =RGBA(0, 0, 0, 1)
                                     HoverFill: =Self.Fill
@@ -3983,7 +4175,7 @@
                                     PaddingLeft: =10
                                     PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                                     PressedColor: =RGBA(0, 0, 0, 1)
-                                    PressedFill: =White
+                                    PressedFill: =Color.White
                                     RadiusBottomLeft: =0
                                     RadiusBottomRight: =0
                                     RadiusTopLeft: =0
@@ -4003,13 +4195,13 @@
                                     Fill: =RGBA(0, 0, 0, 0)
                                     FocusedBorderColor: =ColorFade(Self.Fill, -75%)
                                     Font: =Font.'Segoe UI'
-                                    FontWeight: =Semibold
+                                    FontWeight: =FontWeight.Semibold
                                     HoverBorderColor: =RGBA(0, 0, 0, 0)
                                     HoverColor: =RGBA(0, 0, 0, 1)
                                     HoverFill: =Self.Fill
                                     PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                                     PressedColor: =RGBA(0, 0, 0, 1)
-                                    PressedFill: =White
+                                    PressedFill: =Color.White
                                     RadiusBottomLeft: =0
                                     RadiusBottomRight: =0
                                     RadiusTopLeft: =0
@@ -4394,7 +4586,7 @@
             =UpdateContext({var_showEnvTypeInfo: true , var_showDialog:true });UpdateContext({var_showEnvTypeInfo: false , var_showDialog:false });
         Visible: =EnvironmentTypeInfo_1.IsVisible || var_showDialog
         Width: =Parent.Width
-        ZIndex: =6
+        ZIndex: =5
 
     EnvironmentTypeInfo_1 As EnvironmentTypeInfo:
         Show: =var_showEnvTypeInfo
@@ -4402,7 +4594,7 @@
         Visible: =Self.IsVisible
         X: =Parent.Width - Container22_3.Width - Self.Width / 2
         Y: =202
-        ZIndex: =7
+        ZIndex: =6
 
     txt_adminItemsIsEmpty As label:
         BorderColor: =RGBA(0, 0, 0, 0)
@@ -4419,7 +4611,7 @@
         Visible: =false
         X: =707
         Y: =728
-        ZIndex: =8
+        ZIndex: =7
 
     c_securityGroup As groupContainer.horizontalAutoLayoutContainer:
         Fill: =RGBA(255, 255, 255, 0.2)
@@ -4429,7 +4621,7 @@
         LayoutMode: =LayoutMode.Auto
         Visible: =var_selectSecurityGroup 
         Width: =Parent.Width
-        ZIndex: =9
+        ZIndex: =8
 
         Rectangle1 As rectangle:
             BorderColor: =RGBA(0, 0, 0, 0)
@@ -4485,7 +4677,7 @@
                     FillPortions: =1
                     FocusedBorderThickness: =4
                     Font: =Font.'Segoe UI'
-                    FontWeight: =Semibold
+                    FontWeight: =FontWeight.Semibold
                     PaddingBottom: =10
                     PaddingTop: =20
                     Size: =16
@@ -4631,7 +4823,7 @@
                         HoverFill: =Self.Fill
                         PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                         PressedColor: =RGBA(0, 0, 0, 1)
-                        PressedFill: =White
+                        PressedFill: =Color.White
                         RadiusBottomLeft: =0
                         RadiusBottomRight: =0
                         RadiusTopLeft: =0
@@ -4658,7 +4850,7 @@
                         HoverFill: =Self.Fill
                         PressedBorderColor: =ColorFade(RGBA(105, 121, 126, 1), -50%)
                         PressedColor: =RGBA(0, 0, 0, 1)
-                        PressedFill: =White
+                        PressedFill: =Color.White
                         RadiusBottomLeft: =0
                         RadiusBottomRight: =0
                         RadiusTopLeft: =0
@@ -4703,7 +4895,7 @@
                     Default: =LookUp( Self.AllItems, id = var_selectedSecurityGroup.id)
                     FillPortions: =0
                     Height: =CountRows(Search(col_groups,tin_search_3.Text,"displayName")) * 40
-                    Items: =Sort(Search(col_groups,tin_search_3.Text,"displayName"),displayName,Ascending)
+                    Items: =Sort(Search(col_groups,tin_search_3.Text,"displayName"),displayName,SortOrder.Ascending)
                     Layout: =Layout.Vertical
                     LayoutMinHeight: =287
                     LayoutMinWidth: =320
@@ -4828,7 +5020,7 @@
                             Set( var_response, Office365Groups.ListGroups({ '$skiptoken': var_nextLink, '$filter':"securityEnabled eq true or groupTypes/any(s:s eq 'Unified')" ,'$top':500}));
                             
                             /* Parse the next page's skiptoken value */
-                            Set( var_nextLink, Last(Split( var_response.'@odata.nextLink', "=" )).Result );
+                            Set( var_nextLink, Last(ForAll(Split( var_response.'@odata.nextLink', "=" ), {Result: ThisRecord.Value})).Result );
                             
                             /* Save the page results to the collection */
                             Collect( col_groups, var_response.value );
@@ -4927,48 +5119,4 @@
                     Text: ="Done"
                     Width: =100
                     ZIndex: =3
-
-    Group1 As group:
-        Height: =5
-        Width: =5
-        X: =40
-        Y: =40
-        ZIndex: =15
-
-        Icon5 As icon.Tray:
-            BorderColor: =RGBA(0, 0, 0, 0)
-            BorderStyle: =BorderStyle.None
-            Color: =RGBA(225, 225, 220, 1)
-            DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisabledColor: =Self.Color
-            FocusedBorderThickness: =0
-            Height: =22
-            HoverBorderColor: =RGBA(0, 0, 0, 0)
-            HoverColor: =Self.Color
-            Icon: =Icon.Tray
-            PressedBorderColor: =RGBA(0, 0, 0, 0)
-            PressedColor: =Self.Color
-            Visible: =IsEmpty( gal_creationrequests.AllItems ) && !var_loading
-            Width: =200
-            X: =(Parent.Width - Self.Width) / 2
-            Y: =362
-            ZIndex: =4
-
-        Label7 As label:
-            Align: =Center
-            BorderColor: =RGBA(0, 0, 0, 0)
-            BorderStyle: =BorderStyle.None
-            BorderThickness: =2
-            Color: =RGBA(225, 225, 220, 1)
-            DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisabledColor: =RGBA(166, 166, 166, 1)
-            FocusedBorderThickness: =4
-            Font: =Font.'Segoe UI'
-            Size: =10
-            Text: ="No requests"
-            Visible: =IsEmpty( gal_creationrequests.AllItems ) && !var_loading
-            Width: =200
-            X: =(Parent.Width - Self.Width) / 2
-            Y: =384
-            ZIndex: =5
 

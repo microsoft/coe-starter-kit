@@ -1,0 +1,499 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_commondataserviceforapps_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEBYODLDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_dataflows_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoEBYODLPowerQuery"
+        },
+        "api": {
+          "name": "shared_dataflows"
+        }
+      },
+      "shared_commondataserviceforapps_2": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Current Environment (admin_CurrentEnvironment)": {
+          "defaultValue": "c88c7061-6eea-e86a-a0dd-926a8e97d41d-31c688f59-westus",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_CurrentEnvironment",
+            "description": "Current Environment ID."
+          }
+        },
+        "Environment Dataflow ID (admin_EnvironmentDataflowID)": {
+          "defaultValue": "789",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_EnvironmentDataflowID",
+            "description": "LEAVE BLANK ON IMPORT. Dataflow ID of the CoE BYODL Environments dataflow."
+          }
+        },
+        "Maker Dataflow ID (admin_MakerDataflowID)": {
+          "defaultValue": "546464",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_MakerDataflowID",
+            "description": "LEAVE BLANK ON IMPORT. Dataflow ID of the CoE BYODL Makers dataflow."
+          }
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_dataflow_refresh_completes": {
+          "recurrence": {
+            "interval": 1,
+            "frequency": "Minute"
+          },
+          "metadata": {
+            "operationMetadataId": "8d27881d-8689-4f4d-97bc-0bda7f7d194c"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_dataflows_1",
+              "operationId": "OnRefreshComplete",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_dataflows"
+            },
+            "parameters": {
+              "workspaceType": "Environment",
+              "groupIdForOnRefreshComplete": "@parameters('Current Environment (admin_CurrentEnvironment)')",
+              "dataflowIdForOnRefreshComplete": "@parameters('Maker Dataflow ID (admin_MakerDataflowID)')"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate_2": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Update_makers_and_refresh_next_dataflow": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        },
+        "Update_makers_and_refresh_next_dataflow": {
+          "actions": {
+            "List_makers": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "1cd49924-b21b-4ac9-a11b-7627bb061963"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps_1",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_makers",
+                  "$select": "admin_makerid,admin_displayname,admin_department",
+                  "$filter": "admin_makerisorphaned eq true"
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "runtimeConfiguration": {
+                "paginationPolicy": {
+                  "minimumItemCount": 100000
+                }
+              }
+            },
+            "Apply_to_each_maker": {
+              "foreach": "@outputs('List_makers')?['body/value']",
+              "actions": {
+                "Get_Maker": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "5de6935a-f1be-4523-9bbb-a3bef9bf1431"
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                    },
+                    "body": {
+                      "text": "@items('Apply_to_each_maker')?['admin_makerid']",
+                      "text_1": "@items('Apply_to_each_maker')?['admin_displayname']",
+                      "boolean": true
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "List_makers": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "6515a36e-c76b-44e2-a3ec-d5202fa5fec6"
+              },
+              "type": "Foreach",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 50
+                }
+              }
+            },
+            "Refresh_environments_dataflow": {
+              "runAfter": {
+                "Find_Names_for_remaining_Orphans": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "a3bbc9c5-6fe8-46fd-a8e4-cebf4b711e07"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_dataflows_1",
+                  "operationId": "RefreshDataflow",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_dataflows"
+                },
+                "parameters": {
+                  "workspaceType": "Environment",
+                  "groupIdForRefreshDataflow": "@parameters('Current Environment (admin_CurrentEnvironment)')",
+                  "dataflowIdForRefreshDataflow": "@parameters('Environment Dataflow ID (admin_EnvironmentDataflowID)')"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Find_Names_for_remaining_Orphans": {
+              "actions": {
+                "List_makers_still_named_Unkown": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "1cd49924-b21b-4ac9-a11b-7627bb061963"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_makers",
+                      "$select": "admin_makerid,admin_displayname",
+                      "$filter": "admin_displayname eq 'Unknown'"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Apply_to_each_orphan": {
+                  "foreach": "@outputs('List_makers_still_named_Unkown')?['body/value']",
+                  "actions": {
+                    "List_orphan_as_Power_Platform_User": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "cdd5e6d2-1b93-44dd-9093-7941ccd246e0"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_powerplatformusers",
+                          "$select": "admin_displayname",
+                          "$filter": "admin_powerplatformuserid eq @{items('Apply_to_each_orphan')?['admin_makerid']}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "if_found_update_display_name": {
+                      "actions": {
+                        "Update_maker_display_name": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "3e5f606b-2bb7-450a-96a6-840b02aeb3b4"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_makers",
+                              "recordId": "@items('Apply_to_each_orphan')?['admin_makerid']",
+                              "item/admin_displayname": "@first(outputs('List_orphan_as_Power_Platform_User')?['body/value'])['admin_displayname']"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "List_orphan_as_Power_Platform_User": [
+                          "Succeeded"
+                        ]
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(outputs('List_orphan_as_Power_Platform_User')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "66e8c2ed-546b-4e90-a5ad-d35b3625a154"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "List_makers_still_named_Unkown": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c8401d2b-a353-4c4a-a609-3aac7856af3a"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "Apply_to_each_maker": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9bb4fb5a-4851-4389-81bd-19444cc27a1a"
+              },
+              "type": "Scope"
+            }
+          },
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "dcab02dd-b0d8-4d16-9de6-d322931a78b3"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

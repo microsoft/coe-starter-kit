@@ -5,6 +5,12 @@ Screen1 As screen:
         Set(Loader, true);
         Set(LoaderText, "Loading Flows");
         
+        //inventory type
+        UpdateContext({theEnvVarDefnID: LookUp('Environment Variable Definitions', 'Schema Name'="admin_InventoryandTelemetryinAzureDataStorageaccount").'Environment Variable Definition'});
+        UpdateContext({inventoryTypeTxt: First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(theEnvVarDefnID))).Value});
+        If(IsBlank(inventoryTypeTxt), UpdateContext({inventoryTypeTxt: LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(theEnvVarDefnID)).'Default Value'}));
+        Set(inventoryTypeBYODL, If(inventoryTypeTxt = "no", false, true));
+        
         //colors and icons
         UpdateContext({ColorYes: "rgb(223, 246, 221)"});
         UpdateContext({ColorYesDark: "rgb(16, 124, 16)"});
@@ -19,7 +25,7 @@ Screen1 As screen:
         UpdateContext({sortByName: true, sortBySolutions: false, sortByArea: false, sortByState: false, sortByLastRun: false, sortByPassed: false, sortByUnamanged: false});
         
         //references
-        Set(CoE_Envt, Text(First(Filter(Environments, isCOE = 'isCOE (Environments)'.Yes)).Environment));
+        Set(CoE_Envt, 'SetupWizard>GetCurrentEnvironment'.Run().currentenv);
         Set(UnmanagedSolutionID, Text(First(Filter(Solutions, Name = "Active")).'Solution Identifier'));
         IsError(ClearCollect(TempFlowCollection, PowerAutomateManagement.ListFlowsInEnvironment(CoE_Envt).value)); //Get flows for refetching 
         
@@ -33,6 +39,8 @@ Screen1 As screen:
                 theSolution: CoESolution,
                 theArea: CoESolutionArea,
                 theLink: ObjectURL,
+                theUsedInBYODL: UsedForByodlCoe,
+                theUsedInSyncFlows: UsedForSyncFlowCoe,
         
                 //metadata
                 theGUID: ObjectGUID,
@@ -63,6 +71,11 @@ Screen1 As screen:
             }
             )); 
         
+        //remove BYODL or Sync flow
+        If(inventoryTypeBYODL = true,
+            RemoveIf(FlowsWithMetadata, theUsedInBYODL = 'UsedForByodlCoe (CoE Solution Metadata)'.No),
+            RemoveIf(FlowsWithMetadata, theUsedInSyncFlows = 'UsedForSyncFlowCoe (CoE Solution Metadata)'.No));
+        
         //update backend with GUIDs for items published since last metadata run
         ForAll(Filter(FlowsWithMetadata, theGUID = "unpublished" || theGUID = "refetch" || IsBlank(theGUID)), 
             //if now published
@@ -81,8 +94,8 @@ Screen1 As screen:
         //get state and layers
         UpdateIf(FlowsWithMetadata, theGUID <> "unpublished" && theGUID <> "refetch" && !IsBlank(theGUID),
         {
-        //    theState: IfError(PowerAutomateManagement.AdminGetFlow(CoE_Envt, ThisRecord.theGUID).properties.state, "Error"),
-            theState: IfError(PowerAutomateManagement.GetFlow(CoE_Envt, ThisRecord.theGUID).properties.state, "Error"), //switch to this so Admin SR can use
+            theState: IfError(PowerAutomateManagement.AdminGetFlow(CoE_Envt, ThisRecord.theGUID).properties.state, "Err"),
+        //    theState: IfError(PowerAutomateManagement.GetFlow(CoE_Envt, ThisRecord.theGUID).properties.state, "Error"), //switch to this so Admin SR can use
             theFlowHasUnmanagedLayer: If(And(theFlowIsManaged = true, Text(First(Filter(Processes, 'Process Name'= theName)).solutionid)=UnmanagedSolutionID), true, false)
         });
         
@@ -384,7 +397,7 @@ Screen1 As screen:
                         )
                 Compact: =false
                 CurrentSortColumn: =""
-                CurrentSortDirection: ='''PowerCAT.FluentDetailsList.CurrentSortDirection'''.Ascending
+                CurrentSortDirection: ='PowerCAT.FluentDetailsList.CurrentSortDirection'.Ascending
                 DisplayMode: =DisplayMode.Edit
                 FillPortions: =1.5
                 Height: =Parent.Height
@@ -537,6 +550,14 @@ Screen1 As screen:
                     FieldVariantName: ="textualColumn"
                     Order: =6
                     ZIndex: =51
+
+                theGUID1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="theGUID"
+                    FieldName: ="theGUID"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =11
+                    ZIndex: =52
 
     "Spinner As 'Fluent Spinner (1.0.18) Preview'":
         DisplayMode: =DisplayMode.Edit
