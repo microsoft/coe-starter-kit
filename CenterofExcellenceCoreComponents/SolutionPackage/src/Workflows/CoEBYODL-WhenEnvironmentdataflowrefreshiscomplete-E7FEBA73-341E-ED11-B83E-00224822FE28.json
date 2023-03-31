@@ -19,6 +19,15 @@
           "name": "shared_commondataserviceforapps"
         }
       },
+      "shared_commondataservice": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseLegacy"
+        },
+        "api": {
+          "name": "shared_commondataservice"
+        }
+      },
       "shared_dataflows_1": {
         "runtimeSource": "embedded",
         "connection": {
@@ -50,22 +59,15 @@
           }
         },
         "Flow Dataflow ID (admin_FlowDataflowID)": {
-          "defaultValue": "78979",
+          "defaultValue": "123131",
           "type": "String",
           "metadata": {
             "schemaName": "admin_FlowDataflowID",
             "description": "LEAVE BLANK ON IMPORT. Dataflow ID of the CoE BYODL Makers dataflow."
           }
         },
-        "Environment Dataflow ID (admin_EnvironmentDataflowID)": {
-          "type": "String",
-          "metadata": {
-            "schemaName": "admin_EnvironmentDataflowID",
-            "description": "LEAVE BLANK ON IMPORT. Dataflow ID of the CoE BYODL Environments dataflow."
-          }
-        },
         "App Dataflow ID (admin_AppDataflowID)": {
-          "defaultValue": "54564564",
+          "defaultValue": "12132131",
           "type": "String",
           "metadata": {
             "schemaName": "admin_AppDataflowID",
@@ -81,11 +83,27 @@
           }
         },
         "Model App Dataflow ID (admin_ModelAppDataflowID)": {
-          "defaultValue": "44646",
+          "defaultValue": "789797",
           "type": "String",
           "metadata": {
             "schemaName": "admin_ModelAppDataflowID",
             "description": "LEAVE BLANK ON IMPORT. Dataflow ID of the dataflow that processes model driven apps. Used for BYODL only."
+          }
+        },
+        "Environment Dataflow ID (admin_EnvironmentDataflowID)": {
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_EnvironmentDataflowID",
+            "description": "LEAVE BLANK ON IMPORT. Dataflow ID of the CoE BYODL Environments dataflow."
+          }
+        }
+      },
+      "staticResults": {
+        "Refresh_Power_Automate_dataflow0": {
+          "status": "Succeeded",
+          "outputs": {
+            "statusCode": "OK",
+            "headers": {}
           }
         }
       },
@@ -446,6 +464,146 @@
               },
               "type": "Scope"
             },
+            "Update_if_environment_uses_PCF_from_organization_table": {
+              "actions": {
+                "List_environments": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "f7838851-1d69-4580-a439-a22bad6af11a"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_environments",
+                      "$select": "admin_environmentid,admin_environmentcdsmetadataname,admin_environmentcdsinstanceurl,admin_hascds,admin_environmentsku",
+                      "$filter": "admin_environmentdeleted ne true"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Apply_to_each": {
+                  "foreach": "@outputs('List_environments')?['body/value']",
+                  "actions": {
+                    "Condition": {
+                      "actions": {
+                        "List_rows_(legacy)": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "70ba8d11-59d8-449b-82fa-737b244faa45"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataservice",
+                              "operationId": "GetItems_V2",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataservice"
+                            },
+                            "parameters": {
+                              "dataset": "@items('Apply_to_each')?['admin_environmentcdsmetadataname']",
+                              "table": "organizations",
+                              "$top": 1
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Update_a_row": {
+                          "runAfter": {
+                            "Parse_JSON": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "11c67a50-abea-41af-af44-72a9f9ede411"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environments",
+                              "recordId": "@items('Apply_to_each')?['admin_environmentid']",
+                              "item/admin_haspcfenabled": "@body('Parse_JSON')?['iscustomcontrolsincanvasappsenabled']"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Parse_JSON": {
+                          "runAfter": {
+                            "List_rows_(legacy)": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "8c4a858e-4488-43a1-9bec-593c99630b7c"
+                          },
+                          "type": "ParseJson",
+                          "inputs": {
+                            "content": "@first(outputs('List_rows_(legacy)')?['body/value'])",
+                            "schema": {
+                              "type": "object",
+                              "properties": {
+                                "iscustomcontrolsincanvasappsenabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {},
+                      "expression": {
+                        "and": [
+                          {
+                            "equals": [
+                              "@items('Apply_to_each')?['admin_hascds']",
+                              "@true"
+                            ]
+                          },
+                          {
+                            "not": {
+                              "equals": [
+                                "@items('Apply_to_each')?['admin_environmentsku']",
+                                "Teams"
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "97715ffc-24c1-4ff9-9c93-6e3e29c61b9e"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "List_environments": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "a30ca33b-047e-4eba-903c-c85ae013f1a6"
+                  },
+                  "type": "Foreach"
+                }
+              },
+              "runAfter": {
+                "Refresh_next_dataflows": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "a66c3833-4749-4ff6-89c8-267528edc1dc"
+              },
+              "type": "Scope"
+            },
             "Refresh_next_dataflows": {
               "actions": {
                 "Refresh_Power_Automate_dataflow": {
@@ -466,6 +624,12 @@
                       "dataflowIdForRefreshDataflow": "@parameters('Flow Dataflow ID (admin_FlowDataflowID)')"
                     },
                     "authentication": "@parameters('$authentication')"
+                  },
+                  "runtimeConfiguration": {
+                    "staticResult": {
+                      "staticResultOptions": "Disabled",
+                      "name": "Refresh_Power_Automate_dataflow0"
+                    }
                   }
                 },
                 "Refresh_Canvas_Apps_dataflow": {
@@ -524,6 +688,19 @@
               },
               "metadata": {
                 "operationMetadataId": "3620f4a2-0cb7-4085-9ab4-a29caca30f23"
+              },
+              "type": "Scope"
+            },
+            "Catch_failure": {
+              "actions": {},
+              "runAfter": {
+                "Update_if_environment_uses_PCF_from_organization_table": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "1d69b855-363e-4cec-8619-2a2fd757e391"
               },
               "type": "Scope"
             }
