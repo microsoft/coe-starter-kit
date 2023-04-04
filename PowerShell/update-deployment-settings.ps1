@@ -76,6 +76,7 @@
         }		
 
         if($null -ne $configurationDataEnvironment -and $null -ne $configurationDataEnvironment.UserSettings) {
+            $isDevEnvironment = ($configurationDataEnvironment.StepType -eq 809060000)
             foreach($configurationVariable in $configurationDataEnvironment.UserSettings) {
                 $configurationVariableName = $configurationVariable.Name
                 $configurationVariableValue = $configurationVariable.Value
@@ -92,7 +93,7 @@
                             $connectionVariableValue = $connectionVariable.Value
                             if($null -ne $connectionVariable) {
                                 $connRef = [PSCustomObject]@{"LogicalName"="$schemaName"; "ConnectionId"="#{$connectionVariableName}#"; "ConnectorId"= "$connectorId"; "ConnectionOwner"="#{$configurationVariableName}#" }
-                                if($usePlaceholders.ToLower() -eq 'false') {
+                                if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                                     $connRef = [PSCustomObject]@{"LogicalName"="$schemaName"; "ConnectionId"="$connectionVariableValue"; "ConnectorId"= "$connectorId"; "ConnectionOwner"="$configurationVariableValue" }
                                 }
                                 $connectionReferences.Add($connRef)
@@ -110,7 +111,7 @@
                                 $type = $envVarResults.CrmRecords[0].type_Property.Value.Value
                                 Write-Host "configurationVariableValue is not null or empty - $configurationVariableValue"
                                 $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="#{$configurationVariableName}#"}
-                                if($usePlaceholders.ToLower() -eq 'false') {
+                                if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                                     $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="$configurationVariableValue"}
                                 }
                                 $environmentVariables.Add($envVar)                                
@@ -128,7 +129,7 @@
                             $endPointResults =  Get-CrmRecords -conn $conn -EntityLogicalName "serviceendpoint" -FilterAttribute "name" -FilterOperator "eq" -FilterValue $schemaName -Fields "name"
                             if ($endPointResults.Count -gt 0){
                                 $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="#{$configurationVariableName}#"}
-                                if($usePlaceholders.ToLower() -eq 'false') {
+                                if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                                     $envVar = [PSCustomObject]@{"SchemaName"="$schemaName"; "Value"="$configurationVariableValue"}
                                 }
                                 $webHookUrls.Add($envVar)                                
@@ -149,7 +150,7 @@
                             $roleVariableName = $roleVariable.Name
                             $roleVariableValue = $roleVariable.Value
                             $canvasConfig = [PSCustomObject]@{"aadGroupId"="#{$configurationVariableName}#"; "canvasNameInSolution"=$schemaName; "canvasDisplayName"= $canvasAppResult.displayname; "roleName"="#{$roleVariableName}#"}
-                            if($usePlaceholders.ToLower() -eq 'false') {
+                            if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                                 $canvasConfig = [PSCustomObject]@{"aadGroupId"="$configurationVariableValue"; "canvasNameInSolution"=$schemaName; "canvasDisplayName"= $canvasAppResult.displayname; "roleName"="$roleVariableValue"}
                             }
                             $canvasApps.Add($canvasConfig)
@@ -161,7 +162,7 @@
                         $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
 
                         $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "ownerEmail"="#{$configurationVariableName}#"}
-                        if($usePlaceholders.ToLower() -eq 'false') {
+                        if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                             $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "ownerEmail"="$configurationVariableValue"}
                         }
                         $flowOwnerships.Add($flowOwnerConfig)
@@ -170,7 +171,7 @@
                         $flowSplit = $configurationVariableName.Split(".")
                         $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
                         $flowSharing = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "aadGroupTeamName"="#{$configurationVariableName}#"}
-                        if($usePlaceholders.ToLower() -eq 'false') {
+                        if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                             $flowSharing = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "aadGroupTeamName"="$configurationVariableValue"}
                         }
                         $flowSharings.Add($flowSharing)
@@ -196,7 +197,7 @@
 
                             $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
                             $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "activateAsUser"="#{$flowActivateAsName}#"; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
-                            if($usePlaceholders.ToLower() -eq 'false') {
+                            if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                                 $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "activateAsUser"="$flowActivateAsValue"; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
                             }
                             $flowActivationUsers.Add($flowActivateConfig)
@@ -206,7 +207,7 @@
                         $connectorSplit = $configurationVariableName.Split(".")
                         if($connectorSplit.length -eq 4){
                             $connectorSharingConfig = [PSCustomObject]@{"solutionComponentName"=$connectorSplit[2]; "solutionComponentUniqueName"=$connectorSplit[3]; "aadGroupTeamName"="#{$configurationVariableName}#"}
-                            if($usePlaceholders.ToLower() -eq 'false') {
+                            if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                                 $connectorSharingConfig = [PSCustomObject]@{"solutionComponentName"=$connectorSplit[2]; "solutionComponentUniqueName"=$connectorSplit[3]; "aadGroupTeamName"="$configurationVariableValue"}
                             }
                             $customConnectorSharings.Add($connectorSharingConfig)
@@ -231,7 +232,7 @@
                         }
                         Write-Host "teamSkipRolesValue - $teamSkipRolesValue"
                         $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="#{$businessUnitVariableName}#"; "aadSecurityGroupId"="#{$configurationVariableName}#"; "dataverseSecurityRoleNames"=@($teamGroupRoles);"skipRolesDeletion"=$teamSkipRolesValue;}
-                        if($usePlaceholders.ToLower() -eq 'false') {
+                        if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
                             $groupTeamConfig = [PSCustomObject]@{"aadGroupTeamName"=$teamName; "aadGroupTeamBusinessUnitId"="$teamBusinessUnitValue"; "aadSecurityGroupId"="$configurationVariableValue"; "dataverseSecurityRoleNames"=@($teamGroupRoles)}
                         }
                         $groupTeams.Add($groupTeamConfig)
@@ -242,7 +243,7 @@
                 if($null -ne $newBuildDefinitionVariables) {
                     $found = Get-Parameter-Exists $configurationVariableName $newBuildDefinitionVariables                
                     #Add the configuration variable to the list of pipeline variables if usePlaceholders is not false
-                    if($usePlaceholders.ToLower() -ne 'false') {
+                    if($usePlaceholders.ToLower() -ne 'false' -or $isDevEnvironment -ne $true) {
                         #If the variable was not found create it 
                         if(!$found) { 
                             $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariableName -Value @{value = ''}
