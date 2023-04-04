@@ -57,7 +57,7 @@ function Process-and-Download-Websites
             if($websiteId -ne "NA"){
                 Write-Host "Triggering pac download"
                 # Logic to download websites
-                $portalDownloadCommand = "paportal download --path $powerPagesFolderPath --webSiteId $websiteId --overwrite"
+                $portalDownloadCommand = 'paportal download --path "$powerPagesFolderPath" --webSiteId $websiteId --overwrite'
                 Write-Host "Executing portalDownloadCommand - $pacexepath $portalDownloadCommand"
                 Invoke-Expression -Command "$pacexepath $portalDownloadCommand"
             }else{
@@ -119,7 +119,7 @@ function Process-and-Upload-Websites
                     }
 
                     # Logic to upload websites
-                    $portalUploadCommand = "paportal upload --path $websiteFolderPath"
+                    $portalUploadCommand = 'paportal upload --path "$websiteFolderPath"'
                     if($filesCount -gt 0){
                         Write-Host "Uploading command with profile - $environmentName"
                         $portalUploadCommand = $portalUploadCommand + " --deploymentProfile $environmentName"
