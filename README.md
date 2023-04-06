@@ -35,7 +35,7 @@ If your bug or feature request has already been reported, join the conversation 
 
 ### Submitting your Issue
 
-Select the Issue template that matches the solution for which you want to submit an issue.
+Select the [Issue template](https://github.com/microsoft/coe-starter-kit/issues/new/choose) that matches the solution for which you want to submit an issue.
 ![image](https://user-images.githubusercontent.com/55705669/121772488-8cdb7b00-cb6d-11eb-8420-27fe122483ea.png)
 
 File a single issue per problem and feature request. Do not enumerate multiple bugs or feature requests in the same issue.
@@ -48,7 +48,7 @@ Observe the inline guidelines of the Issue template.
 
 ## Asking and Answering Questions
 
-Join the [discussions](https://github.com/microsoft/coe-starter-kit/discussions) and ask your question or contribute by answering questions from others. This is a great way to contribute by helping the CoE Starter Kit community.
+Use the [question issue template](https://github.com/microsoft/coe-starter-kit/issues/new/choose) and ask your question or contribute by answering questions from others. This is a great way to contribute by helping the CoE Starter Kit community.
 
 If you have general questions about Power Platform Governance, unrelated to the CoE Starter Kit, please raise them in the [Power Apps Community forum](https://powerusers.microsoft.com/t5/Power-Apps-Governance-and/bd-p/Admin_PowerApps)
 
