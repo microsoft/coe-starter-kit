@@ -480,7 +480,9 @@ DeploymentSettingsScreen As screen:
                                 LookUp(
                                     EnvironmentDeploymentSettings,
                                     Name = "connectionreference.shared." & connectionreferencelogicalname
-                                ).Value
+                                ).Value,
+                                "ManualEntry",
+                                false
                             )
                         ),
                         Collect(
@@ -2062,7 +2064,7 @@ DeploymentSettingsScreen As screen:
                 ChevronHoverBackground: =ColorFade(drpConnectionReferenceConnections.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(drpConnectionReferenceConnections.ChevronFill, 20%)
                 Default: =If(IsBlank(ThisItem.CurrentValue), First(Filter(EnvironmentConnections, ApiId = ThisItem.connectorid And Status = "Connected")).DisplayName, LookUp(EnvironmentConnections, ConnectionId = ThisItem.CurrentValue).DisplayName)
-                Height: =51
+                Height: =45
                 HoverBorderColor: =ColorFade(drpConnectionReferenceConnections.BorderColor, 20%)
                 HoverColor: =ColorFade(drpConnectionReferenceConnections.Color, 20%)
                 HoverFill: =ColorFade(drpConnectionReferenceConnections.SelectionFill, 20%)
@@ -2116,9 +2118,10 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpConnectionReferenceConnections.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select and Existing Connection"
-                Width: =700
+                Visible: =!ThisItem.ManualEntry
+                Width: =665
                 X: =842
-                Y: =5
+                Y: =12
                 ZIndex: =5
 
             lblConnectionStatus As label:
@@ -2382,9 +2385,105 @@ DeploymentSettingsScreen As screen:
                 Text: ="Share"
                 Tooltip: ="Connections specified in the connection reference tab are required to be shared with the pipeline user that deploys the solution. You must consent to sharing connections in order to deploy your solution with connection references."
                 Width: =125
-                X: =1554
+                X: =1514
                 Y: =5
                 ZIndex: =12
+
+            icoEditConnection As icon.Add:
+                AccessibleLabel: ="New Connection"
+                BorderColor: =ColorFade(icoEditConnection.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoEditConnection.Fill, -80%)
+                DisplayMode: |-
+                    =If(
+                        IsBlankOrError(drpDeployEnvironments.Selected.EnvironmentId) Or (!IsBlankOrError(ThisItem.CustomConnectorId) And IsBlankOrError(
+                            First(
+                                Filter(
+                                    EnvironmentCustomConnectors,
+                                    name = Trim(
+                                        Substitute(
+                                            Substitute(
+                                                Last(
+                                                    ForAll(Split(
+                                                        First(
+                                                            ForAll(Split(
+                                                                ThisItem.CustomConnectorId,
+                                                                ","
+                                                            ), {Result: ThisRecord.Value})
+                                                        ).Result,
+                                                        ":"
+                                                    ), {Result: ThisRecord.Value})
+                                                ).Result,
+                                                """",
+                                                ""
+                                            ),
+                                            "\n",
+                                            ""
+                                        )
+                                    )
+                                )
+                            )
+                        )),
+                        DisplayMode.Disabled,
+                        DisplayMode.Edit
+                    )
+                FocusedBorderThickness: =
+                Height: =47
+                HoverBorderColor: =ColorFade(icoEditConnection.BorderColor, 20%)
+                HoverColor: =ColorFade(icoEditConnection.Color, 20%)
+                HoverFill: =ColorFade(icoEditConnection.Fill, 20%)
+                Icon: =If(!ThisItem.ManualEntry, Icon.Text, Icon.OptionsList)
+                OnSelect: |
+                    =Patch(
+                        SolutionConnectionReferences,
+                        glrConnectionReferences.Selected,
+                        {
+                            ManualEntry: !glrConnectionReferences.Selected.ManualEntry,
+                            Shared: chkShareConnection.Value,
+                            CurrentValue: If(
+                                glrConnectionReferences.Selected.ManualEntry,
+                                txtConnectionId.Text,
+                                drpConnectionReferenceConnections.Selected.ConnectionId
+                            )
+                        }
+                    );
+                    If(
+                        glrConnectionReferences.Selected.ManualEntry,
+                        Reset(drpConnectionReferenceConnections)
+                    );
+                PaddingBottom: =8
+                PaddingLeft: =8
+                PaddingRight: =5
+                PaddingTop: =8
+                PressedBorderColor: =ColorFade(icoEditConnection.BorderColor, -20%)
+                PressedColor: =ColorFade(icoEditConnection.Color, -20%)
+                PressedFill: =ColorFade(icoEditConnection.Fill, -20%)
+                Tooltip: |-
+                    =If(
+                        ThisItem.ManualEntry,
+                        "Select to choose an existing connection",
+                        "Select to enter connection manually or view the selected connection id."
+                    )
+                Width: =50
+                X: =1625
+                Y: =9
+                ZIndex: =13
+
+            txtConnectionId As text:
+                Default: =ThisItem.CurrentValue
+                Height: =45
+                HoverBorderColor: =ColorFade(txtConnectionId.BorderColor, 20%)
+                HoverColor: =ColorFade(txtConnectionId.Color, 20%)
+                HoverFill: =ColorFade(txtConnectionId.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =txtConnectionId.HoverBorderColor
+                PressedColor: =txtConnectionId.Color
+                PressedFill: =txtConnectionId.Fill
+                Visible: =ThisItem.ManualEntry
+                Width: =665
+                X: =842
+                Y: =12
+                ZIndex: =14
 
         "glrCanvasApps As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Canvas Apps"
@@ -3275,9 +3374,9 @@ DeploymentSettingsScreen As screen:
                             {
                                 Name: "connectionreference." & connectionreferencelogicalname,
                                 Value: If(
-                                    IsBlank(drpConnectionReferenceConnections.Selected),
+                                    IsBlank(drpConnectionReferenceConnections.Selected) And drpConnectionReferenceConnections.Visible,
                                     "",
-                                    drpConnectionReferenceConnections.Selected.ConnectionId
+                                    If(ManualEntry, txtConnectionId.Text, drpConnectionReferenceConnections.Selected.ConnectionId)
                                 ),
                                 Data: connectorid
                             }
@@ -4088,7 +4187,7 @@ DeploymentSettingsScreen As screen:
             Tooltip: ="Connections specified in the connection reference tab are required to be shared with the pipeline user that deploys the solution. You must consent to sharing connections in order to deploy your solution with connection references."
             Visible: =showConnectionReferenceSettings And CountRows(SolutionConnectionReferences) > 0
             Width: =219
-            X: =1578
+            X: =1538
             Y: =345
             ZIndex: =50
 
@@ -4291,8 +4390,7 @@ DeploymentSettingsScreen As screen:
 
             lblValidationNoUserSettings As label:
                 Align: =Align.Center
-                AlignInContainer: =AlignInContainer.Center
-                FontWeight: =FontWeight.Lighter
+                FontWeight: =FontWeight.Semibold
                 Text: ="In order to attach the 'Portal Setting' file, you will need to save the 'Deployment Settings' at least once."
                 Visible: =IsBlank(locEnvironmentDeploymentSetting)
                 Width: =Parent.Width
@@ -4387,12 +4485,13 @@ DeploymentSettingsScreen As screen:
             HoverBorderColor: =ColorFade(chkDeployUnmanaged.BorderColor, 20%)
             HoverColor: =ColorFade(chkDeployUnmanaged.Color, 20%)
             HoverFill: =ColorFade(chkDeployUnmanaged.Fill, 20%)
+            OnSelect: =If(chkDeployUnmanaged.Value, Reset(chkUpgradeSolution))
             PressedBorderColor: =ColorFade(chkDeployUnmanaged.BorderColor, -20%)
             PressedColor: =ColorFade(chkDeployUnmanaged.Color, -20%)
             PressedFill: =ColorFade(chkDeployUnmanaged.Fill, -20%)
             Text: ="Deploy Unmanaged"
             Tooltip: =If(SelectedDeploymentEnvironment.'Step Type' = 'Step Type'.Development, "Select to deploy to this environment as an unmanaged solution.", "Only development environments can be deployed to as unmanaged")
-            Visible: =false && !showSolutionComponentLoader
+            Visible: =!showSolutionComponentLoader
             Width: =240
             X: =1649
             Y: =137
@@ -4780,6 +4879,34 @@ DeploymentSettingsScreen As screen:
                             SortOrder.Ascending
                         )
                     );
+                    ClearCollect(
+                        EnvironmentConnections,
+                        AddColumns(
+                            PowerAppsforMakers.GetConnections(
+                                {
+                                    '$filter': "environment eq '" & LookUp(
+                                        AllEnvironments,
+                                        SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl,
+                                        name
+                                    ) & "'",
+                                    'api-version': "2016-11-01",
+                                    '$top': 500
+                                }
+                            ).value,
+                            "DisplayName",
+                            properties.displayName,
+                            "ConnectionId",
+                            name,
+                            "ApiId",
+                            properties.apiId,
+                            "IconUrl",
+                            properties.iconUri,
+                            "Status",
+                            First(properties.statuses).status,
+                            "UserId",
+                            properties.createdBy.id
+                        )
+                    );
                     Concurrent(
                         UpdateIf(
                             SolutionConnectionReferences,
@@ -4796,7 +4923,15 @@ DeploymentSettingsScreen As screen:
                                 Shared: LookUp(
                                     EnvironmentDeploymentSettings,
                                     Name = "connectionreference.shared." & connectionreferencelogicalname
-                                ).Value
+                                ).Value,
+                                ManualEntry: If(
+                                    LookUp(
+                                        EnvironmentDeploymentSettings,
+                                        Name = "connectionreference." & connectionreferencelogicalname
+                                    ).Value in EnvironmentConnections.ConnectionId,
+                                    false,
+                                    true
+                                )
                             }
                         ),
                         UpdateIf(
@@ -4895,34 +5030,6 @@ DeploymentSettingsScreen As screen:
                                     ) & "." & connectorid
                                 ).Value
                             }
-                        ),
-                        ClearCollect(
-                            EnvironmentConnections,
-                            AddColumns(
-                                PowerAppsforMakers.GetConnections(
-                                    {
-                                        '$filter': "environment eq '" & LookUp(
-                                            AllEnvironments,
-                                            SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl,
-                                            name
-                                        ) & "'",
-                                        'api-version': "2016-11-01",
-                                        '$top': 500
-                                    }
-                                ).value,
-                                "DisplayName",
-                                properties.displayName,
-                                "ConnectionId",
-                                name,
-                                "ApiId",
-                                properties.apiId,
-                                "IconUrl",
-                                properties.iconUri,
-                                "Status",
-                                First(properties.statuses).status,
-                                "UserId",
-                                properties.createdBy.id
-                            )
                         )
                     );
                     RemoveIf(
@@ -5050,7 +5157,7 @@ DeploymentSettingsScreen As screen:
                                         ApiId: connectorid,
                                         ConnectionId: CurrentValue,
                                         UserId: UserId,
-                                        DisplayName: "Existing Unshared Connection",
+                                        DisplayName: "Existing Unknown Connection",
                                         Status: "Unknown",
                                         IconUrl: First(
                                             Filter(
