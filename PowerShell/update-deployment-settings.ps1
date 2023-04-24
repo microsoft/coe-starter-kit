@@ -45,6 +45,7 @@
         $connectionReferences = [System.Collections.ArrayList]@()
         $environmentVariables = [System.Collections.ArrayList]@()
         $webHookUrls = [System.Collections.ArrayList]@()
+        $sdkMessages = [System.Collections.ArrayList]@()
         $canvasApps = [System.Collections.ArrayList]@()
         $customConnectorSharings = [System.Collections.ArrayList]@()
         $flowOwnerships = [System.Collections.ArrayList]@()
@@ -53,6 +54,7 @@
         $groupTeams = [System.Collections.ArrayList]@()
         #Getting the build definition id and variables to be updated
         $buildName = $configurationDataEnvironment.BuildName
+        $environmentName = $configurationDataEnvironment.DeploymentEnvironmentName
         $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?name=$buildName&includeAllProperties=true&api-version=6.0"
         Write-Host $buildDefinitionResourceUrl
         $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
@@ -136,7 +138,28 @@
                             }
                         }
                         else{
-                            Write-Host "Service Endpoint variable $configurationVariableName is Null or Empty"
+                            Write-Host "Service Endpoint variable $configurationVariableName is Null or Empty for $environmentName"
+                        }
+                    }
+                    #Set SDK Step configurations
+                    elseif($configurationVariableName.StartsWith("sdkstep.", "CurrentCultureIgnoreCase")) {
+                        if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
+                        {
+                            # SDK step configuration format will be "sdkstep.{unsec/sec}.{sdkmessageprocessingstep}"
+                            $sdkmessageprocessingstepid = $configurationVariableName -replace "sdkstep.unsec.", "" -replace "sdkstep.sec.", "" 
+                            Write-Host "Sdkmessageprocessingstepid - $sdkmessageprocessingstepid"
+                            $configKey = $configurationVariableName -replace "sdkstep.", "" 
+                            $sdkmessageprocessingstepRecord = Get-CrmRecord -conn $conn -EntityLogicalName "sdkmessageprocessingstep" -Id "$sdkmessageprocessingstepid" -Fields sdkmessageprocessingstepid
+                            if($sdkmessageprocessingstepRecord -ne $null){
+                                $sdkConfig = [PSCustomObject]@{"Config"="$configKey"; "Value"="#{$configurationVariableName}#"}
+                                if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
+                                    $sdkConfig = [PSCustomObject]@{"Config"="$configKey"; "Value"="$configurationVariableValue"}
+                                }
+                                $sdkMessages.Add($sdkConfig)
+                            }
+                        }
+                        else{
+                            Write-Host "SDK Message Variable $configurationVariableName value is either Null or Empty for $environmentName"
                         }
                     }
                     elseif($configurationVariableName.StartsWith("canvasshare.aadGroupId.", "CurrentCultureIgnoreCase")) {
@@ -266,7 +289,6 @@
                 }
             }
 
-            $environmentName = $configurationDataEnvironment.DeploymentEnvironmentName
             if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\") {
                 Write-Host "Deleting $buildSourceDirectory\$repo\$solutionName\config\$environmentName\*eploymentSettings.json"
                 Remove-Item -Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\*eploymentSettings.json" -Force
@@ -303,6 +325,7 @@
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupCanvasConfiguration' -Value $canvasApps
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupTeamConfiguration' -Value $groupTeams
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'WebhookUrls' -Value $webHookUrls
+            $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'SDKMessages' -Value $sdkMessages            
 
             #Convert the updated configuration to json and store in customDeploymentSettings.json
             Write-Host "Creating custom deployment settings"
@@ -463,6 +486,9 @@ function Set-BuildDefinitionVariables {
         $body = ConvertTo-Json -Depth 10 $buildDefinitionResult
         #remove tab charcters from the body
         $body = $body -replace "`t", ""
+        #remove newline charcters from the body
+        $body = $body -replace '\\n', ''
+        Write-Host "Body - $body"
         Write-Host $buildDefinitionResourceUrl
         Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null   
     }
