@@ -100,8 +100,11 @@ function Invoke-Share-Canvas-App-with-AAD-Group
                 $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $canvasNameInSolution -Fields canvasappid
                 if($canvasApps.Count -gt 0) {
                     $appId = $canvasApps.CrmRecords[0].canvasappid
-                    #$environmentId = "$environmentId"
                     Write-Host "Sharing app $appId with $aadGroupId"
+					# 'CanViewWithShare' is no longer works. Replacing with 'CanView'.
+                    if($roleName -eq "CanViewWithShare"){
+                        $roleName = "CanView"
+                    }
                     Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId
                 }
                 else {
