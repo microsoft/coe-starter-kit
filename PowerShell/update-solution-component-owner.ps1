@@ -1,3 +1,6 @@
+<#
+This function updates solution component owner.
+#>
 function Invoke-UpdateSolutionComponentOwner {
     param (
         [Parameter()] [String]$dataverseConnectionString,

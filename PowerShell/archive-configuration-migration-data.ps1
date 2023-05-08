@@ -1,3 +1,6 @@
+<#
+This function archives configuration migration data.
+#>
 function Invoke-ArchiveConfigurationMigrationData {
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory, 

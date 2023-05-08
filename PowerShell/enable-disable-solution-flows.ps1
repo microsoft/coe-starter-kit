@@ -1,4 +1,7 @@
-﻿function Set-EnableDisableSolutionFlows {
+﻿<#
+This function either enables or disables flows based on deployment settings.
+#>
+function Set-EnableDisableSolutionFlows {
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo,

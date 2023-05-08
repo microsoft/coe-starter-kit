@@ -1,3 +1,7 @@
+<#
+This function creates a new repo branch with the committed solution name.
+Copies the environment deployment pipeline files to the newly created branch.
+#>
 function Create-Branch{
     param (
         [Parameter(Mandatory)] [String]$organizationURL,
@@ -205,7 +209,10 @@ function Create-Branch{
         return $solutionProjectRepo
 }
 
-# Fetch repositories in a project
+<#
+This function is a child function of Create-Branch.
+Checks and returns existence of repos under a project.
+#>
 function Get-Repositories{
     param (
         [Parameter(Mandatory)] [String]$organizationURL,
@@ -224,6 +231,11 @@ function Get-Repositories{
     return $getReposInProjectResponse
 }
 
+<#
+This function is a child function of Create-Branch.
+Gets the deployment pipelines content from pipeline repo.
+Commits the pipeline files to the solution branch.
+#>
 function Get-Git-Commit-Changes{
     param(
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -313,6 +325,10 @@ function Get-Git-Commit-Changes{
     return $commitChange
 }
 
+<#
+This function creates the pipeline definitions based on the committed the pipeline files.
+A default queue will be set to each Pipeline definitions.
+#>
 function Update-Build-for-Branch{
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -346,6 +362,10 @@ function Update-Build-for-Branch{
     }
 }
 
+<#
+This function is a child function of Update-Build-for-Branch.
+Validates if the pipleine definition is already exists.
+#>
 function Invoke-Clone-Build-Settings {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -374,6 +394,10 @@ function Invoke-Clone-Build-Settings {
     }
 }
 
+<#
+This function is a child function of Invoke-Clone-Build-Settings.
+Creates the new pipleine build definition if not exists already.
+#>
 function Update-Build-Definition{
 Param(
     [Parameter(Mandatory)] [String]$orgUrl,
@@ -488,7 +512,10 @@ Param(
     }
 }
 
-# This function fetches the build definitions of the projects
+<#
+This function is a child function of Invoke-Clone-Build-Settings and Set-Branch-Policy.
+Fetches the build definitions under the projects
+#>
 function Get-Project-Build-Definitions {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -513,6 +540,10 @@ function Get-Project-Build-Definitions {
     return $buildDefinitionResponse
 }
 
+<#
+This function is a child function of Update-Build-for-Branch.
+Fetches the Agent queue by name.
+#>
 function Get-AgentQueueByName {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -547,6 +578,10 @@ function Get-AgentQueueByName {
     return $defaultQueue
 }
 
+<#
+This function is a child function of Update-Build-Definition.
+Fetches value from settings.
+#>
 function Get-ValueFromKey-Settings {
     param (
         [Parameter(Mandatory = $true)] [string]$Key,
@@ -565,6 +600,10 @@ function Get-ValueFromKey-Settings {
     return $null
 }
 
+<#
+This function sets the branch policy for the solution branch.
+Branch policy triggers validation pipeline.
+#>
 function Set-Branch-Policy{
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -696,7 +735,10 @@ function Set-Branch-Policy{
     }
 }
 
-# This function fetches Policy Types of Project
+<#
+This function is a child function of Set-Branch-Policy.
+Fetches the policy types of project.
+#>
 function Get-Policy-Types {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -721,6 +763,9 @@ function Get-Policy-Types {
     return $policyTypesResponse
 }
 
+<#
+This function fetches the repositories of project.
+#>
 function Get-Repo-in-Project{
     param (
         [Parameter(Mandatory)] [String]$organizationURL,
@@ -736,6 +781,11 @@ function Get-Repo-in-Project{
     return $getRepoInProjectResponse
 }
 
+
+<#
+This function is a child function of Get-Git-Commit-Changes.
+Fetches the value from key value dictionary.
+#>
 function Get-Value-From-settings {
     param (
         [Parameter(Mandatory)] [string]$InputString,

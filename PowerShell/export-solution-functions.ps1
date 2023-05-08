@@ -1,4 +1,7 @@
-﻿function Invoke-Fix-Unset-GUIDs-In-New-Business-Rules
+﻿<#
+This function fixes the unset guids in the new business rules.
+#>
+function Invoke-Fix-Unset-GUIDs-In-New-Business-Rules
 {
     param (
         [Parameter(Mandatory)] [String]$workflowsPath
@@ -20,6 +23,9 @@
      }
 }
 
+<#
+This function validates whether the default environment variables are set.
+#>
 function Invoke-Verify-Default-Environment-Variables-Are-Set
 {
     param (
@@ -50,6 +56,9 @@ function Invoke-Verify-Default-Environment-Variables-Are-Set
     }
 }
 
+<#
+This function validates whether the configuration migration data exists.
+#>
 function Invoke-Check-If-Configuration-Migration-Data-Exists
 {
     param (
@@ -75,6 +84,9 @@ function Invoke-Check-If-Configuration-Migration-Data-Exists
    }
 }
 
+<#
+This function resets the version tag to 0.0.0.0.
+#>
 function reset-solution-xml-build-number
 {
     param (
@@ -93,6 +105,9 @@ function reset-solution-xml-build-number
    }
 }
 
+<#
+This function formats canvas app json files.
+#>
 function Format-JSON-Files 
 {
     param (
@@ -109,6 +124,9 @@ function Format-JSON-Files
    }
 }
 
+<#
+This function fetches the xml files under 'Connectors' folder and modifies the file.
+#>
 function Remove-Code-From-Custom-Connectors-Where-Disabled
 {
     param (

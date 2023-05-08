@@ -1,4 +1,9 @@
-﻿function Invoke-Npm-Install-Pcf-Projects{
+﻿<#
+This function fetches all the pcf projects under the repository.
+Runs the npm 'clean install'.
+Installs a project's dependencies.
+#>
+function Invoke-Npm-Install-Pcf-Projects{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory
     )
@@ -15,6 +20,10 @@
       }   
 }
 
+<#
+This function fetches all the pcf projects under the repository.
+Runs the npm build against each project.
+#>
 function Invoke-Npm-Build-Pcf-Projects{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -35,6 +44,10 @@ function Invoke-Npm-Build-Pcf-Projects{
       } 
 }
 
+<#
+This function fetches all the pcf projects under the repository.
+Runs the npm install against each project.
+#>
 function Invoke-Pcf-Projects-Install-Npm{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -52,6 +65,9 @@ function Invoke-Pcf-Projects-Install-Npm{
       } 
 }
 
+<#
+This function sets the directory path to run npm commands further.
+#>
 function Set-Cmd-Path{
      param (
             [Parameter(Mandatory)] [String]$filePath
@@ -66,6 +82,11 @@ function Set-Cmd-Path{
     }
 }
 
+<#
+This function fetches all the code first projects (i.e., pcf and cs) projects under the repository.
+Adds the code first projects to the cdsproj file.
+cdsproj file will be used to build and convert to a solution.
+#>
 function Add-Codefirst-Projects-To-Cdsproj{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -147,6 +168,10 @@ function Add-Codefirst-Projects-To-Cdsproj{
     }
 }
 
+<#
+This function checks the existence of code first projects.
+Sets the global variable flags.
+#>
 function Invoke-Check-Code-First-Components{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -164,6 +189,9 @@ function Invoke-Check-Code-First-Components{
     Write-Host "##vso[task.setvariable variable=codefirstexists;]$isCodeFirstProjectExists"
 }
 
+<#
+This function sets the pac tools path.
+#>
 function Set-Pac-Tools-Path{
     param (
         [Parameter(Mandatory)] [String]$agentOS
@@ -179,6 +207,10 @@ function Set-Pac-Tools-Path{
     Write-Host "##vso[task.setvariable variable=pacPath]$pacToolsPath"
 }
 
+<#
+This function creates authentication profile.
+This step is required to trigger further pac commands.
+#>
 function Invoke-Pac-Authenticate{
     param (
         [Parameter(Mandatory)] [String]$serviceConnectionUrl,
@@ -200,6 +232,11 @@ function Invoke-Pac-Authenticate{
     return $pacexepath
 }
 
+<#
+This function triggers either pac solution clone and sync command.
+Clone command will be triggered for the first time solution export.
+Sync command will be triggered for subsequent solution exports.
+#>
 function Invoke-Clone-Or-Sync-Solution{
     param (
         [Parameter(Mandatory)] [String]$serviceConnectionUrl,
@@ -261,6 +298,10 @@ function Invoke-Clone-Or-Sync-Solution{
     }
 }
 
+<#
+This function updates the cdsproj file's 'SolutionPackageType' node to 'Both'.
+To generate both Managed and Unmanaged solutions 'SolutionPackageType' node must be set to 'Both'.
+#>
 function Add-Packagetype-Node-To-Cdsproj{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -294,6 +335,9 @@ function Add-Packagetype-Node-To-Cdsproj{
     }
 }
 
+<#
+This function restructures the legacy solution folder structure.
+#>
 function Invoke-Restructure-Legacy-Folders{
     param (
         [Parameter(Mandatory)] [String]$artifactStagingDirectory,
@@ -372,6 +416,9 @@ function Invoke-Restructure-Legacy-Folders{
     }
 }
 
+<#
+This function parses and reads the publisher unique name from the solution xml file.
+#>
 function Get-Publisher-Name{
     param (
         [Parameter(Mandatory)] [String]$solutionFilePath
@@ -389,6 +436,9 @@ function Get-Publisher-Name{
     return $publisherName
 }
 
+<#
+This function parses and reads the publisher prefix from the solution xml file.
+#>
 function Get-Publisher-Prefix{
     param (
         [Parameter(Mandatory)] [String]$solutionFilePath
@@ -406,6 +456,9 @@ function Get-Publisher-Prefix{
     return $publisherPrefix
 }
 
+<#
+This function appends the version number as a suffix to solution zip files.
+#>
 function Invoke-Append-Version-To-Solutions{
     param (
         [Parameter(Mandatory)] [String]$artifactStagingDirectory,
@@ -450,6 +503,10 @@ function Invoke-Append-Version-To-Solutions{
     }
 }
 
+<#
+This function checks the existence of unit test projects under the repository.
+This function is needed to run the plugin test projects.
+#>
 function Invoke-Check-Test-Projects{
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,

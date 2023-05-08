@@ -1,4 +1,7 @@
-# Testable outside of agent
+<#
+This function returns the Access Token.
+Testable outside of agent
+#>
 function Get-SpnToken {
     param (
         [Parameter(Mandatory)] [String]$tenantId,
@@ -13,6 +16,9 @@ function Get-SpnToken {
     return $OAuthReq.access_token
 }
 
+<#
+This function splits the environment url and returns the Host.
+#>
 function Get-HostFromUrl {
     param (
         [Parameter(Mandatory)] [String]$url
@@ -21,7 +27,9 @@ function Get-HostFromUrl {
     return $url.Split("://", $options)[1].Split("/")[0]
 }
 
-# Convenient inside of agent
+<#
+This function reads the Spn Token and sets SpnToken variable.
+#>
 function Set-SpnTokenVariableWithinAgent {    
     param (
         [Parameter(Mandatory)] [String]$tenantId,
@@ -37,6 +45,9 @@ function Set-SpnTokenVariableWithinAgent {
     Write-Host "##vso[task.setvariable variable=SpnToken;issecret=true]$spnToken"
 }
 
+<#
+This function sets the header parameters.
+#>
 function Set-DefaultHeaders {
     param (
         [Parameter(Mandatory)] [String]$token
@@ -47,6 +58,9 @@ function Set-DefaultHeaders {
     return $headers
 }
 
+<#
+This function sets the url by joining the host url and requestUrlRemainder.
+#>
 function Set-RequestUrl {
     param (
         [Parameter(Mandatory)] [String]$dataverseHost,
@@ -56,6 +70,9 @@ function Set-RequestUrl {
     return $requestUrl    
 }
 
+<#
+This function invokes Dataverse web api GET.
+#>
 function Invoke-DataverseHttpGet {
     param (
         [Parameter(Mandatory)] [String]$token,
@@ -68,6 +85,9 @@ function Invoke-DataverseHttpGet {
     return $response
 }
 
+<#
+This function invokes Dataverse web api POST.
+#>
 function Invoke-DataverseHttpPost {
     param (
         [Parameter(Mandatory)] [String]$token,

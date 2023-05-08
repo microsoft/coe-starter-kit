@@ -1,4 +1,8 @@
-﻿function Set-DeploymentSettingsConfiguration
+﻿<#
+This function reads custom deployment settings and creates the branches, pipeline definitions.
+Creates or updates the pipeline definition variables.
+#>
+function Set-DeploymentSettingsConfiguration
 {
     param (
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
@@ -342,6 +346,9 @@
     }
 }
 
+<#
+This function creates the deployment pipeline definitions.
+#>
 function New-DeploymentPipelines
 {
     param (
@@ -463,6 +470,9 @@ function New-DeploymentPipelines
     }
 }
 
+<#
+This function reads variables from deployment settings and update pipeline variables.
+#>
 function Set-BuildDefinitionVariables {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
@@ -489,6 +499,9 @@ function Set-BuildDefinitionVariables {
     }
 }
 
+<#
+This function creates or updates the service connection parameters.
+#>
 function Invoke-Create-Update-ServiceConnection-Parameters{
     param (
         [Parameter()] [String]$DeploymentEnvironmentUrl,
@@ -520,6 +533,9 @@ function Invoke-Create-Update-ServiceConnection-Parameters{
     }
 }
 
+<#
+This is child function. Checks whether the parameter exists in pipeline definition.
+#>
 function Get-Parameter-Exists{
     param (
         [Parameter()] [String]$configurationVariableName,
@@ -538,6 +554,9 @@ function Get-Parameter-Exists{
      return $found
 }
 
+<#
+This is child function. Parses and retrieves the group team name.
+#>
 function Get-Group-Team-Name{
     param (
         [Parameter()] [String]$configurationVariableName
@@ -560,7 +579,10 @@ function Get-Group-Team-Name{
     return $teamName
 }
 
-# Flow component name starts from split[2] to split[n-2]; if contains periods
+<#
+This is child function. Parses and gets flow component name.
+'Flow component name' starts from split[2] to split[n-2]; if contains periods
+#>
 function Get-Flow-Component-Name{
     param (
         [Parameter()] [String]$configurationVariableName
@@ -586,8 +608,10 @@ function Get-Flow-Component-Name{
     return $flowComponentName
 }
 
-# Read 'Portal Settings File' attached to 'User Settings' for each Environment
-# Create or Override 'Portal Settings' files under .\PowerPages\Websitename\deployment-profiles
+<#
+Read 'Portal Settings File' attached to 'User Settings' for each Environment
+Create or Override 'Portal Settings' files under .\PowerPages\Websitename\deployment-profiles
+#>
 function Set-PortalSettings-Files
 {
     param (
@@ -661,7 +685,9 @@ function Set-PortalSettings-Files
     }
 }
 
-# Fetch 'User Setting' record, if the 'Portal Settings Content' field has data. Else return $null
+<# 
+Fetch 'User Setting' record, if the 'Portal Settings Content' field has data. Else return $null
+#>
 function Get-UserSetting-by-Id {
     param (
         [Parameter(Mandatory)] [String]$token,
@@ -682,6 +708,10 @@ function Get-UserSetting-by-Id {
     return $responseUserSetting
 }
 
+<# 
+This function reads the 'File' column data from custom deployment settings.
+'File' column contains portal website deployment configuration files.
+#>
 function Read-File-Content {
     param (
         [Parameter()] [String]$token,

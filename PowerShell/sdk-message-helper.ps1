@@ -1,3 +1,7 @@
+<#
+This function reads the pipeline message steps configuration available in deployment settings.
+Creates or updates the unsecured or secured records in Dataverse.
+#>
 function Update-Sdk-Message-Configurations {
     param (
         [Parameter()] [String]$dataverseConnectionString,
@@ -76,6 +80,9 @@ function Update-Sdk-Message-Configurations {
     }
 }
 
+<#
+This function fetches the unsecured or secured records in Dataverse.
+#>
 function Get-SDK-Message-Processing-Step-By-Id{
  param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$sdkMessageStepId,        
@@ -101,7 +108,9 @@ function Get-SDK-Message-Processing-Step-By-Id{
         return $sdkMessageStep
 }
 
-# Converts the SDK Message Configurations to json object
+<#
+This function converts the SDK Message Configurations to json object.
+#>
 function Get-SdkMessageConfiguration {
     param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$sdkMessageConfiguration

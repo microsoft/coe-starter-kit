@@ -1,4 +1,7 @@
-﻿function Invoke-Process-Old-Canvas-Code-Folder-Structure
+﻿<#
+This function processes old canvas code folder structure
+#>
+function Invoke-Process-Old-Canvas-Code-Folder-Structure
 {
     param (
         [Parameter(Mandatory)] [String]$sourcesDirectory,
@@ -41,6 +44,9 @@
    }
 }
 
+<#
+This function repacks the canvas apps committed repo.
+#>
 function Invoke-Repack-Canvas-Apps
 {
     param (
@@ -115,6 +121,9 @@ function Invoke-Repack-Canvas-Apps
    }
 }
 
+<#
+This function fetches all the managed solution folder paths.
+#>
 function Get-Managed-Solution-Zip-Path
 {
     param (
@@ -141,6 +150,9 @@ function Get-Managed-Solution-Zip-Path
     }
 }
 
+<#
+This function fetches all the unmanaged solution folder paths.
+#>
 function Get-unmanaged-solution-zip-path
 {
     param (
@@ -161,6 +173,9 @@ function Get-unmanaged-solution-zip-path
    Write-Host "unmanagedSolutionPath - " $unmanagedSolutionPath
 }
 
+<#
+This function validates the existence of deployment settings file.
+#>
 function Get-Does-Deployment-Settings-Exist
 {
     param (
@@ -217,6 +232,11 @@ function Get-Does-Deployment-Settings-Exist
     }
 }
 
+<#
+This function sets the build definition variable.
+The if statement below is checking to see if the variable has been set in the pipeline. 
+If it hasn't been set the value of the variable will be the name of the variable (e.g. $(SomeDeploymentVariable) it should be safe to check for the characters '$(' to determine if it's been set
+#>
 function Set-Deployment-Variable
 {
     param (
@@ -226,7 +246,6 @@ function Set-Deployment-Variable
         [Parameter(Mandatory)] [String]$BuildDirectory
     )
 
-    # The if statement below is checking to see if the variable has been set in the pipeline. If it hasn't been set the value of the variable will be the name of the variable (e.g. $(SomeDeploymentVariable) it should be safe to check for the characters '$(' to determine if it's been set
     Write-Host "Setting variable from $deploymentSettingsPath"
     $variableValue = ""
     if (-not ([string]::IsNullOrEmpty("$deploymentSettingsPath"))){
@@ -257,6 +276,9 @@ function Set-Deployment-Variable
     Write-Host "##vso[task.setvariable variable=$variableName;]$variableValue"
 }
 
+<#
+This function sets the 'SolutionExists' global variable for use in other templates
+#>
 function Set-Solution-Exists
 {
     param (
@@ -289,6 +311,9 @@ function Set-Solution-Exists
     }
 }
 
+<#
+This function updates the version tag in solution xml file with build number.
+#>
 function Update-Solution-Xml-With-Build-Number
 {
     param (
@@ -306,6 +331,9 @@ function Update-Solution-Xml-With-Build-Number
     }
 }
 
+<#
+This function fetches all the json files under solution repo and encodes.
+#>
 function Invoke-Flatten-JSON-Files
 {
     param (
@@ -321,6 +349,9 @@ function Invoke-Flatten-JSON-Files
     }
 }
 
+<#
+This function find the managed solution in the build pipeline drop if build and deploy are seperate pipelines.
+#>
 function Get-Managed-Solution-Zip-Path
 {
     param (
@@ -328,7 +359,6 @@ function Get-Managed-Solution-Zip-Path
         [Parameter(Mandatory)] [String]$solutionName
     )
 
-    #Attempt to find the managed solution in the build pipeline drop if build and deploy are seperate pipelines
     Get-ChildItem -Path "$artifactDropPath" -Filter "$solutionName*.zip" | 
     ForEach-Object {
         If ($_.FullName.Contains("_managed")) 

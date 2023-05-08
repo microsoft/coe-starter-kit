@@ -1,4 +1,7 @@
-# Testable outside of agent
+<#
+This function sets the canvas test Automation URLs.
+Testable outside of agent.
+#>
 function Set-CanvasTestAutomationURLs {
     param (
         [Parameter(Mandatory)] [String]$token,
@@ -59,6 +62,9 @@ function Set-CanvasTestAutomationURLs {
     Get-Content -Path "CanvasTestAutomationURLs.json"
 }
 
+<#
+This function gets the canvas app play url.
+#>
 function Get-CanvasAppPlayUrl {
     param (
         [Parameter(Mandatory)] [String]$token,

@@ -1,4 +1,7 @@
-﻿function Set-Dataverse-AAD-Group-Teams
+﻿<#
+This function sets AAD Group Teams from the custom deployment settings.
+#>
+function Set-Dataverse-AAD-Group-Teams
 {
     param (
         [Parameter(Mandatory)] [String]$microsoftPowerAppsAdministrationPowerShellModule,

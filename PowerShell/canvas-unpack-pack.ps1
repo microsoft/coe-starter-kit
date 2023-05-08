@@ -1,4 +1,8 @@
-﻿function Invoke-CanvasUnpackPack {
+﻿<#
+This function loads the PowerAppsLanguageTooling dll.
+Either packs or unpacks the canvas app based on the packOrUnpack parameter.
+#>
+function Invoke-CanvasUnpackPack {
     param (
         [Parameter(Mandatory)] [String]$packOrUnpack,
         [Parameter(Mandatory)] [String]$source,
@@ -54,6 +58,10 @@
     }
 }
 
+<#
+This function reads aadGroupCanvasConfiguration from custom deployment Settings.
+Shares the canvas app with AAD group.
+#>
 function Invoke-Share-Canvas-App-with-AAD-Group
 {
     param (
@@ -115,6 +123,9 @@ function Invoke-Share-Canvas-App-with-AAD-Group
 	}
 }
 
+<#
+This function reads custom deployment Settings and updates canvas app ownership.
+#>
 function Update-Canvas-App-Ownership
 {
     param (

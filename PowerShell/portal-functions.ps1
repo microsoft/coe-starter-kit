@@ -1,3 +1,7 @@
+<#
+This function fetches the website folders under 'PowerPages' folder.
+Parse the child folder name and gets website name.
+#>
 function Get-Website-Name
 {
     param (
@@ -25,6 +29,10 @@ function Get-Website-Name
     return $websiteName
 }
 
+<#
+This function reads the selected website names from canvas app as a pipeline parameter.
+Triggers pac cli 'paportal download' to download the websites.
+#>
 function Process-and-Download-Websites
 {
     param (
@@ -70,6 +78,10 @@ function Process-and-Download-Websites
     }
 }
 
+<#
+This function reads the selected website names from canvas app as a pipeline parameter.
+Triggers pac cli 'paportal upload' to upload the websites.
+#>
 function Process-and-Upload-Websites
 {
     param (
@@ -143,6 +155,9 @@ function Process-and-Upload-Websites
     }
 }
 
+<#
+This function checks if any settinsg files available under deployment-profiles.
+#>
 function Invoke-Validate-Profile-Name
 {
     param (
@@ -167,6 +182,9 @@ function Invoke-Validate-Profile-Name
     return $filesCount
 }
 
+<#
+This function either creates or updates files under deployment-profiles.
+#>
 function Invoke-Create-Or-Override-Profile-File
 {
     param (
@@ -190,6 +208,9 @@ function Invoke-Create-Or-Override-Profile-File
     }
 }
 
+<#
+This function clears the files under website folders.
+#>
 function Invoke-Clean-Website-Folder
 {
     param (
@@ -206,6 +227,9 @@ function Invoke-Clean-Website-Folder
     }
 }
 
+<#
+This function fetches website id from website name.
+#>
 function Get-Website-ID
 {
     param (
@@ -242,6 +266,9 @@ function Get-Website-ID
     return $websiteId
 }
 
+<#
+This function uploads portal website along with deployment profile.
+#>
 function Invoke-Portal-Upload-With-Profile{
     param (
         [Parameter(Mandatory)] [String]$pacPath,

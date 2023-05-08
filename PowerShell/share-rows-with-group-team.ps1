@@ -1,4 +1,7 @@
-# Testable outside of agent
+<#
+This function grants read access to team to the workflow.
+Testable outside of agent
+#>
 function Grant-AccessToWorkflow {
     param (
         [Parameter()] [String]$token,
@@ -30,6 +33,9 @@ function Grant-AccessToWorkflow {
     }
 }
 
+<#
+This function grants read access to team to the connector.
+#>
 function Grant-AccessToConnector {
     param (
         [Parameter()] [String]$token,
@@ -58,6 +64,9 @@ function Grant-AccessToConnector {
     }
 }
 
+<#
+This function fetches the team guid from the team name.
+#>
 function Get-TeamId {
     param (
         [Parameter(Mandatory)] [String]$token,

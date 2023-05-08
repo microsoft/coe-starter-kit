@@ -1,3 +1,7 @@
+<#
+This function reads webHookConfiguration from custom deployment settings.
+Updates the 'serviceendpoint' record in dataverse.
+#>
 function Update-WebHookUrls {
     param (
         [Parameter()] [String]$dataverseConnectionString,
@@ -35,6 +39,9 @@ function Update-WebHookUrls {
     }
 }
 
+<#
+This function gets the 'serviceendpoint' by name.
+#>
 function Get-Service-Endpoint-By-Name{
  param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$endPointName,        
@@ -61,6 +68,9 @@ function Get-Service-Endpoint-By-Name{
         return $serviceEndPointId
 }
 
+<#
+This function reads activateFlowConfiguration from custom deployment settings.
+#>
 function Get-WebHookConfigurations {
     param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration

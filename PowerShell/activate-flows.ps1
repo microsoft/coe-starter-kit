@@ -1,3 +1,7 @@
+<#
+This function reads the flow's configuration settings.
+Activates the flows in target environment as per the specified order post solution Import.
+#>
 function Invoke-ActivateFlows {
     param (
         [Parameter(Mandatory)] [String]$dataverseConnectionString, 
@@ -90,6 +94,10 @@ function Invoke-ActivateFlows {
     }
 }
 
+<#
+This is a child function reads the flow's configuration settings from the customDeploymentSettings.json file
+Flow settings will be read sorted by 'sort order'.
+#>
 function Get-ActivationConfigurations {
     param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration
@@ -102,6 +110,10 @@ function Get-ActivationConfigurations {
     return $activationConfigs
 }
 
+<#
+This function reads the flow's configuration settings from the customDeploymentSettings.json file
+Flow settings will be read sorted by 'sort order'.
+#>
 function Get-UserConfiguredFlowActivations {
     param (
         [Parameter(Mandatory)] [System.Collections.ArrayList] [AllowEmptyCollection()]$activateFlowConfiguration,
@@ -160,6 +172,9 @@ function Get-UserConfiguredFlowActivations {
     }
 }
 
+<#
+This function reads the settings from customDeploymentSettings.json file  and updates the connection references.
+#>
 function Get-ConnectionReferenceFlowActivations {
     param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionName,
@@ -267,6 +282,9 @@ function Get-ConnectionReferenceFlowActivations {
     }
 }
 
+<#
+This function sets the flow ownership as per the settings from customDeploymentSettings.json file.
+#>
 function Get-OwnerFlowActivations {
     param (
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionComponentOwnershipConfiguration,
@@ -355,6 +373,9 @@ function Get-OwnerFlowActivations {
     }    
 }
 
+<#
+This function prints the flows for verbose.
+#>
 function Write-Flows{
  param (
         [Parameter()] [String] [AllowEmptyString()]$message,        
@@ -375,6 +396,10 @@ function Write-Flows{
     }
 }
 
+<#
+This function fetches the user record by email or domain name.
+Fetched user will be used for flow activation and ownership setting.
+#>
 function Get-User-By-Email-or-DomainName{
  param(
     [Parameter()] [String] [AllowEmptyString()]$filterValue,

@@ -1,4 +1,8 @@
-﻿function Invoke-Add-Solution-References-To-Package-Project{
+﻿<#
+This function adds the managed solutions to deployment packager file (i.e.,PD Package project).
+This step is needed to for App Source Packaging.
+#>
+function Invoke-Add-Solution-References-To-Package-Project{
      param (
         [Parameter(Mandatory)] [String]$pacPath,
         [Parameter(Mandatory)] [String]$appSourcePackageProjectPath,
@@ -50,6 +54,10 @@
     }
 }
 
+<#
+This is a child function of Invoke-Add-Solution-References-To-Package-Project function.
+Matches the solution name and returns the 'import order'
+#>
 function Get-Solution-Import-Order{
     param(
         [Parameter(Mandatory)] [String]$appSourceInputFilePath,
@@ -138,6 +146,10 @@ function Copy-Published-Assets-To-AppSourceAssets{
     Write-Host "##vso[task.setVariable variable=AppSourcePackageFound]$appSourcePackageFound"
 }
 
+<#
+This function creates a new App Source folder.
+Compresses package deployer assets and moves them to newly created folder.
+#>
 function Invoke-Pack-And-Move-Assets-To-AppSourcePackage{
     param(
         [Parameter(Mandatory)] [String]$appSourceAssetsPath,
@@ -168,6 +180,10 @@ function Invoke-Pack-And-Move-Assets-To-AppSourcePackage{
     }
 }
 
+<#
+This function updates the 'Input.xml' file.
+Sets StartDate,EndDate and SolutionAnchorName.
+#>
 function Update-Input-File{
     param (
         [Parameter(Mandatory)] [String]$inputFilePath,
@@ -192,6 +208,9 @@ function Update-Input-File{
     }
 }
 
+<#
+This function installs the PowerApps.CLI nuget package.
+#>
 function Install-Pac-Cli{
 	param(
         [Parameter()] [String]$nugetPackageVersion		
@@ -209,6 +228,10 @@ function Install-Pac-Cli{
     Write-Host "##vso[task.setvariable variable=pacPath]$pacPath"	
 }
 
+<#
+This function copies the generated package deployer file (i.e., pdpkg.zip).
+Moves the file to ReleaseAssets folder.
+#>
 function Copy-Pdpkg-File{
     param (
         [Parameter(Mandatory)] [String]$appSourcePackageProjectPath,

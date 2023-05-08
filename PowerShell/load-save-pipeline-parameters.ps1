@@ -1,3 +1,6 @@
+<#
+This function sets parameters in export pipeline.
+#>
 function Write-Export-Pipeline-Parameters {
     param (
         [Parameter(Mandatory)] [String]$filePath, 
@@ -19,6 +22,9 @@ function Write-Export-Pipeline-Parameters {
     Write-Pipeline-Parameters $filePath $pipelineParameterObject
 }
 
+<#
+This function sets parameters in deploy pipeline.
+#>
 function Write-Deploy-Pipeline-Parameters {
     param (
         [Parameter(Mandatory)] [String]$filePath, 
@@ -47,6 +53,9 @@ function Write-Build-Pipeline-Parameters {
     Write-Pipeline-Parameters $filePath $pipelineParameterObject
 }
 
+<#
+This function writes pipeline parameters.
+#>
 function Write-Pipeline-Parameters {
     param (
         [Parameter(Mandatory)] [String]$filePath,
@@ -67,6 +76,10 @@ function Write-Pipeline-Parameters {
         # $pipelineParameterJson | Out-File "$filePath"
     }
 }
+
+<#
+This function reads the pipeline parameters.
+#>
 function Read-Pipeline-Parameters {
     param (
         [Parameter(Mandatory)] [String]$filePath
