@@ -320,7 +320,7 @@ function Get-OwnerFlowActivations {
 
                     if ($null -ne $workflow) {
                         $matchedUser = Get-User-By-Email-or-DomainName $ownershipConfig.ownerEmail $conn
-                        if ($matchedUser -ne $null) {
+                        if ($null -ne $matchedUser) {
                             $systemUserId = $matchedUser.systemuserid
                             Write-Host "systemuserid - $systemUserId"
                             #Activate the workflow using the owner.

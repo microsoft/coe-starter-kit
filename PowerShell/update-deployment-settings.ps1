@@ -308,6 +308,7 @@ function Set-DeploymentSettingsConfiguration
 
             Write-Host "Creating deployment settings"
             $json = ConvertTo-Json -Depth 10 $newConfiguration
+            $json = [System.Text.RegularExpressions.Regex]::Unescape($json)
             if ($PSVersionTable.PSVersion.Major -gt 5) {
                 Set-Content -Path $deploymentSettingsFilePath -Value $json
             }
@@ -332,6 +333,7 @@ function Set-DeploymentSettingsConfiguration
             #Convert the updated configuration to json and store in customDeploymentSettings.json
             Write-Host "Creating custom deployment settings"
             $json = ConvertTo-Json -Depth 10 $newCustomConfiguration
+            $json = [System.Text.RegularExpressions.Regex]::Unescape($json)
             if ($PSVersionTable.PSVersion.Major -gt 5) {
                 Set-Content -Path $customDeploymentSettingsFilePath -Value $json
             }
