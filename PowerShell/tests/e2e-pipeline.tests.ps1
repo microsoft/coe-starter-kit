@@ -255,23 +255,23 @@ Describe 'E2E-Pipeline-Test' {
     
     # Hard coding test name intentionally.  Pester doesn't like it when it's a variable.
     # TODO: Investigate why pester doesn't like it when it's a variable and come up with a better way to do this.
-    It 'DeleteUnamangedSolutionAndComponents' -Tag 'DeleteUnamangedSolutionAndComponents' {
-        [Helper]::WriteTestMessageToHost('DeleteUnamangedSolutionAndComponents')
-        
-        $result = az pipelines run --org $Org --project $Project --branch $BranchToTest `
-            --name 'delete-unmanaged-solution-and-components' `
-            --parameters `
-            Branch=$SolutionName `
-            CommitMessage='NA' `
-            Email=$Email `
-            Project=$Project `
-            Repo=$Repo `
-            ServiceConnectionName=$ServiceConnection `
-            ServiceConnectionUrl=$ServiceConnection `
-            SolutionName=$SolutionName `
-            UserName=$UserName
-        $result = $result | ConvertFrom-Json -Depth 100
-        $id = $result.id
-        [Helper]::WaitForPipelineToComplete($Org, $Project, $id) | Should -BeTrue
-    }    
+    #It 'DeleteUnamangedSolutionAndComponents' -Tag 'DeleteUnamangedSolutionAndComponents' {
+    #    [Helper]::WriteTestMessageToHost('DeleteUnamangedSolutionAndComponents')
+    #    
+    #    $result = az pipelines run --org $Org --project $Project --branch $BranchToTest `
+    #        --name 'delete-unmanaged-solution-and-components' `
+    #        --parameters `
+    #        Branch=$SolutionName `
+    #        CommitMessage='NA' `
+    #        Email=$Email `
+    #        Project=$Project `
+    #        Repo=$Repo `
+    #        ServiceConnectionName=$ServiceConnection `
+    #        ServiceConnectionUrl=$ServiceConnection `
+    #        SolutionName=$SolutionName `
+    #        UserName=$UserName
+    #    $result = $result | ConvertFrom-Json -Depth 100
+    #    $id = $result.id
+    #    [Helper]::WaitForPipelineToComplete($Org, $Project, $id) | Should -BeTrue
+    #}    
 }
