@@ -41,7 +41,7 @@ Home As screen:
             ClearCollect(
                 DeploymentUserSettings,
                 AddColumns(
-                    'Deployment User Settings',
+                    Filter('Deployment User Settings', Status = 'Status (Deployment User Settings)'.Active),
                     "DisplayName",
                     Name
                 )
@@ -441,10 +441,13 @@ Home As screen:
                             SolutionsLatestBuildStatuses,
                             uniquename = ThisItem.uniquename
                         ).deleteSolutionStatus.BuildStatus.buildNumber
-                    ) And LookUp(
+                    ) And (IsBlankOrError(LookUp(
                         SolutionsLatestBuildStatuses,
                         uniquename = ThisItem.uniquename
-                    ).exportToGitStatus.BuildStatus.status = "completed" And !IsBlankOrError(ThisItem.deploymentprofile) And !IsBlankOrError(LookUp(DeploymentProfiles, 'Deployment Profile' = ThisItem.deploymentprofile.'Deployment Profile')),
+                    ).exportToGitStatus.BuildStatus.status) Or LookUp(
+                        SolutionsLatestBuildStatuses,
+                        uniquename = ThisItem.uniquename
+                    ).exportToGitStatus.BuildStatus.status = "completed") And !IsBlankOrError(ThisItem.deploymentprofile) And !IsBlankOrError(LookUp(DeploymentProfiles, 'Deployment Profile' = ThisItem.deploymentprofile.'Deployment Profile')),
                     DisplayMode.Edit,
                     DisplayMode.Disabled
                 )
@@ -1529,7 +1532,7 @@ Home As screen:
             PaddingRight: =0
             PaddingTop: =0
             Size: =12
-            Text: =If(!IsBlankOrError(ThisItem.deploymentprofile), Concat(SortByColumns(ThisItem.deploymentprofile.'Deployment Steps', "cat_stepnumber", SortOrder.Ascending, "cat_name", SortOrder.Ascending), Name, " - "), "No Profile Selected")
+            Text: =If(!IsBlankOrError(ThisItem.deploymentprofile), Concat(SortByColumns(Filter(ThisItem.deploymentprofile.'Deployment Steps', 'Step Type' = 809060001 And Status = 0), "cat_stepnumber", SortOrder.Ascending, "cat_name", SortOrder.Ascending), Name, " - "), "No Profile Selected")
             Tooltip: =ThisItem.friendlyname
             Width: =400
             Wrap: =false
@@ -3147,6 +3150,7 @@ Home As screen:
                     LastSavedImportPipelineRunsSettingName,
                     "LastSavedImportPipelineRuns - " & selectedConfigurationDeploymentProfile.Organization & " - " & selectedConfigurationDeploymentProfile.Project
                 );
+                
                 UpdateContext(
                     {
                         piplineIdToRun: LookUp(
@@ -3154,10 +3158,41 @@ Home As screen:
                                 selectedConfigurationDeploymentProfile.Organization,
                                 selectedConfigurationDeploymentProfile.Project
                             ).value,
-                            name = "import-unmanaged-to-dev-environment"
+                            name = "deploy-" & Lower(drpConfigFolders.Selected.DisplayName) & "-" & drpSolutionFolders.Selected.DisplayName
                         ).id,
                         pipelineProject: selectedConfigurationDeploymentProfile.Project
                     }
+                );
+                
+                If(
+                    IsBlankOrError(piplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                    UpdateContext(
+                        {
+                            piplineIdToRun: LookUp(
+                                CustomAzureDevOps.GetPipelines(
+                                    selectedConfigurationDeploymentProfile.Organization,
+                                    selectedConfigurationDeploymentProfile.'Pipeline Project'
+                                ).value,
+                            name = "deploy-" & Lower(drpConfigFolders.Selected.DisplayName) & "-" & drpSolutionFolders.Selected.DisplayName
+                            ).id,
+                            pipelineProject: selectedConfigurationDeploymentProfile.'Pipeline Project'
+                        }
+                    )
+                );
+                If(
+                    IsBlankOrError(piplineIdToRun),
+                    UpdateContext(
+                        {
+                            piplineIdToRun: LookUp(
+                                CustomAzureDevOps.GetPipelines(
+                                    selectedConfigurationDeploymentProfile.Organization,
+                                    selectedConfigurationDeploymentProfile.Project
+                                ).value,
+                                name = "import-unmanaged-to-dev-environment"
+                            ).id,
+                            pipelineProject: selectedConfigurationDeploymentProfile.Project
+                        }
+                    )
                 );
                 If(
                     IsBlankOrError(piplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
@@ -3929,7 +3964,7 @@ Home As screen:
                             ).id
                         );
                         If(
-                            tglCompletePR.Visible && tglCompletePR.Value,
+                            (tglCompletePR.Visible && tglCompletePR.Value) Or (!tglCompletePR.Visible && DeploymentUserSetting.'Bypass Approval Default' = 'A Yes or No boolean'.Allowed),
                             UpdateContext(
                                 {
                                     pullRequestStatus: IfError(
@@ -4190,7 +4225,7 @@ Home As screen:
             HoverBorderColor: =ColorFade(drpDeploymentSteps.BorderColor, 20%)
             HoverColor: =ColorFade(drpDeploymentSteps.Color, 20%)
             HoverFill: =ColorFade(drpDeploymentSteps.SelectionFill, 20%)
-            Items: =Filter(glrSolutions.Selected.deploymentprofile.'Deployment Steps', Deployable <> 'A Yes or No boolean'.'Not Allowed')
+            Items: =Filter(glrSolutions.Selected.deploymentprofile.'Deployment Steps', Deployable <> 'A Yes or No boolean'.'Not Allowed' And 'Step Type' <> [@'Step Type'].Development)
             OnChange: =
             PressedBorderColor: =drpDeploymentSteps.HoverBorderColor
             PressedColor: =drpDeploymentSteps.Fill
@@ -5058,7 +5093,7 @@ Home As screen:
         "glrDeploymentEnvironments As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Environments"
             Height: =331
-            Items: =Sort(Filter('Deployment Steps', 'Deployment Profile'.'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile'), 'Step Number')
+            Items: =Sort(Filter('Deployment Steps', 'Deployment Profile'.'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile' And Status = 0), 'Step Number')
             Layout: =Layout.Vertical
             TemplatePadding: =0
             TemplateSize: =98
@@ -5349,6 +5384,8 @@ Home As screen:
             HoverFill: =ColorFade(btnSavePublishProfile.Fill, 20%)
             OnSelect: |-
                 =UpdateContext({debugText: locUpdateProfile & " - " & locAddNewProfile});
+                UpdateContext({lclValidationEnvironment: txtNewProfile.Text & " - Validation", lclTestEnvironment: txtNewProfile.Text & " - Test", lclProdEnvironment: txtNewProfile.Text & " - Prod"});
+                
                 If(
                     locAddNewProfile,
                     Patch(
@@ -5378,21 +5415,21 @@ Home As screen:
                 Patch(
                         'Deployment Environments',
                         {
-                            cat_name: txtNewProfile.Text & " - Validation",
+                            cat_name: lclValidationEnvironment,
                             cat_url: ""
                         }
                     );
                     Patch(
                         'Deployment Environments',
                         {
-                            cat_name: txtNewProfile.Text & " - Test",
+                            cat_name: lclTestEnvironment,
                             cat_url: ""
                         }
                     );
                     Patch(
                         'Deployment Environments',
                         {
-                            cat_name: txtNewProfile.Text & " - Prod",
+                            cat_name: lclProdEnvironment,
                             cat_url: ""
                         }
                     );
@@ -5409,7 +5446,7 @@ Home As screen:
                             ),
                             'Deployment Environment': LookUp(
                                 'Deployment Environments',
-                                cat_name = txtNewProfile.Text & " - Validation"
+                                cat_name = lclValidationEnvironment
                             ),
                             'Deploy Target Branch Name': drpProfileBranches.Selected.name,
                             Deployable: 'A Yes or No boolean'.'Not Allowed',
@@ -5429,7 +5466,7 @@ Home As screen:
                             ),
                             'Deployment Environment': LookUp(
                                 'Deployment Environments',
-                                cat_name = txtNewProfile.Text & " - Test"
+                                cat_name = lclTestEnvironment
                             ),
                             'Deploy Target Branch Name': drpProfileBranches.Selected.name,
                             Deployable: 'A Yes or No boolean'.Allowed,
@@ -5463,7 +5500,7 @@ Home As screen:
                             ),
                             'Deployment Environment': LookUp(
                                 'Deployment Environments',
-                                cat_name = txtNewProfile.Text & " - Prod"
+                                cat_name = lclProdEnvironment
                             ),
                             'Deploy Source Branch Name': prodSourceBranch,
                             'Deploy Target Branch Name': prodTargetBranch,
