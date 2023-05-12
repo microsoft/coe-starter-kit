@@ -2,18 +2,18 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("PCAT.Plugins.Tests")]
+[assembly: AssemblyTitle("PCATPluginTests")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("PCAT.Plugins.Tests")]
+[assembly: AssemblyProduct("PCATPluginTests")]
 [assembly: AssemblyCopyright("Copyright ©  2023")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]
 
-[assembly: Guid("66f3ec32-dead-44d3-831c-f11070c59a84")]
+[assembly: Guid("d633d065-5775-48eb-ad30-e5758bc53dc3")]
 
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
