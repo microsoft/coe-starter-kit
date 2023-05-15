@@ -68,7 +68,7 @@
           }
         },
         "App Dataflow ID (admin_AppDataflowID)": {
-          "defaultValue": "a862bce2-5592-4741-ae70-b88d20ef8d24",
+          "defaultValue": "ab",
           "type": "String",
           "metadata": {
             "schemaName": "admin_AppDataflowID",
@@ -84,7 +84,7 @@
           }
         },
         "App Usage Dataflow ID (admin_AppUsageDataflowID)": {
-          "defaultValue": "a9aceb46-fd7a-40f1-868a-264a11c4bbf1",
+          "defaultValue": "ab",
           "type": "String",
           "metadata": {
             "schemaName": "admin_AppUsageDataflowID",
@@ -92,7 +92,6 @@
           }
         },
         "App Connections Dataflow ID (admin_AppConnectionsDataflowID)": {
-          "defaultValue": "9ac0857c-f8d0-4513-8df8-e1bc973a3213",
           "type": "String",
           "metadata": {
             "schemaName": "admin_AppConnectionsDataflowID",
@@ -485,7 +484,7 @@
                 "Apply_to_each_envt": {
                   "foreach": "@outputs('List_Environments_as_Admin')?['body/value']",
                   "actions": {
-                    "Call_Admin_|_Sync_Template_v3_(App_Properties)": {
+                    "Call_Admin_|_Sync_Template_v3_(BYODL_App_Properties)": {
                       "runAfter": {},
                       "metadata": {
                         "operationMetadataId": "10485dc5-b3dd-4667-90a2-a97fd6d6908c"
@@ -603,7 +602,8 @@
                     "parameters": {
                       "entityName": "admin_apps",
                       "$select": "admin_appid,admin_appqueriedon,admin_appenvironmentid",
-                      "$filter": "admin_appdeleted eq false and admin_powerappstype eq 597910000 and (Microsoft.Dynamics.CRM.LastXDays(PropertyName='admin_appmodifiedon',PropertyValue=2) or admin_appalmmode eq null)"
+                      "$filter": "admin_appdeleted eq false and admin_powerappstype ne 597910001 and (Microsoft.Dynamics.CRM.LastXDays(PropertyName='admin_appmodifiedon',PropertyValue=2) or admin_appalmmode eq null)",
+                      "$expand": "admin_AppEnvironment($select=admin_environmentname)"
                     },
                     "authentication": "@parameters('$authentication')"
                   },
@@ -629,7 +629,7 @@
                           "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
                         },
                         "parameters": {
-                          "environment": "@items('For_each_app')?['admin_appenvironmentid']",
+                          "environment": "@items('For_each_app')?['admin_appenvironment/admin_environmentname']",
                           "app": "@items('For_each_app')?['admin_appid']",
                           "api-version": "2020-07-01"
                         },
@@ -638,7 +638,7 @@
                     },
                     "Update_a_row": {
                       "runAfter": {
-                        "Parse_JSON": [
+                        "Maker_Check": [
                           "Succeeded"
                         ]
                       },
@@ -656,13 +656,26 @@
                           "entityName": "admin_apps",
                           "recordId": "@items('For_each_app')?['admin_appid']",
                           "item/admin_appalmmode": "@body('Parse_JSON')?['properties']?['almMode']",
+                          "item/admin_appcompany": "@body('Maker_Check')?['usercompany']",
+                          "item/admin_department": "@body('Maker_Check')?['userdepartment']",
                           "item/admin_appiconuri": "@body('Parse_JSON')?['properties']?['backgroundImageUri']",
+                          "item/cr5d5_appisorphaned": "@if(equals(outputs('Maker_Check')?['Body']?['userisorphan'], true), 'Yes', 'No')",
+                          "item/admin_AppOwner@odata.bind": "admin_makers(@{body('Maker_Check')?['userid']})",
+                          "item/admin_appownerdisplayname": "@body('Maker_Check')?['userdisplayname']",
                           "item/admin_appplanclassification": "@coalesce(body('Parse_JSON')?['properties']?['appPlanClassification'], '')",
                           "item/admin_appusesdataversetables": "@if(empty(body('Parse_JSON')?['properties']?['databaseReferences']), false, true)",
+                          "item/admin_city": "@body('Maker_Check')?['usercity']",
+                          "item/admin_country": "@body('Maker_Check')?['usercountry']",
                           "item/admin_dlpevaluationstatus": "@body('Parse_JSON')?['properties']?['executionRestrictions']?['dataLossPreventionEvaluationResult']?['status']",
                           "item/admin_dlplastevaluationdate": "@body('Parse_JSON')?['properties']?['executionRestrictions']?['dataLossPreventionEvaluationResult']?['lastEvaluationDate']",
+                          "item/admin_dlpviolationdetails": "@body('Parse_JSON')?['properties/executionRestrictions/dataLossPreventionEvaluationResult/violationErrorMessage']",
                           "item/admin_iconbackgroundcolor": "@body('Parse_JSON')?['properties']?['backgroundColor']",
-                          "item/admin_sharepointformurl": "@coalesce(body('Parse_JSON')?['properties']?['embeddedApp']?['listUrl'], '')"
+                          "item/admin_quarantineapp": "@if(equals(body('Parse_JSON')?['properties/executionRestrictions/appQuarantineState/quarantineStatus'], 'Quarantined'), true, false)",
+                          "item/admin_sharepointformurl": "@coalesce(body('Parse_JSON')?['properties']?['embeddedApp']?['listUrl'], '')",
+                          "item/admin_usescustomapi": "@coalesce(outputs('Get_App_as_Admin')?['body/properties/usesCustomApi'], '')",
+                          "item/admin_usesonpremisegateway": "@coalesce(outputs('Get_App_as_Admin')?['body/properties/usesOnPremiseGateway'], '')",
+                          "item/admin_usesonlygrandfatheredpremiumapis": "@coalesce(outputs('Get_App_as_Admin')?['body/properties/usesOnlyGrandfatheredPremiumApis'], '')",
+                          "item/admin_usespremiumapi": "@coalesce(outputs('Get_App_as_Admin')?['body/properties/usesPremiumApi'], '')"
                         },
                         "authentication": "@parameters('$authentication')"
                       }
@@ -1353,6 +1366,26 @@
                           "item/admin_appdeletedon": "@utcNow()"
                         },
                         "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Maker_Check": {
+                      "runAfter": {
+                        "Parse_JSON": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "5ecd23e1-2227-4ce5-ab41-322175cb0102"
+                      },
+                      "type": "Workflow",
+                      "inputs": {
+                        "host": {
+                          "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                        },
+                        "body": {
+                          "text": "@body('Parse_JSON')?['properties/owner/id']",
+                          "boolean": false
+                        }
                       }
                     }
                   },
