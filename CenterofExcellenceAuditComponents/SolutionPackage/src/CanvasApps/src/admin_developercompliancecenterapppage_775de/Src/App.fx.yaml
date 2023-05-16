@@ -5,6 +5,7 @@ App As appinfo:
         ClearCollect(myEnvs, PowerAppsforMakers.GetEnvironments().value);
         Concurrent(
         Set(
+            //THEMES
             AppTheme,
             {
                    palette: {
@@ -63,16 +64,18 @@ App As appinfo:
           
             }
         ),
+        //Direct link to app
         If(
-            !IsBlank(Param("appName")),
-            Set(
-                vSelectedAppN,
+            !IsBlank(Param("id")),
+            Set(vSelectedAppN,
                 LookUp(
                     'PowerApps Apps',
-                    App = GUID(Param("appName"))
-                )
-            );Set(showAppDetails, true);
-        ), Set(
+                    App = GUID(Param("id"))
+                ));
+            Set(showAppDetails, true); 
+        ),
+        //END TESTTESTTESTTEST
+        Set(
                 myOfficeProfile,
                 Office365Users.MyProfileV2()
             )
@@ -157,5 +160,51 @@ App As appinfo:
             ClearCollect( allConnectors, PowerAppsforMakers.GetConnectors({'$filter':"environment eq 'Default-" & defaultEnvironment & "'"}).value);
             ForAll(myRoles, Collect(myApps, App));
         
-            Set(showLoader, false);
+        //if browsing diretcly to app, get app details (copied from gallery onselect, someday make this a formula)
+        If(showAppDetails,
+            ClearCollect(appUserCollection,
+            AddColumns(
+                PowerAppsforMakers.GetAppRoleAssignment(vSelectedAppN.App).value.properties,
+                "Picture",
+                If(
+                    And(
+                        properties.principal.type = "User",
+                        Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto
+                    ),
+                    Office365Users.UserPhotoV2(properties.principal.id),
+                    properties.principal.type <> "Tenant",
+                    Person,
+                    Org
+                ),
+                "Name",
+                If(
+                    properties.principal.type = "Tenant",
+                    "Everyone in the organization",
+                    properties.principal.displayName
+                ),
+                "Role",
+                properties.roleName,
+                "Type",
+                properties.principal.type
+            ));
+            ClearCollect(emailAppUserCollection, PowerAppsforMakers.GetAppRoleAssignment(vSelectedAppN.App).value.properties);
+            ClearCollect(appConnectionCollection,
+            AddColumns(
+                ForAll(Split(
+                    vSelectedAppN.'App Connections',
+                    ","
+                ), {Result: ThisRecord.Value}).Result,
+                "Name",
+                LookUp(allConnectors, name = Result).properties.displayName,
+                "Picture",
+                PowerAppsforMakers.GetConnector(
+                    LookUp(
+                        allConnectors,
+                        name = Result
+                    ).name,
+                    {'$filter': "environment eq 'Default-" & defaultEnvironment & "'"}
+                ).properties.iconUri));
+        );//end get app details
+        
+        Set(showLoader, false);
 

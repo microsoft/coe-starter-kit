@@ -1,0 +1,1383 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseEnvRequest"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_flowmanagement_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAutomateManagement"
+        },
+        "api": {
+          "name": "shared_flowmanagement"
+        }
+      },
+      "shared_commondataserviceforapps_2": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseEnvRequest"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "FullInventory (admin_FullInventory)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_FullInventory",
+            "description": "Inventory - Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running "
+          }
+        },
+        "Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_InventoryandTelemetryinAzureDataStorageaccount",
+            "description": "Inventory - Have you set up data export in PPAC and is your inventory and telemetry in an Azure Data Storage folder (also referred to as Bring your own Datalake, self-serve analytics feature). Default no"
+          }
+        },
+        "InventoryFilter_DaysToLookBack (admin_InventoryFilter_DaysToLookBack)": {
+          "defaultValue": 7,
+          "type": "Int",
+          "metadata": {
+            "schemaName": "admin_InventoryFilter_DaysToLookBack",
+            "description": "Inventory - When not running a full inventory, we filter back this number of days and then see if the object needs updated in order to save API calls. Default 7"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_record_is_created_or_updated": {
+          "metadata": {
+            "operationMetadataId": "66fdab40-85dc-4444-b816-9727e6081759"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Check_if_Environment_Deleted_or_Excused_or_BYODL._": {
+          "actions": {
+            "Terminate_for_environments_marked_deleted": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "70bf5c19-e561-4e08-bb4e-23399899e3e8"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@parameters('Inventory and Telemetry in Azure Data Storage account (admin_InventoryandTelemetryinAzureDataStorageaccount)')",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_excusefrominventory']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentname']",
+                  "@null"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "0f37f758-6ead-4a0d-abfd-75336cc84aa2"
+          },
+          "type": "If"
+        },
+        "Initialize_variable_fullinventory": {
+          "runAfter": {
+            "Check_if_Environment_Deleted_or_Excused_or_BYODL._": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "59c257bf-8762-4dac-a023-98fcf704c65d"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "fullinventory",
+                "type": "string",
+                "value": "@{parameters('FullInventory (admin_FullInventory)')}"
+              }
+            ]
+          }
+        },
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Inventory_flows_for_this_envt": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        },
+        "Initialize_flowsToInventory": {
+          "runAfter": {
+            "Initialize_variable_fullinventory": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "e62ec4d2-a0ec-4fa6-952c-316178fd25d7"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "flowsToInventory",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Inventory_flows_for_this_envt": {
+          "actions": {
+            "Get_Basics": {
+              "actions": {
+                "List_Flows_as_Admin_(V2)": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "b0962995-3af5-4fb2-a17a-149fca48ba53"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_flowmanagement_1",
+                      "operationId": "ListFlowsInEnvironment_V2",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement"
+                    },
+                    "parameters": {
+                      "environmentName": "@triggerOutputs()?['body/admin_environmentname']",
+                      "expandSuspensionInfo": true
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "CurrentFlowInventory": {
+                  "runAfter": {
+                    "List_Flows_as_Admin_(V2)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0e8d8c5b-cc57-472d-864e-103af0ef245b"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_flows",
+                      "$select": "admin_flowid, admin_flowstate",
+                      "$filter": "_admin_flowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "58b53c6e-26ef-4757-bd9e-37ba671029c9"
+              },
+              "type": "Scope"
+            },
+            "Get_List_of_Flows_to_Update_and_Insert": {
+              "actions": {
+                "Look_for_modified_flows": {
+                  "actions": {
+                    "If_full_inventory_run": {
+                      "actions": {
+                        "Look_for_new_flows": {
+                          "actions": {
+                            "Get_Inventory_-_New_Flows": {
+                              "actions": {
+                                "Select_Inventory_-_New_Flows": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                                  },
+                                  "type": "Select",
+                                  "inputs": {
+                                    "from": "@outputs('CurrentFlowInventory')?['body/value']",
+                                    "select": {
+                                      "FlowID": "@item()?['admin_flowid']"
+                                    }
+                                  }
+                                },
+                                "Parse_Inventory_-_New_Flows": {
+                                  "runAfter": {
+                                    "Select_Inventory_-_New_Flows": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "274daa1f-66a7-4bf4-be08-c3a0e2f758d7"
+                                  },
+                                  "type": "ParseJson",
+                                  "inputs": {
+                                    "content": "@body('Select_Inventory_-_New_Flows')",
+                                    "schema": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "FlowID": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "FlowID"
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "61117d90-0e7a-40c6-8484-f0212a2b0cc4"
+                              },
+                              "type": "Scope"
+                            },
+                            "Get_Actual_-_New_Flows": {
+                              "actions": {
+                                "Select_Actual_-_New_Flows": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "8410edf3-be25-420e-9c3d-d5c2a4d8ef20"
+                                  },
+                                  "type": "Select",
+                                  "inputs": {
+                                    "from": "@outputs('List_Flows_as_Admin_(V2)')?['body/value']",
+                                    "select": {
+                                      "FlowID": "@item()?['name']"
+                                    }
+                                  }
+                                },
+                                "Parse_Actual_-_New_Flows": {
+                                  "runAfter": {
+                                    "Select_Actual_-_New_Flows": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "bb1cea14-82ae-4c5e-93a4-66f7d675861e"
+                                  },
+                                  "type": "ParseJson",
+                                  "inputs": {
+                                    "content": "@body('Select_Actual_-_New_Flows')",
+                                    "schema": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "FlowID": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "FlowID"
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Get_Inventory_-_New_Flows": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "7343aee1-301c-4197-a13f-d3e6968adc8b"
+                              },
+                              "type": "Scope"
+                            },
+                            "Add_new_ones_to_inventory": {
+                              "actions": {
+                                "AddToInventory": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                                  },
+                                  "type": "Query",
+                                  "inputs": {
+                                    "from": "@body('Parse_Actual_-_New_Flows')",
+                                    "where": "@not(contains(body('Parse_Inventory_-_New_Flows'), item()))"
+                                  }
+                                },
+                                "Add_new_flows_to_array": {
+                                  "foreach": "@body('AddToInventory')",
+                                  "actions": {
+                                    "Append_to_flowsToInventory_-_new_flows": {
+                                      "runAfter": {},
+                                      "metadata": {
+                                        "operationMetadataId": "b5cba045-3339-477f-a67f-2b5ce63b9928"
+                                      },
+                                      "type": "AppendToArrayVariable",
+                                      "inputs": {
+                                        "name": "flowsToInventory",
+                                        "value": "@items('Add_new_flows_to_array')"
+                                      }
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "AddToInventory": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "6db8b7e6-0fdd-4817-b396-693634e27477"
+                                  },
+                                  "type": "Foreach",
+                                  "runtimeConfiguration": {
+                                    "concurrency": {
+                                      "repetitions": 50
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Get_Actual_-_New_Flows": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "e201560e-ea4a-4844-a4e1-1a38aeefe1ed"
+                              },
+                              "type": "Scope"
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "0c3972e2-243e-4814-bbac-18203f99e3f9"
+                          },
+                          "type": "Scope"
+                        },
+                        "Add_every_flow_in_CurrentFlowInventory_to_flowToInventory": {
+                          "foreach": "@outputs('CurrentFlowInventory')?['body/value']",
+                          "actions": {
+                            "Append_to_flowsToInventory_-_full_inventory": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "5be2389e-be4a-4737-aa0d-487ae30aa1c4"
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "flowsToInventory",
+                                "value": {
+                                  "FlowID": "@items('Add_every_flow_in_CurrentFlowInventory_to_flowToInventory')?['admin_flowid']"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Look_for_new_flows": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "afd988eb-2f3e-4962-ba12-7e4f2f573c82"
+                          },
+                          "type": "Foreach",
+                          "runtimeConfiguration": {
+                            "concurrency": {
+                              "repetitions": 50
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {},
+                      "else": {
+                        "actions": {
+                          "Look_for_ones_with_state_changes": {
+                            "actions": {
+                              "Get_Inventory_-_Flow_State": {
+                                "actions": {
+                                  "Select_Inventory_-_Flow_State": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                                    },
+                                    "type": "Select",
+                                    "inputs": {
+                                      "from": "@outputs('CurrentFlowInventory')?['body/value']",
+                                      "select": {
+                                        "FlowID": "@item()?['admin_flowid']",
+                                        "FlowState": "@item()?['admin_flowstate']"
+                                      }
+                                    }
+                                  },
+                                  "Parse_Inventory_-_Flow_State": {
+                                    "runAfter": {
+                                      "Select_Inventory_-_Flow_State": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "274daa1f-66a7-4bf4-be08-c3a0e2f758d7"
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                      "content": "@body('Select_Inventory_-_Flow_State')",
+                                      "schema": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "FlowID": {
+                                              "type": "string"
+                                            },
+                                            "FlowState": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "FlowID"
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "61117d90-0e7a-40c6-8484-f0212a2b0cc4"
+                                },
+                                "type": "Scope"
+                              },
+                              "Get_Actual_-_Flow_State": {
+                                "actions": {
+                                  "Select_Actual_-_Flow_State": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "8410edf3-be25-420e-9c3d-d5c2a4d8ef20"
+                                    },
+                                    "type": "Select",
+                                    "inputs": {
+                                      "from": "@outputs('List_Flows_as_Admin_(V2)')?['body/value']",
+                                      "select": {
+                                        "FlowID": "@item()?['name']",
+                                        "FlowState": "@item()?['properties/state']"
+                                      }
+                                    }
+                                  },
+                                  "Parse_Actual_-_Flow_State": {
+                                    "runAfter": {
+                                      "Select_Actual_-_Flow_State": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "bb1cea14-82ae-4c5e-93a4-66f7d675861e"
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                      "content": "@body('Select_Actual_-_Flow_State')",
+                                      "schema": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "FlowID": {
+                                              "type": "string"
+                                            },
+                                            "FlowState": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "FlowID"
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "runAfter": {
+                                  "Get_Inventory_-_Flow_State": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "7343aee1-301c-4197-a13f-d3e6968adc8b"
+                                },
+                                "type": "Scope"
+                              },
+                              "Add_changed_state_to_flowsToInventory": {
+                                "actions": {
+                                  "StateChangedToInventory": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                                    },
+                                    "type": "Query",
+                                    "inputs": {
+                                      "from": "@body('Parse_Actual_-_Flow_State')",
+                                      "where": "@not(contains(body('Parse_Inventory_-_Flow_State'), item()))"
+                                    }
+                                  },
+                                  "Add_changed_state_to_array": {
+                                    "foreach": "@body('StateChangedToInventory')",
+                                    "actions": {
+                                      "Append_to_flowsToInventory_-_changed_state": {
+                                        "runAfter": {},
+                                        "metadata": {
+                                          "operationMetadataId": "b5cba045-3339-477f-a67f-2b5ce63b9928"
+                                        },
+                                        "type": "AppendToArrayVariable",
+                                        "inputs": {
+                                          "name": "flowsToInventory",
+                                          "value": {
+                                            "FlowID": "@items('Add_changed_state_to_array')?['FlowID']"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "StateChangedToInventory": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "6db8b7e6-0fdd-4817-b396-693634e27477"
+                                    },
+                                    "type": "Foreach",
+                                    "runtimeConfiguration": {
+                                      "concurrency": {
+                                        "repetitions": 50
+                                      }
+                                    }
+                                  }
+                                },
+                                "runAfter": {
+                                  "Get_Actual_-_Flow_State": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "e201560e-ea4a-4844-a4e1-1a38aeefe1ed"
+                                },
+                                "type": "Scope"
+                              }
+                            },
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "444bea7f-5bd7-4779-b5b4-0669fd85e81f"
+                            },
+                            "type": "Scope"
+                          },
+                          "Look_for_ones_modified_since_date": {
+                            "actions": {
+                              "Filter_to_flows_modified_since_Get_past_time": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "63cbd0e2-57e8-449a-942a-5d8fd1f78b09"
+                                },
+                                "type": "Query",
+                                "inputs": {
+                                  "from": "@outputs('List_Flows_as_Admin_(V2)')?['body/value']",
+                                  "where": "@or(equals(item()?['properties/lastModifiedTime'], null), greater(item()?['properties/lastModifiedTime'], body('Get_past_time')))"
+                                }
+                              },
+                              "Add_each_recently_modified_to_array": {
+                                "foreach": "@body('Filter_to_flows_modified_since_Get_past_time')",
+                                "actions": {
+                                  "Get_flow_from_CoE_Inventory": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "dfb52c2d-5000-4069-a640-c84ec56a1a15"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "GetItem",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_flows",
+                                        "recordId": "@items('Add_each_recently_modified_to_array')?['name']",
+                                        "$select": "admin_flowid,admin_flowmodifiedon, _admin_derivedowner_value"
+                                      },
+                                      "authentication": "@parameters('$authentication')"
+                                    }
+                                  },
+                                  "CATH_AND_IGNORE_-_not_yet_in_inventory": {
+                                    "runAfter": {
+                                      "Get_flow_from_CoE_Inventory": [
+                                        "Failed"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "de8fc680-751a-4995-9d61-edb5d7d108b1"
+                                    },
+                                    "type": "Compose",
+                                    "inputs": "CATH AND IGNORE - not yet in inventory"
+                                  },
+                                  "see_if_recently_modified": {
+                                    "actions": {
+                                      "theLastDateModifiedProduct": {
+                                        "runAfter": {},
+                                        "metadata": {
+                                          "operationMetadataId": "168ece0f-af10-456a-9b2c-2b86b076359c"
+                                        },
+                                        "type": "Compose",
+                                        "inputs": "@if(equals(items('Add_each_recently_modified_to_array')?['properties/lastModifiedTime'], null), '', formatDateTime(items('Add_each_recently_modified_to_array')?['properties/lastModifiedTime'], 'yyyy-MM-dd HH:mm:ss'))"
+                                      },
+                                      "If_modified_add_to_inventory": {
+                                        "actions": {
+                                          "Append_to_array_variable_-_recently_modified": {
+                                            "runAfter": {},
+                                            "metadata": {
+                                              "operationMetadataId": "4737fe2b-cdfd-4ba7-85b9-b515b604a8c2"
+                                            },
+                                            "type": "AppendToArrayVariable",
+                                            "inputs": {
+                                              "name": "flowsToInventory",
+                                              "value": {
+                                                "FlowID": "@items('Add_each_recently_modified_to_array')?['name']"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "runAfter": {
+                                          "theLastDateModfiedCoE": [
+                                            "Succeeded"
+                                          ]
+                                        },
+                                        "expression": {
+                                          "or": [
+                                            {
+                                              "equals": [
+                                                "@length(outputs('theLastDateModfiedCoE'))",
+                                                0
+                                              ]
+                                            },
+                                            {
+                                              "equals": [
+                                                "@length(outputs('theLastDateModifiedProduct'))",
+                                                0
+                                              ]
+                                            },
+                                            {
+                                              "less": [
+                                                "@outputs('theLastDateModfiedCoE')",
+                                                "@outputs('theLastDateModifiedProduct')"
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        "metadata": {
+                                          "operationMetadataId": "e844dd8a-5c7b-4d80-92e9-7b26ab15397b"
+                                        },
+                                        "type": "If"
+                                      },
+                                      "theLastDateModfiedCoE": {
+                                        "runAfter": {
+                                          "theLastDateModifiedProduct": [
+                                            "Succeeded"
+                                          ]
+                                        },
+                                        "metadata": {
+                                          "operationMetadataId": "0a56b9d1-ffc4-433e-abe7-c520c8f318e7"
+                                        },
+                                        "type": "Compose",
+                                        "inputs": "@if(equals(outputs('Get_flow_from_CoE_Inventory')?['body/admin_flowmodifiedon'], null), '', formatDateTime(outputs('Get_flow_from_CoE_Inventory')?['body/admin_flowmodifiedon'], 'yyyy-MM-dd HH:mm:ss'))"
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "CATH_AND_IGNORE_-_not_yet_in_inventory": [
+                                        "Skipped"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "24b0a08f-7f0b-4995-8834-add08a612a97"
+                                    },
+                                    "type": "Scope"
+                                  }
+                                },
+                                "runAfter": {
+                                  "Filter_to_flows_modified_since_Get_past_time": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "32127bd9-2400-4d2f-b15e-6d176fc23554"
+                                },
+                                "type": "Foreach",
+                                "runtimeConfiguration": {
+                                  "concurrency": {
+                                    "repetitions": 50
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {
+                              "Get_past_time": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "4c090145-2a78-4b48-994e-32e2be8b1c11"
+                            },
+                            "type": "Scope"
+                          },
+                          "Get_past_time": {
+                            "runAfter": {
+                              "Look_for_ones_with_state_changes": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "214bd6fa-e96e-4732-9380-2b5f1f449478"
+                            },
+                            "type": "Expression",
+                            "kind": "GetPastTime",
+                            "inputs": {
+                              "interval": "@parameters('InventoryFilter_DaysToLookBack (admin_InventoryFilter_DaysToLookBack)')",
+                              "timeUnit": "Day"
+                            },
+                            "description": "from env variable"
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@parameters('FullInventory (admin_FullInventory)')",
+                          "@true"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c0e211f1-0938-41a4-ac62-faf1ae2e371c"
+                      },
+                      "type": "If"
+                    }
+                  },
+                  "runAfter": {
+                    "Look_for_flows_with_broken_connections": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "02875afd-04f6-4a83-84c9-bef8b9416e6d"
+                  },
+                  "type": "Scope"
+                },
+                "raw": {
+                  "runAfter": {
+                    "Look_for_modified_flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "53487cd4-9579-4e2e-a718-46df4521b512"
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('flowsToInventory')"
+                },
+                "Complete_List_FlowToInventory": {
+                  "runAfter": {
+                    "raw": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c848e252-7864-4c82-b0d9-e10aec85e8c0"
+                  },
+                  "type": "Compose",
+                  "inputs": "@union(variables('flowsToInventory'), variables('flowsToInventory'))"
+                },
+                "Look_for_flows_with_estimated_suspension_data": {
+                  "actions": {
+                    "Filter_to_tenant_flows_with_estimated_suspension_data": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "613d7338-3fe0-4576-9599-7ffe82f76927"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@outputs('List_Flows_as_Admin_(V2)')?['body/value']",
+                        "where": "@contains(item()?['properties'], 'estimatedSuspensionData')"
+                      }
+                    },
+                    "Apply_to_tenant_flow_with_estimated_suspension": {
+                      "foreach": "@body('Filter_to_tenant_flows_with_estimated_suspension_data')",
+                      "actions": {
+                        "Update_pending_suspension": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "a49cacd4-ce03-4fcf-aeb2-a350599c7f50"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_flows",
+                              "recordId": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['name']",
+                              "item/admin_FlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                              "item/admin_flowpendingsuspensionon": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['properties']?['estimatedSuspensionData']?['time']",
+                              "item/admin_flowpendingsuspensionpowerappplanexcluded": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['properties']?['estimatedSuspensionData']?['powerAppPlanExcluded']",
+                              "item/admin_flowpendingsuspensionreason": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['properties']?['estimatedSuspensionData']?['reason']",
+                              "item/admin_inventoryme": true
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Filter_to_tenant_flows_with_estimated_suspension_data": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "1c5a261c-9e2d-476e-9c59-eeff69dfa109"
+                      },
+                      "type": "Foreach"
+                    },
+                    "List_inventory_flows_with_estimated_suspension_data": {
+                      "runAfter": {
+                        "Apply_to_tenant_flow_with_estimated_suspension": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "90d7f482-2615-4fbe-8009-42040aa41fb3"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_flows",
+                          "$select": "admin_flowid, admin_displayname",
+                          "$filter": "_admin_flowenvironment_value eq  @{triggerOutputs()?['body/admin_environmentid']} and admin_flowpendingsuspensionreason ne null"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Apply_to_each_inventory_flow_with_estimated_suspension": {
+                      "foreach": "@outputs('List_inventory_flows_with_estimated_suspension_data')?['body/value']",
+                      "actions": {
+                        "See_if_still_has_estimated_suspension": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "dce03b01-0766-4969-95fa-ed0028184819"
+                          },
+                          "type": "Query",
+                          "inputs": {
+                            "from": "@body('Filter_to_tenant_flows_with_estimated_suspension_data')",
+                            "where": "@equals(item()?['name'], items('Apply_to_each_inventory_flow_with_estimated_suspension')?['admin_flowid'])"
+                          }
+                        },
+                        "If_no_longer_has_estimated_suspension_then_clear": {
+                          "actions": {
+                            "Clear_estimated_suspension_data": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "563f6894-cc37-4f0d-8c52-65c963387683"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "recordId": "@items('Apply_to_each_inventory_flow_with_estimated_suspension')?['admin_flowid']",
+                                  "item/admin_FlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_flowpendingsuspensionon": "@null",
+                                  "item/admin_flowpendingsuspensionpowerappplanexcluded": "@null",
+                                  "item/admin_flowpendingsuspensionreason": "@null",
+                                  "item/admin_inventoryme": true
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "See_if_still_has_estimated_suspension": [
+                              "Succeeded"
+                            ]
+                          },
+                          "expression": {
+                            "equals": [
+                              "@length(body('See_if_still_has_estimated_suspension'))",
+                              0
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "43ce9af8-165e-4136-9619-90e22da971ed"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "List_inventory_flows_with_estimated_suspension_data": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c187e70b-f563-4d13-b0b8-ac98bbc7bae1"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "9d044d9f-48ef-4cdf-9dc0-02ff1950c922"
+                  },
+                  "type": "Scope"
+                },
+                "Look_for_flows_manually_flagged_for_inventory": {
+                  "actions": {
+                    "FlowsToInventory_-_ManualRequest": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0e8d8c5b-cc57-472d-864e-103af0ef245b"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_flows",
+                          "$select": "admin_flowid",
+                          "$filter": "_admin_flowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_inventoryme eq true"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      }
+                    },
+                    "Add_manual_requests_to_array": {
+                      "foreach": "@outputs('FlowsToInventory_-_ManualRequest')?['body/value']",
+                      "actions": {
+                        "Append_to_flowsToInventory_-_manual_requests": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "f6a9316e-3842-469d-b7b0-2fad69e91448"
+                          },
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "flowsToInventory",
+                            "value": {
+                              "FlowID": "@items('Add_manual_requests_to_array')?['admin_flowid']"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "FlowsToInventory_-_ManualRequest": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "36d126b2-b699-44ff-91bb-804ce9296a8c"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Look_for_flows_with_estimated_suspension_data": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9616f302-9d94-44a0-b657-9b1daa4f78a2"
+                  },
+                  "type": "Scope"
+                },
+                "Look_for_flows_with_broken_connections": {
+                  "actions": {
+                    "FlowsToInventory_-_BrokenConnections": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "0e8d8c5b-cc57-472d-864e-103af0ef245b"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_flows",
+                          "$select": "admin_flowid",
+                          "$filter": "_admin_flowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_flowcontainsbrokenconnections eq true"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      }
+                    },
+                    "Add_broken_connections_to_array": {
+                      "foreach": "@outputs('FlowsToInventory_-_BrokenConnections')?['body/value']",
+                      "actions": {
+                        "Append_to_flowsToInventory_-_broken_connections": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "f6a9316e-3842-469d-b7b0-2fad69e91448"
+                          },
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "flowsToInventory",
+                            "value": {
+                              "FlowID": "@items('Add_broken_connections_to_array')?['admin_flowid']"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "FlowsToInventory_-_BrokenConnections": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "36d126b2-b699-44ff-91bb-804ce9296a8c"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Look_for_flows_manually_flagged_for_inventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9616f302-9d94-44a0-b657-9b1daa4f78a2"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "Get_Basics": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "189f2033-69d6-45cd-8ab2-9fb33d1381a6"
+              },
+              "type": "Scope"
+            },
+            "Inventory_all_targetted_flows": {
+              "foreach": "@outputs('Complete_List_FlowToInventory')",
+              "actions": {
+                "Run_a_Child_Flow": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "e9ea5691-06ec-45c4-a632-a12df9e4f5d4"
+                  },
+                  "type": "Workflow",
+                  "inputs": {
+                    "host": {
+                      "workflowReferenceName": "a44274df-02da-ed11-a7c7-0022480813ff"
+                    },
+                    "body": {
+                      "text": "@triggerOutputs()?['body/admin_environmentid']",
+                      "text_1": "@items('Inventory_all_targetted_flows')?['FlowID']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_List_of_Flows_to_Update_and_Insert": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "886f2d1d-98b6-4d03-8f0f-c8d5f83badb1"
+              },
+              "type": "Foreach",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 50
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_flowsToInventory": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a61d4c0c-2a4d-4e5d-8cf5-b3d0a9ddf4aa"
+          },
+          "type": "Scope"
+        }
+      },
+      "outputs": {}
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
