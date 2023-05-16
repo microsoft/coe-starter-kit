@@ -92,7 +92,8 @@ function Add-Codefirst-Projects-To-Cdsproj{
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$repo,
         [Parameter(Mandatory)] [String]$solutionName,
-        [Parameter(Mandatory)] [String]$pacPath
+        [Parameter(Mandatory)] [String]$pacPath,
+        [Parameter()] [String]$base64Snk
     )
     if (-not ([string]::IsNullOrEmpty($pacPath)) -and (Test-Path "$pacPath\pac.exe"))
     {
@@ -118,8 +119,7 @@ function Add-Codefirst-Projects-To-Cdsproj{
           foreach($pcfProj in $pcfProjectFiles)
           {     
             Write-Host "Adding Reference of Pcf Project - " $pcfProj.FullName
-            $pcfProjectPath = "`"$($pcfProj.FullName)`""    
-			
+            $pcfProjectPath = '"' + $($pcfProj.FullName) + '"'
             $addReferenceCommand = "solution add-reference --path $pcfProjectPath"
             Write-Host "Add Reference Command - $addReferenceCommand"
             Invoke-Expression -Command "$pacexepath $addReferenceCommand"
@@ -131,30 +131,47 @@ function Add-Codefirst-Projects-To-Cdsproj{
           if(Test-Path "$unpackedPluginAssemblyPath"){
               # Get all .csproj files under Repo/Commited Solution folder
               $csProjectFiles = Get-ChildItem -Path "$buildSourceDirectory\$repo\$solutionName" -Filter *.csproj -Recurse
-              foreach($csProject in $csProjectFiles)
+              Write-Host "$($csProjectFiles.Count) cs project files found"
+              # Filter out projects name ending with "Tests.csproj" (i.e.,Unit test projects)
+              $filteredProjects = $csProjectFiles | Where-Object { $_.Name -notlike "*Tests.csproj" }
+              Write-Host "$($filteredProjects.Count) plugin project files found after filtering out unit test projects"
+              foreach($csProject in $filteredProjects)
               {     
                 Write-Host "Adding Reference of Plugin Project - " $csProject.FullName
-                # Add only Plugin type csproj; Skip others
-                $csProjectPath = "`"$($csProject.FullName)`""    
-
-                # Read csproj xml to determin project type
-                [xml]$xmlDoc = Get-Content -Path $csProjectPath
-                $tagPowerAppsTargetsPath = $xmlDoc.Project.PropertyGroup.PowerAppsTargetsPath
-
-                # 'PowerAppsTargetsPath' tag is only availble in plugin project generate via 'pac plugin init'
-                if(-not [string]::IsNullOrWhiteSpace($tagPowerAppsTargetsPath)){
-                    $addReferenceCommand = "solution add-reference --path $csProjectPath"
-                    Write-Host "Add Reference Command - $addReferenceCommand"
-                    Invoke-Expression -Command "$pacexepath $addReferenceCommand"
+                $csProjectPath = '"' + $($csProject.FullName) + '"'
+                
+                # Read csproj file's AssemblyOriginatorKeyFile and SignAssembly properties.
+                # We need to read these properties to determine whether the C# project is signed.
+                [xml]$xmlDoc = Get-Content -Path $($csProject.FullName)
+                $snkFileName = $xmlDoc.Project.PropertyGroup.AssemblyOriginatorKeyFile
+                $signAssembly = $xmlDoc.Project.PropertyGroup.SignAssembly
+                Write-Host "SNKFileName - $snkFileName"
+                Write-Host "SignAssembly - $signAssembly"
+                # Check for existing snk file or pull from global variables
+                if($signAssembly -eq "true") {
+                    $projectDirectory = [System.IO.Path]::GetDirectoryName("$csProject.FullName")
+                    Write-Host "SNK Path: $projectDirectory\$snkFileName"
+                    if(!(Test-Path "$projectDirectory\$snkFileName")) {
+                        if(!($base64Snk.Contains('$('))) {
+                            Write-Host "Writing plugin snk file to disk"
+                            $bytes = [Convert]::FromBase64String($base64Snk)
+                            [IO.File]::WriteAllBytes("$projectDirectory\$snkFileName", $bytes)
+                        }else{
+                            Write-Host "No snk found at repo and no snk content defined in variables"
+                        }
+                    }else{
+                        Write-Host ".snk file - $snkFileName already presents in the repo. No need to read from variable"
+                    }
                 }
-                else{
-                    Write-Host "Not a plug-in project; Skipping add reference to cdsproj; Path - $csProjectPath"
-                }
+
+                $addReferenceCommand = "solution add-reference --path $csProjectPath"
+                Write-Host "Add Reference Command - $addReferenceCommand"
+                Invoke-Expression -Command "$pacexepath $addReferenceCommand"
               }
           }
           else
           {
-                Write-Host "PluginAssemblies folder unavailble in unpacked solution"
+                Write-Host "PluginAssemblies folder unavailable in unpacked solution"
           }
         }
         else
@@ -500,43 +517,5 @@ function Invoke-Append-Version-To-Solutions{
     else
     {
         Write-Host "Unmanaged solution is unavailble at unmanagedSolutionPath"
-    }
-}
-
-<#
-This function checks the existence of unit test projects under the repository.
-This function is needed to run the plugin test projects.
-#>
-function Invoke-Check-Test-Projects{
-    param (
-        [Parameter(Mandatory)] [String]$buildSourceDirectory,
-        [Parameter(Mandatory)] [String]$repo,
-        [Parameter(Mandatory)] [String]$solutionName
-    )
-
-    $testProjectsPath = "$buildSourceDirectory\$repo\$solutionName\Test"
-    If(Test-Path "$testProjectsPath")
-    {
-        csProjectFiles = Get-ChildItem -Path "$testProjectsPath" -Filter *.csproj -Recurse
-        foreach($csProject in $csProjectFiles)
-        {     
-            # Add only Plugin type csproj; Skip others
-            $csProjectPath = $csProject.FullName
-
-            # Read csproj xml to determin project type
-            [xml]$xmlDoc = Get-Content -Path $csProjectPath
-            $testProjectType = $xmlDoc.Project.PropertyGroup.TestProjectType
-
-            # 'TestProjectType' tag is available only to Test projects
-            if(-not [string]::IsNullOrWhiteSpace($testProjectType)){
-                Write-Host "Test projects exist in the Repo - $csProjectPath"
-                Write-Host "##vso[task.setvariable variable=pluginstestexists;]$true"
-                break
-            }       
-        }
-    }
-    else
-    {
-        Write-Host "Test projects not exist under $testProjectsPath"
     }
 }

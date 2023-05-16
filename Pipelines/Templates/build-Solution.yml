@@ -187,6 +187,7 @@ steps:
   displayName: 'Validate Flows'
   condition: and(succeeded(), ne(variables['TriggerFlowValidation'],''), eq(variables['TriggerFlowValidation'],'true'))
 
+# Add code first projects(csproj,pcfproj) to cdsproj
 - pwsh: |
       . "$env:POWERSHELLPATH/code-first-functions.ps1"
       Invoke-Check-Code-First-Components '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}'
@@ -194,37 +195,30 @@ steps:
 
 - pwsh: |
       . "$env:POWERSHELLPATH/code-first-functions.ps1"
-      Add-Codefirst-Projects-To-Cdsproj '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}' '$(pacPath)'
+      Add-Codefirst-Projects-To-Cdsproj '$(Build.SourcesDirectory)' '$(RepoName)' '${{parameters.solutionName}}' '$(pacPath)' '$(PluginSNK)'
   displayName: 'Add project references to cdsproject'
 
+  # Runs NPM Install against all PCF projects
 - pwsh: |
       . "$env:POWERSHELLPATH/code-first-functions.ps1"
       Invoke-Pcf-Projects-Install-Npm '$(Build.SourcesDirectory)' '$(RepoName)'
   displayName: 'Install npm - pcf projects'
 
+# Build Cdsproj file which generates the solution zip files
 - task: VSBuild@1
   inputs:
-    #solution: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\${{parameters.solutionName}}\${{parameters.solutionName}}.cdsproj'
     solution: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\${{parameters.solutionName}}.cdsproj'
-    msbuildArgs: '/t:build /restore'
-    #platform: '$(buildPlatform)'
-    #configuration: '$(buildConfiguration)'
+    msbuildArgs: '/t:build /restore'    
   displayName: 'Build cdsproject'
 
-- task: VSTest@2
-  inputs:
-    platform: 'Any CPU'
-    configuration: 'Release'
-    codeCoverageEnabled: True
-    resultsFolder: '$(build.ArtifactStagingDirectory)\Test\Results'
-    searchFolder: '$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}'
-    testAssemblyVer2: |
-      **\*test*.dll
-      !**\*TestAdapter.dll
-      !**\obj\**
-    condition: and(succeeded(), eq(variables.pluginstestexists, 'true'))
-  displayName: 'Run unit test case projects'
+# Run the unit test cases
+- template: build-run-unit-test-projects.yml
+  parameters:
+    buildSourceDirectory: '$(Build.SourcesDirectory)'
+    repo: '$(RepoName)'
+    solutionName: '${{parameters.solutionName}}'
 
+# Verbose purpose to make sure cdsproj buiild generated required files
 - pwsh: |
     $sourceDirectory  = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\bin\Debug\*"
     Get-ChildItem "$sourceDirectory" -Recurse

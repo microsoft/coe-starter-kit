@@ -82,3 +82,49 @@ function Parse-Validate-Flow-Json-File($jsonObject) {
 
     return $false
 }
+
+# CS Project might be referring NuGet packages. If a NuGet package referred in a CS Project a 'HintPath' node will be added.
+# Example <HintPath>..\packages\Castle.Core.4.3.1\lib\net45\Castle.Core.dll</HintPath>
+# 'HintPath' pattern will be different for each project template (i.e., Class Library vs Unit test project)
+# This function removes '..\' references so that NuGet packages will always be restored at project root folder level
+function Remove-Relative-References-from-HintPath{
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName
+    )
+
+    $repoPath = "$buildSourceDirectory\$repo\$solutionName"
+    $projects = Get-ChildItem -Path "$repoPath" -Filter '*.csproj' -Recurse    
+    foreach ($project in $projects) {
+        $csProjectPath = $project.FullName
+        Write-Host "Processing $($project.Name)"
+        # Load the XML file content
+        $xmlContent = Get-Content -Path $csProjectPath -Raw
+        #Write-Host "Content before - "$xmlContent
+
+        # Load the XML content
+        $xml = [xml]$xmlContent
+
+        # Call the function with the root node
+        RemoveRelativeReferences $xml.DocumentElement
+
+        # Save the modified XML content back to the file
+        $xml.Save($csProjectPath)
+        #$xmlContent = Get-Content -Path $csProjectPath -Raw
+        #Write-Host "Content after - "$xmlContent
+    }
+}
+
+# This is a subfunction of Remove-Relative-References-from-HintPath
+# Fetches all the occurances of HintPath node
+function RemoveRelativeReferences($node) {
+    if ($node -is [System.Xml.XmlElement]) {
+        if ($node.Name -eq "HintPath") {
+            $node.InnerText = $node.InnerText -replace "\.\.\\", ""
+        }
+        foreach ($childNode in $node.ChildNodes) {
+            RemoveRelativeReferences $childNode
+        }
+    }
+}

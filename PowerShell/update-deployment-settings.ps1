@@ -147,18 +147,23 @@ function Set-DeploymentSettingsConfiguration
                     elseif($configurationVariableName.StartsWith("sdkstep.", "CurrentCultureIgnoreCase")) {
                         if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
                         {
-                            # SDK step configuration format will be "sdkstep.{unsec/sec}.{sdkmessageprocessingstep}"
-                            $sdkmessageprocessingstepid = $configurationVariableName -replace "sdkstep.unsec.", "" -replace "sdkstep.sec.", "" 
-                            Write-Host "Sdkmessageprocessingstepid - $sdkmessageprocessingstepid"
-                            $configKey = $configurationVariableName -replace "sdkstep.", "" 
-                            $sdkmessageprocessingstepRecord = Get-CrmRecord -conn $conn -EntityLogicalName "sdkmessageprocessingstep" -Id "$sdkmessageprocessingstepid" -Fields sdkmessageprocessingstepid
-                            if($null -ne $sdkmessageprocessingstepRecord){
-                                $sdkConfig = [PSCustomObject]@{"Config"="$configKey"; "Value"="#{$configurationVariableName}#"}
-                                if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
-                                    $sdkConfig = [PSCustomObject]@{"Config"="$configKey"; "Value"="$configurationVariableValue"}
-                                }
-                                $sdkMessages.Add($sdkConfig)
+							try{
+                                # SDK step configuration format will be "sdkstep.{unsec/sec}.{sdkmessageprocessingstep}"
+                                $sdkmessageprocessingstepid = $configurationVariableName -replace "sdkstep.unsec.", "" -replace "sdkstep.sec.", "" 
+                                Write-Host "Sdkmessageprocessingstepid - $sdkmessageprocessingstepid"
+                                $configKey = $configurationVariableName -replace "sdkstep.", "" 
+                                $sdkmessageprocessingstepRecord = Get-CrmRecord -conn $conn -EntityLogicalName "sdkmessageprocessingstep" -Id "$sdkmessageprocessingstepid" -Fields sdkmessageprocessingstepid
+                                if($null -ne $sdkmessageprocessingstepRecord){
+                                    $sdkConfig = [PSCustomObject]@{"Config"="$configKey"; "Value"="#{$configurationVariableName}#"}
+                                    if($usePlaceholders.ToLower() -eq 'false' -or $isDevEnvironment) {
+                                        $sdkConfig = [PSCustomObject]@{"Config"="$configKey"; "Value"="$configurationVariableValue"}
+                                    }
+                                    $sdkMessages.Add($sdkConfig)
+                                }								
                             }
+                            catch {
+                                Write-Host "Error occurred while retrieving the SDK step - $($_.Exception.Message)"
+                            }                            
                         }
                         else{
                             Write-Host "SDK Message Variable $configurationVariableName value is either Null or Empty for $environmentName"
