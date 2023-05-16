@@ -2,7 +2,7 @@ App As appinfo:
     BackEnabled: =false
     OnStart: |
         =Concurrent(
-        
+         Set(showLoader, true);
         //set first load
         Set(FirstLoad, true),
         
@@ -105,12 +105,12 @@ App As appinfo:
         If(IsBlank(needPublishedFreqDays), Set(needPublishedFreqDays, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
         
         If(
-            !IsBlank(Param("flowName")),
+            !IsBlank(Param("id")),
             Set(
                 vSelectedFlow,
                 LookUp(
                     Flows,
-                    Flow = GUID(Param("flowName"))
+                    Flow = GUID(Param("id"))
                 )
             );Set(showAppDetails, true);
         );
@@ -159,6 +159,46 @@ App As appinfo:
         
             ClearCollect( allConnectors, PowerAppsforMakers.GetConnectors({'$filter':"environment eq 'Default-" & defaultEnvironment & "'"}).value);
             
+        
+        //if browsing diretcly to app, get app details (copied from gallery onselect, someday make this a formula)
+        If(showAppDetails,
+            ClearCollect(
+                flowUserCollection,
+                AddColumns(
+                    PowerAutomateManagement.ListFlowOwners(
+                    vSelectedFlow.'Flow Environment ID',
+                    Text(vSelectedFlow.Flow)
+                ).value,
+                    "Name",
+                If(
+                !IsBlank(name),
+                Office365Users.UserProfileV2(name).displayName
+            ),
+                    "Role",
+                    properties.principal.type
+                )
+            );
+        
+            ClearCollect(
+                flowConnectionCollection,
+                AddColumns(
+                    ForAll(Split(
+                        vSelectedFlow.'Flow Connections',
+                        ","
+                    ), {Result: ThisRecord.Value}).Result,
+                    "Name",
+                    LookUp(allConnectors, name = Result).properties.displayName,
+                    "Picture",
+                    PowerAppsforMakers.GetConnector(
+                        LookUp(
+                            allConnectors,
+                            name = Result
+                        ).name,
+                        {'$filter': "environment eq 'Default-" & defaultEnvironment & "'"}
+                    ).properties.iconUri
+                )
+            )
+        ); //end load param flow
         
             Set(showLoader, false);
             Set(initialized, true);
