@@ -75,6 +75,7 @@
                     =UpdateContext({showHelp: true})
                 Text: ="Help"
                 Theme: =AppThemeJson
+                Tooltip: =""
                 Width: =100
                 X: =0
                 Y: =0
@@ -300,6 +301,7 @@
                                         LayoutMinWidth: =200
                                         OnChange: =Launch(ThisItem.url, {}, LaunchTarget.New)
                                         Theme: =AppThemeJson
+                                        Tooltip: ="launch"
                                         Width: =40
                                         X: =0
                                         Y: =0
@@ -540,17 +542,17 @@
                                             Environments,
                                             LookUp(Environments, Environment = ThisItem.Environment),
                                             {
-                                                'Excuse From Compliance Flow': true
+                                                'Excuse From Inactivity Flows': true
                                             }
-                                        ),Notify("Failed to exclude environment from Compliance Flow. Open the Power Platform Admin Center app to exclude the environment there.", NotificationType.Error))
+                                        ),Notify("Failed to exclude environment from Inactivity Processes. Open the Power Platform Admin Center app to exclude the environment there.", NotificationType.Error))
                                     OnUncheck: |-
                                         =IfError(Patch(
                                             Environments,
                                             LookUp(Environments, Environment = ThisItem.Environment),
                                             {
-                                                'Excuse From Compliance Flow': false
+                                                'Excuse From Inactivity Flows': false
                                             }
-                                        ),Notify("Failed to exclude environment from Compliance Flow. Open the Power Platform Admin Center app to exclude the environment there.", NotificationType.Error))
+                                        ),Notify("Failed to remove environment from exclusion to Inactivity Processes. Open the Power Platform Admin Center app to exclude the environment there.", NotificationType.Error))
                                     Width: =btn_h_visible.Width
                                     X: =0
                                     Y: =0
@@ -702,7 +704,6 @@
                         ZIndex: =4
 
                         galOtherFlows As gallery.galleryVertical:
-                            AlignInContainer: =AlignInContainer.SetByContainer
                             BorderColor: =RGBA(166, 166, 166, 1)
                             FocusedBorderColor: =RGBA(0, 120, 212, 1)
                             FocusedBorderThickness: =2
@@ -871,6 +872,7 @@
                                         LayoutMinWidth: =200
                                         OnChange: =Launch(coeAppMakerURL & "environments/" & coeEnv & "/apps/" & ThisItem.ObjectGUID & "/share", {}, LaunchTarget.New)
                                         Theme: =AppThemeJson
+                                        Tooltip: ="launch"
                                         Width: =50
                                         X: =0
                                         Y: =0
@@ -885,6 +887,7 @@
                                         LayoutMinWidth: =200
                                         OnChange: =Launch(ThisItem.HelpLink, {}, LaunchTarget.New)
                                         Theme: =AppThemeJson
+                                        Tooltip: ="info"
                                         Width: =40
                                         X: =0
                                         Y: =0
@@ -1064,6 +1067,20 @@
                         Y: =0
                         ZIndex: =2
 
+                    btnFinish As Button:
+                        AlignInContainer: =AlignInContainer.Center
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =96
+                        OnSelect: =Navigate('More features')
+                        Text: ="Done"
+                        Visible: =configStep=Max(colSetupSteps,Value(ItemKey))
+                        Width: =72
+                        X: =0
+                        Y: =0
+                        ZIndex: =3
+
     panHelp As Panel:
         Buttons: |-
             =/*Table(
@@ -1157,8 +1174,24 @@
         DialogWidth: =800
         Fill: =dialogCantProceed.OverlayColor
         Height: ='Setup Wizard Screen'.Height
-        OnCloseSelect: =false
-        SubTitle: =If(IsBlank(vInventoryComplete), "It looks like some inventory flows required to set up the Inactivity notifications haven't finished running yet. Please check the CoE flows page of the Admin - Command Center app, and return to this setup wizard when the Admin | Sync Template v3 flow has finished running.", "Finish the Initial Setup first before proceeding. Use the 'Initial Setup' page to set up the inventory (core) components. Then import the Governance components solution (CenterofExcellenceAuditComponents) that you find in your CoEStarterKit.zip file. Check out the documentation and video below to learn more about this feature.")
+        OnCloseSelect: =Navigate('More features')
+        SubTitle: |-
+            =//if inventory not complete, tell them to come back later
+            If(
+                IsBlank(vInventoryComplete),
+                "It looks like some inventory flows required to set up the Compliance process haven't finished running yet. Please check the CoE flows page of the Admin - Command Center app, and return to this setup wizard when the Admin | Sync Template v3 (Driver) flow has finished running.",
+            
+            //else wait for metadata to complete
+            If(
+                    vWaitForMetadata && !IsBlank(
+                        LookUp(
+                            Solutions,
+                            Name = "CenterofExcellenceAuditComponents"
+                        )
+                    ),
+                    "It looks like some metadata flows required to set up the Compliance process haven't finished running yet. Please browse to ensure the flows have finished since you installed or upgraded this solution. When they are complete click the refresh button on this page to continue.",
+                    "You do not have the required Governance components solution (CenterofExcellenceAuditComponents) installed. You will that you find in your CoEStarterKit.zip file. Check out the documentation and video below to learn more about this feature."
+                ))
         Title: ="Missing prerequisite"
         Visible: =IsBlank(LookUp(Solutions, Name = "CenterofExcellenceAuditComponents")) || IsBlank(vInventoryComplete) || vWaitForMetadata
         Width: ='Setup Wizard Screen'.Width
@@ -1193,7 +1226,7 @@
         Layout: =Layout.Vertical
         ShowScrollbar: =false
         TemplateSize: =220
-        Visible: =IsBlank(LookUp(Solutions, Name = "CenterofExcellenceAuditComponents"))
+        Visible: =IsBlank(LookUp(Solutions, Name = "CenterofExcellenceAuditComponents")) || IsBlank(vInventoryComplete)
         Width: =dialogCantProceed.ContentWidth
         WrapCount: =3
         X: =dialogCantProceed.ContentX + 10
@@ -1271,6 +1304,7 @@
                     LayoutMinWidth: =200
                     OnChange: =Launch(ThisItem.url, {}, LaunchTarget.New)
                     Theme: =AppThemeJson
+                    Tooltip: ="launch"
                     Width: =40
                     X: =0
                     Y: =0
@@ -1334,7 +1368,10 @@
         Height: =dialogCantProceed.ContentHeight - 60
         LayoutDirection: =LayoutDirection.Vertical
         LayoutMode: =LayoutMode.Auto
-        Visible: =vWaitForMetadata && !IsBlank(LookUp(Solutions, Name = "CenterofExcellenceAuditComponents"))
+        Visible: |-
+            =//visible if waiting for metadata 
+            //assumes audit components installed and inventory complete, they ahve separeate error UX
+            vWaitForMetadata && !IsBlank(LookUp(Solutions, Name = "CenterofExcellenceAuditComponents")) && !IsBlank(vInventoryComplete)
         Width: =dialogCantProceed.ContentWidth-30
         X: =dialogCantProceed.ContentX + 25
         Y: =dialogCantProceed.ContentY + 80
@@ -1409,7 +1446,7 @@
                 ZIndex: =9
 
             Container2 As groupContainer.horizontalAutoLayoutContainer:
-                Height: =1
+                Height: =60
                 LayoutAlignItems: =LayoutAlignItems.Center
                 LayoutJustifyContent: =LayoutJustifyContent.SpaceBetween
                 LayoutMode: =LayoutMode.Auto
@@ -1423,6 +1460,7 @@
                     LayoutMinHeight: =200
                     LayoutMinWidth: =200
                     Theme: =AppThemeJson
+                    Tooltip: =""
                     Width: =40
                     X: =0
                     Y: =2
@@ -1435,6 +1473,7 @@
                     Color: =RGBA(51, 51, 51, 1)
                     DisabledBorderColor: =RGBA(0, 0, 0, 0)
                     DisabledColor: =RGBA(166, 166, 166, 1)
+                    FillPortions: =1
                     FocusedBorderThickness: =4
                     Font: =Font.'Segoe UI'
                     Height: =50
@@ -1494,6 +1533,7 @@
                     LayoutMinHeight: =200
                     LayoutMinWidth: =200
                     PercentComplete: =80
+                    Tooltip: =""
                     TypeofIndicator: ='PowerCAT.ProgressIndicator.TypeofIndicator'.IndeterminateIndicator
                     Visible: |-
                         =IsBlankOrError(
@@ -1518,6 +1558,7 @@
                     Text: ="View Flow Details"
                     TextAlignment: ='PowerCAT.Icon.TextAlignment'.Right
                     Theme: =AppThemeJson
+                    Tooltip: =""
                     Width: =200
                     X: =0
                     Y: =2
