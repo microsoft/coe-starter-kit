@@ -135,9 +135,10 @@ function Get-UserConfiguredFlowActivations {
                 $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $activateConfig.solutionComponentUniqueName -Fields clientdata, category, statecode, name
                 $impersonationCallerId = ''
                 if($activateConfig.activateAsUser -ne '') {
-                    $systemUserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "internalemailaddress" -FilterOperator "eq" -FilterValue $activateConfig.activateAsUser -Fields systemuserid
-                    if ($systemUserResult.Count -gt 0) {
-                        $impersonationCallerId = $systemUserResult.CrmRecords[0].systemuserid
+                    #$systemUserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "internalemailaddress" -FilterOperator "eq" -FilterValue $activateConfig.activateAsUser -Fields systemuserid
+                    $matchedUser = Get-User-By-Email-or-DomainName $activateConfig.activateAsUser $conn
+                    if ($null -ne $matchedUser) {
+                        $impersonationCallerId = $matchedUser.systemuserid
                     }
                     else {
                         Write-Host "##vso[task.logissue type=warning]A specified user record was not found in the target environment. Verify your deployment configuration and try again."

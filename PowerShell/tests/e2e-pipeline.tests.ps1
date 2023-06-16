@@ -117,9 +117,11 @@ Describe 'E2E-Pipeline-Test' {
         $headers.Add("Content-Type", "application/json")
 
         $apiVersion = "?api-version=6.0-preview.2"
+        $requestUrl = "$Org/$Project/_apis/build/folders$apiVersion&path=$Repo - $SolutionName"
+        Invoke-RestMethod $requestUrl -Method 'DELETE' -Headers $headers
+
         $requestUrl = "$Org/$Project/_apis/build/folders$apiVersion&path=$SolutionName"
-        $response = Invoke-RestMethod $requestUrl -Method 'DELETE' -Headers $headers
-        $response | ConvertTo-Json -Depth 100
+        Invoke-RestMethod $requestUrl -Method 'DELETE' -Headers $headers
 
 		# To test Profile change post commit scenario
 		# Set "DeploymentEnvironmentUrl" and "ServiceConnectionName" as blank on 1st Commit
