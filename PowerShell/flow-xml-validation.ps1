@@ -16,22 +16,39 @@ function Validate-And-Fetch-Invalid-Flows{
     if(Test-Path "$workflowsFolderPath"){
         # Get all flow json files under SolutionPackage\src\Workflows folder
         $flowJsonFiles = Get-ChildItem -Path "$workflowsFolderPath" -Filter *.json -Recurse
+
+        $PSDefaultParameterValues['ConvertTo-Json:Depth'] = 10
+
         foreach($flowJsonFile in $flowJsonFiles)
         {    
             # Validate the existence of file
             if(Test-Path "$($flowJsonFile.FullName)"){
                 Write-Host "Validating flow file - $($flowJsonFile.Name)"
-                [PSCustomObject]$jsonObject = [PSCustomObject](Get-Content "$($flowJsonFile.FullName)" | Out-String | ConvertFrom-Json)
-                $hasErros = Parse-Validate-Flow-Json-File $jsonObject
+                
+                # Read the JSON file content
+                $jsonContent = Get-Content -Path "$($flowJsonFile.FullName)" -Raw
+
+                # Convert JSON to PowerShell objects
+                $jsonObject = $jsonContent | ConvertFrom-Json
+
+                try {
+                    $hasErros = Parse-Validate-Flow-Json-File $jsonObject
+                }
+                catch {
+                    #Write-Host "Errors found in $($flowJsonFile.Name)."
+                    $hasErros = $true
+                }
 
                 if ($hasErros) {
                     $invalidFiles += $delimiter + $($flowJsonFile.Name)
                     $delimiter = ","
-                    Write-Host "Flow file - $($flowJsonFile.Name) is invalid."
+                    Write-Host "Flow file - $($flowJsonFile.Name) is invalid***."
                 }
                 else {
                     Write-Host "Flow file - $($flowJsonFile.Name) is valid"
                 }
+				
+                Write-Host ""
             }else{
                 Write-Host "Invalid path $($flowJsonFile.Name)."
             }
@@ -43,44 +60,122 @@ function Validate-And-Fetch-Invalid-Flows{
     return $invalidFiles
 }
 
-# This function parses and recursively traverse through xml nodes.
-# Finds 'Expression' nodes
-# Validates left and right operands
+# Validates left and right operands for empty values and spaces at begining
 # if any one is blank returns true
-function Parse-Validate-Flow-Json-File($jsonObject) {
-    if ($jsonObject -is [array]) {
-        foreach ($item in $jsonObject) {
-            if (Parse-Validate-Flow-Json-File $item) {
-                return $true
+function validate_Json{
+    param (
+        [Parameter(Mandatory)] [String]$jsonContent
+    )
+
+    try {
+        $parsedJson = ConvertFrom-Json -InputObject $jsonContent
+        # Checking for 'or' and 'and' keys
+        $orAndKeysPresent = $parsedJson.PSObject.Properties.Name -in ('or', 'and')
+        if (-not $orAndKeysPresent) {
+            # Check for Expression keys
+            $valueKey = $parsedJson.PSObject.Properties.Name | Where-Object { $_ -in ('greater', 'greaterOrEquals', 'equals', 'less', 'contains') }
+
+            if ($valueKey) {
+                Write-Host "Validating $valueKey value"
+                $valueToCheck = $parsedJson.$valueKey[0]
+                if (-not [string]::IsNullOrWhiteSpace($valueToCheck)) {
+                    Write-Host "$valueToCheck is not null or empty"
+                } else {
+                    Write-Host "Value is either null or whitespace. Exiting."
+                    throw
+                    #return $false
+                }
+            } else {
+                Write-Host "$valueKey is a valid condition. Continuing with next expression."
             }
-        }
-    }
-    elseif ($jsonObject -is [System.Management.Automation.PSCustomObject]) {
-        foreach ($property in $jsonObject.psobject.Properties) {
-            if ($property.Name -eq 'Expression') {
-                    $expression = $property.Value                          
-                    if($null -ne $expression){
-                        $jsonString = $expression | ConvertTo-Json
-                        $keyName = ($expression | Get-Member -MemberType NoteProperty).Name
-                        $objCondition = $expression.$keyName
-                        # Get the values inside the array
-                        $leftOperand = $objCondition[0]
-                        $rightOperand = $objCondition[1]
-                        Write-Host "leftOperand - $leftOperand and rightOperand - $rightOperand"
-                        if([string]::IsNullOrEmpty($leftOperand) -or [string]::IsNullOrEmpty($rightOperand)){
-                            return $true
+        } else {
+            # 'or' or 'and' keys found in the JSON
+            $orAndKey = $parsedJson.PSObject.Properties.Name | Where-Object { $_ -in ('or', 'and') } | Select-Object -First 1
+
+            Write-Host "Group condition type (and/or) - $orAndKey"            
+
+            # Checking for spaces in the Left of Right operands        
+            if ($orAndKey) {
+                foreach ($element in $parsedJson.$orAndKey) {
+                    # Iterate over the properties within each element
+                    foreach ($property in $element.PSObject.Properties) {
+                        $key = $property.Name
+                        $valueArray = $property.Value
+
+                        Write-Host "ValueArray - $valueArray"
+                        #Write-Host "Length - " $valueArray.Length
+
+                        if ($valueArray -ne $null -and $valueArray.Length -gt 0) {
+                            foreach ($operand in $valueArray) {
+                                #Write-Host "Operand - $operand"
+                                if ([string]::IsNullOrEmpty($operand)){
+                                    Write-Host "Found an empty string in the key - $key. Exiting."
+                                    throw
+                                }
+                                if ($operand -is [string] -and $operand.StartsWith(" ")) {
+                                    Write-Host "Starts with a space. $key - $operand. Exiting."
+                                    throw
+                                    #return $false
+                                }
+                            }
                         }
-                    }                
-            }
-            else {
-                if (Parse-Validate-Flow-Json-File $property.Value) {
-                    return $true
+                        else {
+                            Write-Host "ValueArray is empty for key - $key."
+                        }
+                    }
                 }
             }
         }
+    } catch {
+        Write-Host "Error in validate_Json - $($_.Exception.Message)"
+        #Write-Host "Invalid JSON string"
+        throw
     }
 
-    return $false
+    return $true
+}
+
+# This function parses and recursively traverse through xml nodes and fetch 'expression' content
+# Validates any missing operands
+function Parse-Validate-Flow-Json-File() {
+    param (
+        [Parameter(Mandatory)] [Object]$jsonObject
+    )
+
+    foreach ($property in $jsonObject.PSObject.Properties) {
+        if ($property.Name -eq 'expression') {
+            Write-Host "Expression Value - " $property.Value
+            #Write-Host "Expression Value Type - " $property.Value.GetType()
+            if ($property.Value -is [System.Object[]]) {
+                foreach ($item in $property.Value) {
+                    #Write-Host "Object[] Type - " $item
+                }
+            }
+            elseif ($property.Value -is [System.String]) {
+                #Write-Host "String Type - " $property.Value
+            }
+            elseif ($property.Value -is [System.Management.Automation.PSCustomObject]) {
+                # Convert the PSCustomObject to JSON string
+                $jsonString = $property.Value | ConvertTo-Json
+
+                # Output the JSON string
+                Write-Host "expression node content - " $jsonString
+               $isValid = validate_Json $jsonString
+
+               if($isValid -eq $false){
+                    return $true
+               }
+            }
+        }
+        elseif ($property.Value -is [System.Management.Automation.PSCustomObject]) {
+            Parse-Validate-Flow-Json-File $property.Value
+        }
+        elseif ($property.Value -is [System.Collections.ArrayList]) {
+            foreach ($item in $property.Value) {
+                Parse-Validate-Flow-Json-File $item
+            }
+        }
+    }
 }
 
 # CS Project might be referring NuGet packages. If a NuGet package referred in a CS Project a 'HintPath' node will be added.
