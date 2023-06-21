@@ -519,3 +519,129 @@ function Invoke-Append-Version-To-Solutions{
         Write-Host "Unmanaged solution is unavailble at unmanagedSolutionPath"
     }
 }
+
+function Restore-Nuget-Packages(){
+    param (
+        [Parameter(Mandatory)] [String]$repoPath
+    )
+    $csProjectFiles = Get-ChildItem -Path "$repoPath" -Filter '*.csproj' -Recurse
+    foreach ($csProjectFile in $csProjectFiles) {
+      $csProjectFileFullPath = $csProjectFile.FullName
+      $csProjectFileName = $csProjectFile.Name
+
+        # Read the contents of the project file
+        $projectFileContent = Get-Content -Path "$csProjectFileFullPath" -Raw
+
+        # Check if the project file contains the <Project Sdk="..."> element
+        $isSdkStyleProject = $projectFileContent -match '<Project[^>]*Sdk="'
+
+        Write-Host "IsSdkStyleProject - $isSdkStyleProject"
+
+        if ($isSdkStyleProject) {
+            Write-Host "Project - $csProjectFileName does not require a nuget restore."
+        } else {
+            Write-Host "Project - $csProjectFileName requires nuget restore. Restoring nuget packages - $csProjectFileFullPath"
+              $projectDirectory = Split-Path -Path "$csProjectFileFullPath" -Parent
+              $restoreDirectory = Join-Path -Path "$projectDirectory" -ChildPath 'packages'
+              $configFile = Join-Path -Path "$projectDirectory" -ChildPath 'packages.config'
+              Write-Host "Packages config file path - $configFile"
+
+              if(Test-Path "$configFile"){
+                & nuget.exe restore "$configFile" -PackagesDirectory "$restoreDirectory"
+              }
+              else{
+                    Write-Host "Packages config file unavailable at - $configFile"
+              }
+        }
+    }    
+}
+
+<#
+This function removes the nuget package restore check nodes from csproj files.
+Creates a copy file which will be used in later step
+#>
+function Disable-Target-Nodes-in-csproj-Files{
+    param (
+        [Parameter(Mandatory)] [String]$repoPath
+    )
+
+    Write-Host "RepoPath - $repoPath"
+    $csProjectFiles = Get-ChildItem -Path "$repoPath" -Filter '*.csproj' -Recurse
+    foreach ($csProjectFile in $csProjectFiles) {
+        $csProjectFileFullPath = $csProjectFile.FullName
+        $csProjectFileName = $csProjectFile.Name
+
+        if(Test-Path "$csProjectFileFullPath"){
+            Write-Host "Reading the xml content of $csProjectFileFullPath"
+
+            # Load the XML content using XmlDocument
+            $xmlDocument = New-Object System.Xml.XmlDocument
+            $xmlDocument.Load("$csProjectFileFullPath")
+
+            # Create a namespace manager
+            $namespaceManager = New-Object System.Xml.XmlNamespaceManager($xmlDocument.NameTable)
+            $namespaceManager.AddNamespace("ns", "http://schemas.microsoft.com/developer/msbuild/2003")
+
+            # Select all <Target> nodes
+            $targetNodes = $xmlDocument.SelectNodes("//ns:Target", $namespaceManager)
+
+            # Find the <Target> node with Name="EnsureNuGetPackageBuildImports"
+            $targetNode = $targetNodes | Where-Object { $_.Name -eq "EnsureNuGetPackageBuildImports" }
+
+            Write-Host "TargetNode - $targetNode"
+            Write-Host "Target Parent Node - " $targetNode.ParentNode
+
+            # Check if the <Target> node exists
+            if ($targetNode) {
+                Write-Host "Target node found. Removal and copying the content starts"
+                # Create a copy of the original XML file
+                $copyFileName = [System.IO.Path]::GetFileNameWithoutExtension("$csProjectFileFullPath") + "-copy.xml"
+                Write-Host "CopyFileName - $copyFileName"
+                $copyFilePath = Join-Path -Path (Split-Path "$csProjectFileFullPath") -ChildPath $copyFileName
+                Write-Host "CopyFilePath - $copyFilePath"
+                Copy-Item -Path "$csProjectFileFullPath" -Destination "$copyFilePath" -Force
+                Write-Host "Copy file has been created at $copyFilePath "
+                # Remove the <Target> node from its parent
+                $targetNode.ParentNode.RemoveChild($targetNode)
+                # Save the modified XML content back to the original file
+                $xmlDocument.Save("$csProjectFileFullPath")
+                Write-Host "The <Target> node has been removed. A copy of the original file - $copyFileName has been created."
+            }
+            else {
+                Write-Host "The <Target> node with Name='EnsureNuGetPackageBuildImports' does not exist at $csProjectFileName."
+            }
+        }else{
+            Write-Host "Invalid file path - $csProjectFileFullPath"
+        }
+    }
+}
+
+<#
+This function restores the csproj file content from copy file.
+#>
+function Repopulate-csproj-File-Content{
+    param (
+        [Parameter(Mandatory)] [String]$repoPath
+    )
+
+    $csProjectFiles = Get-ChildItem -Path "$repoPath" -Filter '*.csproj' -Recurse
+    foreach ($csProjectFile in $csProjectFiles) {
+        $csProjectFileFullPath = $csProjectFile.FullName
+        $csProjectFileName = $csProjectFile.Name
+        Write-Host "Looking for 'copy' file of $csProjectFileName"
+        $fileNameWithoutExtension = (Get-Item -Path $csProjectFileFullPath).BaseName
+        $csprojFilefolderPath = Split-Path -Path $csProjectFileFullPath -Parent
+        $csprojCopyFilePath = "$csprojFilefolderPath\$fileNameWithoutExtension-copy.xml"
+        # Check if there is a copy file (i.e., filename-copy.csproj)
+        if(Test-Path "$csprojCopyFilePath"){
+            Write-Host "Copy file of $csProjectFileName exists at $csprojCopyFilePath. Moving the 'copy' file content to 'main' file"
+            # Copy content of 'copy' file to main file
+            Copy-Item -Path "$csprojCopyFilePath" -Destination "$csProjectFileFullPath" -Force
+            Write-Host "Removing the 'copy' file from $csprojCopyFilePath"
+            # Remove the 'copy' file
+            Remove-Item -Path "$csprojCopyFilePath" -Force
+        }else{
+            Write-Host "Copy file path does not exists at $csprojCopyFilePath"
+        }
+    }
+}

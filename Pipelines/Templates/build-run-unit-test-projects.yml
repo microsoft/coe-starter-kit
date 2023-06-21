@@ -38,19 +38,19 @@ steps:
 # Nuget packages must be restored at csproj\packages folder and csproj's parent folder
 # Structure of Csharp Projects must be Repo/parentfolder/csprojects
 - powershell: |
+    . "$env:POWERSHELLPATH/code-first-functions.ps1"
     $repoPath = "${{parameters.buildSourceDirectory}}\${{parameters.repo}}\${{parameters.solutionName}}"
-    $projects = Get-ChildItem -Path "$repoPath" -Filter '*.csproj' -Recurse
-    foreach ($project in $projects) {
-      $projectPath = $project.FullName
-      $projectDirectory = Split-Path -Path $projectPath -Parent
-      $restoreDirectory = Join-Path -Path $projectDirectory -ChildPath 'packages'
-      $configFile = Join-Path -Path $projectDirectory -ChildPath 'packages.config'
-
-      Write-Host "Restoring NuGet packages for project - $projectPath"
-      
-      & nuget.exe restore $configFile -PackagesDirectory $restoreDirectory
-    }
+    Restore-Nuget-Packages "$repoPath"
   displayName: 'Restore NuGet packages to run unit test cases'
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+
+# Removes the nuget package restore check nodes from csproj files.
+# Creates a copy file which will be used in later step
+- powershell: |
+    . "$env:POWERSHELLPATH/code-first-functions.ps1"
+    $repoPath = "${{parameters.buildSourceDirectory}}\${{parameters.repo}}\${{parameters.solutionName}}"
+    Disable-Target-Nodes-in-csproj-Files "$repoPath"
+  displayName: 'Disable the nuget restore validation checks from csproj files'
   condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
 
 - task: VSBuild@1
@@ -108,3 +108,11 @@ steps:
     testRunTitle: 'Unit Test Execution with runsettings file'
     runSettingsFile: '$(RunSettingsFilePath)'
   condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'), ne(variables['RunSettingsFilePath'], ''))
+
+# Restores the content from copy proj files to original csproj files
+- powershell: |
+    . "$env:POWERSHELLPATH/code-first-functions.ps1"
+    $repoPath = "${{parameters.buildSourceDirectory}}\${{parameters.repo}}\${{parameters.solutionName}}"
+    Repopulate-csproj-File-Content "$repoPath"
+  displayName: 'Repopulate nuget validation checks in csproj files'
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
