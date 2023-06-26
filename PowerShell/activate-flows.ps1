@@ -69,10 +69,6 @@ function Invoke-ActivateFlows {
                 }
                 elseif ($flowToActivate.activate -ne 'false' -and $flowToActivate.solutionComponent.statecode -ne 1) {
                     Write-Host "Activating Flow: " $flowToActivate.solutionComponent.name " as: " $flowToActivate.impersonationCallerId
-                    if($flowToActivate.impersonationCallerId -ne '') {
-                        $impersonationConn.OrganizationWebProxyClient.CallerId = $flowToActivate.impersonationCallerId
-                    }
-                    Write-Host "Impersonation Connection CallerId: " $impersonationConn.OrganizationWebProxyClient.CallerId
                     Set-CrmRecordState -conn $impersonationConn -EntityLogicalName workflow -Id $flowToActivate.solutionComponent.workflowid -StateCode 1 -StatusCode 2
                     $flowToActivate.solutionComponent.statecode = 1
                     $flowsActivatedDeactivatedThisPass = $true
@@ -95,7 +91,7 @@ function Invoke-ActivateFlows {
 }
 
 <#
-This is a child function reads the flow's configuration settings from the customDeploymentSettings.json file
+This is a child function reads the flow's configuration settings (i.e., ActivateFlowConfiguration node) from the customDeploymentSettings.json file
 Flow settings will be read sorted by 'sort order'.
 #>
 function Get-ActivationConfigurations {
@@ -134,18 +130,7 @@ function Get-UserConfiguredFlowActivations {
                 $flowActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
                 $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $activateConfig.solutionComponentUniqueName -Fields clientdata, category, statecode, name
                 $impersonationCallerId = ''
-                if($activateConfig.activateAsUser -ne '') {
-                    #$systemUserResult = Get-CrmRecords -conn $conn -EntityLogicalName systemuser -FilterAttribute "internalemailaddress" -FilterOperator "eq" -FilterValue $activateConfig.activateAsUser -Fields systemuserid
-                    $matchedUser = Get-User-By-Email-or-DomainName $activateConfig.activateAsUser $conn
-                    if ($null -ne $matchedUser) {
-                        $impersonationCallerId = $matchedUser.systemuserid
-                    }
-                    else {
-                        Write-Host "##vso[task.logissue type=warning]A specified user record was not found in the target environment. Verify your deployment configuration and try again."
-                        $throwOnComplete = $true
-                    }
-                }
-
+				
                 if ($null -eq $flowActivation) {
                     Write-Host "1 - Adding flow " $activateConfig.solutionComponentName " to activation collection"
                     $flowActivation = [PSCustomObject]@{}
@@ -155,14 +140,6 @@ function Get-UserConfiguredFlowActivations {
                     $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $activateConfig.sortOrder
                     $flowActivation | Add-Member -MemberType NoteProperty -Name 'activate' -Value $activateConfig.activate
                     $flowsToActivate.Add($flowActivation)
-                }
-                elseif($impersonationCallerId -ne '') {
-                    Write-Host "1 - Updating existing flow activation " $activateConfig.solutionComponentName
-                    $flowActivation.solutionComponentUniqueName = $activateConfig.solutionComponentUniqueName
-                    $flowActivation.solutionComponent = $workflow
-                    $flowActivation.impersonationCallerId = $impersonationCallerId
-                    $flowActivation.activate = $activateConfig.activate
-                    $flowActivation.sortOrder = $activateConfig.sortOrder
                 }
             }
         }
@@ -187,14 +164,15 @@ function Get-ConnectionReferenceFlowActivations {
     Write-Host "Inside Get-ConnectionReferenceFlowActivations"
     if($connectionReferences -ne "") {
         Write-Host "connectionReferences - " $connectionReferences
+		# Fetch the 'solution' using 'solutionComponentUniqueName' tag
         $solutions = Get-CrmRecords -conn ([Microsoft.Xrm.Tooling.Connector.CrmServiceClient]$conn) -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "$solutionName" -Fields solutionid
         if ($solutions.Count -gt 0) {
-
             $solutionId = $solutions.CrmRecords[0].solutionid
-
+            # Get the solution components
             $result = Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields objectid, componenttype
             $solutionComponents = $result.CrmRecords
 
+			# Read 'ActivateFlowConfiguration' in a sort order
             $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
             $config = Get-Content $connectionReferences | ConvertFrom-Json
 
@@ -285,6 +263,8 @@ function Get-ConnectionReferenceFlowActivations {
 
 <#
 This function sets the flow ownership as per the settings from customDeploymentSettings.json file.
+We read 'SolutionComponentOwnershipConfiguration' node and adds the flow to the list of flows to be activated.
+By default 'impersonationCallerId' is the systemuserid of the user whose 'ownerEmail' provided in 'SolutionComponentOwnershipConfiguration'
 #>
 function Get-OwnerFlowActivations {
     param (
@@ -299,6 +279,7 @@ function Get-OwnerFlowActivations {
         Write-Host "Ownership Configuration Content - " $rawContent
 
         $config = Get-Content $solutionComponentOwnershipConfiguration | ConvertFrom-Json
+		# Read the 'ActivateFlowConfiguration' node of customDeploymentSettings.json file for 'sortOrder' and 'activate'
         $activationConfigs = Get-ActivationConfigurations $activateFlowConfiguration
         Write-Flows "Inside Get-OwnerFlowActivations; Printing Active Flows" $flowsToActivate
 
@@ -346,6 +327,7 @@ function Get-OwnerFlowActivations {
     
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponentUniqueName' -Value $ownershipConfig.solutionComponentUniqueName
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'solutionComponent' -Value $workflow
+								# By default 'impersonationCallerId' is the systemuserid of the user whose 'ownerEmail' provided in 'SolutionComponentOwnershipConfiguration'
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'impersonationCallerId' -Value $systemUserId
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'sortOrder' -Value $sortOrder
                                 $flowActivation | Add-Member -MemberType NoteProperty -Name 'activate' -Value $activateFlow
@@ -422,11 +404,11 @@ function Get-User-By-Email-or-DomainName{
     </fetch>
 "@
 
-    Write-Host "Request XML - "$fetch
+    #Write-Host "Request XML - "$fetch
     $records = Get-CrmRecordsByFetch -Fetch $fetch -conn $conn
     try{
         $json = ConvertTo-Json $records
-        Write-Host "Response - $json"        
+        #Write-Host "Response - $json"        
         
         if($records -and $records.CrmRecords){  
             $matchedUser = $records.CrmRecords[0]

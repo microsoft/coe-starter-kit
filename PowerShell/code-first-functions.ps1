@@ -129,6 +129,8 @@ function Add-Codefirst-Projects-To-Cdsproj{
           # Skip adding plugin projects if 'Plugin Assembly' is not part of Dataverse solution
           $unpackedPluginAssemblyPath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\src\PluginAssemblies"
           if(Test-Path "$unpackedPluginAssemblyPath"){
+              Write-Host "##vso[task.setvariable variable=UnpackedPluginFolderExists;]true"
+
               # Get all .csproj files under Repo/Commited Solution folder
               $csProjectFiles = Get-ChildItem -Path "$buildSourceDirectory\$repo\$solutionName" -Filter *.csproj -Recurse
               Write-Host "$($csProjectFiles.Count) cs project files found"
@@ -172,6 +174,7 @@ function Add-Codefirst-Projects-To-Cdsproj{
           else
           {
                 Write-Host "PluginAssemblies folder unavailable in unpacked solution"
+                Write-Host "##vso[task.setvariable variable=UnpackedPluginFolderExists;]false"
           }
         }
         else

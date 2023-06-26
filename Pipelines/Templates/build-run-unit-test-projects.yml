@@ -33,7 +33,7 @@ steps:
     . "$env:POWERSHELLPATH/flow-xml-validation.ps1"
     Remove-Relative-References-from-HintPath '${{parameters.buildSourceDirectory}}' '${{parameters.repo}}' '${{parameters.solutionName}}'
   displayName: 'Remove Relative References from Packages HintPath'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
 # Nuget packages must be restored at csproj\packages folder and csproj's parent folder
 # Structure of Csharp Projects must be Repo/parentfolder/csprojects
@@ -42,23 +42,27 @@ steps:
     $repoPath = "${{parameters.buildSourceDirectory}}\${{parameters.repo}}\${{parameters.solutionName}}"
     Restore-Nuget-Packages "$repoPath"
   displayName: 'Restore NuGet packages to run unit test cases'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
 # Removes the nuget package restore check nodes from csproj files.
 # Creates a copy file which will be used in later step
 - powershell: |
     . "$env:POWERSHELLPATH/code-first-functions.ps1"
     $repoPath = "${{parameters.buildSourceDirectory}}\${{parameters.repo}}\${{parameters.solutionName}}"
+    # Saving the solution path in global variable which will be used in later steps
+    Write-Host "SolutionFolderPath - $repoPath"
+    Write-Host "##vso[task.setvariable variable=SolutionFolderPath]$repoPath"
     Disable-Target-Nodes-in-csproj-Files "$repoPath"
   displayName: 'Disable the nuget restore validation checks from csproj files'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
+# Build the csprojects under the Repo/Solution folder
 - task: VSBuild@1
   displayName: 'Build cs projects'
   inputs:
-    solution: '**/*.csproj'
+    solution: '$(SolutionFolderPath)/**/*.csproj'
     msbuildArgs: '/t:build /restore'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
 # Checks if 'Run Settings' file available in the Repo.
 - task: PowerShell@2
@@ -76,9 +80,9 @@ steps:
       } else {
           Write-Host "No run settings file found in the repository."
       }
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
-# Run unit test with no 'Run Settings' file
+# Run unit test with no 'Run Settings' file under the Repo/Solution folder
 - task: VSTest@2
   displayName: 'VSTest without Run Settings file'
   inputs:
@@ -91,9 +95,9 @@ steps:
     platform: 'Any CPU'
     codeCoverageEnabled: true     
     testRunTitle: 'Unit Test Execution with no Run Settings file'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'), eq(variables['RunSettingsFilePath'], ''))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'), eq(variables['RunSettingsFilePath'], ''),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
-# Run unit test with 'Run Settings' file
+# Run unit test with 'Run Settings' file under the Repo/Solution folder
 - task: VSTest@2
   displayName: 'VSTest with Run Settings file'
   inputs:
@@ -107,7 +111,7 @@ steps:
     codeCoverageEnabled: true
     testRunTitle: 'Unit Test Execution with runsettings file'
     runSettingsFile: '$(RunSettingsFilePath)'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'), ne(variables['RunSettingsFilePath'], ''))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'), ne(variables['RunSettingsFilePath'], ''),eq(variables['UnpackedPluginFolderExists'], 'true'))
 
 # Restores the content from copy proj files to original csproj files
 - powershell: |
@@ -115,4 +119,4 @@ steps:
     $repoPath = "${{parameters.buildSourceDirectory}}\${{parameters.repo}}\${{parameters.solutionName}}"
     Repopulate-csproj-File-Content "$repoPath"
   displayName: 'Repopulate nuget validation checks in csproj files'
-  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'))
+  condition: and(succeeded(),eq(variables['HasCSharpProjects'], 'true'),eq(variables['UnpackedPluginFolderExists'], 'true'))

@@ -215,21 +215,31 @@ function Set-DeploymentSettingsConfiguration
                         Write-Host "Flow configurationVariableName - $configurationVariableName"
                         $flowSplit = $configurationVariableName.Split(".")
                         
-                        $flowActivateAsName = $configurationVariableName.Replace(".activate.", ".activateas.")
+                        for($indxVariableParts=0;$indxVariableParts -lt $flowSplit.Count;$indxVariableParts++)
+                        {
+                            Write-Host "$indxVariableParts - " $flowSplit[$indxVariableParts]
+                        }
+
                         $flowActivateOrderName = $configurationVariableName.Replace(".activate.", ".order.")
 
-                        $flowActivateAs = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq $flowActivateAsName } | Select-Object -First 1
                         $flowActivateOrder = $configurationDataEnvironment.UserSettings | Where-Object { $_.Name -eq $flowActivateOrderName } | Select-Object -First 1
 
-                        if($null -ne $flowActivateAs -and $null -ne $flowActivateOrder) {
+                        Write-Host "FlowActivateOrder - $flowActivateOrder"
+                        #if($null -ne $flowActivateAs -and $null -ne $flowActivateOrder) {
+                        if($null -ne $flowActivateOrder) {
                             $flowActivateOrderValue = $flowActivateOrder.Value
-                            $flowActivateAsValue = $flowActivateAs.Value
 
                             $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
-                            $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "activateAsUser"="#{$flowActivateAsName}#"; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
+                            $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
                             if($usePlaceholders.ToLower() -eq 'false') {
-                                $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "activateAsUser"="$flowActivateAsValue"; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
+                                $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
                             }
+							
+                            # Convert the PSCustomObject to a JSON string
+                            $jsonString = $flowActivateConfig | ConvertTo-Json
+
+                            # Print the JSON string
+                            Write-Host "FlowActivateConfig json string -" $jsonString							
                             $flowActivationUsers.Add($flowActivateConfig)
                         }
                     }
@@ -244,7 +254,6 @@ function Set-DeploymentSettingsConfiguration
                         }
                     }
                     elseif($configurationVariableName.StartsWith("groupTeam.", "CurrentCultureIgnoreCase")) {
-                        #$teamName = $configurationVariableName.split('.')[-1]
                         $teamName = Get-Group-Team-Name $configurationVariableName
                         $teamGroupRoles = $configurationVariable.Data.split(',')
                         $businessUnitVariableName = $configurationVariableName.Replace("groupTeam", "businessUnit")

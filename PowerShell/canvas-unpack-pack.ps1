@@ -105,15 +105,19 @@ function Invoke-Share-Canvas-App-with-AAD-Group
             $roleName = $c.roleName
             $canvasNameInSolution = $c.canvasNameInSolution     
             if($aadGroupId -ne '' -and $roleName -ne '' -and $canvasNameInSolution -ne '') {
-                $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $canvasNameInSolution -Fields canvasappid
+                $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue $canvasNameInSolution -Fields canvasappid,uniquecanvasappid
                 if($canvasApps.Count -gt 0) {
                     $appId = $canvasApps.CrmRecords[0].canvasappid
-                    Write-Host "Sharing app $appId with $aadGroupId"
+                    $uniqueCanvasAppId = $canvasApps.CrmRecords[0].uniquecanvasappid
+                    Write-Host "AppId - $appId and UniqueCanvasAppId - $uniqueCanvasAppId"
+                    Write-Host "Sharing app using uniquecanvasappid - $uniqueCanvasAppId with AADGroup - $aadGroupId. Environment - $environmentName"
+
 					# 'CanViewWithShare' is no longer works. Replacing with 'CanView'.
                     if($roleName -eq "CanViewWithShare"){
                         $roleName = "CanView"
                     }
-                    Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId
+                    Write-Host "Command - Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $uniqueCanvasAppId -EnvironmentName $environmentId"
+                    Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $uniqueCanvasAppId -EnvironmentName $environmentId
                 }
                 else {
                     Write-Host "##vso[task.logissue type=warning]A specified canvas app was not found in the target environment. Verify your deployment configuration and try again."
@@ -163,7 +167,8 @@ function Update-Canvas-App-Ownership
             $solutionComponents = $result.CrmRecords
             foreach ($c in $solutionComponents){
                 if ($c.componenttype -eq "Canvas App" -and $c.objectid -ne ""){
-                    Write-Host "Setting canvas app owner $c.objectid with $azureactivedirectoryobjectid"
+                    Write-Host "Setting canvas app owner $($c.objectid) with $azureactivedirectoryobjectid. Environment - $environmentName"
+                    Write-Host "Command - Set-AdminPowerAppOwner –AppName $c.objectid -AppOwner $azureactivedirectoryobjectid –EnvironmentName $environmentName"
                     Set-AdminPowerAppOwner –AppName $c.objectid -AppOwner $azureactivedirectoryobjectid –EnvironmentName $environmentName
                 }
             }
