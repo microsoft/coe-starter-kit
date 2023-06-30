@@ -110,14 +110,19 @@ function Invoke-Share-Canvas-App-with-AAD-Group
                     $appId = $canvasApps.CrmRecords[0].canvasappid
                     $uniqueCanvasAppId = $canvasApps.CrmRecords[0].uniquecanvasappid
                     Write-Host "AppId - $appId and UniqueCanvasAppId - $uniqueCanvasAppId"
-                    Write-Host "Sharing app using uniquecanvasappid - $uniqueCanvasAppId with AADGroup - $aadGroupId. Environment - $environmentName"
 
 					# 'CanViewWithShare' is no longer works. Replacing with 'CanView'.
                     if($roleName -eq "CanViewWithShare"){
                         $roleName = "CanView"
                     }
-                    Write-Host "Command - Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $uniqueCanvasAppId -EnvironmentName $environmentId"
-                    Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $uniqueCanvasAppId -EnvironmentName $environmentId
+                    if($null -ne $uniqueCanvasAppId) {
+                        Write-Host "Command Unique Id- Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $uniqueCanvasAppId -EnvironmentName $environmentId"
+                        Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $uniqueCanvasAppId -EnvironmentName $environmentId
+                    }
+                    else {
+                        Write-Host "Command App Id- Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId"
+                        Set-AdminPowerAppRoleAssignment -PrincipalType Group -PrincipalObjectId $aadGroupId -RoleName $roleName -AppName $appId -EnvironmentName $environmentId
+                    }
                 }
                 else {
                     Write-Host "##vso[task.logissue type=warning]A specified canvas app was not found in the target environment. Verify your deployment configuration and try again."
