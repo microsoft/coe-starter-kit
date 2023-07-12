@@ -514,8 +514,9 @@ function Set-BuildDefinitionVariables {
         #remove tab charcters from the body
         $body = $body -replace "`t", ""
         #remove newline charcters from the body
-        $body = $body -replace '\\n', ''
-        Write-Host $buildDefinitionResourceUrl
+        $body = $body -replace '([^\\])\\n', '$1'
+        Write-Host "Body - $body"
+        Write-Host "BuildDefinitionResourceUrl - " $buildDefinitionResourceUrl
         Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null   
     }
 }
