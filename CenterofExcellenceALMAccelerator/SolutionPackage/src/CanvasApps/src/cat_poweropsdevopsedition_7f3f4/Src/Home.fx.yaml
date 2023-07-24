@@ -35,9 +35,10 @@ Home As screen:
                 gblCdsUser,
                 LookUp(
                     Users,
-                    domainname = gblUser.Email
+                    'User Name' = gblUser.Email
                 )
             );
+            
             ClearCollect(
                 DeploymentUserSettings,
                 AddColumns(
@@ -184,11 +185,14 @@ Home As screen:
                     'App User Setting'.'App User Setting' = AppUserSetting.'App User Setting'
                 )
             );
+        
+        //Get the current user's profile id
+        Set(gblAzureDevOpsProfileId, CustomAzureDevOps.GetCurrentUserProfile());
             
         //Pull the Orgs, Projects and Project Repos.
         ClearCollect(
                 Orgs,
-                CustomAzureDevOps.GetOrganizations().AccountName
+                CustomAzureDevOps.GetOrganizations({memberId: gblAzureDevOpsProfileId}).AccountName
             );
             
         //Redirect to Deployment Settings Page if the required parameters were supplied
@@ -275,7 +279,7 @@ Home As screen:
                 currentCanvasApp,
                 LookUp(
                     'Canvas Apps',
-                    name = AppName
+                    'CanvasApp Name' = AppName
                 )
             );
             // get current Canvas App
@@ -301,7 +305,7 @@ Home As screen:
             // Version of currentSolution
         Set(
                 isManaged,
-                currentSolution.ismanaged
+                currentSolution.'Package Type'
             );
             // Is current solution managed?    
         Select(tmrCheckBuildAndPullRequestStatuses);
@@ -2493,7 +2497,20 @@ Home As screen:
                                                     "NA"
                                                 ),
                                                 PublishCustomizations: tglPublishCustomizations.Value,
-                                                CommitScope: drpCommitScope.Selected.Id
+                                                CommitScope: drpCommitScope.Selected.Id,
+                                                AgentPool: If(
+                                                    IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
+                                                    "Azure Pipelines",
+                                                    selectedCommitProfile.'AZDO Agent Pool'
+                                                ),
+                                                VMImage: If(
+                                                    IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool') And IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                                    "windows-latest",
+                                                    If(
+                                                        !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                                        selectedCommitProfile.'AZDO VM Image'
+                                                    )
+                                                )
                                             }
                                         }
                                     ).id,
@@ -3148,7 +3165,6 @@ Home As screen:
                     LastSavedImportPipelineRunsSettingName,
                     "LastSavedImportPipelineRuns - " & selectedConfigurationDeploymentProfile.Organization & " - " & selectedConfigurationDeploymentProfile.Project
                 );
-                
                 UpdateContext(
                     {
                         piplineIdToRun: LookUp(
@@ -3161,7 +3177,6 @@ Home As screen:
                         pipelineProject: selectedConfigurationDeploymentProfile.Project
                     }
                 );
-                
                 If(
                     IsBlankOrError(piplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
                     UpdateContext(
@@ -3171,7 +3186,7 @@ Home As screen:
                                     selectedConfigurationDeploymentProfile.Organization,
                                     selectedConfigurationDeploymentProfile.'Pipeline Project'
                                 ).value,
-                            name = "deploy-" & Lower(drpConfigFolders.Selected.DisplayName) & "-" & drpSolutionFolders.Selected.DisplayName
+                                name = "deploy-" & Lower(drpConfigFolders.Selected.DisplayName) & "-" & drpSolutionFolders.Selected.DisplayName
                             ).id,
                             pipelineProject: selectedConfigurationDeploymentProfile.'Pipeline Project'
                         }
@@ -3250,7 +3265,20 @@ Home As screen:
                                         Data: "[]",
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
-                                        CommitScope: "1"
+                                        CommitScope: "1",
+                                        AgentPool: If(
+                                            IsBlankOrError(locImportProfile.'AZDO Agent Pool'),
+                                            "Azure Pipelines",
+                                            locImportProfile.'AZDO Agent Pool'
+                                        ),
+                                        VMImage: If(
+                                            IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool') And IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                            "windows-latest",
+                                            If(
+                                                !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                                selectedCommitProfile.'AZDO VM Image'
+                                            )
+                                        )
                                     }
                                 }
                             ).id,
@@ -3841,6 +3869,23 @@ Home As screen:
                         )
                     }
                 );
+                IfError(
+                    Set(
+                        gblAzureDevOpsUserId,
+                        First(
+                            CustomAzureDevOps.GetIdentities(
+                                selectedConfigurationDeploymentProfile.Organization,
+                                {
+                                    searchFilter: "MailAddress",
+                                    filterValue: gblUser.Email
+                                }
+                            ).value
+                        ).id
+                    ),
+                    UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                    Notify("Error deploying the solution (GetIdentities): " & errorMessage);
+                    
+                );
                 If(
                     deployStage = "PREPARE",
                     Set(
@@ -3866,7 +3911,7 @@ Home As screen:
                     UpdateContext({deployStage: deploySolutionLabel});
                     ,
                     If(
-                        (DeploymentUserSetting.cat_allowadvanceddeploy = 'A Yes or No boolean'.Allowed And tglPRAdvancedSettings.Value) Or ((!IsBlankOrError(drpDeploymentSteps.Selected.'Approval Type') And drpDeploymentSteps.Selected.'Approval Type' = 'Approval Type'.'Pull Request')),
+                        (DeploymentUserSetting.'Advanced Deploy' = 'A Yes or No boolean'.Allowed And tglPRAdvancedSettings.Value) Or ((!IsBlankOrError(drpDeploymentSteps.Selected.'Approval Type') And drpDeploymentSteps.Selected.'Approval Type' = 'Approval Type'.'Pull Request')),
                         If(
                             !tglPRAdvancedSettings.Value And !IsBlankOrError(
                                 LookUp(
@@ -3945,22 +3990,10 @@ Home As screen:
                                             MatchOptions.Contains & MatchOptions.IgnoreCase
                                         ),
                                         Notify("There is already an active " & deploySolutionLabel & " request for this solution. Please check the status on the home page or on the status page for more information."),
-                                        Notify("Error deploying the solution: " & errorMessage);
+                                        Notify("Error deploying the solution (CreatePullRequest): " & errorMessage);
                                     );
                                 )
                             }
-                        );
-                        Set(
-                            gblAzureDevOpsUserId,
-                            First(
-                                CustomAzureDevOps.GetIdentities(
-                                    selectedConfigurationDeploymentProfile.Organization,
-                                    {
-                                        searchFilter: "MailAddress",
-                                        filterValue: gblUser.Email
-                                    }
-                                ).value
-                            ).id
                         );
                         If(
                             (tglCompletePR.Visible && tglCompletePR.Value) Or (!tglCompletePR.Visible && DeploymentUserSetting.'Bypass Approval Default' = 'A Yes or No boolean'.Allowed),
@@ -3981,7 +4014,7 @@ Home As screen:
                                             }
                                         ),
                                         UpdateContext({updateErorMessage: FirstError.Details.HttpResponse});
-                                        Notify("Error completing pull request: " & updateErorMessage)
+                                        Notify("Error completing pull request (UpdatePullRequest): " & updateErorMessage)
                                     )
                                 }
                             );
@@ -4018,12 +4051,16 @@ Home As screen:
                                 )
                             }
                         ),
-                        ClearCollect(
-                            locPipelines,
-                            CustomAzureDevOps.GetPipelines(
-                                drpPushDeploymentProfiles.Selected.Organization,
-                                drpPushDeploymentProfiles.Selected.Project
-                            ).value
+                        IfError(
+                            ClearCollect(
+                                locPipelines,
+                                CustomAzureDevOps.GetPipelines(
+                                    drpPushDeploymentProfiles.Selected.Organization,
+                                    drpPushDeploymentProfiles.Selected.Project
+                                ).value
+                            ),
+                            UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                            Notify("Error deploying the solution (GetPipelines): " & errorMessage);
                         );
                         UpdateContext(
                             {
@@ -4043,7 +4080,7 @@ Home As screen:
                                         {definition: {id: piplineIdToRun}}
                                     ).id,
                                     UpdateContext({errorMessage: FirstError.Details.HttpResponse});
-                                    Notify("Error running pipeline: " & errorMessage)
+                                    Notify("Error running pipeline (RunPipeline): " & errorMessage)
                                 )
                             }
                         );
@@ -4843,7 +4880,20 @@ Home As screen:
                                         Data: "[]",
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
-                                        CommitScope: "1"
+                                        CommitScope: "1",
+                                        AgentPool: If(
+                                            IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
+                                            "Azure Pipelines",
+                                            selectedCommitProfile.'AZDO Agent Pool'
+                                        ),
+                                        VMImage: If(
+                                            IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool') And IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                            "windows-latest",
+                                            If(
+                                                !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                                selectedCommitProfile.'AZDO VM Image'
+                                            )
+                                        )
                                     }
                                 }
                             ).id,
@@ -5281,7 +5331,8 @@ Home As screen:
                             'Deployment Profiles',
                             'Deployment Profile' = drpProfileDeploymentProfiles.Selected.'Deployment Profile'
                         ),
-                        locBranch: locSelectedDeploymentProfile.'Promote Target Branch Name'
+                        locBranch: locSelectedDeploymentProfile.'Promote Target Branch Name',
+                        errorMessage: ""
                     }
                 );
                 If(
@@ -5301,48 +5352,63 @@ Home As screen:
                             'Deployment Profile'.'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile'
                         )
                     );
-                    If(
-                        locOrgChanged,
-                        ClearCollect(
-                            SelectedOrgProjects,
-                            CustomAzureDevOps.GetProjects(locSelectedDeploymentProfile.Organization).value
-                        )
+                    IfError(
+                        If(
+                            locOrgChanged,
+                            ClearCollect(
+                                SelectedOrgProjects,
+                                CustomAzureDevOps.GetProjects(locSelectedDeploymentProfile.Organization).value
+                            )
+                        ),
+                        UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                        Notify("Error retrieving projects (GetProjects): " & errorMessage);
                     );
-                    ClearCollect(
-                        SelectedProjectRepos,
-                        CustomAzureDevOps.GetGitRepos(
-                            locSelectedDeploymentProfile.Organization,
-                            locSelectedDeploymentProfile.Project
-                        ).value
+                    IfError(
+                        ClearCollect(
+                            SelectedProjectRepos,
+                            CustomAzureDevOps.GetGitRepos(
+                                locSelectedDeploymentProfile.Organization,
+                                locSelectedDeploymentProfile.Project
+                            ).value
+                        ),
+                        UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                        Notify("Error retrieving repos (GetGitRepos): " & errorMessage);
                     );
                     If(
                         !IsBlankOrError(locSelectedDeploymentProfile.'Repository ID'),
-                        ClearCollect(
-                            ProfileSelectedRepoBranches,
-                            AddColumns(
-                                Filter(
-                                    CustomAzureDevOps.GetBranches(
-                                        locSelectedDeploymentProfile.Organization,
-                                        locSelectedDeploymentProfile.Project,
-                                        locSelectedDeploymentProfile.'Repository ID'
-                                    ).value,
-                                    "refs/heads/" in name
-                                ),
-                                "DisplayName",
-                                Substitute(
-                                    name,
-                                    "refs/heads/",
-                                    ""
+                        IfError(
+                            ClearCollect(
+                                ProfileSelectedRepoBranches,
+                                AddColumns(
+                                    Filter(
+                                        CustomAzureDevOps.GetBranches(
+                                            locSelectedDeploymentProfile.Organization,
+                                            locSelectedDeploymentProfile.Project,
+                                            locSelectedDeploymentProfile.'Repository ID'
+                                        ).value,
+                                        "refs/heads/" in name
+                                    ),
+                                    "DisplayName",
+                                    Substitute(
+                                        name,
+                                        "refs/heads/",
+                                        ""
+                                    )
                                 )
-                            )
+                            ),
+                            UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                            Notify("Error retrieving branches (GetBranches): " & errorMessage);
                         );
-                        Collect(ProfileSelectedRepoBranches, {DisplayName: UseSolutionBranchText, name: UseSolutionBranchText});
+                        Collect(
+                            ProfileSelectedRepoBranches,
+                            {
+                                DisplayName: UseSolutionBranchText,
+                                name: UseSolutionBranchText
+                            }
+                        );
                     ),
-                    UpdateContext(
-                        {
-                            locUpdateProfile: false
-                        }
-                    );    
+                    UpdateContext({locUpdateProfile: false});
+                    
                 );
                 Reset(drpProfileOrgs);
                 Reset(drpProfileProjects);
@@ -5411,7 +5477,7 @@ Home As screen:
                         }
                     );
                     Relate(
-                        DeploymentUserSetting.cat_DeploymentUserSetting_cat_DeploymentP,
+                        DeploymentUserSetting.'Deployment Profiles',
                         locSelectedDeploymentProfile
                     );
                     //Automatically generate default steps
@@ -5514,7 +5580,7 @@ Home As screen:
                     ClearCollect(
                         DeploymentProfiles,
                         AddColumns(
-                            DeploymentUserSetting.cat_DeploymentUserSetting_cat_DeploymentP,
+                            DeploymentUserSetting.'Deployment Profiles',
                             "DisplayName",
                             Name
                         )
@@ -5588,8 +5654,8 @@ Home As screen:
                                     'Deployment Steps',
                                     step,
                                     {
-                                        cat_deploytargetbranchname: drpProfileBranches.Selected.name,
-                                        cat_buildtemplatepath: ""
+                                        'Deploy Target Branch Name': drpProfileBranches.Selected.name,
+                                        'Build Template Path': ""
                                     }
                                 )
                             );
@@ -6344,7 +6410,7 @@ Home As screen:
                     SortOrder.Descending
                 )
             );
-            UpdateContext({locReloadSolutions: true});
+            UpdateContext({locReloadSolutions: true, errorMessage: ""});
             If(
                 locReloadSolutions,
                 Clear(TempSelectedEnvironmentSolutions);
@@ -6360,10 +6426,13 @@ Home As screen:
                                     FirstN(
                                         ClearCollect(
                                             splitCol,
-                                            ForAll(Split(
-                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
-                                                "."
-                                            ), {Result: ThisRecord.Value})
+                                            ForAll(
+                                                Split(
+                                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                    "."
+                                                ),
+                                                {Result: ThisRecord.Value}
+                                            )
                                         ),
                                         2
                                     )
@@ -6403,57 +6472,67 @@ Home As screen:
                 )
             );
             Clear(OrgProjects);
-            ForAll(
-                Filter(
-                    DistinctOrgProjectProfiles,
-                    !IsBlankOrError(cat_azdoorganization) And (!IsBlankOrError(cat_azdoproject) Or !IsBlankOrError(cat_azdopipelineproject))
-                ),
-                Collect(
-                    OrgProjects,
-                    {
-                        Organization: cat_azdoorganization,
-                        Projects: CustomAzureDevOps.GetProjects(cat_azdoorganization).value
-                    }
-                )
-            );
-            Clear(ProfileBuilds);
-            ForAll(
-                DistinctOrgProjectProfiles As profile,
-                If(
-                    !IsBlankOrError(
-                        LookUp(
-                            LookUp(
-                                OrgProjects,
-                                Organization = profile.cat_azdoorganization
-                            ).Projects,
-                            name = If(
-                                IsBlankOrError(profile.cat_azdopipelineproject),
-                                profile.cat_azdoproject,
-                                profile.cat_azdopipelineproject
-                            )
-                        )
+            IfError(
+                ForAll(
+                    Filter(
+                        DistinctOrgProjectProfiles,
+                        !IsBlankOrError(cat_azdoorganization) And (!IsBlankOrError(cat_azdoproject) Or !IsBlankOrError(cat_azdopipelineproject))
                     ),
                     Collect(
-                        ProfileBuilds,
+                        OrgProjects,
                         {
-                            Builds: CustomAzureDevOps.GetBuilds(
-                                profile.cat_azdoorganization,
-                                If(
+                            Organization: cat_azdoorganization,
+                            Projects: CustomAzureDevOps.GetProjects(cat_azdoorganization).value
+                        }
+                    )
+                ),
+                UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                Notify("Error retrieving projects (GetProjects): " & errorMessage);
+                
+            );
+            Clear(ProfileBuilds);
+            IfError(
+                ForAll(
+                    DistinctOrgProjectProfiles As profile,
+                    If(
+                        !IsBlankOrError(
+                            LookUp(
+                                LookUp(
+                                    OrgProjects,
+                                    Organization = profile.cat_azdoorganization
+                                ).Projects,
+                                name = If(
                                     IsBlankOrError(profile.cat_azdopipelineproject),
                                     profile.cat_azdoproject,
                                     profile.cat_azdopipelineproject
-                                ),
-                                {queryOrder: "queueTimeDescending"}
-                            ).value,
-                            Org: profile.cat_azdoorganization,
-                            Project: If(
-                                IsBlankOrError(profile.cat_azdopipelineproject),
-                                profile.cat_azdoproject,
-                                profile.cat_azdopipelineproject
+                                )
                             )
-                        }
+                        ),
+                        Collect(
+                            ProfileBuilds,
+                            {
+                                Builds: CustomAzureDevOps.GetBuilds(
+                                    profile.cat_azdoorganization,
+                                    If(
+                                        IsBlankOrError(profile.cat_azdopipelineproject),
+                                        profile.cat_azdoproject,
+                                        profile.cat_azdopipelineproject
+                                    ),
+                                    {queryOrder: "queueTimeDescending"}
+                                ).value,
+                                Org: profile.cat_azdoorganization,
+                                Project: If(
+                                    IsBlankOrError(profile.cat_azdopipelineproject),
+                                    profile.cat_azdoproject,
+                                    profile.cat_azdopipelineproject
+                                )
+                            }
+                        )
                     )
-                )
+                ),
+                UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                Notify("Error retrieving builds (GetBuilds): " & errorMessage);
+                
             );
             UpdateContext(
                 {
@@ -6553,26 +6632,35 @@ Home As screen:
                         {
                             repoId: build.repository.id,
                             solutionUniqueName: Last(
-                                ForAll(Split(
-                                    build.definition.name,
-                                    "-"
-                                ), {Result: ThisRecord.Value})
+                                ForAll(
+                                    Split(
+                                        build.definition.name,
+                                        "-"
+                                    ),
+                                    {Result: ThisRecord.Value}
+                                )
                             ).Result,
                             solutionName: LookUp(
                                 SelectedEnvironmentSolutions,
                                 uniquename = Last(
-                                    ForAll(Split(
-                                        build.definition.name,
-                                        "-"
-                                    ), {Result: ThisRecord.Value})
+                                    ForAll(
+                                        Split(
+                                            build.definition.name,
+                                            "-"
+                                        ),
+                                        {Result: ThisRecord.Value}
+                                    )
                                 ).Result
                             ).friendlyname,
                             environment: Last(
                                 FirstN(
-                                    ForAll(Split(
-                                        build.definition.name,
-                                        "-"
-                                    ), {Result: ThisRecord.Value}),
+                                    ForAll(
+                                        Split(
+                                            build.definition.name,
+                                            "-"
+                                        ),
+                                        {Result: ThisRecord.Value}
+                                    ),
                                     2
                                 )
                             ).Result
@@ -6601,66 +6689,71 @@ Home As screen:
                     )
                 )
             );
-            ClearCollect(
-                TempDeploymentRequestHistory,
-                AddColumns(
-                    Filter(
-                        DeploymentRequests,
-                        'Request Type' <> [@Type].Profile
-                    ),
-                    "DisplayName",
-                    Name,
-                    "SourceBranch",
-                    Source,
-                    "TargetBranch",
-                    Target,
-                    "ErrorMessage",
-                    Message,
-                    "RequestType",
-                    'Request Type',
-                    "RequestedByName",
-                    'Created By'.'Full Name',
-                    "RequestedById",
-                    'Created By'.User,
-                    "RequestedOn",
-                    'Created On',
-                    "BuildStatus",
-                    If(
-                        !IsBlankOrError('Deployment Profile') And !IsBlankOrError('Deployment Profile'.Organization) And !IsBlankOrError('Deployment Profile'.Project) And !IsBlankOrError('Build ID') And ('Request Type' <> [@Type].Deploy Or IsBlankOrError(Source)),
-                        LookUp(
-                            LookUp(
-                                ProfileBuilds,
-                                Org = 'Deployment Profile'.Organization And Project = If(
-                                    IsBlankOrError('Deployment Profile'.'Pipeline Project'),
-                                    'Deployment Profile'.Project,
-                                    'Deployment Profile'.'Pipeline Project'
-                                )
-                            ).Builds,
-                            Text(id) = 'Build ID'
-                        );
-                    ),
-                    "PullRequestStatus",
-                    If(
-                        !IsBlankOrError('Deployment Profile') And !IsBlankOrError('Deployment Profile'.Organization) And !IsBlankOrError('Deployment Profile'.Project) And !IsBlankOrError('Deployment Profile'.Repository) And !IsBlankOrError('Deployment Profile'.'Repository ID') And !IsBlankOrError('Build ID') And !IsBlankOrError(Source) And 'Request Type' = [@Type].Deploy,
+            IfError(
+                ClearCollect(
+                    TempDeploymentRequestHistory,
+                    AddColumns(
+                        Filter(
+                            DeploymentRequests,
+                            'Request Type' <> [@Type].Profile
+                        ),
+                        "DisplayName",
+                        Name,
+                        "SourceBranch",
+                        Source,
+                        "TargetBranch",
+                        Target,
+                        "ErrorMessage",
+                        Message,
+                        "RequestType",
+                        'Request Type',
+                        "RequestedByName",
+                        'Created By'.'Full Name',
+                        "RequestedById",
+                        'Created By'.User,
+                        "RequestedOn",
+                        'Created On',
+                        "BuildStatus",
                         If(
-                            !IsBlankOrError(
+                            !IsBlankOrError('Deployment Profile') And !IsBlankOrError('Deployment Profile'.Organization) And !IsBlankOrError('Deployment Profile'.Project) And !IsBlankOrError('Build ID') And ('Request Type' <> [@Type].Deploy Or IsBlankOrError(Source)),
+                            LookUp(
                                 LookUp(
+                                    ProfileBuilds,
+                                    Org = 'Deployment Profile'.Organization And Project = If(
+                                        IsBlankOrError('Deployment Profile'.'Pipeline Project'),
+                                        'Deployment Profile'.Project,
+                                        'Deployment Profile'.'Pipeline Project'
+                                    )
+                                ).Builds,
+                                Text(id) = 'Build ID'
+                            );
+                        ),
+                        "PullRequestStatus",
+                        If(
+                            !IsBlankOrError('Deployment Profile') And !IsBlankOrError('Deployment Profile'.Organization) And !IsBlankOrError('Deployment Profile'.Project) And !IsBlankOrError('Deployment Profile'.Repository) And !IsBlankOrError('Deployment Profile'.'Repository ID') And !IsBlankOrError('Build ID') And !IsBlankOrError(Source) And 'Request Type' = [@Type].Deploy,
+                            If(
+                                !IsBlankOrError(
                                     LookUp(
-                                        OrgProjects,
-                                        Organization = 'Deployment Profile'.Organization
-                                    ).Projects,
-                                    name = 'Deployment Profile'.Project
+                                        LookUp(
+                                            OrgProjects,
+                                            Organization = 'Deployment Profile'.Organization
+                                        ).Projects,
+                                        name = 'Deployment Profile'.Project
+                                    )
+                                ),
+                                CustomAzureDevOps.GetPullReqeust(
+                                    'Deployment Profile'.Organization,
+                                    'Deployment Profile'.Project,
+                                    'Deployment Profile'.'Repository ID',
+                                    'Build ID'
                                 )
-                            ),
-                            CustomAzureDevOps.GetPullReqeust(
-                                'Deployment Profile'.Organization,
-                                'Deployment Profile'.Project,
-                                'Deployment Profile'.'Repository ID',
-                                'Build ID'
-                            )
-                        );
+                            );
+                        )
                     )
-                )
+                ),
+                UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                Notify("Error retrieving deployment request history (GetPullRequest): " & errorMessage);
+                
             );
             ClearCollect(
                 DeploymentRequestHistory,
