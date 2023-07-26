@@ -60,7 +60,7 @@ function Set-Dataverse-AAD-Group-Teams
           if($aadGroupTeamName -ne '' -and $aadId -ne '') {
               $teamTypeValue = New-CrmOptionSetValue -Value 2
 
-              $fields = @{ "name"=$aadGroupTeamName;"teamtype"=$teamTypeValue;"azureactivedirectoryobjectid"=[guid]$aadId }
+              $fields = @{ "membershiptype"=0;"name"=$aadGroupTeamName;"teamtype"=$teamTypeValue;"azureactivedirectoryobjectid"=[guid]$aadId }
 
               #Get business unit
               if($businessUnitId -ne '') {
@@ -70,8 +70,9 @@ function Set-Dataverse-AAD-Group-Teams
               }
 
               $applySecurityRoleRefresh = $true
+              $existingMappedDVTeamId = $null
               # Check if any Dataverse team with AAD security group already exists
-              $queryteamswithaadID = "teams?`$select=teamid,name&`$filter=(azureactivedirectoryobjectid eq '$aadId')"
+              $queryteamswithaadID = "teams?`$select=teamid,name&`$filter=(membershiptype eq 0 and azureactivedirectoryobjectid eq '$aadId')"
 
               try{
                 Write-Host "Checking if AAD group already mapped to DV teams in the target. 'Teams with AAD' Query - $queryteamswithaadID"
@@ -83,46 +84,51 @@ function Set-Dataverse-AAD-Group-Teams
 
               if($null -ne $aadGroupTeamswithAAD.value -and $aadGroupTeamswithAAD.value.count -gt 0){
                 $existingTeamName = $aadGroupTeamswithAAD.value[0].name
+                $existingMappedDVTeamId = $aadGroupTeamswithAAD.value[0].teamid
                 Write-Host "Given AAD team with id - $aadId is already mapped to the Dataverse team - $existingTeamName"
                 # If already mapped team name not matches with Team name from Deployment setting skip the Security Role refresh
                 if ($existingTeamName -ne $aadGroupTeamName) {
-                    Write-Host "Existing team - $existingTeamName not matching with  aadGroupTeamName - $aadGroupTeamName. Cancelling Security Role refresh"
-                    $applySecurityRoleRefresh = $false
+                    Write-Host "Existing team - $existingTeamName not matching with  aadGroupTeamName - $aadGroupTeamName. Proceeding with Security Role refresh"
                 }else{
                     Write-Host "Existing team - $existingTeamName matching with  aadGroupTeamName - $aadGroupTeamName. Proceeding with Security Role refresh"
                 }
               }
               else{
-                Write-Host "Given AAD team with id - $aadId is not mapped to any Dataverse teams - $existingTeamName. Proceeding with creation or updation of Team."
+                Write-Host "Given AAD team with id - $aadId is not mapped to any Dataverse teams. Proceeding with creation or updation of Team."
               }
 
               # Perform Security Role refresh only if $applySecurityRoleRefresh is $true
               if($applySecurityRoleRefresh){
-                  Write-Host "Checking and fetching the Team by name $aadGroupTeamName in the target environment"
-                  $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$aadGroupTeamName")
-                  # Fetch Team by Name
-                  $queryteams = "teams?`$select=teamid&`$filter=(name eq '$encodedFilterValue')"    
-
-                  try{
-                    Write-Host "Teams Query - $queryteams"
-                    $aadGroupTeams = Invoke-DataverseHttpGet $token $dataverseHost $queryteams
-                  }
-                  catch{
-                    Write-Host "Error queryteams - $($_.Exception.Message)"
-                  }
-
                   $newTeamCreated = $false
-                  if($null -ne $aadGroupTeams.value -and $aadGroupTeams.value.count -gt 0){
-                    Write-Host "Team with name $aadGroupTeamName found. Updating the existing team - $aadGroupTeamName"
-                    $aadGroupTeamId = $aadGroupTeams.value[0].teamid
+                  if($null -ne $existingMappedDVTeamId){
+                    Write-Host "AD Team already mapped with the existing DV team - $aadGroupTeamId. Updating the DV team details with Deployment Settings."
+                    $aadGroupTeamId = $existingMappedDVTeamId
                     Set-CrmRecord -conn $conn -EntityLogicalName team -Id $aadGroupTeamId -Fields $fields
-                  } 
-                  else {
-                    $newTeamCreated = $true
-                    Write-Host "Team with name $aadGroupTeamName not found. Creating a new team by name $aadGroupTeamName"  
-                    $aadGroupTeamId = New-CrmRecord -conn $conn -EntityLogicalName team -Fields $fields
+                  }else{
+                      Write-Host "Checking and fetching the Team by name $aadGroupTeamName in the target environment"
+                      $encodedFilterValue = [System.Web.HttpUtility]::UrlEncode("$aadGroupTeamName")
+                      # Fetch Team by Name
+                      $queryteams = "teams?`$select=teamid&`$filter=(membershiptype eq 0 and name eq '$encodedFilterValue')"    
+
+                      try{
+                        Write-Host "Teams Query - $queryteams"
+                        $aadGroupTeams = Invoke-DataverseHttpGet $token $dataverseHost $queryteams
+                      }
+                      catch{
+                        Write-Host "Error queryteams - $($_.Exception.Message)"
+                      }
+
+                      if($null -ne $aadGroupTeams.value -and $aadGroupTeams.value.count -gt 0){
+                        Write-Host "Team with name $aadGroupTeamName found. Updating the existing team - $aadGroupTeamName"
+                        $aadGroupTeamId = $aadGroupTeams.value[0].teamid
+                        Set-CrmRecord -conn $conn -EntityLogicalName team -Id $aadGroupTeamId -Fields $fields
+                      } 
+                      else {
+                        $newTeamCreated = $true
+                        Write-Host "Team with name $aadGroupTeamName not found. Creating a new team by name $aadGroupTeamName"  
+                        $aadGroupTeamId = New-CrmRecord -conn $conn -EntityLogicalName team -Fields $fields
+                      }
                   }
-      
                   $existingDVTeamRolesNonConfig = $null
                   # Skip role fetch, if Team is newly created
                   if($newTeamCreated -eq $false){
