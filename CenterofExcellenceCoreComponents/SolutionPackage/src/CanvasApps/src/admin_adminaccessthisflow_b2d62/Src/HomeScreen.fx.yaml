@@ -15,9 +15,6 @@ HomeScreen As screen:
         Set(theFlowURL, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
         If(IsBlank(theFlowURL), Set(theFlowURL, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
         
-        //get groups for names
-        ClearCollect(theGroups, Office365Groups.ListGroups().value);
-        
         //create navigation collection
         ClearCollect(
             appFilter,
@@ -29,8 +26,10 @@ HomeScreen As screen:
         UpdateContext({showAddUsers:false, showPermissions:true, showArchive:false, showDelete:false, showMakerPortal: false, showEmail: false});
         UpdateContext({showCantShowThat: false, CantShowThatText: ""});
         
-        //get user and flow
-        Set(myUserProfile, Office365Users.MyProfileV2());
+        //get user
+        Set(myUserProfile, Office365Users.UserProfileV2(User().Email));
+        
+        //get flow
         If(IsBlank(First([@PowerBIIntegration].Data).admin_flowid), 
            Set(selectedFlowID, First(Filter(Flows, 'Flow Deleted' = 'Flow Deleted (Flows)'.No && isSolutionFlow = 'isSolutionFlow (Flows)'.No)).Flow);
            Set(envName, First(Filter(Flows, 'Flow Deleted' = 'Flow Deleted (Flows)'.No && isSolutionFlow = 'isSolutionFlow (Flows)'.No)).'Flow Environment'.Name);
@@ -47,16 +46,27 @@ HomeScreen As screen:
             UpdateContext({showCantShowThat: false, CantShowThatText: ""}));
         
         //get permissions
-        ClearCollect(roleAssignmentsCollection,  PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);
+        ClearCollect(roleAssignmentsCollection,  
+        AddColumns(
+        PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value,
+        "theDisplayName", 
+            If(isSolutionFlow, "",
+            If(properties.principal.type = "Tenant", "Entire Org",
+            If(properties.principal.type = "Group", "Group: " & First(Office365Groups.ListGroups({'$filter':  "id eq '" & name & "'"}).value).displayName,
+            IfError(Office365Users.UserProfile(properties.principal.id).DisplayName, "unknown")))),
+        "thePicture", 
+            If(properties.principal.type <> "User", SampleImage, 
+            If(Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto, Office365Users.UserPhotoV2(properties.principal.id), SampleImage))));
+        
         If(
-            CountIf(roleAssignmentsCollection, properties.principal.id = myUserProfile.id) > 0,
+            CountIf(roleAssignmentsCollection, properties.principal.id = Office365Users.UserProfileV2(User().Email).id) > 0,
             Set(iHaveAccess, true)
         );
         
         //get owner
-        If(isSolutionFlow, 
-            UpdateContext({ownerID: LookUp(Flows, Flow=GUID(selectedFlowID)).DerivedOwner.Maker}), 
-            UpdateContext({ownerID: LookUp(roleAssignmentsCollection,properties.roleName = "Owner").properties.principal.id}));
+        UpdateContext({ownerID: LookUp(Flows, Flow=GUID(selectedFlowID)).DerivedOwner.Maker});
+        If(IsBlankOrError(ownerID), UpdateContext({ownerID: LookUp(roleAssignmentsCollection,properties.roleName = "Owner").properties.principal.id}));
+        UpdateContext({OwnerEmail: Office365Users.UserProfileV2(ownerID).mail});
         
         Set(ReadyToGo, true);
 
@@ -64,7 +74,6 @@ HomeScreen As screen:
         BorderColor: =RGBA(166, 166, 166, 1)
         DisabledBorderColor: =galTabs.BorderColor
         DisabledFill: =galTabs.Fill
-        DisplayMode: =Edit
         Height: =58
         HoverBorderColor: =galTabs.BorderColor
         HoverFill: =galTabs.Fill
@@ -85,7 +94,7 @@ HomeScreen As screen:
         ZIndex: =1
 
         Label3_2 As label:
-            Align: =Center
+            Align: =LayoutAlignItems.Center
             BorderColor: =RGBA(0, 0, 0, 0)
             BorderStyle: =BorderStyle.None
             BorderThickness: =2
@@ -134,7 +143,6 @@ HomeScreen As screen:
 
         galAppRoles As gallery.galleryVertical:
             BorderColor: =RGBA(204, 204, 204, 1)
-            BorderStyle: =Solid
             BorderThickness: =1
             DisabledBorderColor: =galAppRoles.BorderColor
             DisabledFill: =galAppRoles.Fill
@@ -170,9 +178,11 @@ HomeScreen As screen:
                     HoverBorderColor: =RGBA(0, 0, 0, 0)
                     HoverFill: =RGBA(0, 0, 0, 0)
                     Image: |-
-                        =If(ThisItem.properties.principal.type <> "User", SampleImage, 
+                        =/*If(ThisItem.properties.principal.type <> "User", SampleImage, 
                         If(CountRows(Filter('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id))) = 0, SampleImage, 
                         LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject))
+                        */
+                        ThisItem.thePicture
                     ImagePosition: =ImagePosition.Fill
                     LayoutMinHeight: =320
                     LayoutMinWidth: =320
@@ -206,14 +216,7 @@ HomeScreen As screen:
                     PressedColor: =RGBA(4,45,81,1.00)
                     PressedFill: =RGBA(0, 0, 0, 0)
                     Size: =18
-                    Text: |-
-                        =If(!isSolutionFlow,
-                        If(ThisItem.properties.principal.type = "Tenant", "Entire Org",
-                           ThisItem.properties.principal.type = "Group", "Group: " & First(Filter(theGroups, id=ThisItem.name)).displayName,
-                           If(IsError(Office365Users.UserProfile(ThisItem.properties.principal.id).DisplayName), "Unknown",
-                           Office365Users.UserProfile(ThisItem.properties.principal.id).DisplayName
-                           )
-                        ), "")
+                    Text: =ThisItem.theDisplayName
                     Width: =492
                     X: =98
                     ZIndex: =2
@@ -251,7 +254,6 @@ HomeScreen As screen:
                     Fill: =ColorValue(Style.Primary)
                     FocusedBorderColor: =btnRemoveAccess.BorderColor
                     Font: =Font.'Segoe UI'
-                    FontWeight: =Semibold
                     Height: =41
                     HoverBorderColor: =RGBA(0, 0, 0, 0)
                     HoverFill: =ColorValue(Style.Secondary)
@@ -345,7 +347,7 @@ HomeScreen As screen:
             ZIndex: =3
 
         lblNoAccess As label:
-            Align: =Right
+            Align: =TextPosition.Right
             FocusedBorderColor: =lblNoAccess.BorderColor
             Font: =Font.'Segoe UI'
             Height: =61
@@ -426,9 +428,9 @@ HomeScreen As screen:
             ZIndex: =8
 
         Label6_8 As label:
-            Align: =Center
+            Align: =LayoutAlignItems.Center
             FocusedBorderColor: =Label6_8.BorderColor
-            FontWeight: =Bold
+            FontWeight: =FontWeight.Bold
             HoverBorderColor: =Label6_8.BorderColor
             HoverColor: =Label6_8.Color
             HoverFill: =Label6_8.Fill
@@ -541,7 +543,7 @@ HomeScreen As screen:
             FocusedBorderColor: =lblAddNewUsers.BorderColor
             FocusedBorderThickness: =4
             Font: =Font.'Segoe UI'
-            FontWeight: =Bold
+            FontWeight: =FontWeight.Bold
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverColor: =RGBA(0,0,0,1.00)
             HoverFill: =RGBA(0, 0, 0, 0)
@@ -558,10 +560,10 @@ HomeScreen As screen:
             ZIndex: =22
 
         txtSearchUser As text:
-            Align: =Center
+            Align: =LayoutAlignItems.Center
             BorderColor: =RGBA(220,220,220,1)
             BorderThickness: =1
-            Color: =Black
+            Color: =Color.Black
             Default: =""
             DisabledBorderColor: =RGBA(159, 167, 165, 1)
             DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70%)
@@ -570,12 +572,12 @@ HomeScreen As screen:
             FocusedBorderColor: =txtSearchUser.BorderColor
             FocusedBorderThickness: =1
             Font: =Font.'Segoe UI'
-            FontWeight: =Lighter
+            FontWeight: =FontWeight.Lighter
             Height: =50
             HintText: ="Type a name or an email address"
             HoverBorderColor: =RGBA(159,159,159,1)
-            HoverColor: =Black
-            HoverFill: =White
+            HoverColor: =Color.Black
+            HoverFill: =Color.White
             OnSelect: =
             PressedBorderColor: =txtSearchUser.HoverBorderColor
             PressedColor: =txtSearchUser.Color
@@ -607,7 +609,7 @@ HomeScreen As screen:
             OnSelect: =
             PressedBorderColor: =galSearchPeopleresult.BorderColor
             PressedFill: =galSearchPeopleresult.Fill
-            TemplateFill: =If(ThisItem.IsSelected, ColorValue(Style.Primary), White)
+            TemplateFill: =If(ThisItem.IsSelected, ColorValue(Style.Primary), Color.White)
             TemplateSize: =96
             Visible: =showAddUsers
             Width: =1017
@@ -661,7 +663,7 @@ HomeScreen As screen:
             lblSearchName As label:
                 FocusedBorderColor: =lblSearchName.BorderColor
                 Font: =Font.'Segoe UI'
-                FontWeight: =Bold
+                FontWeight: =FontWeight.Bold
                 Height: =48
                 HoverBorderColor: =lblSearchName.BorderColor
                 HoverColor: =lblSearchName.Color
@@ -800,7 +802,7 @@ HomeScreen As screen:
         lblSelectedUserRole As label:
             FocusedBorderColor: =lblSelectedUserRole.BorderColor
             Font: =Font.'Segoe UI'
-            FontWeight: =Bold
+            FontWeight: =FontWeight.Bold
             Height: =65
             HoverBorderColor: =lblSelectedUserRole.BorderColor
             HoverColor: =lblSelectedUserRole.Color
@@ -822,11 +824,10 @@ HomeScreen As screen:
             BorderStyle: =BorderStyle.None
             Color: =RGBA(0, 0, 0, 1)
             DisabledBorderColor: =RGBA(0, 0, 0, 0)
-            DisplayMode: =If( IsEmpty(galSearchPeopleresult.Selected), DisplayMode.Disabled, DisplayMode.Edit)
+            DisplayMode: =If( false, DisplayMode.Disabled, DisplayMode.Edit)
             Fill: =ColorValue(Style.Primary)
             FocusedBorderColor: =btnAddUser.BorderColor
             Font: =Font.'Segoe UI'
-            FontWeight: =Semibold
             Height: =41
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverFill: =ColorValue(Style.Secondary)
@@ -836,7 +837,18 @@ HomeScreen As screen:
                 //update app if succeess
                 If(UpdatePermissionsPassed = "pass",
                   Refresh('Power Platform Users');
-                  ClearCollect(roleAssignmentsCollection, PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);,
+                  //ClearCollect(roleAssignmentsCollection, PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);,
+                  ClearCollect(roleAssignmentsCollection,  
+                    AddColumns(
+                    PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value,
+                    "theDisplayName", 
+                    If(isSolutionFlow, "",
+                    If(properties.principal.type = "Tenant", "Entire Org",
+                    If(properties.principal.type = "Group", "Group: " & First(Office365Groups.ListGroups({'$filter':  "id eq '" & name & "'"}).value).displayName,
+                    IfError(Office365Users.UserProfile(properties.principal.id).DisplayName, "unknown")))),
+                    "thePicture", 
+                    If(properties.principal.type <> "User", SampleImage, 
+                    If(Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto, Office365Users.UserPhotoV2(properties.principal.id), SampleImage))));,
                 
                 //else show error message
                   UpdateContext({showCantShowThat: true, CantShowThatText: UpdatePermissionsPassed}));
@@ -870,7 +882,6 @@ HomeScreen As screen:
             Fill: =ColorValue(Style.Tertiary)
             FocusedBorderColor: =btnCancelAddUser.BorderColor
             Font: =Font.'Segoe UI'
-            FontWeight: =Semibold
             Height: =41
             HoverBorderColor: =RGBA(0, 0, 0, 0)
             HoverFill: =ColorValue(Style.Secondary)
@@ -921,13 +932,12 @@ HomeScreen As screen:
         ZIndex: =33
 
         lblEmailTo_1 As label:
-            Align: =Left
+            Align: =TextPosition.Left
             BorderColor: =RGBA(0, 0, 0, 1)
-            Color: =Black
+            Color: =Color.Black
             DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70%)
             FocusedBorderColor: =lblEmailTo_1.BorderColor
             Font: =Font.'Segoe UI'
-            FontWeight: =Normal
             Height: =205
             HoverBorderColor: =lblEmailTo_1.BorderColor
             HoverColor: =lblEmailTo_1.Color
@@ -940,7 +950,7 @@ HomeScreen As screen:
             PressedFill: =lblEmailTo_1.Fill
             Size: =18
             Text: |-
-                ="To: " & Office365Users.UserProfileV2(ownerID).mail
+                ="To: " & OwnerEmail
             Tooltip: ="Confirmation dialog content"
             VerticalAlign: =VerticalAlign.Top
             Visible: =showEmail
@@ -1094,6 +1104,16 @@ HomeScreen As screen:
             Y: =497
             ZIndex: =19
 
+    Spinner1 As Spinner:
+        DisplayMode: =DisplayMode.Edit
+        Height: =App.Height
+        Label: ="loading..."
+        Visible: =!ReadyToGo
+        Width: =App.Width
+        X: =0
+        Y: =0
+        ZIndex: =38
+
     cant_do_that_Dialog As group:
         Height: =5
         Width: =5
@@ -1112,7 +1132,7 @@ HomeScreen As screen:
             ZIndex: =35
 
         lbl_cant_do_that As label:
-            Align: =Center
+            Align: =LayoutAlignItems.Center
             Color: =RGBA(51, 51, 51, 1)
             Height: =bg_cant_do_that.Height
             Text: =CantShowThatText
