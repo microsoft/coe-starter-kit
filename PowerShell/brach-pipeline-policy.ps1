@@ -14,8 +14,9 @@ function Create-Branch{
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [string]$solutionRepoId
     )
-        Write-Host "Pipeline Project: $buildProjectName"
-        Write-Host "Getting Pipeline Project Repositories"
+        Write-Host "Pipeline Project - $buildProjectName Solution Project - $solutionProjectName"
+        Write-Host "Pipeline Repository - $buildRepositoryName Solution Repository - $solutionRepositoryName"
+        Write-Host "Fetching Pipeline Project - $buildProjectName Repositories"
         $solutionProjectRepo = $null
         # Fetch Repos of build project
         $pipelineRepos = Get-Repositories "$organizationURL" "$buildProjectName"
@@ -51,7 +52,7 @@ function Create-Branch{
             if ($solutionRepo.name -eq $solutionRepositoryName) {
                 $solutionRepoExists = $true
                 $solutionProjectRepo = $solutionRepo
-                Write-Host "Setting Solution Project Repo. Id - $($solutionProjectRepo.id) ; Name - $($solutionProjectRepo.name) ; Url - $($solutionProjectRepo.url)"
+                Write-Host "Solution Project Repo additional details. Id - $($solutionProjectRepo.id) ; Name - $($solutionProjectRepo.name) ; Url - $($solutionProjectRepo.url)"
                 break
             }
         }
@@ -63,7 +64,7 @@ function Create-Branch{
         }
 
         if($buildRepoExists -and $solutionRepoExists){
-            Write-Host "Validating whether the Solution Project is Initialized"
+            Write-Host "Validating whether the Solution Project -$solutionProjectName is Initialized"
             $repoRefUrl = "$orgUrl$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/refs?filter=heads/&api-version=6.0"
             Write-Host "RepoRefUrl - $repoRefUrl"
             $repoRefUrlResponse = Invoke-RestMethod $repoRefUrl -Method Get -Headers @{
@@ -100,7 +101,7 @@ function Create-Branch{
                     Write-Host "Solution Branch $solutionName already exists. Exiting."
                     return $solutionProjectRepo
                 }else{
-                    Write-Host "Proceeding with Branch creation"
+                    Write-Host "Proceeding with Solution Branch - $solutionName creation"
                 }
 
                 # If Environment Names not provided, fall back to validation|test|prod.
@@ -185,10 +186,10 @@ function Create-Branch{
                     # Convert the commit object to JSON format
                     $gitPushBody = $gitPush | ConvertTo-Json -Depth 10
 
-                    #Write-Host "GitPushBody - $gitPushBody"
+                    Write-Host "GitPushBody - $gitPushBody"
 
                     $apiUrlGitPush = "$organizationURL$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/pushes?api-version=6.0"
-                    #Write-Host "ApiUrlGitPush - $apiUrlGitPush"
+                    Write-Host "ApiUrlGitPush - $apiUrlGitPush"
 
                     $response = $null
                     try{
@@ -199,11 +200,17 @@ function Create-Branch{
                         } -Body $gitPushBody
                     }
                     catch {
-                        Write-Host "Error while posting Git Push to $apiUrlGitPush. Message - $($_.Exception.Message)"
+                        #Write-Host "Error while posting Git Push to $apiUrlGitPush. Message - $($_.Exception.Message)"
+                        Write-Host "##vso[task.logissue type=warning]Unable to create solution branch - $solutionName. Message - $($_.Exception.Message)"
+                        throw
                     }
 
                     if($response){
                         Write-Host "New branch created with ref name $($response.name) and object ID $($response.objectId)"
+                    }
+                    else{
+                        Write-Host "##vso[task.logissue type=warning]Unable to create solution branch - $solutionName."
+                        throw
                     }
                 }
             }else{
@@ -257,9 +264,8 @@ function Get-Git-Commit-Changes{
     $deployPipelineName = "deploy-$environmentName".ToLower()
     $ymlContentFilePath = "/$solutionName/$deployPipelineName-$solutionName.yml"
     Write-Host "RepoTemplatePath - $ymlContentFilePath"
-    # Check if build yml file available under Solution branch
-    #$existingYmlContentFileURL = "$orgUrl$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/items?path=$ymlContentFilePath&api-version=6.0&versionDescriptor.versionType=branch&versionDescriptor.version=$sourceBranch"
-    $getExistingYmlContentFileURL = "$orgUrl$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/items?path=$ymlContentFilePath&api-version=6.0&versionDescriptor.versionType=branch&versionDescriptor.version=$solutionName"
+    # Check if build yml file available under source branch
+    $getExistingYmlContentFileURL = "$orgUrl$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/items?path=$ymlContentFilePath&api-version=6.0&versionDescriptor.versionType=branch&versionDescriptor.version=$sourceBranch"
     Write-Host "Get existing YML Content file URL - $getExistingYmlContentFileURL"
 
     $existingYmlContentFileResponse = $null
