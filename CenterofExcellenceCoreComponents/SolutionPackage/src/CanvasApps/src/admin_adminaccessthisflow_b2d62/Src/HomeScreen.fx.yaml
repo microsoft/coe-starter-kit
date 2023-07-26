@@ -15,9 +15,6 @@ HomeScreen As screen:
         Set(theFlowURL, First(Filter('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition'=GUID(EnvVarDefnID))).Value);
         If(IsBlank(theFlowURL), Set(theFlowURL, LookUp('Environment Variable Definitions', 'Environment Variable Definition'=GUID(EnvVarDefnID)).'Default Value'));
         
-        //get groups for names
-        ClearCollect(theGroups, Office365Groups.ListGroups().value);
-        
         //create navigation collection
         ClearCollect(
             appFilter,
@@ -49,7 +46,18 @@ HomeScreen As screen:
             UpdateContext({showCantShowThat: false, CantShowThatText: ""}));
         
         //get permissions
-        ClearCollect(roleAssignmentsCollection,  PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);
+        ClearCollect(roleAssignmentsCollection,  
+        AddColumns(
+        PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value,
+        "theDisplayName", 
+            If(isSolutionFlow, "",
+            If(properties.principal.type = "Tenant", "Entire Org",
+            If(properties.principal.type = "Group", "Group: " & First(Office365Groups.ListGroups({'$filter':  "id eq '" & name & "'"}).value).displayName,
+            IfError(Office365Users.UserProfile(properties.principal.id).DisplayName, "unknown")))),
+        "thePicture", 
+            If(properties.principal.type <> "User", SampleImage, 
+            If(Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto, Office365Users.UserPhotoV2(properties.principal.id), SampleImage))));
+        
         If(
             CountIf(roleAssignmentsCollection, properties.principal.id = Office365Users.UserProfileV2(User().Email).id) > 0,
             Set(iHaveAccess, true)
@@ -58,6 +66,7 @@ HomeScreen As screen:
         //get owner
         UpdateContext({ownerID: LookUp(Flows, Flow=GUID(selectedFlowID)).DerivedOwner.Maker});
         If(IsBlankOrError(ownerID), UpdateContext({ownerID: LookUp(roleAssignmentsCollection,properties.roleName = "Owner").properties.principal.id}));
+        UpdateContext({OwnerEmail: Office365Users.UserProfileV2(ownerID).mail});
         
         Set(ReadyToGo, true);
 
@@ -169,9 +178,11 @@ HomeScreen As screen:
                     HoverBorderColor: =RGBA(0, 0, 0, 0)
                     HoverFill: =RGBA(0, 0, 0, 0)
                     Image: |-
-                        =If(ThisItem.properties.principal.type <> "User", SampleImage, 
+                        =/*If(ThisItem.properties.principal.type <> "User", SampleImage, 
                         If(CountRows(Filter('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id))) = 0, SampleImage, 
                         LookUp('Power Platform Users', 'Power Platform User'=GUID(ThisItem.properties.principal.id)).PhotoObject))
+                        */
+                        ThisItem.thePicture
                     ImagePosition: =ImagePosition.Fill
                     LayoutMinHeight: =320
                     LayoutMinWidth: =320
@@ -205,14 +216,7 @@ HomeScreen As screen:
                     PressedColor: =RGBA(4,45,81,1.00)
                     PressedFill: =RGBA(0, 0, 0, 0)
                     Size: =18
-                    Text: |-
-                        =If(!isSolutionFlow,
-                        If(ThisItem.properties.principal.type = "Tenant", "Entire Org",
-                           ThisItem.properties.principal.type = "Group", "Group: " & First(Filter(theGroups, id=ThisItem.name)).displayName,
-                           If(IsError(Office365Users.UserProfile(ThisItem.properties.principal.id).DisplayName), "Unknown",
-                           Office365Users.UserProfile(ThisItem.properties.principal.id).DisplayName
-                           )
-                        ), "")
+                    Text: =ThisItem.theDisplayName
                     Width: =492
                     X: =98
                     ZIndex: =2
@@ -833,7 +837,18 @@ HomeScreen As screen:
                 //update app if succeess
                 If(UpdatePermissionsPassed = "pass",
                   Refresh('Power Platform Users');
-                  ClearCollect(roleAssignmentsCollection, PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);,
+                  //ClearCollect(roleAssignmentsCollection, PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value);,
+                  ClearCollect(roleAssignmentsCollection,  
+                    AddColumns(
+                    PowerAutomateforAdmins.GetAdminFlowOwnerRole(envName, selectedFlowID).value,
+                    "theDisplayName", 
+                    If(isSolutionFlow, "",
+                    If(properties.principal.type = "Tenant", "Entire Org",
+                    If(properties.principal.type = "Group", "Group: " & First(Office365Groups.ListGroups({'$filter':  "id eq '" & name & "'"}).value).displayName,
+                    IfError(Office365Users.UserProfile(properties.principal.id).DisplayName, "unknown")))),
+                    "thePicture", 
+                    If(properties.principal.type <> "User", SampleImage, 
+                    If(Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto, Office365Users.UserPhotoV2(properties.principal.id), SampleImage))));,
                 
                 //else show error message
                   UpdateContext({showCantShowThat: true, CantShowThatText: UpdatePermissionsPassed}));
@@ -935,7 +950,7 @@ HomeScreen As screen:
             PressedFill: =lblEmailTo_1.Fill
             Size: =18
             Text: |-
-                ="To: " & Office365Users.UserProfileV2(ownerID).mail
+                ="To: " & OwnerEmail
             Tooltip: ="Confirmation dialog content"
             VerticalAlign: =VerticalAlign.Top
             Visible: =showEmail
@@ -1088,6 +1103,16 @@ HomeScreen As screen:
             X: =120
             Y: =497
             ZIndex: =19
+
+    Spinner1 As Spinner:
+        DisplayMode: =DisplayMode.Edit
+        Height: =App.Height
+        Label: ="loading..."
+        Visible: =!ReadyToGo
+        Width: =App.Width
+        X: =0
+        Y: =0
+        ZIndex: =38
 
     cant_do_that_Dialog As group:
         Height: =5
