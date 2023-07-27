@@ -13,7 +13,8 @@ Home As screen:
                     showLoader: true,
                     statusesLoading: true,
                     locStartCheckBuildStatusTimer: false,
-                    locReloadSolutions: true
+                    locReloadSolutions: true,
+                    errorMessage: ""
                 }
             );
             If(
@@ -38,11 +39,13 @@ Home As screen:
                     'User Name' = gblUser.Email
                 )
             );
-            
             ClearCollect(
                 DeploymentUserSettings,
                 AddColumns(
-                    Filter('Deployment User Settings', Status = 'Status (Deployment User Settings)'.Active),
+                    Filter(
+                        'Deployment User Settings',
+                        Status = 'Status (Deployment User Settings)'.Active
+                    ),
                     "DisplayName",
                     Name
                 )
@@ -185,14 +188,29 @@ Home As screen:
                     'App User Setting'.'App User Setting' = AppUserSetting.'App User Setting'
                 )
             );
-        
+            IfError(
         //Get the current user's profile id
-        Set(gblAzureDevOpsProfileId, CustomAzureDevOps.GetCurrentUserProfile());
+                Set(
+                    gblAzureDevOpsProfileId,
+                    CustomAzureDevOps.GetCurrentUserProfile().id
+                ),
+                UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                Notify("Error retrieving current user profile (GetCurrentUserProfile): " & errorMessage);
+            );
             
         //Pull the Orgs, Projects and Project Repos.
-        ClearCollect(
-                Orgs,
-                CustomAzureDevOps.GetOrganizations({memberId: gblAzureDevOpsProfileId}).AccountName
+        IfError(
+                ClearCollect(
+                    Orgs,
+                    CustomAzureDevOps.GetOrganizations(
+                        {
+                            'api-version': "7.0",
+                            memberId: gblAzureDevOpsProfileId
+                        }
+                    ).value.accountName
+                ),
+                UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                Notify("Error retrieving organizations (GetOrganizations): " & errorMessage);
             );
             
         //Redirect to Deployment Settings Page if the required parameters were supplied
@@ -2498,6 +2516,10 @@ Home As screen:
                                                 ),
                                                 PublishCustomizations: tglPublishCustomizations.Value,
                                                 CommitScope: drpCommitScope.Selected.Id,
+                                                ArtifactUrl: "NA",
+                                                PipelinesServiceConnectionName: "NA",
+                                                PipelinesServiceConnectionUrl: "NA",
+                                                PipelinesStageRunId: "NA",
                                                 AgentPool: If(
                                                     IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                                     "Azure Pipelines",
@@ -2508,7 +2530,8 @@ Home As screen:
                                                     "windows-latest",
                                                     If(
                                                         !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
-                                                        selectedCommitProfile.'AZDO VM Image'
+                                                        selectedCommitProfile.'AZDO VM Image',
+                                                        "NA"
                                                     )
                                                 )
                                             }
@@ -3266,17 +3289,22 @@ Home As screen:
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
                                         CommitScope: "1",
+                                        ArtifactUrl: "NA",
+                                        PipelinesServiceConnectionName: "NA",
+                                        PipelinesServiceConnectionUrl: "NA",
+                                        PipelinesStageRunId: "NA",
                                         AgentPool: If(
-                                            IsBlankOrError(locImportProfile.'AZDO Agent Pool'),
+                                            IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                             "Azure Pipelines",
-                                            locImportProfile.'AZDO Agent Pool'
+                                            selectedCommitProfile.'AZDO Agent Pool'
                                         ),
                                         VMImage: If(
                                             IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool') And IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
                                             "windows-latest",
                                             If(
                                                 !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
-                                                selectedCommitProfile.'AZDO VM Image'
+                                                selectedCommitProfile.'AZDO VM Image',
+                                                "NA"
                                             )
                                         )
                                     }
@@ -4881,6 +4909,10 @@ Home As screen:
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
                                         CommitScope: "1",
+                                        ArtifactUrl: "NA",
+                                        PipelinesServiceConnectionName: "NA",
+                                        PipelinesServiceConnectionUrl: "NA",
+                                        PipelinesStageRunId: "NA",
                                         AgentPool: If(
                                             IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                             "Azure Pipelines",
@@ -4891,7 +4923,8 @@ Home As screen:
                                             "windows-latest",
                                             If(
                                                 !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
-                                                selectedCommitProfile.'AZDO VM Image'
+                                                selectedCommitProfile.'AZDO VM Image',
+                                                "NA"
                                             )
                                         )
                                     }
@@ -5199,7 +5232,7 @@ Home As screen:
                 ChevronHoverBackground: =ColorFade(cmbDeploymentEnvironmentUrl.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(cmbDeploymentEnvironmentUrl.ChevronFill, 20%)
                 DefaultSelectedItems: =First(Filter(AllEnvironments, LookUp('Deployment Environments', 'Deployment Environment' = ThisItem.'Deployment Environment'.'Deployment Environment').URL in Url))
-                DisplayFields: =["DisplayName","Url"]
+                DisplayFields: =["id","Url"]
                 DisplayMode: |-
                     =If(
                         IsBlankOrError(DeploymentUserSetting) Or IsBlankOrError(DeploymentUserSetting.'Profile Updates') Or DeploymentUserSetting.'Profile Updates' = 'A Yes or No boolean'.Allowed,
@@ -5216,8 +5249,8 @@ Home As screen:
                 NoSelectionText: ="Select a Deployment Environment"
                 OnChange: =true
                 PressedBorderColor: =cmbDeploymentEnvironmentUrl.HoverBorderColor
-                SearchFields: =["DisplayName"]
-                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"DisplayName")
+                SearchFields: =["id"]
+                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"id")
                 SelectMultiple: =false
                 Template: =ListItemTemplate.Double
                 Tooltip: ="Select the deployment environment for this deployment stage"
@@ -5461,7 +5494,7 @@ Home As screen:
                         'Deployment Profiles',
                         {
                             Name: txtNewProfile.Text,
-                            Organization: drpProfileOrgs.Selected.AccountName,
+                            Organization: drpProfileOrgs.Selected.accountName,
                             Project: drpProfileProjects.Selected.name,
                             Repository: drpProfileRepositories.Selected.name,
                             'Repository ID': drpProfileRepositories.Selected.id,
@@ -5619,7 +5652,7 @@ Home As screen:
                                 )
                             ),
                             {
-                                Organization: drpProfileOrgs.Selected.AccountName,
+                                Organization: drpProfileOrgs.Selected.accountName,
                                 Project: drpProfileProjects.Selected.name,
                                 Repository: drpProfileRepositories.Selected.name,
                                 'Repository ID': drpProfileRepositories.Selected.id,
@@ -5739,13 +5772,13 @@ Home As screen:
                     Clear(SelectedOrgProjects);
                     Collect(
                         SelectedOrgProjects,
-                        CustomAzureDevOps.GetProjects(First(Orgs).AccountName).value
+                        CustomAzureDevOps.GetProjects(First(Orgs).accountName).value
                     );
                     Clear(SelectedProjectRepos);
                     Collect(
                         SelectedProjectRepos,
                         CustomAzureDevOps.GetGitRepos(
-                            First(Orgs).AccountName,
+                            First(Orgs).accountName,
                             First(SelectedOrgProjects).name
                         ).value
                     );
@@ -5757,7 +5790,7 @@ Home As screen:
                             AddColumns(
                                 Filter(
                                     CustomAzureDevOps.GetBranches(
-                                        First(Orgs).AccountName,
+                                        First(Orgs).accountName,
                                         First(SelectedOrgProjects).name,
                                         First(SelectedProjectRepos).id
                                     ).value,
@@ -5776,7 +5809,7 @@ Home As screen:
                         {
                             locSelectedDeploymentProfile: {
                                 Name: "",
-                                Organization: First(Orgs.AccountName).AccountName,
+                                Organization: First(Orgs).accountName,
                                 Project: First(SelectedOrgProjects).name,
                                 Repository: First(SelectedProjectRepos).name,
                                 'Repository ID': First(SelectedProjectRepos).id,
@@ -5921,18 +5954,18 @@ Home As screen:
             HoverBorderColor: =ColorFade(drpProfileOrgs.BorderColor, 20%)
             HoverColor: =ColorFade(drpProfileOrgs.Color, 20%)
             HoverFill: =ColorFade(drpProfileOrgs.SelectionFill, 20%)
-            Items: =SortByColumns(Orgs, "AccountName", SortOrder.Ascending)
+            Items: =SortByColumns(Orgs, "accountName", SortOrder.Ascending)
             OnChange: |
                 =ClearCollect(
                     SelectedOrgProjects,
-                    CustomAzureDevOps.GetProjects(drpProfileOrgs.Selected.AccountName).value
+                    CustomAzureDevOps.GetProjects(drpProfileOrgs.Selected.accountName).value
                 );
                 UpdateContext({locSelectedProject: First(SelectedOrgProjects)});
                 
                 ClearCollect(
                     SelectedProjectRepos,
                     CustomAzureDevOps.GetGitRepos(
-                        drpProfileOrgs.Selected.AccountName,
+                        drpProfileOrgs.Selected.accountName,
                         locSelectedProject.name
                     ).value
                 );
@@ -5944,7 +5977,7 @@ Home As screen:
                         AddColumns(
                             Filter(
                                 CustomAzureDevOps.GetBranches(
-                                    drpProfileOrgs.Selected.AccountName,
+                                    drpProfileOrgs.Selected.accountName,
                                     locSelectedProject.name,
                                     locSelectedRepo.id
                                 ).value,
@@ -5993,7 +6026,7 @@ Home As screen:
                 =ClearCollect(
                     SelectedProjectRepos,
                     CustomAzureDevOps.GetGitRepos(
-                        drpProfileOrgs.Selected.AccountName,
+                        drpProfileOrgs.Selected.accountName,
                         drpProfileProjects.Selected.name
                     ).value
                 );
@@ -6005,7 +6038,7 @@ Home As screen:
                         AddColumns(
                             Filter(
                                 CustomAzureDevOps.GetBranches(
-                                    drpProfileOrgs.Selected.AccountName,
+                                    drpProfileOrgs.Selected.accountName,
                                     drpProfileProjects.Selected.name,
                                     SelectedRepo.id
                                 ).value,
@@ -6064,7 +6097,7 @@ Home As screen:
                         AddColumns(
                             Filter(
                                 CustomAzureDevOps.GetBranches(
-                                    drpProfileOrgs.Selected.AccountName,
+                                    drpProfileOrgs.Selected.accountName,
                                     drpProfileProjects.Selected.name,
                                     drpProfileRepositories.Selected.id
                                 ).value,
