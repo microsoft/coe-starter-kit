@@ -100,3 +100,35 @@ function Invoke-DataverseHttpPost {
     $response = Invoke-RestMethod $requestUrl -Method 'POST' -Headers $headers -Body $body
     return $response
 }
+
+<#
+This function triggers to download the unmanaged and managed solution pipeline artifacts.
+#>
+function Invoke-Download-Solution-Artifact{
+    param (
+        [Parameter(Mandatory)] [String]$pipelineConnectionUrl,
+        [Parameter(Mandatory)] [String]$aadHost,
+        [Parameter(Mandatory)] [String]$clientId,
+        [Parameter(Mandatory)] [String]$clientSecret,
+        [Parameter(Mandatory)] [String]$tenantID,
+        [Parameter(Mandatory)] [String]$solutionZipDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [String]$artifactUrl
+    )
+	
+    #Download the unmanaged and managed solution zips
+    $dataverseHost = Get-HostFromUrl "$pipelineConnectionUrl"
+    $spnToken = Get-SpnToken "$tenantID" "$clientId" "$clientSecret" "$dataverseHost" "$aadHost"
+
+    $headers = Set-DefaultHeaders $spnToken
+    $response = Invoke-RestMethod $artifactUrl -Method 'GET' -Headers $headers   
+
+    $bytes = [Convert]::FromBase64String($response.value)
+    [IO.File]::WriteAllBytes("$solutionZipDirectory\$solutionName" + "_managed.zip", $bytes)
+
+    $unmanagedArtifactUrl = "$artifactUrl".Replace("artifactfile", "artifactfileunmanaged")
+    $response = Invoke-RestMethod "$unmanagedArtifactUrl" -Method 'GET' -Headers $headers
+    $bytes = [Convert]::FromBase64String($response.value)
+    [IO.File]::WriteAllBytes("$solutionZipDirectory\$solutionName.zip", $bytes)
+}

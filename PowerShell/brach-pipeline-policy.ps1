@@ -12,7 +12,8 @@ function Create-Branch{
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$environmentNames,
         [Parameter(Mandatory)] [String]$azdoAuthType,
-        [Parameter(Mandatory)] [string]$solutionRepoId
+        [Parameter(Mandatory)] [string]$solutionRepoId,
+        [Parameter(Mandatory)] [string]$agentPool
     )
         Write-Host "Pipeline Project - $buildProjectName Solution Project - $solutionProjectName"
         Write-Host "Pipeline Repository - $buildRepositoryName Solution Repository - $solutionRepositoryName"
@@ -118,7 +119,7 @@ function Create-Branch{
                 foreach ($environmentName in $collEnvironmentNames) {
                     Write-Host "Check if content yml file available for $environmentName. If not downloads and commit them to solution branch."
                     # Fetch Commit Changes Collection
-                    $commitChange = Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$buildRepositoryName" "$solutionName" "$environmentName" "$sourceBranch"
+                    $commitChange = Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$buildRepositoryName" "$solutionName" "$environmentName" "$sourceBranch" "$agentPool"
                     if($null -ne $commitChange){
                         $commitChanges.Add($commitChange)
                     }
@@ -257,7 +258,8 @@ function Get-Git-Commit-Changes{
         [Parameter(Mandatory)] [String]$buildRepositoryName,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$environmentName,
-        [Parameter(Mandatory)] [String]$sourceBranch
+        [Parameter(Mandatory)] [String]$sourceBranch,
+        [Parameter(Mandatory)] [String]$agentPool
     )
 
     $commitChange = $null
@@ -313,6 +315,9 @@ function Get-Git-Commit-Changes{
             # Replace with 'Build-Templates-Project/Repo'
             $pipelineContent = $pipelineContent -replace "RepositoryContainingTheBuildTemplates", "$buildProjectName/$buildRepositoryName"
             $pipelineContent = $pipelineContent -replace "SampleSolutionName", $solutionName
+            if($agentPool -ne "Azure Pipelines"){
+                $pipelineContent = $pipelineContent -replace "build-deploy-Solution-To-Environment.yml", "build-deploy-Solution-To-Environment-Hosted.yml"
+            }
 
             $variableGroup = Get-Value-From-settings $settings "$environmentName-variablegroup"
             if($null -ne $variableGroup){
@@ -359,13 +364,14 @@ function Update-Build-for-Branch{
         [Parameter(Mandatory)] [string]$solutionRepoId,
         [Parameter(Mandatory)] [String]$buildRepoName,
         [Parameter(Mandatory)] [String]$buildDirectory,
-        [Parameter(Mandatory)] [String]$currentBranch
+        [Parameter(Mandatory)] [String]$currentBranch,
+        [Parameter(Mandatory)] [String]$agentPool
     )
 
     Write-Host "Retrieving default Queue"
-    $defaultAgentQueue = Get-AgentQueueByName "$orgUrl" "$solutionProjectName" "$azdoAuthType" "Azure Pipelines"
+    $defaultAgentQueue = Get-AgentQueueByName "$orgUrl" "$solutionProjectName" "$azdoAuthType" "$agentPool"
     if($null -ne $defaultAgentQueue){
-        Write-Host "Default queue (Azure Pipelines) is available"
+        Write-Host "Default queue ($agentPool) is available"
         # If Environment Names not provided, fall back to validation|test|prod.
         if([string]::IsNullOrEmpty($environmentNames)){
             Write-Host "EnvironmentNames not found in Settings. Falling back."
@@ -382,7 +388,7 @@ function Update-Build-for-Branch{
             Invoke-Clone-Build-Settings "$orgUrl" "$solutionProjectName" "$settings" $definitions "$environmentName" "$solutionName" $repo "$azdoAuthType" $defaultAgentQueue "$solutionProjectName" "$buildRepoName" "$buildDirectory" "$currentBranch"
         }
     }else{
-        Write-Host "'Azure Pipelines' queue Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."
+        Write-Host "'$agentPool' queue Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."
     }
 }
 
@@ -732,7 +738,8 @@ function Set-Branch-Policy{
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [object]$repo,
         [Parameter(Mandatory)] [object]$settings,
-        [Parameter(Mandatory)] [string]$solutionRepoId
+        [Parameter(Mandatory)] [string]$solutionRepoId,
+        [Parameter(Mandatory)] [string]$agentPool
     )
 
     Write-Host "Fetching Project Build Definitions to set the policy"

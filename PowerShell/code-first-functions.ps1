@@ -251,6 +251,29 @@ function Invoke-Pac-Authenticate{
 
     return $pacexepath
 }
+<# 
+This function generates a cdsproj file for unpacked solutions that are not initialized
+using pac solution clone, sync or init commands. This is primarily used for pipeline artifacts
+that are downloaded and unpacked.
+#>
+function Invoke-Generate-CdsProj-For-Unpacked-Solution {
+    param (
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
+        [Parameter(Mandatory)] [String]$repo,
+        [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter(Mandatory)] [String]$pacPath
+    )
+    $pacexepath = "$pacPath\pac.exe"
+    if(Test-Path "$pacexepath")
+    {
+        if(-Not(Test-Path $buildSourceDirectory\$repo\$solutionName\SolutionPackage\*.cdsproj)){
+            #Use fake publisher becaue it will skip everything but creating cdsproj file and gitignore file
+            $initCommand = "solution init --publisher-name fake --publisher-prefix fake --outputDirectory `"$buildSourceDirectory\$repo\$solutionName\SolutionPackage\`""
+            Invoke-Expression -Command "$pacexepath $initCommand"
+            Rename-Item -Path "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\SolutionPackage.cdsproj" -NewName "$solutionName.cdsproj"
+        }
+    }
+}
 
 <#
 This function triggers either pac solution clone and sync command.

@@ -1,0 +1,232 @@
+# This pipeline gets triggered manually or via an API call.  
+# It is a general purpose automation that allows you to export a solution from a Dataverse environment and commit it to a git branch.
+# It facilitates:
+# -Ensuring user can be part of the commit (instead of a generic user), thereby enabling tracking of who made what changes
+# -Reuse for any solution in any Dataverse environment
+
+# The following variables need to be set when the pipeline is queued to run:
+# Project: The name of the Azure DevOps Project to which we are exporting our solution.
+# Repo: The name of the Azure DevOps Repo to which we are exporting our solution.
+# Branch: The name of the Azure DevOps Branch in the Repo above to which we are exporting our solution.
+# BranchToCreate: The name of the new Azure DevOps Branch to create in the Repo above to which we are exporting our solution (Optional).
+# CommitMessage: The commit message for this commit.
+# Email: The email of the user performing the commit.
+# ServiceConnectionUrl: The url of the service connection to Power Platform from which we'll be pulling the solution.
+# ServiceConnectionName: The name of the service connection to Power Platform from which we'll be pulling the solution.
+# SolutionName: The name of the solution being exported (i.e. Not the Display Name).
+# UserName: The Display name of the user performing the commit.
+# Data: Additional Data (e.g. JSON Payload) for the export to configure deployment pipelines
+# PipelineId to create a Github release for the CoE Starter Kit solution
+# PortalSiteName: Power Apps Portal/Power Pages website name
+# CommitScope: Options are Commit Solution and Settings (1), Commit Solution Only (2), Commit Settings Only (3)
+parameters:
+- name: Branch
+  type: string
+- name: BranchToCreate
+  type: string
+  default: "Commit to existing branch specified in Branch parameter"
+- name: CommitMessage
+  type: string
+- name: Data
+  type: string
+  default: "[]"
+- name: Email
+  type: string
+- name: Project
+  type: string
+- name: Repo
+  type: string
+- name: ServiceConnectionName
+  type: string
+- name: ServiceConnectionUrl
+  type: string
+- name: SolutionName
+  type: string
+- name: UserName
+  type: string
+- name: PipelineId
+  type: string
+  default: "NA"
+- name: PortalSiteName
+  type: string
+  default: "NA"
+- name: PublishCustomizations
+  type: string
+  default: "true"
+- name: CommitScope
+  type: string
+  default: "1"
+- name: ArtifactUrl
+  type: string
+  default: "NA"
+- name: PipelinesServiceConnectionName
+  type: string
+  default: "NA"
+- name: PipelinesServiceConnectionUrl
+  type: string
+  default: "NA"
+- name: PipelinesStageRunId
+  type: string
+  default: "NA"
+- name: AgentPool
+  type: string
+  default: "Azure Pipelines"
+- name: VMImage
+  type: string
+  default: "windows-latest"
+trigger: none
+pr: none
+
+name: export-${{parameters.SolutionName}}-to-git-branch
+
+variables:
+- group: alm-accelerator-variable-group
+
+stages:
+- stage: export_solution_to_git
+  displayName: 'Export solution to git' 
+  jobs:
+  - job: export_solution_to_git
+
+    pool:
+      ${{ if and(ne(parameters.AgentPool, 'NA'), ne(parameters.AgentPool, '')) }}:
+        name: ${{parameters.AgentPool}}
+      ${{ if and(ne(parameters.VMImage, 'NA'), ne(parameters.VMImage, '')) }}:
+        vmImage: ${{parameters.VMImage}}
+    steps:
+    - pwsh: |
+        # Workaround for git Filename too long issue 
+        git config --system core.longpaths true        
+      displayName: "Configuring core.longpaths true"
+
+    # Checkout Pipelines
+    - checkout: self
+      path: 'PipelineUtils'
+      displayName: 'Checkout Pipeline Branch'
+    
+    # Checkout our Branch
+    - checkout: git://${{parameters.Project}}/${{parameters.Repo}}@${{parameters.Branch}}
+      displayName: 'Checkout Source Branch'
+    
+    # Use set-connection-variables task to get values from AzDO Service Connection to be used in scripts that don't use tasks
+    - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.set-connection-variables.PowerPlatformSetConnectionVariables@2
+      displayName: 'Set Connection Variables'
+      name: pipelineHostVariables
+      inputs:
+        authenticationType: 'PowerPlatformSPN'
+        PowerPlatformSPN: '${{parameters.PipelinesServiceConnectionName}}'
+
+    # Other tasks, which use the PowerApps PowerShell cmdlets, need the environment guid.  Setting it for future use.
+    - template: Templates\export-Solution.yml
+      parameters:
+        project: ${{parameters.Project}}
+        repo: ${{parameters.Repo}}
+        branch: ${{parameters.Branch}}
+        branchToCreate: ${{parameters.BranchToCreate}}
+        commitMessage: ${{parameters.CommitMessage}}
+        email: ${{parameters.Email}}
+        serviceConnectionName: ${{parameters.ServiceConnectionName}}
+        serviceConnectionUrl: ${{parameters.ServiceConnectionUrl}}
+        solutionName: ${{parameters.SolutionName}}
+        userName: ${{parameters.UserName}}
+        configurationData: ${{parameters.Data}}
+        portalSiteName: ${{parameters.PortalSiteName}}
+        publishCustomizations: ${{parameters.PublishCustomizations}}
+        commitScope: ${{parameters.CommitScope}}
+        agentPool: ${{parameters.AgentPool}}
+        artifactUrl: ${{parameters.ArtifactUrl}}
+        pipelinesServiceConnectionName: ${{parameters.PipelinesServiceConnectionName}}
+        pipelinesServiceConnectionUrl: ${{parameters.PipelinesServiceConnectionUrl}}
+
+    # Create a pull request for the new branch
+    - pwsh: |
+        $sourceBranch = "refs/heads/${{parameters.BranchToCreate}}"
+        $targetBranch = "refs/heads/${{parameters.SolutionName}}"
+        if("${{parameters.BranchToCreate}}" -eq "Commit to existing branch specified in Branch parameter") {
+          $sourceBranch = "refs/heads/${{parameters.Branch}}"
+        }
+
+        # Check for existing active PR for the branch and repo
+        $uri = "$(System.TeamFoundationCollectionUri)/${{parameters.project}}/_apis/git/pullrequests?searchCriteria.repositoryId=${{parameters.repo}}&searchCriteria.sourceRefName=$sourceBranch&searchCriteria.status=active&searchCriteria.targetRefName=$targetBranch&api-version=7.0"
+        $response = Invoke-RestMethod $uri -Method Get -Headers @{
+            Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+        }
+        if($response.value.length -eq 0) {
+          # Define API endpoint
+          $uri = "$(System.TeamFoundationCollectionUri)/${{parameters.project}}/_apis/git/repositories/${{parameters.repo}}/pullrequests?api-version=6.0"
+
+          # Define request body
+          $body = @{
+              sourceRefName = "$sourceBranch"
+              targetRefName = "$targetBranch"
+              title = "${{parameters.SolutionName}} - Validation Build and Approval Pull Request"
+              description = "${{parameters.CommitMessage}}"
+          } | ConvertTo-Json
+
+          # Send API request
+          $createPRResponse = Invoke-RestMethod -Uri $uri -Method Post -Headers @{
+              Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+              "Content-Type" = "application/json"
+          } -Body $body
+
+          # Define API endpoint for update
+          $uri = "$(System.TeamFoundationCollectionUri)${{parameters.project}}/_apis/git/repositories/${{parameters.repo}}/pullrequests/" + $createPRResponse.pullRequestId + "?api-version=6.0"
+
+          Write-Host $uri
+          # Set the PR to auto-complete
+          $body = @{
+              autoCompleteSetBy = @{
+                  id = $createPRResponse.createdBy.id
+              }
+              completionOptions = @{
+                  deleteSourceBranch = $true
+                  bypassPolicy = $false
+              }
+          } | ConvertTo-Json
+
+          Write-Host $body
+          Invoke-RestMethod -Uri $uri -Method Patch -Headers @{
+              Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+              "Content-Type" = "application/json"
+          } -Body $body
+
+        }
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      displayName: 'Create a pull request for the new branch'
+      condition: succeeded()
+
+
+    # Mark the deployment stage as succeeded
+    - pwsh: |
+        Write-Host "##vso[task.setvariable variable=pipelineRunStatus]20"
+      displayName: 'Mark the deployment stage as succeeded'
+      enabled: true
+      condition: succeeded()
+
+
+    # Mark the deployment stage as failed
+    - pwsh: |
+        Write-Host "##vso[task.setvariable variable=pipelineRunStatus]30"
+      displayName: 'Mark the deployment stage as failed'
+      enabled: true
+      condition: failed()
+
+    # Mark the deployment stage as completed. Success or failed
+    - pwsh: |
+        . "$env:POWERSHELLPATH/dataverse-webapi-functions.ps1"
+        $dataverseHost = Get-HostFromUrl "${{parameters.PipelinesServiceConnectionUrl}}"
+        $spnToken = Get-SpnToken "$(pipelineHostVariables.BuildTools.TenantId)" "$(pipelineHostVariables.BuildTools.ApplicationId)" "$(pipelineHostVariables.BuildTools.ClientSecret)" "$dataverseHost" "$(AADHost)"
+
+        # Set up the request body
+        $requestBody = @{
+            StageRunId = "${{parameters.PipelinesStageRunId}}"
+            PreDeploymentStepStatus = $(pipelineRunStatus)
+        }
+        $jsonBody = $requestBody | ConvertTo-Json
+
+        Invoke-DataverseHttpPost "$spnToken" "$dataverseHost" "UpdatePreDeploymentStepStatus" "$jsonBody"
+        Write-Host "${{parameters.PipelinesServiceConnectionUrl}}"
+      displayName: 'Mark the deployment stage as completed. Success or failed'
+      enabled: true
+      condition: succeededOrFailed()

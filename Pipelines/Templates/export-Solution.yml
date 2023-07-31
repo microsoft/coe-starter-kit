@@ -53,6 +53,18 @@ parameters:
 - name: commitScope
   type: string
   default: '1'
+- name: agentPool
+  type: string
+  default: 'Azure Pipelines'
+- name: artifactUrl
+  type: string
+  default: ""
+- name: pipelinesServiceConnectionName
+  type: string
+  default: ""
+- name: pipelinesServiceConnectionUrl
+  type: string
+  default: ""
 steps:
 - template: set-service-connection-url.yml
   parameters:
@@ -100,7 +112,7 @@ steps:
   condition: and(succeeded(), ne(variables['CacheEnabled'], 'false'))
 
 # Configure email/name and checkout git branch
-- script: |
+- pwsh: |
    git config user.email "${{parameters.email}}"
    git config user.name "${{parameters.userName}}"
    git checkout origin/${{parameters.branch}} --track
@@ -109,7 +121,7 @@ steps:
 
 # If the BranchToCreate variable *does not* contain an empty string, then
 # create a branch based on BranchToCreate variable value and checkout that branch.
-- script: |
+- pwsh: |
    git checkout -b ${{parameters.branchToCreate}} ${{parameters.branch}}
   displayName: 'Create New Git Branch: ${{parameters.branchToCreate}}'
   workingDirectory: $(Build.SourcesDirectory)\${{parameters.repo}}
@@ -148,11 +160,37 @@ steps:
       Set-Pac-Tools-Path "$(Agent.OS)"
   displayName: 'Set pac tools path'
 
+# Download the solution artifact if it is provided
+- pwsh: |
+      . "$env:POWERSHELLPATH/dataverse-webapi-functions.ps1"
+      Invoke-Download-Solution-Artifact "${{parameters.pipelinesServiceConnectionUrl}}" "$(AADHost)" "$(pipelineHostVariables.BuildTools.ApplicationId)" "$(pipelineHostVariables.BuildTools.ClientSecret)" "$(pipelineHostVariables.BuildTools.TenantId)" "$(Pipeline.Workspace)" "${{parameters.repo}}" "${{parameters.solutionName}}" "${{parameters.artifactUrl}}"
+  displayName: 'Download Solution Artifacts'
+  condition: and(succeeded(), and(ne('${{parameters.artifactUrl}}', ''), ne('${{parameters.artifactUrl}}', 'NA')), or(eq('${{parameters.commitScope}}', '1'), eq('${{parameters.commitScope}}', '2')))
+
+# Unpack the solution artifact if it is provided
+- task: microsoft-IsvExpTools.PowerPlatform-BuildTools.unpack-solution.PowerPlatformUnpackSolution@2
+  inputs:
+    SolutionInputFile: '$(Pipeline.Workspace)\${{parameters.solutionName}}.zip'
+    SolutionTargetFolder: '$(Build.SourcesDirectory)\${{parameters.repo}}\${{parameters.solutionName}}\SolutionPackage\src'
+    SolutionType: 'Both'
+    ProcessCanvasApps: $(localProcessCanvasApps)
+    OverwriteFiles: true
+  displayName: 'Unpack Solution Artifacts'
+  condition: and(succeeded(), and(ne('${{parameters.artifactUrl}}', ''), ne('${{parameters.artifactUrl}}', 'NA')), or(eq('${{parameters.commitScope}}', '1'), eq('${{parameters.commitScope}}', '2')))
+
+# Initialize the cdsproj for the unpacked solution
+- pwsh: |
+      . "$env:POWERSHELLPATH/code-first-functions.ps1"
+      Invoke-Generate-CdsProj-For-Unpacked-Solution "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}" "$(pacPath)"
+  displayName: 'pac - Initialize cdsproj for unpacked solution'
+  condition: and(succeeded(), and(ne('${{parameters.artifactUrl}}', ''), ne('${{parameters.artifactUrl}}', 'NA')), or(eq('${{parameters.commitScope}}', '1'), eq('${{parameters.commitScope}}', '2')))
+
+# Clone or sync the solution if the artifact is not provided
 - pwsh: |
       . "$env:POWERSHELLPATH/code-first-functions.ps1"
       Invoke-Clone-Or-Sync-Solution "${{parameters.serviceConnectionUrl}}" "$(connectionVariables.BuildTools.ApplicationId)" "$(connectionVariables.BuildTools.ClientSecret)" "$(connectionVariables.BuildTools.TenantId)" "$(Build.SourcesDirectory)" "${{parameters.repo}}" "${{parameters.solutionName}}" "$(pacPath)" "$(Agent.BuildDirectory)" "$(localProcessCanvasApps)"
   displayName: 'pac - Clone or Sync Solution'
-  condition: and(succeeded(), or(eq('${{parameters.commitScope}}', '1'),eq('${{parameters.commitScope}}', '2')))
+  condition: and(succeeded(), or(eq('${{parameters.artifactUrl}}', ''), eq('${{parameters.artifactUrl}}', 'NA')), or(eq('${{parameters.commitScope}}', '1'), eq('${{parameters.commitScope}}', '2')))
 
 - pwsh: |
     . "$env:POWERSHELLPATH/code-first-functions.ps1"
@@ -232,6 +270,7 @@ steps:
     useDeploymentSettingsPlaceholders: $(UseDeploymentSettingsPlaceholders)
     commitScope: '${{parameters.commitScope}}'
     currentBranch: '${{ parameters.branch }}'
+    agentPool: '${{ parameters.agentPool }}'
 
 # Set paths to deployment settings
 - template: set-deployment-configuration-paths.yml

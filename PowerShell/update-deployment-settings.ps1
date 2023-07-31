@@ -18,10 +18,11 @@ function Set-DeploymentSettingsConfiguration
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [String]$serviceConnection,
         [Parameter(Mandatory)] [String]$solutionName,
-        [Parameter()] [String]$agentOS = "",
+        [Parameter()] [String]$agentPool = "Azure Pipelines",
         [Parameter()] [String]$usePlaceholders = "true",
         [Parameter(Mandatory)] [String]$currentBranch,
-        [Parameter()] [String]$pat = "" # Azure DevOps Personal Access Token only required for running local tests
+        [Parameter()] [String]$pat = "", # Azure DevOps Personal Access Token only required for running local tests
+        [Parameter()] [String]$agentOS = ""
     )
     $configurationData = $env:DEPLOYMENT_SETTINGS | ConvertFrom-Json
     $reservedVariables = @("TriggerSolutionUpgrade")
@@ -40,7 +41,7 @@ function Set-DeploymentSettingsConfiguration
     $solutionRepoId = Get-RepositoryIdbyName "$orgUrl" "$projectName" "$azdoAuthType" "$repo"
 
     #Update / Create Deployment Pipelines
-    New-DeploymentPipelines "$pipelineSourceDirectory" "$buildProjectName" "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$pat" "$solutionName" $configurationData $agentOS $solutionRepoId "$buildSourceDirectory" "$currentBranch"
+    New-DeploymentPipelines "$pipelineSourceDirectory" "$buildProjectName" "$buildRepositoryName" "$orgUrl" "$projectName" "$repo" "$azdoAuthType" "$pat" "$solutionName" $configurationData $agentOS $solutionRepoId "$buildSourceDirectory" "$currentBranch" "$agentPool"
 
     Write-Host "Importing PowerShell Module: $microsoftXrmDataPowerShellModule - $xrmDataPowerShellVersion"
     Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $xrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
@@ -381,7 +382,8 @@ function New-DeploymentPipelines
         [Parameter()] [String]$agentOS,
         [Parameter()] [String]$solutionRepoId,
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
-        [Parameter(Mandatory)] [String]$currentBranch
+        [Parameter(Mandatory)] [String]$currentBranch,
+        [Parameter(Mandatory)] [String]$agentPool
     )
     if($null -ne $configurationData -and $configurationData.length -gt 0) {
         Write-Host "Retrieved " $configurationData.length " deployment environments"
@@ -468,13 +470,13 @@ function New-DeploymentPipelines
                 try{
                     . "$env:POWERSHELLPATH/brach-pipeline-policy.ps1"
                     Write-Host "Branch creation start"
-                   $solutionProjectRepo = Create-Branch "$orgUrl" "$buildProjectName" "$projectName" "$repo" "$buildRepositoryName" "$solutionName" "$environmentNames" "$azdoAuthType" "$solutionRepoId"
+                   $solutionProjectRepo = Create-Branch "$orgUrl" "$buildProjectName" "$projectName" "$repo" "$buildRepositoryName" "$solutionName" "$environmentNames" "$azdoAuthType" "$solutionRepoId" "$agentPool"
 
                    if($null -ne $solutionProjectRepo){
-                        Write-Host "Creation of build definitions start"                        
-                        Update-Build-for-Branch "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$buildRepositoryName" "$buildSourceDirectory" "$currentBranch"
-                        Write-Host "Setting up branch policy start"                        
-                        Set-Branch-Policy "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId"
+                        Write-Host "Creation of build definitions start"
+                        Update-Build-for-Branch "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$buildRepositoryName" "$buildSourceDirectory" "$currentBranch" "$agentPool"
+                        Write-Host "Setting up branch policy start"
+                        Set-Branch-Policy "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$agentPool"
                    }
                 }
                 catch{
