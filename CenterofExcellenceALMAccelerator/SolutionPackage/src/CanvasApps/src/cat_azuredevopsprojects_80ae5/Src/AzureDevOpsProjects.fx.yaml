@@ -1,26 +1,42 @@
 AzureDevOpsProjects As screen:
     Fill: =RGBA(230, 230, 230, 1)
     LoadingSpinnerColor: =RGBA(0, 120, 212, 1)
-    OnVisible: |+
-        =UpdateContext({_colOrganizations: IfError(CustomAzureDevOps.GetOrganizations(), Table())});
-        If(IsEmpty(_colOrganizations),
-            UpdateContext({
-                infoTitle: "Error connecting to Azure DevOps",
-                infoText: "There was an issue connecting to Azure DevOps.\n\nHave you configured the CustomAzureDevOps connector? If not please configure the CustomAzureDevOps connector and try again.\n\nIf you have configured the CustomAzureDevOps connector please try refresh the browser.",
-                infoTextHeight: 100
-            });
-            UpdateContext({showInfoDialog: true});
+    OnVisible: |
+        =UpdateContext({errorMessage: ""});
+        IfError(
+                //Get the current user's profile id
+            Set(
+                gblAzureDevOpsProfileId,
+                CustomAzureDevOps.GetCurrentUserProfile().id
+            ),
+            UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+            Notify("Error retrieving current user profile (GetCurrentUserProfile): " & errorMessage);
+            
         );
-        
-        
-        ClearCollect(colReleaseTags, 'Release Histories');
-        If(Not(showInfoDialog),
-            If(CountRows(colReleaseTags) < 1,
+        Set(
+            colOrganizations,
+            IfError(
+                CustomAzureDevOps.GetOrganizations(
+                    {
+                        'api-version': "7.0",
+                        memberId: gblAzureDevOpsProfileId
+                    }
+                ).value,
+                Table();
+            )
+        );
+        ClearCollect(
+            colReleaseTags,
+            'Release Histories'
+        );
+        If(
+            Not(showInfoDialog),
+            If(
+                CountRows(colReleaseTags) < 1,
                 UpdateContext({showReleaseTagDialog: true});
             )
         );
-        
-        
+        Select(icoUpdateReleaseTagsNewRepo_1);
 
     RootLayout As groupContainer.horizontalAutoLayoutContainer:
         Height: =Parent.Height
@@ -184,16 +200,21 @@ AzureDevOpsProjects As screen:
                             DefaultSelectedItems: =
                             DisplayMode: =DisplayMode.Edit
                             Height: =32
-                            Items: =Sort(CustomAzureDevOps.GetOrganizations(), AccountName, SortOrder.Ascending)
+                            Items: |-
+                                =Sort(
+                                colOrganizations,
+                                    accountName,
+                                    SortOrder.Ascending
+                                )
                             LayoutMinHeight: =32
                             LayoutMinWidth: =320
                             OnChange: |-
                                 =If(Not(IsBlank(Self.Selected)),
                                     UpdateContext({currentOrganization: ddOrganization.Selected,
-                                        createProjectPermission: First(CustomAzureDevOps.HasPermissions(ddOrganization.Selected.AccountName, "3e65f728-f8bc-4ecd-8764-7e378b19bfa7", "4", {token:"NAMESPACE:"}).value).Value        
+                                        createProjectPermission: First(CustomAzureDevOps.HasPermissions(ddOrganization.Selected.accountName, "3e65f728-f8bc-4ecd-8764-7e378b19bfa7", "4", {token:"NAMESPACE:"}).value).Value        
                                     });
                                     
-                                    ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(currentOrganization.AccountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
+                                    ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(currentOrganization.accountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
                                     Set(varSortProjects,"name");
                                     ,
                                     UpdateContext({currentOrganization: {}});
@@ -212,13 +233,13 @@ AzureDevOpsProjects As screen:
                             Y: =32
                             ZIndex: =2
 
-                            AccountName1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="AccountName"
-                                FieldName: ="AccountName"
+                            accountName1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="accountName"
+                                FieldName: ="accountName"
                                 FieldType: ="s"
                                 FieldVariantName: ="textualColumn"
                                 Order: =2
-                                ZIndex: =12
+                                ZIndex: =43
 
                         icoUpdateReleaseTagsNewRepo_1 As icon.Reload:
                             BorderColor: =RGBA(0, 0, 0, 0)
@@ -231,13 +252,26 @@ AzureDevOpsProjects As screen:
                             HoverColor: =ColorFade(RGBA(0, 120, 212, 1), -30%)
                             HoverFill: =RGBA(0, 0, 0, 0)
                             Icon: =Icon.Reload
-                            OnSelect: |-
-                                =IfError(UpdateContext({colOrganizations: CustomAzureDevOps.GetOrganizations()}),
-                                    UpdateContext({
-                                        infoTitle: "Error connecting to Azure DevOps",
-                                        infoText: "There was an issue connecting to Azure DevOps.\n\nHave you configured the CustomAzureDevOps connector?\n\nTry refresh the browser."
-                                    });
+                            OnSelect: |
+                                =IfError(
+                                    UpdateContext(
+                                        {
+                                            colOrganizations: CustomAzureDevOps.GetOrganizations(
+                                                {
+                                                    'api-version': "7.0",
+                                                    memberId: gblAzureDevOpsProfileId
+                                                }
+                                            ).value
+                                        }
+                                    ),
+                                    UpdateContext(
+                                        {
+                                            infoTitle: "Error connecting to Azure DevOps",
+                                            infoText: "There was an issue connecting to Azure DevOps.\n\nHave you configured the CustomAzureDevOps connector?\n\nTry refresh the browser."
+                                        }
+                                    );
                                     UpdateContext({showInfoDialog: true});
+                                    
                                 );
                             PaddingBottom: =3
                             PaddingLeft: =7
@@ -323,27 +357,27 @@ AzureDevOpsProjects As screen:
                                         Clear(colProjectServiceConnections);
                                         Clear(colProjectVariableGroups);
                                     
-                                        UpdateContext({currentProject: CustomAzureDevOps.GetProject(ddOrganization.Selected.AccountName, fdProjects.Selected.name, {'api-version': "6.0"})});
-                                        UpdateContext({manageTeamMembership: First(CustomAzureDevOps.HasPermissions(ddOrganization.Selected.AccountName, "5a27515b-ccd7-42c9-84f1-54c998f03866", "8", {token: $"$PROJECT:vstfs:///Classification/TeamProject/{fdProjects.Selected.id}"}).value).Value});
+                                        UpdateContext({currentProject: CustomAzureDevOps.GetProject(ddOrganization.Selected.accountName, fdProjects.Selected.name, {'api-version': "6.0"})});
+                                        UpdateContext({manageTeamMembership: First(CustomAzureDevOps.HasPermissions(ddOrganization.Selected.accountName, "5a27515b-ccd7-42c9-84f1-54c998f03866", "8", {token: $"$PROJECT:vstfs:///Classification/TeamProject/{fdProjects.Selected.id}"}).value).Value});
                                         Concurrent(
                                             // Get Team Members (Project Default Team)
-                                            ClearCollect(colProjectTeamMembers, CustomAzureDevOps.GetProjectTeamMembers(ddOrganization.Selected.AccountName, currentProject.name, currentProject.defaultTeam.id, {'api-version': "6.0"}).value);
+                                            ClearCollect(colProjectTeamMembers, CustomAzureDevOps.GetProjectTeamMembers(ddOrganization.Selected.accountName, currentProject.name, currentProject.defaultTeam.id, {'api-version': "6.0"}).value);
                                             Clear(colProjectTeamMemberIdentities);
                                             ForAll(colProjectTeamMembers,
                                                 Collect(colProjectTeamMemberIdentities, { id: identity.id, displayName: identity.displayName, email: identity.uniqueName, isAdmin: If(isTeamAdmin, "Yes", "") });
                                             ),
                                             
                                             // Get Pipelines
-                                            ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value),
+                                            ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.accountName, currentProject.name, {'api-version': "6.0"}).value),
                                     
                                             // Get Repositories
-                                            ClearCollect(colProjectRepos, CustomAzureDevOps.GetGitRepos(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value),
+                                            ClearCollect(colProjectRepos, CustomAzureDevOps.GetGitRepos(ddOrganization.Selected.accountName, currentProject.name, { 'api-version': "6.0" }).value),
                                             
                                             // Get Variable Groups
-                                            ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value),
+                                            ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.accountName, currentProject.name, {'api-version': "6.0"}).value),
                                     
                                             // Get Service Connections,
-                                            ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value)
+                                            ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.accountName, currentProject.name, { 'api-version': "6.0" }).value)
                                         ),
                                     
                                         //Default result
@@ -356,7 +390,7 @@ AzureDevOpsProjects As screen:
                                     )
                                 OnSelect: |-
                                     =If(CountRows(fdProjects.SelectedItems) = 1,
-                                        UpdateContext({currentProject: CustomAzureDevOps.GetProject(ddOrganization.Selected.AccountName, fdProjects.Selected.name, {'api-version': "6.0"})})
+                                        UpdateContext({currentProject: CustomAzureDevOps.GetProject(ddOrganization.Selected.accountName, fdProjects.Selected.name, {'api-version': "6.0"})})
                                     )
                                 PageSize: =2000
                                 RaiseOnRowSelectionChangeEvent: =true
@@ -397,13 +431,13 @@ AzureDevOpsProjects As screen:
                                 Height: =32
                                 Items: |-
                                     =Table(
-                                        {ItemKey:"New",ItemDisplayName:"New",ItemIconName:"Add", ItemEnabled: Not(IsBlankOrError(currentOrganization.AccountName))},
+                                        {ItemKey:"New",ItemDisplayName:"New",ItemIconName:"Add", ItemEnabled: Not(IsBlankOrError(currentOrganization.accountName))},
                                         {ItemKey:"ALMAccProject",ItemDisplayName:"Project Wizard",ItemIconName:"ProjectCollection", ItemParentKey:"New"},    
                                         {ItemKey:"Project",ItemDisplayName:"Project",ItemIconName:"NewTeamProject", ItemParentKey:"New"},
                                         
-                                        {ItemKey:"Delete",ItemDisplayName:"Delete",ItemIconName:"Delete", ItemEnabled:Not(IsBlankOrError(currentOrganization.AccountName)) And (CountRows(fdProjects.SelectedItems) > 0)},
+                                        {ItemKey:"Delete",ItemDisplayName:"Delete",ItemIconName:"Delete", ItemEnabled:Not(IsBlankOrError(currentOrganization.accountName)) And (CountRows(fdProjects.SelectedItems) > 0)},
                                     
-                                        {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:Not(IsBlankOrError(currentOrganization.AccountName))},
+                                        {ItemKey:"Refresh",ItemDisplayName:"Refresh",ItemIconName:"Refresh", ItemEnabled:Not(IsBlankOrError(currentOrganization.accountName))},
                                     
                                         // Far Items
                                         {ItemKey:"Info",ItemDisplayName:"Info",ItemIconName:"Info",ItemIconOnly:true,ItemFarItem:true}
@@ -416,7 +450,7 @@ AzureDevOpsProjects As screen:
                                             colProjects,
                                             AddColumns(
                                                 CustomAzureDevOps.GetProjects(
-                                                    ddOrganization.Selected.AccountName,
+                                                    ddOrganization.Selected.accountName,
                                                     {'api-version': "7.0"}
                                                 ).value,
                                                 "ModifiedOn",
@@ -478,7 +512,7 @@ AzureDevOpsProjects As screen:
                                                 createProjectPermission,
                                                 ClearCollect(
                                                     colProjectProcesses,
-                                                    CustomAzureDevOps.ListWorkProcesses(currentOrganization.AccountName).value
+                                                    CustomAzureDevOps.ListWorkProcesses(currentOrganization.accountName).value
                                                 );
                                                 Patch(
                                                     colProjectProcesses,
@@ -705,7 +739,7 @@ AzureDevOpsProjects As screen:
                                     ClearCollect(
                                         colProjectTeamMembers,
                                         CustomAzureDevOps.GetProjectTeamMembers(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             currentProject.name,
                                             currentProject.defaultTeam.id,
                                             {'api-version': "6.0"}
@@ -733,7 +767,7 @@ AzureDevOpsProjects As screen:
                                         colAdoUsers,
                                         AddColumns(
                                             CustomAzureDevOps.GetUsers(
-                                                currentOrganization.AccountName,
+                                                currentOrganization.accountName,
                                                 {
                                                     'api-version': "6.0-preview",
                                                     subjectTypes: "aad"
@@ -748,7 +782,7 @@ AzureDevOpsProjects As screen:
                                     ForAll(
                                         fdTeamMembers.SelectedItems,
                                         CustomAzureDevOps.RemovMemberFromGroup(
-                                            currentOrganization.AccountName,
+                                            currentOrganization.accountName,
                                             currentProject.defaultTeam.id,
                                             ThisRecord.id,
                                             {'api-version': "6.0"}
@@ -757,7 +791,7 @@ AzureDevOpsProjects As screen:
                                     ClearCollect(
                                         colProjectTeamMembers,
                                         CustomAzureDevOps.GetProjectTeamMembers(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             currentProject.name,
                                             currentProject.defaultTeam.id,
                                             {'api-version': "6.0"}
@@ -910,10 +944,10 @@ AzureDevOpsProjects As screen:
                             OnSelect: |-
                                 =Switch(cbPipelines.Selected.ItemKey,
                                     "Refresh",
-                                    ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value),
+                                    ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.accountName, currentProject.name, {'api-version': "6.0"}).value),
                                 
                                     "View",
-                                    Launch($"https://dev.azure.com/{currentOrganization.AccountName}/{currentProject.name}/_build?definitionId={fdPipelines.Selected.id}"),
+                                    Launch($"https://dev.azure.com/{currentOrganization.accountName}/{currentProject.name}/_build?definitionId={fdPipelines.Selected.id}"),
                                     
                                     "Info",
                                     UpdateContext({
@@ -1001,11 +1035,11 @@ AzureDevOpsProjects As screen:
                                 =If(IsBlank(Self.Selected),
                                     UpdateContext({isTemplateRepo: false, repoContent: Blank()});
                                     ,
-                                    UpdateContext({ isTemplateRepo: Not(IsError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, Self.Selected.id, { path: "/Pipelines/export-solution-to-git.yml", 'api-version': "7.1-preview"})) )});
+                                    UpdateContext({ isTemplateRepo: Not(IsError(CustomAzureDevOps.GetFile(ddOrganization.Selected.accountName, fdProjects.Selected.name, Self.Selected.id, { path: "/Pipelines/export-solution-to-git.yml", 'api-version': "7.1-preview"})) )});
                                     
                                     UpdateContext({
                                         repoContent: If(isTemplateRepo, 
-                                            IfError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, Self.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content, JSON({
+                                            IfError(CustomAzureDevOps.GetFile(ddOrganization.Selected.accountName, fdProjects.Selected.name, Self.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content, JSON({
                                   version: "Unknown",
                                   published: "",
                                   content: "coe-alm-accelerator-templates"
@@ -1058,7 +1092,7 @@ AzureDevOpsProjects As screen:
                             OnSelect: |-
                                 =Switch(Self.Selected.ItemKey,
                                     "Refresh",
-                                    ClearCollect(colProjectRepos, CustomAzureDevOps.GetGitRepos(currentOrganization.AccountName, currentProject.name, { 'api-version': "6.0" }).value);
+                                    ClearCollect(colProjectRepos, CustomAzureDevOps.GetGitRepos(currentOrganization.accountName, currentProject.name, { 'api-version': "6.0" }).value);
                                     ,
                                     "New",
                                     ClearCollect(colReleaseTags, 'Release Histories');
@@ -1068,7 +1102,7 @@ AzureDevOpsProjects As screen:
                                     );
                                     ,
                                     "View",
-                                    Launch($"https://dev.azure.com/{currentOrganization.AccountName}/{currentProject.name}/_git/{fdRepositories.Selected.name}");
+                                    Launch($"https://dev.azure.com/{currentOrganization.accountName}/{currentProject.name}/_git/{fdRepositories.Selected.name}");
                                     ,
                                     "Upgrade",
                                     UpdateContext({almProjectSyncPipelineId: If(IsBlank(LookUp(colProjectPipelines, name = "sync-pipeline-repo")), -1, LookUp(colProjectPipelines, name = "sync-pipeline-repo").id)});
@@ -1205,7 +1239,7 @@ AzureDevOpsProjects As screen:
                                     ClearCollect(
                                         colProjectServiceConnections,
                                         CustomAzureDevOps.GetServiceEndpoints(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             currentProject.name,
                                             {'api-version': "6.0"}
                                         ).value
@@ -1230,7 +1264,7 @@ AzureDevOpsProjects As screen:
                                             selectedServiceConnectionClientId: First(fdServiceConnections.SelectedItems).authorization.parameters.applicationId,
                                             selectedServiceConnectionTenantId: First(fdServiceConnections.SelectedItems).authorization.parameters.tenantId,
                                             selectedServiceConnectionShared: CustomAzureDevOps.GetServiceEndpointShared(
-                                                currentOrganization.AccountName,
+                                                currentOrganization.accountName,
                                                 currentProject.name,
                                                 First(fdServiceConnections.SelectedItems).id,
                                                 {'api-version': "6.0-preview"}
@@ -1264,7 +1298,7 @@ AzureDevOpsProjects As screen:
                                             If(
                                                 Not(
                                                     CustomAzureDevOps.GetServiceEndpointShared(
-                                                        currentOrganization.AccountName,
+                                                        currentOrganization.accountName,
                                                         currentProject.name,
                                                         ThisRecord.id,
                                                         {'api-version': "6.0-preview"}
@@ -1309,7 +1343,7 @@ AzureDevOpsProjects As screen:
                                         If(
                                             IsError(
                                                 CustomAzureDevOps.DeleteServiceEndpoint(
-                                                    currentOrganization.AccountName,
+                                                    currentOrganization.accountName,
                                                     ThisRecord.id,
                                                     {
                                                         'api-version': "7.0",
@@ -1323,7 +1357,7 @@ AzureDevOpsProjects As screen:
                                     ClearCollect(
                                         colProjectServiceConnections,
                                         CustomAzureDevOps.GetServiceEndpoints(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             currentProject.name,
                                             {'api-version': "6.0"}
                                         ).value
@@ -1451,9 +1485,9 @@ AzureDevOpsProjects As screen:
                             OnSelect: |-
                                 =Switch(cbVariableGrop.Selected.ItemKey,
                                     "Refresh",
-                                    ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value),
+                                    ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.accountName, currentProject.name, {'api-version': "6.0"}).value),
                                     "View",
-                                    Launch($"https://dev.azure.com/{currentOrganization.AccountName}/{currentProject.name}/_library?itemType=VariableGroups&view=VariableGroupView&variableGroupId={fdVariableGroup.Selected.id}&path={fdVariableGroup.Selected.name}")    ,
+                                    Launch($"https://dev.azure.com/{currentOrganization.accountName}/{currentProject.name}/_library?itemType=VariableGroups&view=VariableGroupView&variableGroupId={fdVariableGroup.Selected.id}&path={fdVariableGroup.Selected.name}")    ,
                                     "Info",
                                     
                                     UpdateContext(
@@ -1487,7 +1521,7 @@ AzureDevOpsProjects As screen:
                 ForAll(
                     fdProjects.SelectedItems,
                     CustomAzureDevOps.DeleteProject(
-                        ddOrganization.Selected.AccountName,
+                        ddOrganization.Selected.accountName,
                         ThisRecord.id,
                         {'api-version': "6.0"}
                     )
@@ -1497,7 +1531,7 @@ AzureDevOpsProjects As screen:
                     colProjects,
                     AddColumns(
                         CustomAzureDevOps.GetProjects(
-                            ddOrganization.Selected.AccountName,
+                            ddOrganization.Selected.accountName,
                             {'api-version': "7.0"}
                         ).value,
                         "ModifiedOn",
@@ -1514,11 +1548,11 @@ AzureDevOpsProjects As screen:
         OnCloseSelect: |-
             =UpdateContext({showDeleteProjectDialog: false});
         SubTitle: |-
-            =$"Are you sure you want to delete {CountRows(fdProjects.SelectedItems)} project{If(CountRows(fdProjects.SelectedItems) > 1, "s")} in the {ddOrganization.Selected.AccountName} organizaton?
+            =$"Are you sure you want to delete {CountRows(fdProjects.SelectedItems)} project{If(CountRows(fdProjects.SelectedItems) > 1, "s")} in the {ddOrganization.Selected.accountName} organizaton?
             
             Deleted projects are available to restore for 28 days from the time of deletion.
             
-            Go to https://dev.azure.com/{ddOrganization.Selected.AccountName}_settings/projects to restore deleted projects
+            Go to https://dev.azure.com/{ddOrganization.Selected.accountName}_settings/projects to restore deleted projects
             "
         Title: =$"Delete {CountRows(fdProjects.SelectedItems)} DevOps Project{If(CountRows(fdProjects.SelectedItems) > 1, "s")}?"
         Visible: =showDeleteProjectDialog
@@ -1596,7 +1630,7 @@ AzureDevOpsProjects As screen:
                         // Set Permissions
                         UpdateContext({newAlmProjectRepoStatus: $"Setting repository permissions for {newAlmProjectName} Build Service {newAlmProjectOrganization}"});        
                         CustomAzureDevOps.SetPermissions(
-                            ddOrganization.Selected.AccountName,
+                            ddOrganization.Selected.accountName,
                             "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                             {
                                 'api-version': "6.0",
@@ -1618,7 +1652,7 @@ AzureDevOpsProjects As screen:
                         UpdateContext({fileContent: GetGithubFileContent.Run(newPipelineTemplateVersion).filecontent});
                         
                         CustomAzureDevOps.CreateFile(
-                            ddOrganization.Selected.AccountName,
+                            ddOrganization.Selected.accountName,
                             LookUp(colNewAlmProjectRepos, name = newAlmProjectPipelineTemplateRepository).id,
                             {
                                 'api-version': "7.0",
@@ -1679,7 +1713,7 @@ AzureDevOpsProjects As screen:
                         })}); 
             
                         // removed - it requires that custom connector is preinstalled in order to install the ALM Acc. solution. Need to find a solution for this
-                        //GetPipelineRunResult.Run(currentOrganization.AccountName, newAlmProjectName, syncPipelineRun.pipeline.id, syncPipelineRun.id, User().Email);
+                        //GetPipelineRunResult.Run(currentOrganization.accountName, newAlmProjectName, syncPipelineRun.pipeline.id, syncPipelineRun.id, User().Email);
             
                         UpdateContext({createNewAlmProjectRepoOperation: "WaitingForSyncPipelineToComplete"});
                         UpdateContext({
@@ -2167,10 +2201,10 @@ AzureDevOpsProjects As screen:
                             "ddExistingProjects_1 As 'Combo box'.pcfdataset":
                                 DisplayMode: =If(Not(IsBlank(ddOrganization.Selected)) And IsBlank(txtProjectName_5.Value), DisplayMode.Edit, DisplayMode.Disabled)
                                 Height: =32
-                                Items: =If(Not(IsBlankOrError(currentOrganization.AccountName)), Sort(colProjects, name, SortOrder.Ascending), Blank())
+                                Items: =If(Not(IsBlankOrError(currentOrganization.accountName)), Sort(colProjects, name, SortOrder.Ascending), Blank())
                                 OnChange: |
                                     =If(CountRows(Self.SelectedItems) > 0,
-                                        ClearCollect(colExistingProjectRepos, CustomAzureDevOps.GetGitRepos(currentOrganization.AccountName, Self.Selected.name, {'api-version': "6.0"}).value);
+                                        ClearCollect(colExistingProjectRepos, CustomAzureDevOps.GetGitRepos(currentOrganization.accountName, Self.Selected.name, {'api-version': "6.0"}).value);
                                     
                                         // check if selected project is empty (only 1 uninitialized repo)
                                         If(CountRows(colExistingProjectRepos) > 1 Or LookUp(colExistingProjectRepos, name = Self.Selected.name).size > 0,        
@@ -2416,10 +2450,10 @@ AzureDevOpsProjects As screen:
                                 HoverColor: =RGBA(255, 255, 255, 1)
                                 HoverFill: =ColorFade(RGBA(0, 120, 212, 1), -10%)
                                 OnTimerEnd: |-
-                                    =UpdateContext({operation: CustomAzureDevOps.GetOperation(ddOrganization.Selected.AccountName, operation.id)});
+                                    =UpdateContext({operation: CustomAzureDevOps.GetOperation(ddOrganization.Selected.accountName, operation.id)});
                                     If(operation.status = "succeeded",      
                                         UpdateContext({createNewAlmProjectLoop: false});
-                                        ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(ddOrganization.Selected.AccountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
+                                        ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(ddOrganization.Selected.accountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
                                         
                                         UpdateContext({
                                             newAlmProjectId: LookUp(colProjects, name = newAlmProjectName).id,
@@ -2457,7 +2491,7 @@ AzureDevOpsProjects As screen:
                                 =If(IsBlank(ddExistingProjects_1.Selected), 
                                     UpdateContext(
                                         {
-                                            newAlmProjectOrganization: currentOrganization.AccountName,
+                                            newAlmProjectOrganization: currentOrganization.accountName,
                                             newAlmProjectName: txtProjectName_5.Value,
                                             newAlmProjectDescription: txtProjectDescription_3.Value,
                                             wizardShowSpinner: true,
@@ -2497,7 +2531,7 @@ AzureDevOpsProjects As screen:
                                      // use existing project
                                     UpdateContext(
                                         {
-                                            newAlmProjectOrganization: currentOrganization.AccountName,
+                                            newAlmProjectOrganization: currentOrganization.accountName,
                                             newAlmProjectName: ddExistingProjects_1.Selected.name,
                                             newAlmProjectId: ddExistingProjects_1.Selected.id,
                                             wizardShowSpinner: false,
@@ -2577,7 +2611,7 @@ AzureDevOpsProjects As screen:
                                 OnChange: |-
                                     =Clear(colPipelineRepos);
                                     If(Not(IsBlankOrError(Self.Selected.name)),
-                                        Collect(colPipelineRepos, CustomAzureDevOps.GetGitRepos(ddOrganization.Selected.AccountName, Self.Selected.name, {'api-version': "6.0"}).value);
+                                        Collect(colPipelineRepos, CustomAzureDevOps.GetGitRepos(ddOrganization.Selected.accountName, Self.Selected.name, {'api-version': "6.0"}).value);
                                     );
                                 Text: =""
                                 Visible: =true
@@ -2865,7 +2899,7 @@ AzureDevOpsProjects As screen:
                                         }).id});
                                     
                                         If(ThisRecord.share,
-                                            CustomAzureDevOps.ShareServiceEndpoint(ddOrganization.Selected.AccountName, newAlmProjectId, Last(colNewALMAccProjectServiceConnectionResult).id, {
+                                            CustomAzureDevOps.ShareServiceEndpoint(ddOrganization.Selected.accountName, newAlmProjectId, Last(colNewALMAccProjectServiceConnectionResult).id, {
                                                     'api-version': "6.0-preview.1",
                                                     'Content-Type': "application/json",
                                                     resource: {
@@ -3462,7 +3496,7 @@ AzureDevOpsProjects As screen:
                                     
                                     // Set Project Repository Permissions
                                     CustomAzureDevOps.SetPermissions(
-                                        ddOrganization.Selected.AccountName,
+                                        ddOrganization.Selected.accountName,
                                         "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                         {
                                             'api-version': "6.0",
@@ -3482,7 +3516,7 @@ AzureDevOpsProjects As screen:
                                     If(Not(IsBlankOrError(newAlmProjectExistingTemplateProject.id)) And Not(IsBlankOrError(newAlmProjectExistingTemplateRepository.id)),
                                         // Set Template Repository Permissions
                                         CustomAzureDevOps.SetPermissions(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                             {
                                                 'api-version': "6.0",
@@ -3498,7 +3532,7 @@ AzureDevOpsProjects As screen:
                                     ,
                                         // Set Template Repository Permissions
                                         CustomAzureDevOps.SetPermissions(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                             {
                                                 'api-version': "6.0",
@@ -3517,7 +3551,7 @@ AzureDevOpsProjects As screen:
                                     );
                                     // Set  Pipelines Permissions
                                     CustomAzureDevOps.SetPermissions(
-                                        ddOrganization.Selected.AccountName,
+                                        ddOrganization.Selected.accountName,
                                         "33344d9c-fc72-4d6f-aba5-fa317101a7e9",
                                         {
                                             'api-version': "6.0",
@@ -3550,7 +3584,7 @@ AzureDevOpsProjects As screen:
                                     
                                     // Set Template Repository Permissions
                                     CustomAzureDevOps.SetPermissions(
-                                        ddOrganization.Selected.AccountName,
+                                        ddOrganization.Selected.accountName,
                                         "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                         {
                                             'api-version': "6.0",
@@ -3579,7 +3613,7 @@ AzureDevOpsProjects As screen:
                                         });
                                         // Set  Pipelines Permissions
                                         CustomAzureDevOps.SetPermissions(
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             "33344d9c-fc72-4d6f-aba5-fa317101a7e9",
                                             {
                                                 'api-version': "6.0",
@@ -3914,7 +3948,7 @@ AzureDevOpsProjects As screen:
             OnButtonSelect: |-
                 =If(
                     Self.SelectedButton.Label = "Create",
-                    CustomAzureDevOps.CreateVariableGroup(ddOrganization.Selected.AccountName, {
+                    CustomAzureDevOps.CreateVariableGroup(ddOrganization.Selected.accountName, {
                         'api-version': "6.0",
                         'Content-Type': "application/json",
                         description: txtVariableGroupDescription.Value,
@@ -3944,7 +3978,7 @@ AzureDevOpsProjects As screen:
                 
                     "Refresh",
                     // Get Variable Groups
-                    ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.AccountName, currentProject.name, {'api-version': "6.0"}).value);
+                    ClearCollect(colProjectVariableGroups, CustomAzureDevOps.GetVariableGroups(ddOrganization.Selected.accountName, currentProject.name, {'api-version': "6.0"}).value);
                     ,
                     UpdateContext({showNewVariableGroupPanel: false})
                 )
@@ -4200,60 +4234,70 @@ AzureDevOpsProjects As screen:
                 )
             Fill: =pnlNewServiceConnection.OverlayColor
             OnButtonSelect: |-
-                =UpdateContext({
-                    newServiceConnectionOrganization: ddOrganization.Selected.AccountName,
-                    newServiceConnectionProjectName: txtProjectName.Value,
-                    newServiceConnectionName: txtServiceConnectionName.Value,
-                    newServiceConnectionDescription: "",
-                    newServiceConnectionURL: txtServiceConnectionURL.Value,
-                    newServiceConnectionTenantId: txtServiceConnectionTenantId.Value,
-                    newServiceConnectionClientId: txtServiceConnectionClientId.Value,
-                    newServiceConnectionClientSecret: txtServiceConnectionClientSecret.Value,
-                    newServiceConnectionShare: chkShareToAllPipelines.Checked
-                });
-                Switch(Self.SelectedButton.Label,
-                    "Create", 
-                    UpdateContext({newServiceConnection: CustomAzureDevOps.CreateServiceEndpoint(
-                        newServiceConnectionOrganization, 
+                =UpdateContext(
+                    {
+                        newServiceConnectionOrganization: ddOrganization.Selected.accountName,
+                        newServiceConnectionProjectName: txtProjectName.Value,
+                        newServiceConnectionName: txtServiceConnectionName.Value,
+                        newServiceConnectionDescription: "",
+                        newServiceConnectionURL: txtServiceConnectionURL.Value,
+                        newServiceConnectionTenantId: txtServiceConnectionTenantId.Value,
+                        newServiceConnectionClientId: txtServiceConnectionClientId.Value,
+                        newServiceConnectionClientSecret: txtServiceConnectionClientSecret.Value,
+                        newServiceConnectionShare: chkShareToAllPipelines.Checked
+                    }
+                );
+                Switch(
+                    Self.SelectedButton.Label,
+                    "Create",
+                    UpdateContext(
                         {
-                            'api-version': "7.0",
-                            'Content-Type': "application/json",
-                            data: "",
-                            type: "powerplatform-spn",
-                            name: newServiceConnectionName,
-                            url: newServiceConnectionURL,
-                            authorization: {
-                                scheme: "none",
-                                parameters: {
-                                    tenantId: newServiceConnectionTenantId,
-                                    applicationId: newServiceConnectionClientId,
-                                    clientSecret: newServiceConnectionClientSecret
+                            newServiceConnection: CustomAzureDevOps.CreateServiceEndpoint(
+                                newServiceConnectionOrganization,
+                                {
+                                    'api-version': "7.0",
+                                    'Content-Type': "application/json",
+                                    data: "",
+                                    type: "powerplatform-spn",
+                                    name: newServiceConnectionName,
+                                    url: newServiceConnectionURL,
+                                    authorization: {
+                                        scheme: "none",
+                                        parameters: {
+                                            tenantId: newServiceConnectionTenantId,
+                                            applicationId: newServiceConnectionClientId,
+                                            clientSecret: newServiceConnectionClientSecret
+                                        }
+                                    },
+                                    serviceEndpointProjectReferences: {
+                                        description: newServiceConnectionDescription,
+                                        name: newServiceConnectionName,
+                                        projectReference: {
+                                            id: currentProject.id,
+                                            name: currentProject.name
+                                        }
+                                    }
                                 }
-                            },
-                            serviceEndpointProjectReferences: {
-                                description: newServiceConnectionDescription,
-                                name: newServiceConnectionName,
-                                projectReference: {
-                                    id: currentProject.id,
-                                    name: currentProject.name
-                                }
-                            }
+                            )
                         }
-                    )});
-                 
-                    If(newServiceConnectionShare, 
-                        CustomAzureDevOps.ShareServiceEndpoint(ddOrganization.Selected.AccountName, currentProject.name, newServiceConnection.id, {
-                            'api-version': "6.0-preview.1",
-                            'Content-Type': "application/json",
-                            resource: {
-                                id: newServiceConnection.id,
-                                type: "endpoint"
-                            },
-                            allPipelines: {
-                                authorized: newServiceConnectionShare
+                    );
+                    If(
+                        newServiceConnectionShare,
+                        CustomAzureDevOps.ShareServiceEndpoint(
+                            ddOrganization.Selected.accountName,
+                            currentProject.name,
+                            newServiceConnection.id,
+                            {
+                                'api-version': "6.0-preview.1",
+                                'Content-Type': "application/json",
+                                resource: {
+                                    id: newServiceConnection.id,
+                                    type: "endpoint"
+                                },
+                                allPipelines: {authorized: newServiceConnectionShare}
                             }
-                        }
-                    ));
+                        )
+                    );
                     Reset(txtProjectName);
                     Reset(txtServiceConnectionName);
                     Reset(txtServiceConnectionDescription);
@@ -4263,65 +4307,109 @@ AzureDevOpsProjects As screen:
                     Reset(txtServiceConnectionClientSecret);
                     Reset(chkShareToAllPipelines);
                     // Get Service Connections,
-                    ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value);
+                ClearCollect(
+                        colProjectServiceConnections,
+                        CustomAzureDevOps.GetServiceEndpoints(
+                            ddOrganization.Selected.accountName,
+                            currentProject.name,
+                            {'api-version': "6.0"}
+                        ).value
+                    );
                     UpdateContext({showProjectServiceConnectionPanel: false}),
-                    
                     "Save",
-                    UpdateContext({ updateMultipleServiceConnections: If(CountRows(fdServiceConnections.SelectedItems) > 1, true, false)});
-                    If(CountRows(fdServiceConnections.SelectedItems) > 0,
-                        ForAll(fdServiceConnections.SelectedItems,
-                            IfError(CustomAzureDevOps.UpdateServiceEndpoint(currentOrganization.AccountName, ThisRecord.id, {
-                                'api-version': "6.0",
-                                'Content-Type': "application/json",
-                                data: {},
-                                id: ThisRecord.id,
-                                name: If(updateMultipleServiceConnections, ThisRecord.name, newServiceConnectionName),
-                                type: "powerplatform-spn",
-                                url: If(updateMultipleServiceConnections, ThisRecord.url, newServiceConnectionURL),
-                                description: If(updateMultipleServiceConnections, ThisRecord.description, newServiceConnectionDescription),
-                                authorization: {
-                                    scheme: "none",
-                                    parameters: {
-                                        tenantId: newServiceConnectionTenantId,
-                                        applicationId: newServiceConnectionClientId,
-                                        clientSecret: newServiceConnectionClientSecret
-                                    }
-                                },
-                                isShared: false,
-                                isReady: true,
-                                owner: "Library",
-                                serviceEndpointProjectReferences: Table(
-                                    {
-                                        name: If(updateMultipleServiceConnections, ThisRecord.name, newServiceConnectionName),
-                                        description: If(updateMultipleServiceConnections, ThisRecord.description, newServiceConnectionDescription),
-                                        projectReference: {
-                                            id: currentProject.id,
-                                            name: currentProject.name
+                    UpdateContext(
+                        {
+                            updateMultipleServiceConnections: If(
+                                CountRows(fdServiceConnections.SelectedItems) > 1,
+                                true,
+                                false
+                            )
+                        }
+                    );
+                    If(
+                        CountRows(fdServiceConnections.SelectedItems) > 0,
+                        ForAll(
+                            fdServiceConnections.SelectedItems,
+                            CustomAzureDevOps.UpdateServiceEndpoint(
+                                currentOrganization.accountName,
+                                ThisRecord.id,
+                                {
+                                    'api-version': "6.0",
+                                    'Content-Type': "application/json",
+                                    type: "powerplatform-spn",
+                                    id: ThisRecord.id,
+                                    name: If(
+                                        updateMultipleServiceConnections,
+                                        ThisRecord.name,
+                                        newServiceConnectionName
+                                    ),
+                                    url: If(
+                                        updateMultipleServiceConnections,
+                                        ThisRecord.url,
+                                        newServiceConnectionURL
+                                    ),
+                                    description: If(
+                                        updateMultipleServiceConnections,
+                                        ThisRecord.description,
+                                        newServiceConnectionDescription
+                                    ),
+                                    authorization: {
+                                        scheme: "none",
+                                        parameters: {
+                                            tenantId: newServiceConnectionTenantId,
+                                            applicationId: newServiceConnectionClientId,
+                                            clientSecret: newServiceConnectionClientSecret
                                         }
-                                    }  
-                                )           
-                            }), Notify("Could not update service connection(s)", NotificationType.Error));
-                
-                            CustomAzureDevOps.ShareServiceEndpoint(ddOrganization.Selected.AccountName, currentProject.name, ThisRecord.id, {
+                                    },
+                                    isShared: false,
+                                    isReady: true,
+                                    owner: "Library",
+                                    serviceEndpointProjectReferences: Table(
+                                        {
+                                            name: If(
+                                                updateMultipleServiceConnections,
+                                                ThisRecord.name,
+                                                newServiceConnectionName
+                                            ),
+                                            description: If(
+                                                updateMultipleServiceConnections,
+                                                ThisRecord.description,
+                                                newServiceConnectionDescription
+                                            ),
+                                            projectReference: {
+                                                id: currentProject.id,
+                                                name: currentProject.name
+                                            }
+                                        }
+                                    )
+                                }
+                            );
+                            CustomAzureDevOps.ShareServiceEndpoint(
+                                ddOrganization.Selected.accountName,
+                                currentProject.name,
+                                ThisRecord.id,
+                                {
                                     'api-version': "6.0-preview.1",
                                     'Content-Type': "application/json",
                                     resource: {
                                         id: ThisRecord.id,
                                         type: "endpoint"
                                     },
-                                    allPipelines: {
-                                        authorized: newServiceConnectionShare
-                                    }
+                                    allPipelines: {authorized: newServiceConnectionShare}
                                 }
                             )
                         );
                     );
-                    
                     // Get Service Connections,
-                    ClearCollect(colProjectServiceConnections, CustomAzureDevOps.GetServiceEndpoints(ddOrganization.Selected.AccountName, currentProject.name, { 'api-version': "6.0" }).value);
-                    
+                ClearCollect(
+                        colProjectServiceConnections,
+                        CustomAzureDevOps.GetServiceEndpoints(
+                            ddOrganization.Selected.accountName,
+                            currentProject.name,
+                            {'api-version': "6.0"}
+                        ).value
+                    );
                     UpdateContext({showProjectServiceConnectionPanel: false});
-                    
                     Reset(txtProjectName);
                     Reset(txtServiceConnectionName);
                     Reset(txtServiceConnectionDescription);
@@ -4332,7 +4420,6 @@ AzureDevOpsProjects As screen:
                     Reset(chkShareToAllPipelines);
                     ,
                     "Cancel",
-                    
                     Reset(txtProjectName);
                     Reset(txtServiceConnectionName);
                     Reset(txtServiceConnectionDescription);
@@ -4694,7 +4781,7 @@ AzureDevOpsProjects As screen:
                     
                     UpdateContext(
                         {
-                            newProjectOrganization: ddOrganization.Selected.AccountName,
+                            newProjectOrganization: ddOrganization.Selected.accountName,
                             newProjectName: txtProjectName.Value,
                             newProjectDescription: txtProjectDescription.Value,
                             newProjectInstallTemplates: chkInstallPipelineTemplates.Checked,
@@ -4705,7 +4792,7 @@ AzureDevOpsProjects As screen:
                     ClearCollect(
                         operations,
                         IfError(CustomAzureDevOps.CreateProject(
-                            ddOrganization.Selected.AccountName,
+                            ddOrganization.Selected.accountName,
                             {
                                 'api-version': "7.0",
                                 name: txtProjectName.Value,
@@ -4856,10 +4943,10 @@ AzureDevOpsProjects As screen:
             HoverColor: =RGBA(255, 255, 255, 1)
             HoverFill: =ColorFade(RGBA(0, 120, 212, 1), -10%)
             OnTimerEnd: |-
-                =UpdateContext({operation: CustomAzureDevOps.GetOperation(ddOrganization.Selected.AccountName, operation.id)});
+                =UpdateContext({operation: CustomAzureDevOps.GetOperation(ddOrganization.Selected.accountName, operation.id)});
                 If(operation.status = "succeeded",      
                     UpdateContext({createNewProjectLoop: false});
-                    ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(ddOrganization.Selected.AccountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
+                    ClearCollect(colProjects, AddColumns(CustomAzureDevOps.GetProjects(ddOrganization.Selected.accountName, { 'api-version': "7.0" }).value, "ModifiedOn", DateValue(lastUpdateTime, "en-US")));
                     
                     UpdateContext({newProjectId: LookUp(colProjects, name = newProjectName).id});
                 
@@ -4869,7 +4956,7 @@ AzureDevOpsProjects As screen:
                         ClearCollect(
                             operations,
                             CustomAzureDevOps.CreateGitRepo(
-                                ddOrganization.Selected.AccountName,
+                                ddOrganization.Selected.accountName,
                                 newProjectName,
                                 {
                                     'api-version': "7.0",
@@ -4881,7 +4968,7 @@ AzureDevOpsProjects As screen:
                         //UpdateContext({currentProject: LookUp(colProjects, name = txtProjectName.Value)});
                         UpdateContext(
                             {
-                                newProjectOrganization: ddOrganization.Selected.AccountName,
+                                newProjectOrganization: ddOrganization.Selected.accountName,
                                 newProjectName: newProjectName,
                                 newProjectInstallTemplates: true,
                                 createRepoOperation: "createRepo",
@@ -5031,7 +5118,7 @@ AzureDevOpsProjects As screen:
                 =Switch(Self.SelectedButton.Label,
                     "Upgrade",
                 
-                    UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.AccountName, fdProjects.Selected.name, almProjectSyncPipelineId, {
+                    UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.accountName, fdProjects.Selected.name, almProjectSyncPipelineId, {
                         'api-version': "6.0",
                         definition: {
                             id: almProjectSyncPipelineId
@@ -5142,11 +5229,11 @@ AzureDevOpsProjects As screen:
             HoverFill: =RGBA(0, 0, 0, 0)
             Icon: =Icon.Reload
             OnSelect: |-
-                =UpdateContext({ isTemplateRepo: Not(IsError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/Pipelines/export-solution-to-git.yml", 'api-version': "7.1-preview"}).content) )});
+                =UpdateContext({ isTemplateRepo: Not(IsError(CustomAzureDevOps.GetFile(ddOrganization.Selected.accountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/Pipelines/export-solution-to-git.yml", 'api-version': "7.1-preview"}).content) )});
                     
                 UpdateContext({
                     repoContent: If(isTemplateRepo, 
-                        IfError(CustomAzureDevOps.GetFile(ddOrganization.Selected.AccountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content, JSON({
+                        IfError(CustomAzureDevOps.GetFile(ddOrganization.Selected.accountName, fdProjects.Selected.name, fdRepositories.Selected.id, { path: "/version.json", 'api-version': "7.1-preview"}).content, JSON({
                   version: "Unknown",
                   published: "",
                   content: "coe-alm-accelerator-templates"
@@ -5373,7 +5460,7 @@ AzureDevOpsProjects As screen:
                     ClearCollect(
                         operations,
                         CustomAzureDevOps.CreateGitRepo(
-                            ddOrganization.Selected.AccountName,
+                            ddOrganization.Selected.accountName,
                             currentProject.name,
                             {
                                 'api-version': "7.0",
@@ -5384,7 +5471,7 @@ AzureDevOpsProjects As screen:
                     );
                     UpdateContext(
                         {
-                            newProjectOrganization: ddOrganization.Selected.AccountName,
+                            newProjectOrganization: ddOrganization.Selected.accountName,
                             newProjectName: txtProjectName_2.Value,
                             newProjectInstallTemplates: chkInstallPipelines.Checked,
                             newProjectRepoSetPermissions: chkSetPermissions.Checked,
@@ -5536,7 +5623,7 @@ AzureDevOpsProjects As screen:
             FontWeight: =FontWeight.Lighter
             Height: =97
             Size: =10.5
-            Text: =$"Set Permissions will assign Contribute, Create Branch and Create Pull Request priveliges to the {currentProject.name} Build Service ({ddOrganization.Selected.AccountName}) system account"
+            Text: =$"Set Permissions will assign Contribute, Create Branch and Create Pull Request priveliges to the {currentProject.name} Build Service ({ddOrganization.Selected.accountName}) system account"
             VerticalAlign: =VerticalAlign.Top
             Visible: =showNewRepositoryPanel
             Width: =plnNewRepository.DialogWidth - 40
@@ -5561,7 +5648,7 @@ AzureDevOpsProjects As screen:
             OnTimerStart: |-
                 =If(createRepoLoop,
                     // Get repos
-                    ClearCollect(colProjectRepos, CustomAzureDevOps.GetGitRepos(ddOrganization.Selected.AccountName, newProjectName, { 'api-version': "6.0"}).value);
+                    ClearCollect(colProjectRepos, CustomAzureDevOps.GetGitRepos(ddOrganization.Selected.accountName, newProjectName, { 'api-version': "6.0"}).value);
                     If(Not(IsBlank(LookUp(colProjectRepos, name = newPipelineTemplateRepository).id)),
                         UpdateContext({createRepoLoop: false});
                     
@@ -5572,14 +5659,14 @@ AzureDevOpsProjects As screen:
                             ClearCollect(
                                 projectBuildServiceAccount,
                                 CustomAzureDevOps.GetIdentities(
-                                    ddOrganization.Selected.AccountName,
+                                    ddOrganization.Selected.accountName,
                                     {
                                         'api-version': "7.1-preview.1",
                                         searchFilter: "General",
                                         filterValue: Concatenate(
                                             newProjectName,
                                             " Build Service (",
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             ")"
                                         )
                                     }
@@ -5588,7 +5675,7 @@ AzureDevOpsProjects As screen:
                             
                             // Set Permissions
                             CustomAzureDevOps.SetPermissions(
-                                ddOrganization.Selected.AccountName,
+                                ddOrganization.Selected.accountName,
                                 "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                 {
                                     'api-version': "6.0",
@@ -5609,13 +5696,13 @@ AzureDevOpsProjects As screen:
                             ClearCollect(
                                 projectBuildServiceAccount,
                                 CustomAzureDevOps.GetIdentities(
-                                    ddOrganization.Selected.AccountName,
+                                    ddOrganization.Selected.accountName,
                                     {
                                         'api-version': "7.1-preview.1",
                                         searchFilter: "General",
                                         filterValue: Concatenate(
                                             "Project Collection Build Service (",
-                                            ddOrganization.Selected.AccountName,
+                                            ddOrganization.Selected.accountName,
                                             ")"
                                         )
                                     }
@@ -5627,7 +5714,7 @@ AzureDevOpsProjects As screen:
                 
                             // Set Permissions
                             CustomAzureDevOps.SetPermissions(
-                                ddOrganization.Selected.AccountName,
+                                ddOrganization.Selected.accountName,
                                 "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
                                 {
                                     'api-version': "6.0",
@@ -5650,7 +5737,7 @@ AzureDevOpsProjects As screen:
                             UpdateContext({fileContent: GetGithubFileContent.Run(newPipelineTemplateVersion).filecontent});
                 
                             CustomAzureDevOps.CreateFile(
-                                ddOrganization.Selected.AccountName,
+                                ddOrganization.Selected.accountName,
                                 LookUp(colProjectRepos, name = newPipelineTemplateRepository).id,
                                 {
                                     'api-version': "7.0",
@@ -5676,10 +5763,10 @@ AzureDevOpsProjects As screen:
                                 }
                             );
                 
-                            ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.AccountName, $"{currentProject.name}", {'api-version': "6.0"}).value);
+                            ClearCollect(colProjectPipelines, CustomAzureDevOps.GetPipelines(ddOrganization.Selected.accountName, $"{currentProject.name}", {'api-version': "6.0"}).value);
                             If(IsBlank(LookUp(colProjectPipelines, name = "sync-pipeline-repo")),
                                 // create new sync pipeline
-                                UpdateContext({syncPipeline: CustomAzureDevOps.CreatePipeline(ddOrganization.Selected.AccountName, newProjectName, {
+                                UpdateContext({syncPipeline: CustomAzureDevOps.CreatePipeline(ddOrganization.Selected.accountName, newProjectName, {
                                     'api-version': "6.0",
                                     folder: "ALM Accelerator Templates",
                                     name: "sync-pipeline-repo",
@@ -5698,7 +5785,7 @@ AzureDevOpsProjects As screen:
                                   
                             );
                                 
-                            UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.AccountName, newProjectName, syncPipeline, {
+                            UpdateContext({syncPipelineRun: CustomAzureDevOps.RunSyncPipeline(ddOrganization.Selected.accountName, newProjectName, syncPipeline, {
                                     'api-version': "6.0",
                                     definition: {
                                         id: syncPipeline
@@ -5713,11 +5800,11 @@ AzureDevOpsProjects As screen:
                                     }
                             })}); 
                             // removed - it requires that custom connector is preinstalled in order to install the ALM Acc. solution. Need to find a solution for this
-                            //GetPipelineRunResult.Run(currentOrganization.AccountName, newProjectName, syncPipelineRun.pipeline.id, syncPipelineRun.id, User().Email);
+                            //GetPipelineRunResult.Run(currentOrganization.accountName, newProjectName, syncPipelineRun.pipeline.id, syncPipelineRun.id, User().Email);
                         ,
                             //init new repo
                             CustomAzureDevOps.CreateFile(
-                                ddOrganization.Selected.AccountName,
+                                ddOrganization.Selected.accountName,
                                 LookUp(colProjectRepos, name = newPipelineTemplateRepository).id,
                                 {
                                     'api-version': "7.0",
@@ -5821,11 +5908,11 @@ AzureDevOpsProjects As screen:
                     "Add",
                     Collect(colUsersToAdd, {});
                     ForAll(ddUsersToAdd.SelectedItems,
-                        Collect(colUsersToAdd, First(CustomAzureDevOps.GetIdentities(currentOrganization.AccountName, {'api-version': "6.0", searchFilter: "General", filterValue: ThisRecord.mailAddress}).value));
-                    CustomAzureDevOps.AddMemberToGroup(currentOrganization.AccountName, currentProject.defaultTeam.id, Last(colUsersToAdd).id, {'api-version': "6.0"});
+                        Collect(colUsersToAdd, First(CustomAzureDevOps.GetIdentities(currentOrganization.accountName, {'api-version': "6.0", searchFilter: "General", filterValue: ThisRecord.mailAddress}).value));
+                    CustomAzureDevOps.AddMemberToGroup(currentOrganization.accountName, currentProject.defaultTeam.id, Last(colUsersToAdd).id, {'api-version': "6.0"});
                     );
                     // Get Team Members (Project Default Team)
-                    ClearCollect(colProjectTeamMembers, CustomAzureDevOps.GetProjectTeamMembers(ddOrganization.Selected.AccountName, currentProject.name, currentProject.defaultTeam.id, {'api-version': "6.0"}).value);
+                    ClearCollect(colProjectTeamMembers, CustomAzureDevOps.GetProjectTeamMembers(ddOrganization.Selected.accountName, currentProject.name, currentProject.defaultTeam.id, {'api-version': "6.0"}).value);
                     Clear(colProjectTeamMemberIdentities);
                     ForAll(colProjectTeamMembers,
                         Collect(colProjectTeamMemberIdentities, { id: identity.id, displayName: identity.displayName, email: identity.uniqueName, isAdmin: If(isTeamAdmin, "Yes", "") });
@@ -5836,7 +5923,7 @@ AzureDevOpsProjects As screen:
                     UpdateContext({showAddTeamMemberPanel:false})
                 );
                 
-                 //ForAll(ddUsersToAdd.SelectedItems, CustomAzureDevOps.AddMemberToGroup(currentOrganization.AccountName, currentProject.defaultTeam.id, CustomAzureDevOps.GetIdentities(currentOrganization.AccountName, {'api-version': "6.0", searchFilter: "General", ThisRecord.principalName})));
+                 //ForAll(ddUsersToAdd.SelectedItems, CustomAzureDevOps.AddMemberToGroup(currentOrganization.accountName, currentProject.defaultTeam.id, CustomAzureDevOps.GetIdentities(currentOrganization.accountName, {'api-version': "6.0", searchFilter: "General", ThisRecord.principalName})));
             OnCloseSelect: |-
                 =UpdateContext({showAddTeamMemberPanel:false})
             Subtitle: ="Add a user to the default Project Team"
