@@ -22,7 +22,7 @@ If you want to learn more about what the CoE Starter Kit team is planning, check
 
 ## Report a Bug or submit a Feature Request
 
-Have you found a bug in the CoE Starter Kit or do you want to suggest a new feature? Either way, please let us now by filing an issue while observing the following guidelines
+Have you found a bug in the CoE Starter Kit or do you want to suggest a new feature? Either way, please let us now by filing an issue while observing the following guidelines.
 
 ### Look for an existing issue
 
