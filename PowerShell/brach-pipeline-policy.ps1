@@ -646,11 +646,11 @@ function Get-Repository-Build-Definitions {
         [Parameter(Mandatory)] [string]$solutionRepoId
     )
 
+    Write-Host "Inside Get-Repository-Build-Definitions"
     $buildDefinitionResponse = $null
     $uriBuildDefinition = "$orgUrl$buildProjectName/_apis/build/definitions?repositoryId=$solutionRepoId&repositoryType=TfsGit&api-version=6.0"
 
-    #$uriBuildDefinition = "$orgUrl$buildProjectName/_apis/build/definitions?api-version=6.0"
-    #Write-Host "UriBuildDefinition - $uriBuildDefinition"
+    Write-Host "UriBuildDefinition - $uriBuildDefinition"
     try {
         $buildDefinitionResponse = Invoke-RestMethod $uriBuildDefinition -Method Get -Headers @{
             Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
@@ -661,7 +661,7 @@ function Get-Repository-Build-Definitions {
         return
     }
 
-    #Write-Host "Build Definition Response - $buildDefinitionResponse"
+    Write-Host "Build Definition Response - $buildDefinitionResponse"
     return $buildDefinitionResponse
 }
 
@@ -747,9 +747,10 @@ function Set-Branch-Policy{
     # Check if a Policy Type by name 'Build' exists.
     $buildTypes = $policyTypes.value | Where-Object { $_.displayName -eq "Build" }
     if($buildTypes){
+        Write-Host "Policy Type by name 'Build' exists. Getting Policy configurations."
         # Get existing Policy configurations
         $uriPolicyConfigs = "$orgUrl$solutionProjectName/_apis/policy/configurations?api-version=6.0"
-        #Write-Host "UriPolicyConfigs - $uriPolicyConfigs"
+        Write-Host "UriPolicyConfigs - $uriPolicyConfigs"
         try {
             $policyConfigResponse = Invoke-RestMethod $uriPolicyConfigs -Method Get -Headers @{
                 Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
@@ -761,7 +762,7 @@ function Set-Branch-Policy{
         }
 
         $existingPolices = $null
-        #Write-Host "Policy Configuration Response - $policyConfigResponse"
+        Write-Host "Policy Configuration Response - $policyConfigResponse"
         # Loop through the policy configurations and output the results
         foreach ($policyConfig in $policyConfigResponse.value) {
             $refName = $($policyConfig.settings.Scope.refName)
@@ -788,7 +789,6 @@ function Set-Branch-Policy{
 
         Write-Host "Creating a new Policy."
         $builds = Get-Repository-Build-Definitions "$orgUrl" "$solutionProjectName" "$azdoAuthType" "$solutionRepoId"
-        #$builds = Get-Project-Build-Definitions "$orgUrl" "$solutionProjectName" "$azdoAuthType"
 
         $destinationBuild = $builds.value | Where-Object {$_.name -eq "deploy-validation-$solutionName"}
 
@@ -874,9 +874,10 @@ function Get-Policy-Types {
         [Parameter(Mandatory)] [string]$azdoAuthType
     )
 
+    Write-Host "Fetching policy types"
     $policyTypesResponse = $null    
-    $uriPolicyTypes = "$orgUrl$buildProjectName/_apis/policy/types?api-version=6.0-preview.1"
-    #Write-Host "UriPolicyTypes - $uriPolicyTypes"
+    $uriPolicyTypes = "$orgUrl$solutionProjectName/_apis/policy/types?api-version=6.0-preview.1"
+    Write-Host "UriPolicyTypes - $uriPolicyTypes"
     try {
         $policyTypesResponse = Invoke-RestMethod $uriPolicyTypes -Method Get -Headers @{
             Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
@@ -887,7 +888,7 @@ function Get-Policy-Types {
         return
     }
 
-    #Write-Host "Policy Types Response - $policyTypesResponse"
+    Write-Host "Policy Types Response - $policyTypesResponse"
     return $policyTypesResponse
 }
 
