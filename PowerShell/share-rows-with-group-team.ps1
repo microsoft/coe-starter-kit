@@ -9,14 +9,22 @@ function Grant-AccessToWorkflow {
         [Parameter(Mandatory)] [String]$teamName,
         [Parameter(Mandatory)] [String]$workflowId
     )
+        #Load util function
+    . "$env:POWERSHELLPATH/util.ps1"
+
     Write-Host "teamName - $teamName"
     Write-Host "workflowId - $workflowId"
+    $validatedId = Validate-And-Clean-Guid $workflowId
+    if (!$validatedId) {
+        Write-Host "Invalid  workflowId GUID. Exiting from Grant-AccessToWorkflow."
+        return
+    }
     $teamId = Get-TeamId $token $dataverseHost $teamName
     Write-Host "teamId - $teamId"
     if($teamId -ne '') {
         $body = "{
         `n    `"Target`":{
-        `n        `"workflowid`":`"$workflowId`",
+        `n        `"workflowid`":`"$validatedId`",
         `n        `"@odata.type`": `"Microsoft.Dynamics.CRM.workflow`"
         `n    },
         `n    `"PrincipalAccess`":{
@@ -43,11 +51,22 @@ function Grant-AccessToConnector {
         [Parameter(Mandatory)] [String]$teamName,
         [Parameter(Mandatory)] [String]$connectorId
     )
+        #Load util function
+    . "$env:POWERSHELLPATH/util.ps1"
+
+    Write-Host "TeamName - $teamName"
+    Write-Host "ConnectorId - $connectorId"   
+    $validatedId = Validate-And-Clean-Guid $connectorId
+    if (!$validatedId) {
+        Write-Host "Invalid  ConnectorId GUID. Exiting from Grant-AccessToConnector."
+        return
+    }
+
     $teamId = Get-TeamId $token $dataverseHost $teamName
     if($teamId -ne '') {
         $body = "{
         `n    `"Target`":{
-        `n        `"connectorid`":`"$connectorId`",
+        `n        `"connectorid`":`"$validatedId`",
         `n        `"@odata.type`": `"Microsoft.Dynamics.CRM.connector`"
         `n    },
         `n    `"PrincipalAccess`":{
@@ -58,7 +77,7 @@ function Grant-AccessToConnector {
         `n        `"AccessMask`": `"ReadAccess`"
         `n    }
         `n}"
-    
+
         $requestUrlRemainder = "GrantAccess"
         Invoke-DataverseHttpPost $token $dataverseHost $requestUrlRemainder $body
     }

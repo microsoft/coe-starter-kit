@@ -138,20 +138,39 @@ function Remove-Code-From-Custom-Connectors-Where-Disabled
    Write-Host $repo
    Write-Host $solutionName
    $connectorspath = "$buildSourceDirectory\$repo\$solutionName\SolutionPackage\src\Connectors";
-   Write-Host $connectorspath
+   Write-Host "Connectors Path - " $connectorspath
 
-   if(-not [string]::IsNullOrEmpty($connectorspath)) {
+   if (-not [string]::IsNullOrEmpty($connectorspath)) {
      Get-ChildItem -Path "$connectorspath" -Recurse -Filter *.xml | 
      ForEach-Object {
-       $xml = [xml](Get-Content $_.FullName)
-       $connectornode = $xml.SelectSingleNode("//Connector")
-       Write-Host $connectornode.OuterXml
-       $scriptoperationsnode = $connectornode.SelectSingleNode("//scriptoperations")
-       $customcodeblobcontentnode = $connectornode.SelectSingleNode("//customcodeblobcontent")
-       $connectornode.RemoveChild($scriptoperationsnode)
-       $connectornode.RemoveChild($customcodeblobcontentnode)
-       $xml.Save($_.FullName)
+       try {
+           $xml = [xml](Get-Content $_.FullName)
+           $connectornode = $xml.SelectSingleNode("//Connector")
+           if ($connectornode -ne $null) {
+               Write-Host $connectornode.OuterXml
+               $scriptoperationsnode = $connectornode.SelectSingleNode("//scriptoperations")
+               $customcodeblobcontentnode = $connectornode.SelectSingleNode("//customcodeblobcontent")
+               if ($scriptoperationsnode -ne $null) {
+                   Write-Host "Removing //scriptoperations"
+                   $connectornode.RemoveChild($scriptoperationsnode)
+               }
+               else{
+                  Write-Host "//scriptoperations node is blank"
+               }
+               if ($customcodeblobcontentnode -ne $null) {
+                   Write-Host "Removing //customcodeblobcontent"
+                   $connectornode.RemoveChild($customcodeblobcontentnode)
+               }
+               else{
+                  Write-Host "//customcodeblobcontent node is blank"
+               }
+
+               $xml.Save($_.FullName)
+           }
+       }
+       catch {
+           Write-Host "An error occurred while processing $_.FullName:`r`n$($_.Exception.Message)"
+       }
      }
    }
-	
 }
