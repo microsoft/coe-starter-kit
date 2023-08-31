@@ -161,7 +161,7 @@ StartScreen As screen:
                     LayoutMinHeight: =50
                     LayoutMinWidth: =250
                     LayoutMode: =LayoutMode.Auto
-                    Visible: =configStep>1&&configStep<>Max(colSetupSteps,Value(ItemKey))
+                    Visible: =configStep>1
                     ZIndex: =1
 
                     "cmdConnActions As 'Fluent Command Bar (1.0.18)'.pcfdataset":
@@ -194,7 +194,7 @@ StartScreen As screen:
                             )
                         LayoutMinHeight: =50
                         LayoutMinWidth: =200
-                        OnSelect: |-
+                        OnSelect: |
                             =
                             // Transfer connector to new group
                             //ClearCollect(col_temp_selectedConnectors, dlConnectors.SelectedItems);
@@ -209,17 +209,6 @@ StartScreen As screen:
                             Patch(col_connGroups, LookUp(col_connGroups,classification=pvConnectorGroup.Selected.ItemKey),{connectors:col_temp_sourceConnectors});
                             
                             //UpdateContext({ varShowConnectorOptions: false, varSelectedApi: First(col_temp_sourceConnectors) })
-                            
-                            
-                            
-                            /*Switch( Self.Selected.ItemKey,
-                                "general", false,
-                                
-                                "confidential", false,
-                                
-                                "blocked", false,
-                                false
-                              )*/
                         Theme: =AppThemeJson
                         Visible: =!IsBlank(dlConnectors.Selected.icon) && configStep = 2
                         Width: =200
@@ -311,7 +300,7 @@ StartScreen As screen:
                                         selectedType: "email"
                                     }
                                 ),
-                                "Open", Navigate('DLP Impact Analysis'),
+                                "Open", Navigate('DLP Impact Analyses'),
                                 "ExportCSV",
                                 'DLPEditor>ParseimpactedresourcesintoCSV'.Run(
                                     JSON(
@@ -430,6 +419,97 @@ StartScreen As screen:
                         Y: =0
                         ZIndex: =3
 
+                    "cmdReviewActions As 'Fluent Command Bar (1.0.18)'.pcfdataset":
+                        DisplayMode: =DisplayMode.Edit
+                        FillPortions: =1
+                        Height: =50
+                        Items: |-
+                            =Table(
+                              {
+                                  ItemKey: "save",
+                                  ItemDisplayName: "Save policy as draft",
+                                  ItemIconName: "Save"
+                              },
+                              {
+                                  ItemKey: "open",
+                                  ItemDisplayName: "Open policy in PPAC",
+                                  ItemIconName: "OpenInNewTab"
+                                 
+                              }
+                            )
+                        LayoutMinHeight: =50
+                        LayoutMinWidth: =200
+                        OnSelect: |
+                            =Switch(
+                                Self.Selected.ItemKey,
+                                "open",
+                                Launch("https://admin.powerplatform.microsoft.com/dlp/policy/" & dlDLPPolicies.Selected.name),
+                                "save",
+                                Set(
+                                    dlpJson,
+                                    JSON(col_connGroups)
+                                );
+                                Set(
+                                    envJson,
+                                    JSON(SelectedEnvironments)
+                                );
+                                Patch(
+                                    'Data Policy Drafts',
+                                    Defaults('Data Policy Drafts'),
+                                    {
+                                        Name: TextBox2.Value,
+                                        'API Version': "2020-10-01",
+                                        DisplayName: selectedPolicy.displayName,
+                                        'Default Connector Classification': selectedPolicy.defaultConnectorsClassification,
+                                        Scope: selectedPolicy.fScope,
+                                        'Connector Groups': dlpJson,
+                                        Environments:envJson
+                                    }
+                                );Notify("Policy saved as draft.", NotificationType.Information);ClearCollect(col_draftDLP,
+                            ForAll('Data Policy Drafts',
+                            {
+                                name: Name,
+                                displayName: DisplayName,   
+                                environmentType: Scope,
+                                Scope: Scope,
+                                defaultConnectorsClassification: 'Default Connector Classification',
+                                createdBy: 'Created By'.'Full Name',
+                                createdOn: 'Created On',
+                                modifiedBy: 'Modified By'.'Full Name',
+                                modifiedOn: 'Modified On',
+                                connectorGroups:
+                            ForAll(
+                                Table(ParseJSON('Connector Groups')),
+                                {
+                                    classification:Text(Value.classification),
+                                    connectors: ForAll(
+                                        Table(Value.connectors),
+                                        {
+                                            id:Text(Value.id),
+                                            name:Text(Value.name),
+                                            type:Text(Value.type)
+                                        }
+                                    )
+                                }
+                            ),
+                            environments:ForAll(
+                                Table(ParseJSON(Environments)),
+                                {
+                            
+                                            id:Text(Value.id),
+                                            name:Text(Value.name),
+                                            type:Text(Value.type)
+                                }
+                            )
+                            }))
+                            );
+                        Theme: =AppThemeJson
+                        Visible: =configStep=6
+                        Width: =200
+                        X: =0
+                        Y: =0
+                        ZIndex: =4
+
                 Rectangle2_3 As rectangle:
                     AlignInContainer: =AlignInContainer.Stretch
                     BorderColor: =RGBA(166, 166, 166, 1)
@@ -461,7 +541,7 @@ StartScreen As screen:
                             )) > 2000 ||  CountRows(Filter(
                                 Flows,
                                  'Flow Environment ID' in SelectedEnvironments.name
-                            )) > 2000) && configStep=5, true, false)
+                            )) > 2000) && configStep=5, true, false) || configStep = 6
                     ZIndex: =3
 
                     Icon6 As icon.CheckBadge:
@@ -513,7 +593,7 @@ StartScreen As screen:
                                     Flows,
                                      'Flow Environment ID' in SelectedEnvironments.name
                                 )) & " flows were analyzed for impact. Export all impacted apps and flows to CSV or a task list for full analysis."
-                                )
+                                , If(configStep = 6, "Granular controls (connector action or endpoint filtering), custom connector rules or Desktop Flow action rules will be overwritten on update. If your current policy uses granular controls, update the policy in the Power Platform Admin Center."))
                             )
                         ZIndex: =2
 
@@ -926,6 +1006,7 @@ StartScreen As screen:
                                 ZIndex: =44
 
                     conEnvs As groupContainer.verticalAutoLayoutContainer:
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
                         LayoutDirection: =LayoutDirection.Vertical
                         LayoutMinHeight: =100
                         LayoutMinWidth: =250
@@ -934,6 +1015,7 @@ StartScreen As screen:
                         ZIndex: =5
 
                         conPivotSearch_1 As groupContainer.horizontalAutoLayoutContainer:
+                            AlignInContainer: =AlignInContainer.SetByContainer
                             FillPortions: =0
                             Height: =50
                             LayoutAlignItems: =LayoutAlignItems.Center
@@ -982,7 +1064,6 @@ StartScreen As screen:
                                 ZIndex: =2
 
                         "dlEnvironments As 'Fluent Details List (1.0.18)'.pcfdataset":
-                            AlignInContainer: =AlignInContainer.Stretch
                             columns_Items: |-
                                 =Table(
                                     {
@@ -1011,13 +1092,6 @@ StartScreen As screen:
                                     {
                                         ColName: "envCreatedBy",
                                         ColDisplayName: "Created By",     
-                                        ColSortable: true,
-                                        ColIsBold:false,
-                                        ColWidth: 100
-                                    },
-                                    {
-                                        ColName: "envCreatedTime",
-                                        ColDisplayName: "Created",     
                                         ColSortable: true,
                                         ColIsBold:false,
                                         ColWidth: 100
@@ -1081,31 +1155,6 @@ StartScreen As screen:
                             Y: =0
                             ZIndex: =2
 
-                            createdBy2 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="createdBy"
-                                FieldName: ="createdBy"
-                                FieldType: |-
-                                    ="![displayName:s, email:s, id:s, tenantId:s, type:s, userPrincipalName:s]"
-                                FieldVariantName: ="textualColumn"
-                                Order: =1
-                                ZIndex: =32
-
-                            displayName3 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="displayName"
-                                FieldName: ="displayName"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =2
-                                ZIndex: =33
-
-                            createdTime1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="createdTime"
-                                FieldName: ="createdTime"
-                                FieldType: ="d"
-                                FieldVariantName: ="textualColumn"
-                                Order: =3
-                                ZIndex: =34
-
                             id1 As pcfDataField.textualColumn:
                                 FieldDisplayName: ="id"
                                 FieldName: ="id"
@@ -1121,22 +1170,6 @@ StartScreen As screen:
                                 FieldVariantName: ="textualColumn"
                                 Order: =5
                                 ZIndex: =36
-
-                            region1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="region"
-                                FieldName: ="region"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =6
-                                ZIndex: =37
-
-                            sku1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="sku"
-                                FieldName: ="sku"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =7
-                                ZIndex: =38
 
                             type2 As pcfDataField.textualColumn:
                                 FieldDisplayName: ="type"
@@ -1154,14 +1187,6 @@ StartScreen As screen:
                                 Order: =9
                                 ZIndex: =65
 
-                            envCreatedTime1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="envCreatedTime"
-                                FieldName: ="envCreatedTime"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =10
-                                ZIndex: =66
-
                             envSku1 As pcfDataField.textualColumn:
                                 FieldDisplayName: ="envSku"
                                 FieldName: ="envSku"
@@ -1170,7 +1195,24 @@ StartScreen As screen:
                                 Order: =11
                                 ZIndex: =67
 
+                            displayName1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="displayName"
+                                FieldName: ="displayName"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =11
+                                ZIndex: =69
+
+                            envCreatedTime4 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="envCreatedTime"
+                                FieldName: ="envCreatedTime"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =7
+                                ZIndex: =70
+
                     conImpact As groupContainer.verticalAutoLayoutContainer:
+                        LayoutAlignItems: =LayoutAlignItems.Stretch
                         LayoutDirection: =LayoutDirection.Vertical
                         LayoutMinHeight: =100
                         LayoutMinWidth: =250
@@ -1179,6 +1221,7 @@ StartScreen As screen:
                         ZIndex: =6
 
                         conPivotSearch_2 As groupContainer.horizontalAutoLayoutContainer:
+                            AlignInContainer: =AlignInContainer.SetByContainer
                             FillPortions: =0
                             Height: =50
                             LayoutAlignItems: =LayoutAlignItems.Center
@@ -1214,299 +1257,7 @@ StartScreen As screen:
                                 Y: =0
                                 ZIndex: =1
 
-                        "dlImpactedApps As 'Fluent Details List (1.0.18)'.pcfdataset":
-                            AlignInContainer: =AlignInContainer.Stretch
-                            columns_Items: |-
-                                =Table(
-                                     {
-                                        ColName: "iconimage",
-                                        ColDisplayName: "View Impact",
-                                        ColCellType:"clickableimage",
-                                        ColWidth: 80,
-                                        ColIsBold:false,
-                                        ColResizable: true,
-                                        ColSortable: true
-                                    },
-                                     {
-                                        ColName: "emailimage",
-                                        ColDisplayName: "Email Maker",
-                                        ColCellType:"clickableimage",
-                                        ColWidth: 80,
-                                        ColIsBold:false,
-                                        ColResizable: true,
-                                        ColSortable: true
-                                    },
-                                    {
-                                        ColName: "admin_displayname",
-                                        ColDisplayName: "Name",
-                                        ColWidth: 300,
-                                        ColIsBold:false,
-                                        ColResizable: true,
-                                        ColSortable: true
-                                    },
-                                {
-                                        ColName: "admin_appownerdisplayname",
-                                        ColDisplayName: "Owner",
-                                        ColWidth: 150,
-                                        ColIsBold:false,
-                                        ColResizable: true,
-                                        ColSortable: true
-                                    },
-                                    {
-                                        ColName: "admin_appenvironmentdisplayname",
-                                        ColDisplayName: "Environment",
-                                        ColWidth: 250,
-                                        ColIsBold:false,
-                                        ColResizable: true,
-                                        ColSortable: true
-                                    },
-                                        {
-                                        ColName: "admin_appmodifiedon",
-                                        ColDisplayName: "Last modified on",
-                                        ColWidth: 150,
-                                        ColIsBold:false,
-                                        ColResizable: true,
-                                        ColSortable: true
-                                    }
-                                    )
-                            Compact: =false
-                            DisplayMode: =DisplayMode.Edit
-                            FillPortions: =1
-                            Height: =200
-                            Items: =col_ImpactedApps
-                            LargeDatasetPaging: =true
-                            LayoutMinHeight: =200
-                            LayoutMinWidth: =200
-                            OnChange: |-
-                                =UpdateContext(
-                                        {
-                                            showImpact: true,
-                                            selectedType: "app",
-                                            selectedApp: LookUp(
-                                                'PowerApps Apps',
-                                                App = GUID(Self.EventRowKey)
-                                            ),
-                                            selectedAppBusiness: AddColumns(
-                                                Filter(
-                                                    ForAll(
-                                                        Split(
-                                                            Substitute(
-                                                                LookUp(
-                                                                    'PowerApps Apps',
-                                                                    App = GUID(Self.EventRowKey)
-                                                                ).'App Connections',
-                                                                "shared_logicflows",
-                                                                ""
-                                                            ),
-                                                            ","
-                                                        ),
-                                                        {Result: ThisRecord.Value}
-                                                    ),
-                                                    Result in ForAll(
-                                                        Substitute(
-                                                            LookUp(
-                                                                col_connGroups,
-                                                                classification = "Confidential"
-                                                            ).connectors.id,
-                                                            "/providers/Microsoft.PowerApps/apis/",
-                                                            ""
-                                                        ),
-                                                        {id: ThisRecord.Value}
-                                                    )
-                                                ),
-                                                "connectorname",
-                                                LookUp(
-                                                    col_connectors,
-                                                    idName = Result
-                                                ).properties.displayName,
-                                                "connectoricon",
-                                                LookUp(
-                                                    col_connectors,
-                                                    idName = Result
-                                                ).properties.iconUri
-                                            ),
-                                            selectedAppNonBusiness: AddColumns(
-                                                Filter(
-                                                    ForAll(
-                                                        Split(
-                                                            Substitute(
-                                                                LookUp(
-                                                                    'PowerApps Apps',
-                                                                    App = GUID(Self.EventRowKey)
-                                                                ).'App Connections',
-                                                                "shared_logicflows",
-                                                                ""
-                                                            ),
-                                                            ","
-                                                        ),
-                                                        {Result: ThisRecord.Value}
-                                                    ),
-                                                    Result in ForAll(
-                                                        Substitute(
-                                                            LookUp(
-                                                                col_connGroups,
-                                                                classification = "General"
-                                                            ).connectors.id,
-                                                            "/providers/Microsoft.PowerApps/apis/",
-                                                            ""
-                                                        ),
-                                                        {id: ThisRecord.Value}
-                                                    )
-                                                ),
-                                                "connectorname",
-                                                LookUp(
-                                                    col_connectors,
-                                                    idName = Result
-                                                ).properties.displayName,
-                                                "connectoricon",
-                                                LookUp(
-                                                    col_connectors,
-                                                    idName = Result
-                                                ).properties.iconUri
-                                            ),
-                                            selectedAppBlocked: AddColumns(
-                                                Filter(
-                                                    ForAll(
-                                                        Split(
-                                                            Substitute(
-                                                                LookUp(
-                                                                    'PowerApps Apps',
-                                                                    App = GUID(Self.EventRowKey)
-                                                                ).'App Connections',
-                                                                "shared_logicflows",
-                                                                ""
-                                                            ),
-                                                            ","
-                                                        ),
-                                                        {Result: ThisRecord.Value}
-                                                    ),
-                                                    Result in ForAll(
-                                                        Substitute(
-                                                            LookUp(
-                                                                col_connGroups,
-                                                                classification = "Blocked"
-                                                            ).connectors.id,
-                                                            "/providers/Microsoft.PowerApps/apis/",
-                                                            ""
-                                                        ),
-                                                        {id: ThisRecord.Value}
-                                                    )
-                                                ),
-                                                "connectorname",
-                                                LookUp(
-                                                    col_connectors,
-                                                    idName = Result
-                                                ).properties.displayName,
-                                                "connectoricon",
-                                                LookUp(
-                                                    col_connectors,
-                                                    idName = Result
-                                                ).properties.iconUri
-                                            )
-                                        }
-                                    );
-                                
-                                
-                                    If(Self.EventName = "CellAction" && Self.EventColumn = "iconimage", UpdateContext({selectedType: "app"}),UpdateContext({selectedType: "email"}))
-                            RecordKey: ="admin_appid"
-                            SelectionType: ='PowerCAT.FluentDetailsList.SelectionType'.None
-                            Theme: =AppThemeJson
-                            Visible: =pvImpact.SelectedKey = "Apps" && CountRows(col_ImpactedApps) > 0
-                            Width: =200
-                            X: =0
-                            Y: =0
-                            ZIndex: =2
-
-                            "'App Display Name1_1' As pcfDataField.textualColumn":
-                                FieldDisplayName: ="App Display Name"
-                                FieldName: ="admin_displayname"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =1
-                                ZIndex: =45
-
-                            "'App Modified On1_1' As pcfDataField.textualColumn":
-                                FieldDisplayName: ="App Modified On"
-                                FieldName: ="admin_appmodifiedon"
-                                FieldType: ="d"
-                                FieldVariantName: ="textualColumn"
-                                Order: =4
-                                ZIndex: =46
-
-                            "'App Last Launched On1_1' As pcfDataField.textualColumn":
-                                FieldDisplayName: ="App Last Launched On"
-                                FieldName: ="admin_applastlaunchedon"
-                                FieldType: ="d"
-                                FieldVariantName: ="textualColumn"
-                                Order: =5
-                                ZIndex: =47
-
-                            "'App Type1_1' As pcfDataField.textualColumn":
-                                FieldDisplayName: ="App Type"
-                                FieldName: ="admin_powerappstype"
-                                FieldType: ="l"
-                                FieldVariantName: ="textualColumn"
-                                Order: =6
-                                ZIndex: =48
-
-                            AppIDString1_1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="AppIDString"
-                                FieldName: ="admin_appidstring"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =7
-                                ZIndex: =49
-
-                            "'App Environment Display Name1_1' As pcfDataField.textualColumn":
-                                FieldDisplayName: ="App Environment Display Name"
-                                FieldName: ="admin_appenvironmentdisplayname"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =6
-                                ZIndex: =50
-
-                            "'App Owner Display Name1_1' As pcfDataField.textualColumn":
-                                FieldDisplayName: ="App Owner Display Name"
-                                FieldName: ="admin_appownerdisplayname"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =7
-                                ZIndex: =51
-
-                            admin_appiconuri1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="admin_appiconuri"
-                                FieldName: ="admin_appiconuri"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =8
-                                ZIndex: =52
-
-                            iconimage1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="iconimage"
-                                FieldName: ="iconimage"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =9
-                                ZIndex: =57
-
-                            admin_appid1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="admin_appid"
-                                FieldName: ="admin_appid"
-                                FieldType: ="g"
-                                FieldVariantName: ="textualColumn"
-                                Order: =10
-                                ZIndex: =59
-
-                            emailimage1 As pcfDataField.textualColumn:
-                                FieldDisplayName: ="emailimage"
-                                FieldName: ="emailimage"
-                                FieldType: ="s"
-                                FieldVariantName: ="textualColumn"
-                                Order: =11
-                                ZIndex: =63
-
                         "dlImpactedFlows As 'Fluent Details List (1.0.18)'.pcfdataset":
-                            AlignInContainer: =AlignInContainer.Stretch
                             columns_Items: |-
                                 =Table(
                                     {
@@ -1660,7 +1411,7 @@ StartScreen As screen:
                             Width: =200
                             X: =0
                             Y: =0
-                            ZIndex: =3
+                            ZIndex: =2
 
                             admin_displayname1 As pcfDataField.textualColumn:
                                 FieldDisplayName: ="admin_displayname"
@@ -1718,8 +1469,297 @@ StartScreen As screen:
                                 Order: =7
                                 ZIndex: =64
 
+                        "dlImpactedApps As 'Fluent Details List (1.0.18)'.pcfdataset":
+                            columns_Items: |-
+                                =Table(
+                                     {
+                                        ColName: "iconimage",
+                                        ColDisplayName: "View Impact",
+                                        ColCellType:"clickableimage",
+                                        ColWidth: 80,
+                                        ColIsBold:false,
+                                        ColResizable: true,
+                                        ColSortable: true
+                                    },
+                                     {
+                                        ColName: "emailimage",
+                                        ColDisplayName: "Email Maker",
+                                        ColCellType:"clickableimage",
+                                        ColWidth: 80,
+                                        ColIsBold:false,
+                                        ColResizable: true,
+                                        ColSortable: true
+                                    },
+                                    {
+                                        ColName: "admin_displayname",
+                                        ColDisplayName: "Name",
+                                        ColWidth: 300,
+                                        ColIsBold:false,
+                                        ColResizable: true,
+                                        ColSortable: true
+                                    },
+                                {
+                                        ColName: "admin_appownerdisplayname",
+                                        ColDisplayName: "Owner",
+                                        ColWidth: 150,
+                                        ColIsBold:false,
+                                        ColResizable: true,
+                                        ColSortable: true
+                                    },
+                                    {
+                                        ColName: "admin_appenvironmentdisplayname",
+                                        ColDisplayName: "Environment",
+                                        ColWidth: 250,
+                                        ColIsBold:false,
+                                        ColResizable: true,
+                                        ColSortable: true
+                                    },
+                                        {
+                                        ColName: "admin_appmodifiedon",
+                                        ColDisplayName: "Last modified on",
+                                        ColWidth: 150,
+                                        ColIsBold:false,
+                                        ColResizable: true,
+                                        ColSortable: true
+                                    }
+                                    )
+                            Compact: =false
+                            DisplayMode: =DisplayMode.Edit
+                            FillPortions: =1
+                            Height: =200
+                            Items: =col_ImpactedApps
+                            LargeDatasetPaging: =true
+                            LayoutMinHeight: =200
+                            LayoutMinWidth: =200
+                            OnChange: |-
+                                =IfError(UpdateContext(
+                                        {
+                                            showImpact: true,
+                                            selectedType: "app",
+                                            selectedApp: LookUp(
+                                                'PowerApps Apps',
+                                                App = GUID(Self.EventRowKey)
+                                            ),
+                                            selectedAppBusiness: AddColumns(
+                                                Filter(
+                                                    ForAll(
+                                                        Split(
+                                                            Substitute(
+                                                                LookUp(
+                                                                    'PowerApps Apps',
+                                                                    App = GUID(Self.EventRowKey)
+                                                                ).'App Connections',
+                                                                "shared_logicflows",
+                                                                ""
+                                                            ),
+                                                            ","
+                                                        ),
+                                                        {Result: ThisRecord.Value}
+                                                    ),
+                                                    Result in ForAll(
+                                                        Substitute(
+                                                            LookUp(
+                                                                col_connGroups,
+                                                                classification = "Confidential"
+                                                            ).connectors.id,
+                                                            "/providers/Microsoft.PowerApps/apis/",
+                                                            ""
+                                                        ),
+                                                        {id: ThisRecord.Value}
+                                                    )
+                                                ),
+                                                "connectorname",
+                                                LookUp(
+                                                    col_connectors,
+                                                    idName = Result
+                                                ).properties.displayName,
+                                                "connectoricon",
+                                                LookUp(
+                                                    col_connectors,
+                                                    idName = Result
+                                                ).properties.iconUri
+                                            ),
+                                            selectedAppNonBusiness: AddColumns(
+                                                Filter(
+                                                    ForAll(
+                                                        Split(
+                                                            Substitute(
+                                                                LookUp(
+                                                                    'PowerApps Apps',
+                                                                    App = GUID(Self.EventRowKey)
+                                                                ).'App Connections',
+                                                                "shared_logicflows",
+                                                                ""
+                                                            ),
+                                                            ","
+                                                        ),
+                                                        {Result: ThisRecord.Value}
+                                                    ),
+                                                    Result in ForAll(
+                                                        Substitute(
+                                                            LookUp(
+                                                                col_connGroups,
+                                                                classification = "General"
+                                                            ).connectors.id,
+                                                            "/providers/Microsoft.PowerApps/apis/",
+                                                            ""
+                                                        ),
+                                                        {id: ThisRecord.Value}
+                                                    )
+                                                ),
+                                                "connectorname",
+                                                LookUp(
+                                                    col_connectors,
+                                                    idName = Result
+                                                ).properties.displayName,
+                                                "connectoricon",
+                                                LookUp(
+                                                    col_connectors,
+                                                    idName = Result
+                                                ).properties.iconUri
+                                            ),
+                                            selectedAppBlocked: AddColumns(
+                                                Filter(
+                                                    ForAll(
+                                                        Split(
+                                                            Substitute(
+                                                                LookUp(
+                                                                    'PowerApps Apps',
+                                                                    App = GUID(Self.EventRowKey)
+                                                                ).'App Connections',
+                                                                "shared_logicflows",
+                                                                ""
+                                                            ),
+                                                            ","
+                                                        ),
+                                                        {Result: ThisRecord.Value}
+                                                    ),
+                                                    Result in ForAll(
+                                                        Substitute(
+                                                            LookUp(
+                                                                col_connGroups,
+                                                                classification = "Blocked"
+                                                            ).connectors.id,
+                                                            "/providers/Microsoft.PowerApps/apis/",
+                                                            ""
+                                                        ),
+                                                        {id: ThisRecord.Value}
+                                                    )
+                                                ),
+                                                "connectorname",
+                                                LookUp(
+                                                    col_connectors,
+                                                    idName = Result
+                                                ).properties.displayName,
+                                                "connectoricon",
+                                                LookUp(
+                                                    col_connectors,
+                                                    idName = Result
+                                                ).properties.iconUri
+                                            )
+                                        }
+                                    ), Blank());
+                                
+                                
+                                    If(Self.EventName = "CellAction" && Self.EventColumn = "iconimage", UpdateContext({selectedType: "app"}),UpdateContext({selectedType: "email"}))
+                            RecordKey: ="admin_appid"
+                            SelectionType: ='PowerCAT.FluentDetailsList.SelectionType'.None
+                            Theme: =AppThemeJson
+                            Visible: =pvImpact.SelectedKey = "Apps" && CountRows(col_ImpactedApps) > 0
+                            Width: =200
+                            X: =0
+                            Y: =0
+                            ZIndex: =3
+
+                            "'App Display Name1_1' As pcfDataField.textualColumn":
+                                FieldDisplayName: ="App Display Name"
+                                FieldName: ="admin_displayname"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =1
+                                ZIndex: =45
+
+                            "'App Modified On1_1' As pcfDataField.textualColumn":
+                                FieldDisplayName: ="App Modified On"
+                                FieldName: ="admin_appmodifiedon"
+                                FieldType: ="d"
+                                FieldVariantName: ="textualColumn"
+                                Order: =4
+                                ZIndex: =46
+
+                            "'App Last Launched On1_1' As pcfDataField.textualColumn":
+                                FieldDisplayName: ="App Last Launched On"
+                                FieldName: ="admin_applastlaunchedon"
+                                FieldType: ="d"
+                                FieldVariantName: ="textualColumn"
+                                Order: =5
+                                ZIndex: =47
+
+                            "'App Type1_1' As pcfDataField.textualColumn":
+                                FieldDisplayName: ="App Type"
+                                FieldName: ="admin_powerappstype"
+                                FieldType: ="l"
+                                FieldVariantName: ="textualColumn"
+                                Order: =6
+                                ZIndex: =48
+
+                            AppIDString1_1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="AppIDString"
+                                FieldName: ="admin_appidstring"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =7
+                                ZIndex: =49
+
+                            "'App Environment Display Name1_1' As pcfDataField.textualColumn":
+                                FieldDisplayName: ="App Environment Display Name"
+                                FieldName: ="admin_appenvironmentdisplayname"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =6
+                                ZIndex: =50
+
+                            "'App Owner Display Name1_1' As pcfDataField.textualColumn":
+                                FieldDisplayName: ="App Owner Display Name"
+                                FieldName: ="admin_appownerdisplayname"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =7
+                                ZIndex: =51
+
+                            admin_appiconuri1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="admin_appiconuri"
+                                FieldName: ="admin_appiconuri"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =8
+                                ZIndex: =52
+
+                            iconimage1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="iconimage"
+                                FieldName: ="iconimage"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =9
+                                ZIndex: =57
+
+                            admin_appid1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="admin_appid"
+                                FieldName: ="admin_appid"
+                                FieldType: ="g"
+                                FieldVariantName: ="textualColumn"
+                                Order: =10
+                                ZIndex: =59
+
+                            emailimage1 As pcfDataField.textualColumn:
+                                FieldDisplayName: ="emailimage"
+                                FieldName: ="emailimage"
+                                FieldType: ="s"
+                                FieldVariantName: ="textualColumn"
+                                Order: =11
+                                ZIndex: =63
+
                         Image3_1 As image:
-                            AlignInContainer: =AlignInContainer.Center
                             BorderColor: =RGBA(0, 0, 0, 0)
                             BorderStyle: =BorderStyle.None
                             BorderThickness: =2
@@ -1734,7 +1774,6 @@ StartScreen As screen:
                             ZIndex: =4
 
                         lblEmpty_1 As Label:
-                            AlignInContainer: =AlignInContainer.Stretch
                             Alignment: =Align.Center
                             DisplayMode: =DisplayMode.Edit
                             FillPortions: =1
@@ -1778,7 +1817,7 @@ StartScreen As screen:
                                     },
                                     {
                                         Label: "Scope",
-                                        Value: selectedPolicy.Scope
+                                        Value: selectedPolicy.fScope
                                     },
                                     {
                                         Label: "Environments",
@@ -1982,7 +2021,6 @@ StartScreen As screen:
                                         5,
                                         Set(showImpactLoading, true);
                                         Select(btnImpactAnalysis);
-                                        
                                         ClearCollect(
                                             ConfidentialConnectorGroups,
                                             LookUp(
@@ -1990,7 +2028,7 @@ StartScreen As screen:
                                                 classification = "Confidential"
                                             ).connectors
                                         );
-                                        ClearCollect(
+                                         ClearCollect(
                                             GeneralConnectorGroups,
                                             LookUp(
                                                 col_connGroups,
@@ -2003,7 +2041,8 @@ StartScreen As screen:
                                                 col_connGroups,
                                                 classification = "Blocked"
                                             ).connectors
-                                        ));
+                                        );
+                                    );
                                     If(
                                         !(configStep exactin colStepsCompleted.Value),
                                         Collect(
@@ -2026,7 +2065,7 @@ StartScreen As screen:
                         Width: =72
                         X: =0
                         Y: =0
-                        ZIndex: =3
+                        ZIndex: =2
 
                     btnImpactAnalysis As Button:
                         BorderColor: =ColorValue(AppTheme.palette.neutralPrimary)
@@ -2049,23 +2088,25 @@ StartScreen As screen:
                             If(
                                 varPolicyScope = "AllEnvironments",
                                 ClearCollect(
-                                    SelectedEnvironments,
+                                    tSelectedEnvironments,
                                     col_environments
                                 ),
                                 varPolicyScope = "OnlyEnvironments",
                                 ClearCollect(
-                                    SelectedEnvironments,
+                                    tSelectedEnvironments,
                                     col_environmentsInPolicy
                                 ),
                                 varPolicyScope = "ExceptEnvironments",
                                 ClearCollect(
-                                    SelectedEnvironments,
+                                    tSelectedEnvironments,
                                     Filter(
                                         col_environments,
-                                        !(name in col_environmentsInPolicy.name)
+                                        !(Environment in col_environmentsInPolicy.name)
                                     )
                                 )
                             );
+                            
+                            ClearCollect(SelectedEnvironments, ShowColumns(tSelectedEnvironments, "name", "type", "id"));
                             
                             
                             Concurrent(
@@ -2244,15 +2285,15 @@ StartScreen As screen:
                                     ));
                             
                             Concurrent(
-                            ClearCollect(col_ImpactedApps, AddColumns(col_ImpactedAppsTemp, "iconimage", "icon:View", "emailimage", "icon:Mail")),
-                            ClearCollect(col_ImpactedFlows, AddColumns(col_ImpactedFlowsTemp, "iconimage", "icon:View","emailimage", "icon:Mail")));
+                            ClearCollect(col_ImpactedApps, AddColumns(ShowColumns(col_ImpactedAppsTemp, "admin_appid", "admin_displayname", "admin_appownerdisplayname", "admin_appenvironmentdisplayname", "admin_appmodifiedon"), "iconimage", "icon:View", "emailimage", "icon:Mail")),
+                            ClearCollect(col_ImpactedFlows, AddColumns(ShowColumns(col_ImpactedFlowsTemp, "admin_flowid", "admin_displayname","admin_flowmakerdisplayname", "admin_flowenvironmentdisplayname", "admin_flowmodifiedon"), "iconimage", "icon:View","emailimage", "icon:Mail")));
                             Set(showImpactLoading, false);
                         Text: ="Back"
                         Visible: =false
                         Width: =72
                         X: =40
                         Y: =40
-                        ZIndex: =5
+                        ZIndex: =3
 
                     btnFinish As Button:
                         ButtonType: ='Button.ButtonType'.Primary
@@ -2268,7 +2309,7 @@ StartScreen As screen:
                                             displayName: selectedPolicy.displayName,
                                             defaultConnectorsClassification: selectedPolicy.defaultConnectorsClassification,
                                             connectorGroups: col_connGroups,
-                                            environmentType: selectedPolicy.Scope,
+                                            environmentType: selectedPolicy.fScope,
                                             environments: SelectedEnvironments
                                         }
                                     );
@@ -2313,7 +2354,7 @@ StartScreen As screen:
                         selectedFlow.DerivedOwner.'User Principal Name',
                         txtSubject.Value,
                         rtEmailBody_1.HtmlText
-                    )
+                    );Notify("Your email to the maker has been sent.", NotificationType.Success);UpdateContext({showImpact: false});
                 )
             );
         OnCloseSelect: |-
@@ -3075,19 +3116,21 @@ StartScreen As screen:
                       {
                           ItemKey: "edit",
                           ItemDisplayName: "Edit policy",
-                          ItemIconName: "Edit"
+                          ItemIconName: "Edit",
+                          ItemEnabled: true
                       },
                       {
                           ItemKey: "copy",
                           ItemDisplayName: "Copy policy",
-                          ItemIconName: "Copy"
+                          ItemIconName: "Copy",
+                          ItemEnabled: pvPolicyOption.SelectedKey = "Live"
                       },
                         {
                           ItemKey: "open",
                           ItemDisplayName: "Open policy in PPAC",
-                          ItemIconName: "OpenInNewTab"
-                         
-                      }
+                          ItemIconName: "OpenInNewTab",
+                          ItemEnabled: pvPolicyOption.SelectedKey = "Live"
+                    }
                     )
                 LayoutMinHeight: =33
                 LayoutMinWidth: =200
@@ -3175,53 +3218,42 @@ StartScreen As screen:
                                 LookUp(
                                     col_environments,
                                     name = col_tempEnvs[@name]
-                                ).properties.displayName,
-                                "properties",
-                                LookUp(
-                                    col_environments,
-                                    name = col_tempEnvs[@name]
-                                ).properties,
+                                ).'Display Name',
                                 "envSku",LookUp(
                                     col_environments,
                                     name = col_tempEnvs[@name]
-                                ).properties.environmentSku,
+                                ).'Environment Sku',
                                 "envCreatedBy", LookUp(
                                     col_environments,
                                     name = col_tempEnvs[@name]
-                                ).properties.createdBy.displayName,
+                                ).'Environment Maker'.'Display Name',
                                 "envCreatedTime", Text(DateValue(LookUp(
                                     col_environments,
                                     name = col_tempEnvs[@name]
-                                ).properties.createdTime), "mm/dd/yyyy")
-                            )
+                                ).'Environment Created On', "dd MMM yyyy")
+                    
+                            ))
                         );
                         ClearCollect(
-                            col_tempEnvironmentsAvailable,
-                            ShowColumns(
+                            col_tempEnvironmentsAvailable, AddColumns(RenameColumns(ShowColumns(
                                 Filter(
                                     col_environments,
-                                    !(name in col_environmentsInPolicy.name)
+                                    !(Environment in col_environmentsInPolicy[@name])
                                 ),
-                                "name",
-                                "id",
-                                "type",
-                                "properties",
-                                "displayName"
-                            )
-                        );
-                        ClearCollect(col_environmentsAvailable, AddColumns(col_tempEnvironmentsAvailable, "envSku",LookUp(
-                                    col_environments,
-                                    name = col_tempEnvironmentsAvailable[@name]
-                                ).properties.environmentSku,
+                                "admin_displayname",
+                                "admin_environmentname","admin_environmentsku"
+                            ), "admin_displayname", "displayName", "admin_environmentname", "name", "admin_environmentsku", "envSku"), "id", "/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments/" & name, "type", "Microsoft.BusinessAppPlatform/scopes/environments"));
+                        
+                        ClearCollect(col_environmentsAvailable, AddColumns(col_tempEnvironmentsAvailable, 
                                 "envCreatedBy", LookUp(
                                     col_environments,
                                     name = col_tempEnvironmentsAvailable[@name]
-                                ).properties.createdBy.displayName,
+                                ).'Environment Maker'.'Display Name',
                                 "envCreatedTime", Text(DateValue(LookUp(
                                     col_environments,
                                     name = col_tempEnvironmentsAvailable[@name]
-                                ).properties.createdTime), "mm/dd/yyyy")))
-                        ;
+                                ).'Environment Created On'), "mm/dd/yyyy")));
+                    
                         If(
                             selectedPolicy.environmentType = "SingleEnvironment",
                             RemoveIf(
@@ -3232,8 +3264,7 @@ StartScreen As screen:
                         Set(
                             varPolicyScope,
                             selectedPolicy.environmentType
-                        )
-                       ,
+                        ),
                         /* Action for 'edit' (e.g., Patch function) */
                         "copy",
                         UpdateContext({showHideDialog: true}),
@@ -3254,21 +3285,22 @@ StartScreen As screen:
                 DisplayMode: =DisplayMode.Edit
                 FillColor: =RGBA(243, 242, 241, 1)
                 Height: =33
-                Items: =Sort(col_environments, displayName)
+                Items: =Sort(col_environments, 'Display Name')
                 LayoutMinHeight: =32
                 LayoutMinWidth: =320
+                OnChange: =Select(btnCollectGallery)
                 Width: =320
                 X: =0
                 Y: =0
                 ZIndex: =2
 
-                displayName1 As pcfDataField.textualColumn:
-                    FieldDisplayName: ="displayName"
-                    FieldName: ="displayName"
+                admin_displayname2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="admin_displayname"
+                    FieldName: ="admin_displayname"
                     FieldType: ="s"
                     FieldVariantName: ="textualColumn"
                     Order: =1
-                    ZIndex: =7
+                    ZIndex: =68
 
             btnCollectGallery As button:
                 BorderColor: =RGBA(0, 0, 0, 0)
@@ -3294,7 +3326,7 @@ StartScreen As screen:
                                 CountRows(
                                     Filter(
                                         details.environments,
-                                        name = cmbEnvironments.Selected.name
+                                        name = cmbEnvironments.Selected.'Record GUID as String'
                                     )
                                 ) > 0,
                                 Collect(
@@ -3308,7 +3340,7 @@ StartScreen As screen:
                                 CountRows(
                                     Filter(
                                         details.environments,
-                                        name = cmbEnvironments.Selected.name
+                                        name = cmbEnvironments.Selected.'Record GUID as String'
                                     )
                                 ) <= 0,
                                 Collect(
@@ -3411,6 +3443,33 @@ StartScreen As screen:
                 PaddingTop: =16
                 ZIndex: =3
 
+                "pvPolicyOption As 'Fluent Pivot (1.0.18)'.pcfdataset":
+                    AlignInContainer: =AlignInContainer.Stretch
+                    DisplayMode: =DisplayMode.Edit
+                    Height: =50
+                    Items: |-
+                        =Table(
+                          {
+                              ItemKey: "Live",
+                              ItemDisplayName: "Applied Policies"
+                          },
+                          {
+                              ItemKey: "Draft",
+                              ItemDisplayName: "Draft Policies"
+                          }
+                        
+                        )
+                        
+                        //col_connGroups
+                    LayoutMinHeight: =200
+                    LayoutMinWidth: =200
+                    SelectedKey: ="Live"
+                    Theme: =AppThemeJson
+                    Width: =200
+                    X: =0
+                    Y: =0
+                    ZIndex: =1
+
                 "dlDLPPolicies As 'Fluent Details List (1.0.18)'.pcfdataset":
                     AlignInContainer: =AlignInContainer.Stretch
                     columns_Items: |-
@@ -3424,7 +3483,7 @@ StartScreen As screen:
                                 ColResizable: true
                             },     
                              {
-                                ColName: "Scope",
+                                ColName: "fScope",
                                 ColDisplayName: "Scope",
                                 ColWidth: 200,
                                 ColSortable: true,
@@ -3479,13 +3538,14 @@ StartScreen As screen:
                     FillPortions: =1
                     Height: =200
                     Items: |-
-                        =AddColumns(
+                        =If(pvPolicyOption.SelectedKey = "Live",
+                        AddColumns(
                             If(
-                                IsBlank(cmbEnvironments.Selected.name),
+                                IsBlank(cmbEnvironments.Selected.Environment),
                                 col_allDLP,
                                 col_selectedDLP
                             ),
-                            "Scope",
+                            "fScope",
                             Switch(details.environmentType, 
                         "OnlyEnvironments", "Multiple environments",
                         "ExceptEnvironments", "All except certain environments",
@@ -3501,15 +3561,29 @@ StartScreen As screen:
                         Text(DateValue(createdTime), DateTimeFormat.ShortDate),
                         "fModifiedTime",
                         Text(DateValue(lastModifiedTime), DateTimeFormat.ShortDate)
-                        )
+                        ),
+                        AddColumns(col_draftDLP,
+                        "fScope", environmentType,
+                        "CreatedByName",
+                        createdBy,
+                        "ModifiedByName",
+                        modifiedBy,
+                        "AppliedTo",
+                        CountRows(environments) & " environments",
+                        "fCreatedTime",
+                        Text(DateValue(createdOn), DateTimeFormat.ShortDate),
+                        "fModifiedTime",
+                        Text(DateValue(modifiedOn), DateTimeFormat.ShortDate)
+                        ))
                     LayoutMinHeight: =200
                     LayoutMinWidth: =200
                     SelectRowsOnFocus: =true
                     Theme: =AppThemeJson
+                    Visible: =true
                     Width: =200
                     X: =0
                     Y: =0
-                    ZIndex: =1
+                    ZIndex: =2
 
                     displayName2 As pcfDataField.textualColumn:
                         FieldDisplayName: ="displayName"
@@ -3643,7 +3717,7 @@ StartScreen As screen:
                 PowerPlatformforAdmins.CreatePolicyV2(
                     {
                         displayName: txtCopyPolicy.Value,
-                        connectorGroups: dlDLPPolicies.Selected.connectorGroups,            
+                        connectorGroups: dlDLPPolicies.Selected.connectorGroups,
                         defaultConnectorsClassification: dlDLPPolicies.Selected.defaultConnectorsClassification,
                         environmentType: dlDLPPolicies.Selected.environmentType,
                         environments: dlDLPPolicies.Selected.environments
