@@ -236,8 +236,18 @@ Home As screen:
                 "LastSavedEnvironment"
             );
             Set(
+                DefaultUserSettingName,
+                "LastSavedUserSetting"
+            );
+            Set(
                 DeploymentSettingName,
                 "Deployment - "
+            );
+            Set(DefaultUserSetting,
+                    LookUp(
+                    AppUserSetting_UserSettings,
+                    Name = DefaultUserSettingName
+                )
             );
             Set(
                 DefaultEnvironment,
@@ -1931,6 +1941,7 @@ Home As screen:
         ChevronHoverBackground: =ColorFade(drpUserSettings.ChevronBackground, 20%)
         ChevronHoverFill: =ColorFade(drpUserSettings.ChevronFill, 20%)
         Color: =Color.White
+        Default: =DefaultUserSetting.Value
         Fill: =ColorFade(PrimaryColor2Value, 10%)
         HoverBorderColor: =ColorFade(drpUserSettings.BorderColor, 20%)
         HoverColor: =ColorFade(drpUserSettings.Color, 20%)
@@ -1938,6 +1949,15 @@ Home As screen:
         Items: =DeploymentUserSettings
         OnChange: |-
             =Set(DeploymentUserSetting, drpUserSettings.Selected);
+            Patch(
+                'User Settings',
+                DefaultUserSetting,
+                {Value: drpUserSettings.Selected.DisplayName}
+            );
+            Patch(AppUserSetting_UserSettings,DefaultUserSetting,
+                {Value: drpUserSettings.Selected.DisplayName}
+            );
+            
             If(
                 !IsBlankOrError(DeploymentUserSetting.'Promote Changes Label'),
                 Set(promoteSolutionLabel, DeploymentUserSetting.'Promote Changes Label'),
@@ -2520,6 +2540,8 @@ Home As screen:
                                                 PipelinesServiceConnectionName: "NA",
                                                 PipelinesServiceConnectionUrl: "NA",
                                                 PipelinesStageRunId: "NA",
+                                                CreatePR: "false",
+                                                AutoCompletePR: "false",
                                                 AgentPool: If(
                                                     IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                                     "Azure Pipelines",
@@ -3293,6 +3315,8 @@ Home As screen:
                                         PipelinesServiceConnectionName: "NA",
                                         PipelinesServiceConnectionUrl: "NA",
                                         PipelinesStageRunId: "NA",
+                                        CreatePR: "false",
+                                        AutoCompletePR: "false",
                                         AgentPool: If(
                                             IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                             "Azure Pipelines",
@@ -4913,6 +4937,8 @@ Home As screen:
                                         PipelinesServiceConnectionName: "NA",
                                         PipelinesServiceConnectionUrl: "NA",
                                         PipelinesStageRunId: "NA",
+                                        CreatePR: "false",
+                                        AutoCompletePR: "false",
                                         AgentPool: If(
                                             IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                             "Azure Pipelines",
@@ -6443,7 +6469,16 @@ Home As screen:
                     SortOrder.Descending
                 )
             );
-            UpdateContext({locReloadSolutions: true, errorMessage: ""});
+            UpdateContext(
+                {
+                    locReloadSolutions: true,
+                    errorMessage: "",
+                    defaultProfile: LookUp(
+                        'Deployment Profiles',
+                        'Default Deployment Profile' = true
+                    )
+                }
+            );
             If(
                 locReloadSolutions,
                 Clear(TempSelectedEnvironmentSolutions);
@@ -6477,12 +6512,23 @@ Home As screen:
                                 'Solution Name' = uniquename
                             ),
                             "deploymentprofile",
-                            First(
-                                Filter(
-                                    DeploymentRequests,
-                                    'Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename
-                                )
-                            ).'Deployment Profile'
+                            If(
+                                !IsBlankOrError(
+                                    First(
+                                        Filter(
+                                            DeploymentRequests,
+                                            'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                        )
+                                    ).'Deployment Profile'
+                                ),
+                                First(
+                                    Filter(
+                                        DeploymentRequests,
+                                        'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                    )
+                                ).'Deployment Profile',
+                                defaultProfile
+                            )
                         )
                     )
                 );
@@ -6774,11 +6820,14 @@ Home As screen:
                                         name = 'Deployment Profile'.Project
                                     )
                                 ),
-                                CustomAzureDevOps.GetPullReqeust(
-                                    'Deployment Profile'.Organization,
-                                    'Deployment Profile'.Project,
-                                    'Deployment Profile'.'Repository ID',
-                                    'Build ID'
+                                IfError(
+                                    CustomAzureDevOps.GetPullReqeust(
+                                        'Deployment Profile'.Organization,
+                                        'Deployment Profile'.Project,
+                                        'Deployment Profile'.'Repository ID',
+                                        'Build ID'
+                                    ),
+                                    Blank()
                                 )
                             );
                         )
