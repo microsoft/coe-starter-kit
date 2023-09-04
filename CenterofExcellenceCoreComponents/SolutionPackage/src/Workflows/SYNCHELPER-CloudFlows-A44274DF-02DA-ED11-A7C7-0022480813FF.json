@@ -81,12 +81,20 @@
                   "x-ms-dynamically-added": true,
                   "description": "Please enter your input",
                   "x-ms-content-hint": "TEXT"
+                },
+                "boolean": {
+                  "title": "isBYODL",
+                  "type": "boolean",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select yes or no",
+                  "x-ms-content-hint": "BOOLEAN"
                 }
               },
               "required": [
                 "text",
                 "text_1",
-                "text_2"
+                "text_2",
+                "boolean"
               ]
             }
           }
@@ -315,7 +323,6 @@
                               "item/admin_flowconnections": "@outputs('Compose_edit_comma_separated_connector_list')",
                               "item/admin_flowcontainsbrokenconnections": "@variables('hasBadConnections')",
                               "item/admin_flowcreatedon": "@outputs('Get_Flow_as_Admin')?['body/properties/createdTime']",
-                              "item/admin_flowcreatorupn": "@outputs('Get_Flow_as_Admin')?['body/properties/creator/userId']",
                               "item/admin_flowdeleted": false,
                               "item/admin_flowdeletedon": "@null",
                               "item/admin_flowdescription": "@body('Parse_Flow_JSON')?['properties']?['definitionSummary']?['description']",
@@ -330,6 +337,9 @@
                               "item/admin_flowidstring": "@triggerBody()['text_2']",
                               "item/admin_inventoryme": false,
                               "item/admin_recordguidasstring": "@triggerBody()['text_2']",
+                              "item/admin_referencedresources_dvtables": "@outputs('DV_Table_String')",
+                              "item/admin_referencedresources_services": "@outputs('Services_String')",
+                              "item/admin_referencedresources_sharepointsite": "@outputs('SP_Site_String')",
                               "item/admin_tempconnectionstringresetcomplete": true,
                               "item/admin_templatename": "@outputs('Get_Flow_as_Admin')?['body/properties/templateName']",
                               "item/admin_workflowentityid": "@body('Parse_Flow_JSON')?['properties']?['workflowEntityId']"
@@ -373,7 +383,7 @@
                                 "item/admin_flowconnections": "@outputs('Compose_edit_comma_separated_connector_list')",
                                 "item/admin_flowcontainsbrokenconnections": "@variables('hasBadConnections')",
                                 "item/admin_flowcreatedon": "@outputs('Get_Flow_as_Admin')?['body/properties/createdTime']",
-                                "item/admin_flowcreatorupn": "@outputs('Get_Flow_as_Admin')?['body/properties/creator/userId']",
+                                "item/admin_flowcreatorupn": "@body('Maker_Check_-_Derived_Owner')?['userupn']",
                                 "item/admin_flowdeleted": false,
                                 "item/admin_flowdeletedon": "@null",
                                 "item/admin_flowdescription": "@body('Parse_Flow_JSON')?['properties']?['definitionSummary']?['description']",
@@ -390,6 +400,9 @@
                                 "item/admin_inventoryme": false,
                                 "item/admin_FlowCreator@odata.bind": "admin_makers(@{variables('FlowOwnerID')})",
                                 "item/admin_recordguidasstring": "@triggerBody()['text_2']",
+                                "item/admin_referencedresources_dvtables": "@outputs('DV_Table_String')",
+                                "item/admin_referencedresources_services": "@outputs('Services_String')",
+                                "item/admin_referencedresources_sharepointsite": "@outputs('SP_Site_String')",
                                 "item/admin_tempconnectionstringresetcomplete": true,
                                 "item/admin_templatename": "@outputs('Get_Flow_as_Admin')?['body/properties/templateName']",
                                 "item/admin_workflowentityid": "@body('Parse_Flow_JSON')?['properties']?['workflowEntityId']"
@@ -420,7 +433,7 @@
                     }
                   },
                   "runAfter": {
-                    "Prepare_for_Connection_References_Table": [
+                    "Referenced_Resources": [
                       "Succeeded"
                     ]
                   },
@@ -835,18 +848,6 @@
                     },
                     "check_if_connection_reference_exist": {
                       "actions": {
-                        "Compose_edit_comma_separated_connector_list": {
-                          "runAfter": {
-                            "Select_Connector_Display_Name": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "080b7d68-d39d-46a9-ae07-afc68b2e8572"
-                          },
-                          "type": "Compose",
-                          "inputs": "@concat(join(body('Select_Connector_Display_Name'), ','), outputs('add_HTTP_Webhook'), outputs('add_HTTP'), outputs('add_HTTP_Request'))"
-                        },
                         "Parse_Connection_JSON": {
                           "runAfter": {},
                           "metadata": {
@@ -1055,6 +1056,18 @@
                             "from": "@body('Parse_Connection_JSON')",
                             "select": "@split(item()['id'], '/')[sub(length(split(item()['id'], '/')), 1)]"
                           }
+                        },
+                        "Joined_Connectors_String": {
+                          "runAfter": {
+                            "Select_Connector_Display_Name": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ffc1507b-83d4-4202-86a8-598bec15cbf5"
+                          },
+                          "type": "Compose",
+                          "inputs": "@join(union(body('Select_Connector_Display_Name'), body('Select_Connector_Display_Name')), ',')"
                         }
                       },
                       "runAfter": {
@@ -1101,6 +1114,18 @@
                       },
                       "type": "Compose",
                       "inputs": "@if(contains(body('Select_triggers'), 'Http'), ',HttpRequest', '')"
+                    },
+                    "Compose_edit_comma_separated_connector_list": {
+                      "runAfter": {
+                        "check_if_connection_reference_exist": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "080b7d68-d39d-46a9-ae07-afc68b2e8572"
+                      },
+                      "type": "Compose",
+                      "inputs": "@concat(coalesce(outputs('Joined_Connectors_String'), ''), outputs('add_HTTP_Webhook'), outputs('add_HTTP'), outputs('add_HTTP_Request'))"
                     }
                   },
                   "runAfter": {
@@ -1204,7 +1229,7 @@
                     },
                     "Get_Actual_-_Flow_Connections": {
                       "actions": {
-                        "Check_if_Flow_Connection_References_are_not_null": {
+                        "Check_if_Flow_Connection_References_are_not_null_and_not_BYODL": {
                           "actions": {
                             "Apply_to_each_Flow_Connection_Reference": {
                               "foreach": "@body('Filter_id_not_null')",
@@ -1447,12 +1472,22 @@
                             }
                           },
                           "expression": {
-                            "not": {
-                              "equals": [
-                                "@outputs('Get_Flow_as_Admin')?['body/properties/connectionReferences']",
-                                "@null"
-                              ]
-                            }
+                            "and": [
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@outputs('Get_Flow_as_Admin')?['body/properties/connectionReferences']",
+                                    "@null"
+                                  ]
+                                }
+                              },
+                              {
+                                "equals": [
+                                  "@triggerBody()['boolean']",
+                                  "@false"
+                                ]
+                              }
+                            ]
                           },
                           "metadata": {
                             "operationMetadataId": "56abebe1-caad-475c-849a-b3c794bc007f"
@@ -1461,7 +1496,7 @@
                         },
                         "Parse_Actual": {
                           "runAfter": {
-                            "Check_if_Flow_Connection_References_are_not_null": [
+                            "Check_if_Flow_Connection_References_are_not_null_and_not_BYODL": [
                               "Succeeded"
                             ]
                           },
@@ -1519,64 +1554,26 @@
                 },
                 "Populate_Connection_References_Table": {
                   "actions": {
-                    "Remove_Deleted_Connections": {
+                    "If_BYODL": {
                       "actions": {
-                        "Connections_to_Remove": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "58f582dd-b6f9-4093-8335-9c6f9552c10e"
-                          },
-                          "type": "Query",
-                          "inputs": {
-                            "from": "@body('Parse_Inventory')",
-                            "where": "@not(contains(body('Parse_Actual'), item()))"
-                          }
-                        },
-                        "Delete_each": {
-                          "foreach": "@body('Connections_to_Remove')",
+                        "Clear_Connection_Reference_Table_if_not_empty": {
+                          "foreach": "@outputs('List_Connection_References_Inventory')?['body/value']",
                           "actions": {
-                            "Find_it_to_delete": {
+                            "Delete_connection_references_for_BYODL": {
                               "runAfter": {},
                               "metadata": {
-                                "operationMetadataId": "13dd4cf4-8f40-47da-9e90-73678a3f25ce"
+                                "operationMetadataId": "7692b4ed-f98d-44d5-848f-dfddc9b6bb9b"
                               },
                               "type": "OpenApiConnection",
                               "inputs": {
                                 "host": {
-                                  "connectionName": "shared_commondataserviceforapps",
-                                  "operationId": "ListRecords",
-                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                },
-                                "parameters": {
-                                  "entityName": "admin_connectionreferences",
-                                  "$select": "admin_connectionreferenceid",
-                                  "$filter": "_admin_flow_value eq '@{items('Delete_each')?['FlowID']}' and _admin_connector_value eq '@{items('Delete_each')?['ConnectorID']}' and admin_displayname eq '@{replace(items('Delete_each')?['DisplayName'], '''', '''''')}'"
-                                },
-                                "authentication": {
-                                  "type": "Raw",
-                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                                }
-                              }
-                            },
-                            "Delete_it": {
-                              "runAfter": {
-                                "Find_it_to_delete": [
-                                  "Succeeded"
-                                ]
-                              },
-                              "metadata": {
-                                "operationMetadataId": "0a53aabb-70d8-45de-8f4a-16d71cf944c3"
-                              },
-                              "type": "OpenApiConnection",
-                              "inputs": {
-                                "host": {
-                                  "connectionName": "shared_commondataserviceforapps",
+                                  "connectionName": "shared_commondataserviceforapps_2",
                                   "operationId": "DeleteRecord",
                                   "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
                                 },
                                 "parameters": {
                                   "entityName": "admin_connectionreferences",
-                                  "recordId": "@first(outputs('Find_it_to_delete')?['body/value'])?['admin_connectionreferenceid']"
+                                  "recordId": "@items('Clear_Connection_Reference_Table_if_not_empty')?['admin_connectionreferenceid']"
                                 },
                                 "authentication": {
                                   "type": "Raw",
@@ -1585,84 +1582,173 @@
                               }
                             }
                           },
-                          "runAfter": {
-                            "Connections_to_Remove": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "69d2382e-c315-4c8d-8a9f-fd5a11df1d73"
-                          },
-                          "type": "Foreach"
-                        }
-                      },
-                      "runAfter": {
-                        "Add_New_Connections": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "42a6b027-d576-40e4-8bde-c582d2db169e"
-                      },
-                      "type": "Scope"
-                    },
-                    "Add_New_Connections": {
-                      "actions": {
-                        "Connections_to_Add": {
                           "runAfter": {},
                           "metadata": {
-                            "operationMetadataId": "23111389-de69-49a7-85d9-bee2bb97ba1b"
-                          },
-                          "type": "Query",
-                          "inputs": {
-                            "from": "@body('Parse_Actual')",
-                            "where": "@not(contains(body('Parse_Inventory'), item()))"
-                          }
-                        },
-                        "Apply_to_each_new_connection": {
-                          "foreach": "@body('Connections_to_Add')",
-                          "actions": {
-                            "Add_a_new_connection": {
-                              "runAfter": {},
-                              "metadata": {
-                                "operationMetadataId": "03632cfb-bcd4-4bef-983d-49c8a477c703"
-                              },
-                              "type": "OpenApiConnection",
-                              "inputs": {
-                                "host": {
-                                  "connectionName": "shared_commondataserviceforapps",
-                                  "operationId": "CreateRecord",
-                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                                },
-                                "parameters": {
-                                  "entityName": "admin_connectionreferences",
-                                  "item/admin_displayname": "@items('Apply_to_each_new_connection')?['DisplayName']",
-                                  "item/admin_Connector@odata.bind": "admin_connectors(@{items('Apply_to_each_new_connection')?['ConnectorID']})",
-                                  "item/admin_Flow@odata.bind": "admin_flows(@{items('Apply_to_each_new_connection')?['FlowID']})"
-                                },
-                                "authentication": {
-                                  "type": "Raw",
-                                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                                }
-                              }
-                            }
-                          },
-                          "runAfter": {
-                            "Connections_to_Add": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "f18a11e6-cf04-4d3d-b8f8-9c80496b86db"
+                            "operationMetadataId": "752a2193-75f8-4fa7-bb0f-d7e2956ee8bf"
                           },
                           "type": "Foreach"
                         }
                       },
                       "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "62895c7d-bd49-4621-bdbc-4be501a75bae"
+                      "else": {
+                        "actions": {
+                          "Add_New_Connections": {
+                            "actions": {
+                              "Connections_to_Add": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "23111389-de69-49a7-85d9-bee2bb97ba1b"
+                                },
+                                "type": "Query",
+                                "inputs": {
+                                  "from": "@body('Parse_Actual')",
+                                  "where": "@not(contains(body('Parse_Inventory'), item()))"
+                                }
+                              },
+                              "Apply_to_each_new_connection": {
+                                "foreach": "@body('Connections_to_Add')",
+                                "actions": {
+                                  "Add_a_new_connection": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "03632cfb-bcd4-4bef-983d-49c8a477c703"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "CreateRecord",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_connectionreferences",
+                                        "item/admin_displayname": "@items('Apply_to_each_new_connection')?['DisplayName']",
+                                        "item/admin_Connector@odata.bind": "admin_connectors(@{items('Apply_to_each_new_connection')?['ConnectorID']})",
+                                        "item/admin_Flow@odata.bind": "admin_flows(@{items('Apply_to_each_new_connection')?['FlowID']})"
+                                      },
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                      }
+                                    }
+                                  }
+                                },
+                                "runAfter": {
+                                  "Connections_to_Add": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "f18a11e6-cf04-4d3d-b8f8-9c80496b86db"
+                                },
+                                "type": "Foreach"
+                              }
+                            },
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "62895c7d-bd49-4621-bdbc-4be501a75bae"
+                            },
+                            "type": "Scope"
+                          },
+                          "Remove_Deleted_Connections": {
+                            "actions": {
+                              "Connections_to_Remove": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "58f582dd-b6f9-4093-8335-9c6f9552c10e"
+                                },
+                                "type": "Query",
+                                "inputs": {
+                                  "from": "@body('Parse_Inventory')",
+                                  "where": "@not(contains(body('Parse_Actual'), item()))"
+                                }
+                              },
+                              "Delete_each": {
+                                "foreach": "@body('Connections_to_Remove')",
+                                "actions": {
+                                  "Find_it_to_delete": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "13dd4cf4-8f40-47da-9e90-73678a3f25ce"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "ListRecords",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_connectionreferences",
+                                        "$select": "admin_connectionreferenceid",
+                                        "$filter": "_admin_flow_value eq '@{items('Delete_each')?['FlowID']}' and _admin_connector_value eq '@{items('Delete_each')?['ConnectorID']}' and admin_displayname eq '@{replace(items('Delete_each')?['DisplayName'], '''', '''''')}'"
+                                      },
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                      }
+                                    }
+                                  },
+                                  "Delete_it": {
+                                    "runAfter": {
+                                      "Find_it_to_delete": [
+                                        "Succeeded"
+                                      ]
+                                    },
+                                    "metadata": {
+                                      "operationMetadataId": "0a53aabb-70d8-45de-8f4a-16d71cf944c3"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps",
+                                        "operationId": "DeleteRecord",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_connectionreferences",
+                                        "recordId": "@first(outputs('Find_it_to_delete')?['body/value'])?['admin_connectionreferenceid']"
+                                      },
+                                      "authentication": {
+                                        "type": "Raw",
+                                        "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                      }
+                                    }
+                                  }
+                                },
+                                "runAfter": {
+                                  "Connections_to_Remove": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "69d2382e-c315-4c8d-8a9f-fd5a11df1d73"
+                                },
+                                "type": "Foreach"
+                              }
+                            },
+                            "runAfter": {
+                              "Add_New_Connections": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "42a6b027-d576-40e4-8bde-c582d2db169e"
+                            },
+                            "type": "Scope"
+                          }
+                        }
                       },
-                      "type": "Scope"
+                      "expression": {
+                        "equals": [
+                          "@triggerBody()['boolean']",
+                          "@true"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "81d31cc6-729f-4771-a918-cbd62e0d48b3"
+                      },
+                      "type": "If"
                     }
                   },
                   "runAfter": {
@@ -1672,6 +1758,280 @@
                   },
                   "metadata": {
                     "operationMetadataId": "e0da0770-9fe9-4a45-8bab-00a5bee141be"
+                  },
+                  "type": "Scope"
+                },
+                "Referenced_Resources": {
+                  "actions": {
+                    "ReferencedResourcesString": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "90d4193a-2c67-4c43-b806-330998ffc8c8"
+                      },
+                      "type": "Compose",
+                      "inputs": "@outputs('Get_Flow_as_Admin')?['body/properties/referencedResources']"
+                    },
+                    "if_ReferencedResources_is_not_Empty": {
+                      "actions": {},
+                      "runAfter": {
+                        "ReferencedResourcesString": [
+                          "Succeeded"
+                        ]
+                      },
+                      "expression": {
+                        "greater": [
+                          "@length(outputs('ReferencedResourcesString'))",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "7cf34eef-682e-4a67-bf63-a5a4329e6c4b"
+                      },
+                      "type": "If"
+                    },
+                    "Collect_Services_String": {
+                      "actions": {
+                        "Parse_referencedResources": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "fdc21aff-c0cf-49ee-8af3-41091873bcc0"
+                          },
+                          "type": "ParseJson",
+                          "inputs": {
+                            "content": "@outputs('Get_Flow_as_Admin')?['body/properties/referencedResources']",
+                            "schema": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "service": {
+                                    "type": "string"
+                                  },
+                                  "resource": {
+                                    "type": "object",
+                                    "properties": {
+                                      "site": {
+                                        "type": "string"
+                                      },
+                                      "list": {
+                                        "type": "string"
+                                      },
+                                      "entity": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "referencers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "referenceSourceType": {
+                                          "type": "string"
+                                        },
+                                        "operationId": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "referenceSourceType",
+                                        "operationId"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "service",
+                                  "resource"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "Select_Services": {
+                          "runAfter": {
+                            "Parse_referencedResources": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "4b71eb4a-9e71-4bc6-a274-a22b727c0244"
+                          },
+                          "type": "Select",
+                          "inputs": {
+                            "from": "@body('Parse_referencedResources')",
+                            "select": "@item()['service']"
+                          }
+                        },
+                        "Joined_Services_String": {
+                          "runAfter": {
+                            "Select_Services": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ffc1507b-83d4-4202-86a8-598bec15cbf5"
+                          },
+                          "type": "Compose",
+                          "inputs": "@join(union(body('Select_Services'), body('Select_Services')), ',')"
+                        },
+                        "Services_String": {
+                          "runAfter": {
+                            "Joined_Services_String": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "080b7d68-d39d-46a9-ae07-afc68b2e8572"
+                          },
+                          "type": "Compose",
+                          "inputs": "@coalesce(outputs('Joined_Services_String'), '')"
+                        }
+                      },
+                      "runAfter": {
+                        "if_ReferencedResources_is_not_Empty": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "b953606c-364d-4139-93dc-3f8b66b19e2c"
+                      },
+                      "type": "Scope"
+                    },
+                    "Collect_Sharepoint_Site_String": {
+                      "actions": {
+                        "Filter_to_SP_Services": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "22d78de2-b400-4ce2-81bc-f76a0b812cac"
+                          },
+                          "type": "Query",
+                          "inputs": {
+                            "from": "@body('Parse_referencedResources')",
+                            "where": "@equals(item()['service'], 'sharepoint')"
+                          }
+                        },
+                        "Select_SP_Resources": {
+                          "runAfter": {
+                            "Filter_to_SP_Services": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "361268e9-58eb-425f-9154-2e52c910b264"
+                          },
+                          "type": "Select",
+                          "inputs": {
+                            "from": "@body('Filter_to_SP_Services')",
+                            "select": "@item()?['resource']?['site']"
+                          }
+                        },
+                        "Joined_SP_Site_String": {
+                          "runAfter": {
+                            "Select_SP_Resources": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2b5985a6-90c1-431c-8762-cabf6b4fe920"
+                          },
+                          "type": "Compose",
+                          "inputs": "@join(union(body('Select_SP_Resources'), body('Select_SP_Resources')), ',')"
+                        },
+                        "SP_Site_String": {
+                          "runAfter": {
+                            "Joined_SP_Site_String": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "a3d06495-7b3e-4231-9cba-590df40dbfee"
+                          },
+                          "type": "Compose",
+                          "inputs": "@coalesce(outputs('Joined_SP_Site_String'), '')"
+                        }
+                      },
+                      "runAfter": {
+                        "Collect_Services_String": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "bfa42ec6-b2e4-465d-9554-de848a47d008"
+                      },
+                      "type": "Scope"
+                    },
+                    "Collect_Dataverse_Tables_String": {
+                      "actions": {
+                        "Filter_to_CDS_Services": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "22d78de2-b400-4ce2-81bc-f76a0b812cac"
+                          },
+                          "type": "Query",
+                          "inputs": {
+                            "from": "@body('Parse_referencedResources')",
+                            "where": "@equals(item()['service'], 'commondataservice')"
+                          }
+                        },
+                        "Joined_DV_Table_String": {
+                          "runAfter": {
+                            "Select_CDS_Resources": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2b5985a6-90c1-431c-8762-cabf6b4fe920"
+                          },
+                          "type": "Compose",
+                          "inputs": "@join(union(body('Select_CDS_Resources'), body('Select_CDS_Resources')), ',')"
+                        },
+                        "DV_Table_String": {
+                          "runAfter": {
+                            "Joined_DV_Table_String": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "a3d06495-7b3e-4231-9cba-590df40dbfee"
+                          },
+                          "type": "Compose",
+                          "inputs": "@coalesce(outputs('Joined_DV_Table_String'), '')"
+                        },
+                        "Select_CDS_Resources": {
+                          "runAfter": {
+                            "Filter_to_CDS_Services": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "361268e9-58eb-425f-9154-2e52c910b264"
+                          },
+                          "type": "Select",
+                          "inputs": {
+                            "from": "@body('Filter_to_CDS_Services')",
+                            "select": "@item()?['resource']?['entity']"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Collect_Sharepoint_Site_String": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "bfa42ec6-b2e4-465d-9554-de848a47d008"
+                      },
+                      "type": "Scope"
+                    }
+                  },
+                  "runAfter": {
+                    "Prepare_for_Connection_References_Table": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "d9ed0bf8-907e-417b-b046-3803c1023903"
                   },
                   "type": "Scope"
                 }
@@ -2002,7 +2362,8 @@
             "Get_ID_Pass": {
               "runAfter": {
                 "Respond_to_a_PowerApp_or_flow_true": [
-                  "Succeeded"
+                  "Succeeded",
+                  "Failed"
                 ]
               },
               "metadata": {

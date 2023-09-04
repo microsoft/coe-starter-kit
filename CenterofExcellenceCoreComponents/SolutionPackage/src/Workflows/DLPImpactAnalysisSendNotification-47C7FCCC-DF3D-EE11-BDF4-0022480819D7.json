@@ -1,0 +1,531 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_teams": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreTeams"
+        },
+        "api": {
+          "name": "shared_teams"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "metadata": {
+            "operationMetadataId": "0b9d5f22-87af-4782-9a53-60e24227dc0a"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/entityname": "admin_dlpimpactanalysis",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filteringattributes": "admin_triggersendnotification ",
+              "subscriptionRequest/filterexpression": "admin_triggersendnotification eq true"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Send_adaptive_card_to_maker": {
+          "actions": {
+            "Get_Solution_Metadata": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "752fe9c5-bb8c-41b2-9c16-b24e64444b4d"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_objecturl",
+                  "$filter": "admin_objectname eq 'CoE Maker Command Center'"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Compose_CoE_Maker_Command_Center_URL": {
+              "runAfter": {
+                "Get_Solution_Metadata": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "07d1bda8-088a-42ca-b84a-e2e85c1ad66e"
+              },
+              "type": "Compose",
+              "inputs": "@first(outputs('Get_Solution_Metadata')?['body/value'])['admin_objecturl']"
+            },
+            "Post_adaptive_card_and_wait_for_a_response": {
+              "runAfter": {
+                "Check_which_connectors_are_not_compliant": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "758a147f-6a0f-4df8-b992-a57cb49ea72b"
+              },
+              "type": "OpenApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_teams",
+                  "operationId": "PostCardAndWaitForResponse",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                },
+                "parameters": {
+                  "poster": "Flow bot",
+                  "location": "Chat with Flow bot",
+                  "body/body/messageBody": "{\n\"type\": \"AdaptiveCard\",\n    \"body\": [\n        {\n            \"type\": \"TextBlock\",\n            \"size\": \"Medium\",\n            \"weight\": \"Bolder\",\n            \"text\": \"Non-compliant Power App or Flow\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"We are planning changes to Power Platform data policies. You are the owner of apps and flows that are no longer compliant with the changed data policies. Review your apps and flows and take the required action. If no action is taken within the next 30 days, the data policy will be applied and your apps and flows will be suspended as non-compliant.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"FactSet\",\n            \"facts\": [\n                {\n                    \"title\": \"Update\",\n                    \"value\": \"The app is required. You will update the app to use allowed connectors only.\"\n                },\n                {\n                    \"title\": \"Delete\",\n                    \"value\": \"The app is no longer required. You will delete the app from the environment\"\n                },\n                {\n                    \"title\": \"Migrate\",\n                    \"value\": \"The app is required. You will migrate the app to a new environment that supports the required connector combination.\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Your impacted resource:\",\n            \"wrap\": true\n        },\n       @{variables('factset')},\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Your app or flow is using the following connectors or connector combinations that will no longer be compliant. Blocked connectors can no longer be used in this environment. General and Confidential Data connectors can no longer be used in the same app or flow.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"You can also review further details by opening the Command Center.\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.ChoiceSet\",\n            \"choices\": [\n                {\n                    \"title\": \"Delete\",\n                    \"value\": \"Delete\"\n                },\n                {\n                    \"title\": \"Migrate\",\n                    \"value\": \"Migrate\"\n                },\n                {\n                    \"title\": \"Update\",\n                    \"value\": \"Update\"\n                }\n            ],\n            \"placeholder\": \"Select decision for this resource\",\n            \"id\": \"xbMakerDecision\"\n        },\n        {\n            \"type\": \"ActionSet\",\n            \"actions\": [\n                {\n                    \"type\": \"Action.Submit\",\n                    \"title\": \"Submit Decision\"\n                },\n                {\n                    \"type\": \"Action.OpenUrl\",\n                    \"title\": \"Open Command Center\",\n                    \"url\": \"@{outputs('Compose_CoE_Maker_Command_Center_URL')}\"\n                }\n            ]\n        }\n    ],\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.4\"\n}",
+                  "body/body/updateMessage": "Thank you for indicating your decision! ",
+                  "body/body/recipient/to": "@{outputs('Get_Maker')?['body/admin_useremail']};"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Switch_response_decision": {
+              "runAfter": {
+                "Post_adaptive_card_and_wait_for_a_response": [
+                  "Succeeded"
+                ]
+              },
+              "cases": {
+                "Case": {
+                  "case": "Update",
+                  "actions": {
+                    "Set_Decision_to_Update": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "6415cd65-5011-4298-a515-9f89f738d6e6"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_dlpimpactanalysises",
+                          "recordId": "@triggerOutputs()?['body/admin_dlpimpactanalysisid']",
+                          "item/admin_decision": 597910004,
+                          "item/admin_decisionstatus": 597910000
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  }
+                },
+                "Case_2": {
+                  "case": "Migrate",
+                  "actions": {
+                    "Set_Decision_to_Migrate": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d2a586f5-d214-443a-9e3f-a7b7763740db"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_dlpimpactanalysises",
+                          "recordId": "@triggerOutputs()?['body/admin_dlpimpactanalysisid']",
+                          "item/admin_decision": 597910003,
+                          "item/admin_decisionstatus": 597910000
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  }
+                },
+                "Case_3": {
+                  "case": "Delete",
+                  "actions": {
+                    "Set_Decision_to_Delete": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "9c7e3be3-59f5-4cba-9f5d-eba7735585d6"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_dlpimpactanalysises",
+                          "recordId": "@triggerOutputs()?['body/admin_dlpimpactanalysisid']",
+                          "item/admin_decision": 597910001,
+                          "item/admin_decisionstatus": 597910000
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  }
+                }
+              },
+              "default": {
+                "actions": {}
+              },
+              "expression": "@outputs('Post_adaptive_card_and_wait_for_a_response')?['body/data/xbMakerDecision']",
+              "metadata": {
+                "operationMetadataId": "9a1540a4-28e0-44ac-add6-b884619348ce"
+              },
+              "type": "Switch"
+            },
+            "Check_which_connectors_are_not_compliant": {
+              "actions": {
+                "Set_variable": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "99623b53-7cc6-4668-a88c-23c20a3f5614"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "factset",
+                    "value": {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Name",
+                          "value": "@{triggerOutputs()?['body/admin_name']}"
+                        },
+                        {
+                          "title": "Environment Name",
+                          "value": "@{triggerOutputs()?['body/_admin_impactedenvironment_value']}"
+                        },
+                        {
+                          "title": "Confidential Data Connectors",
+                          "value": "@{triggerOutputs()?['body/admin_conflictingconnectorbusiness']}"
+                        },
+                        {
+                          "title": "General Data Connectors",
+                          "value": "@{triggerOutputs()?['body/admin_conflictingconnectornonbusiness']}"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_Maker": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Set_variable_2": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "9fdb12b1-e135-4453-84ba-ad04b1814e02"
+                    },
+                    "type": "SetVariable",
+                    "inputs": {
+                      "name": "factset",
+                      "value": {
+                        "type": "FactSet",
+                        "facts": [
+                          {
+                            "title": "Name",
+                            "value": "@{triggerOutputs()?['body/admin_name']}"
+                          },
+                          {
+                            "title": "Environment Name",
+                            "value": "@{triggerOutputs()?['body/_admin_impactedenvironment_value']}"
+                          },
+                          {
+                            "title": "Blocked Connectors",
+                            "value": "@{triggerOutputs()?['body/admin_conflictingconnectorblocked']}"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@empty(triggerOutputs()?['body/admin_conflictingconnectorblocked'])",
+                  "@true"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "74065ab4-5996-4fd7-88ec-d30e1fef687d"
+              },
+              "type": "If"
+            },
+            "Get_Maker": {
+              "runAfter": {
+                "Compose_CoE_Maker_Command_Center_URL": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "45a76cab-db92-42e9-a165-bbc424d6f1d9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_makers",
+                  "recordId": "@triggerOutputs()?['body/_admin_impactowner_value']",
+                  "$select": "admin_useremail"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_variable": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f59f5dec-2ee6-499e-93a6-0ebcd160cb37"
+          },
+          "type": "Scope"
+        },
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "1f7fef54-8287-4bf6-9dc7-2f5d00761cd4"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "8b24baab-6e11-4765-9c67-1be6e4ebae13"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "8d59096e-2c60-4224-be63-13b533f2caf9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "98764a10-1676-4ea5-a8c6-3c3dc6259dd6"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Send message to maker failed"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Send_adaptive_card_to_maker": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9c1f4169-1993-4c40-8dc7-6359ad0c9216"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "23bb748c-9034-438b-b86c-60ad08b4858b"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f2733298-3bf2-4df7-985a-3a8edcc225b8"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "1375615b-2ab2-4529-beaa-438c3139a9cc"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5a7a9b7f-4a88-446e-822d-21379b617aaa"
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "1ad009b4-f6e9-46dc-a90e-3ab4b4260514"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "factset",
+                "type": "object"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
