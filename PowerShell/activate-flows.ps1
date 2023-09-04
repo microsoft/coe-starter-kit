@@ -17,7 +17,7 @@ function Invoke-ActivateFlows {
         [Parameter(Mandatory)] [String]$environmentId, 
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionComponentOwnershipConfiguration,
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$connectionReferences, 
-        [Parameter(Mandatory)] [String][AllowEmptyString()]$activateFlowConfiguration,
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$activateFlowConfiguration,
         [Parameter()] [String]$token
     )
 

@@ -18,6 +18,9 @@ function Set-DeploymentSettingsConfiguration
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [String]$serviceConnection,
         [Parameter(Mandatory)] [String]$solutionName,
+        [Parameter()] [String]$pipelineServiceConnectionName = "",
+        [Parameter()] [String]$pipelineServiceConnectionUrl = "",
+        [Parameter()] [String] [AllowEmptyString()]$pipelineStageRunId = "",
         [Parameter()] [String]$agentPool = "Azure Pipelines",
         [Parameter()] [String]$usePlaceholders = "true",
         [Parameter(Mandatory)] [String]$currentBranch,
@@ -90,6 +93,11 @@ function Set-DeploymentSettingsConfiguration
             }
         }		
 
+        # Updating PipelineStageRunId if the pipeline is triggered from a Power Platform Pipeline Invoke-Create-Update-PipelineStageRun-Parameter
+        if($null -ne $newBuildDefinitionVariables -and $null -ne $pipelineStageRunId -and $pipelineStageRunId -ne ""){
+            Write-Host "Updating PipelineStageRunId - $pipelineStageRunId"
+            Invoke-Create-Update-PipelineStageRun-Parameter $pipelineStageRunId $pipelineServiceConnectionName $pipelineServiceConnectionUrl $newBuildDefinitionVariables
+        }
         if($null -ne $configurationDataEnvironment -and $null -ne $configurationDataEnvironment.UserSettings) {
             foreach($configurationVariable in $configurationDataEnvironment.UserSettings) {
                 $userSettingsJson = $configurationDataEnvironment.UserSettings | ConvertTo-Json
@@ -129,8 +137,8 @@ function Set-DeploymentSettingsConfiguration
                             }
                         }
                     }
-                    #Set environment variable variables
                     elseif($configurationVariableName.StartsWith("environmentvariable.", "CurrentCultureIgnoreCase")) {
+                        #Set environment variable variables
                         if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
                         {
                             $schemaName = $configurationVariableName -replace "environmentvariable.", ""
@@ -149,8 +157,8 @@ function Set-DeploymentSettingsConfiguration
                             Write-Host "Environment variable $configurationVariableName is Null or Empty"
                         }
                     }
-                    #Set WebHook URL variables
                     elseif($configurationVariableName.StartsWith("webhookurl.", "CurrentCultureIgnoreCase")) {
+                        #Set WebHook URL variables
                         if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
                         {
                             $schemaName = $configurationVariableName -replace "webhookurl.", ""
@@ -167,8 +175,8 @@ function Set-DeploymentSettingsConfiguration
                             Write-Host "Service Endpoint variable $configurationVariableName is Null or Empty for $environmentName"
                         }
                     }
-                    #Set SDK Step configurations
                     elseif($configurationVariableName.StartsWith("sdkstep.", "CurrentCultureIgnoreCase")) {
+                        #Set SDK Step configurations
                         if(-not [string]::IsNullOrWhiteSpace($configurationVariableValue))
                         {
 							try{
@@ -247,20 +255,21 @@ function Set-DeploymentSettingsConfiguration
                         #if($null -ne $flowActivateAs -and $null -ne $flowActivateOrder) {
                         if($null -ne $flowActivateOrder) {
                             $flowActivateOrderValue = $flowActivateOrder.Value
-
-                            $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
-                            $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
-                            if($usePlaceholders.ToLower() -eq 'false') {
-                                $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
-                            }
-							
-                            # Convert the PSCustomObject to a JSON string
-                            $jsonString = $flowActivateConfig | ConvertTo-Json
-
-                            # Print the JSON string
-                            Write-Host "FlowActivateConfig json string -" $jsonString							
-                            $flowActivationUsers.Add($flowActivateConfig)
+                        } else {
+                            $flowActivateOrderValue = 0
                         }
+                        $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
+                        $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "sortOrder"="#{$flowActivateOrderName}#"; "activate"="#{$configurationVariableName}#"}
+                        if($usePlaceholders.ToLower() -eq 'false') {
+                            $flowActivateConfig = [PSCustomObject]@{"solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "sortOrder"="$flowActivateOrderValue"; "activate"="$configurationVariableValue"}
+                        }
+                        
+                        # Convert the PSCustomObject to a JSON string
+                        $jsonString = $flowActivateConfig | ConvertTo-Json
+
+                        # Print the JSON string
+                        Write-Host "FlowActivateConfig json string -" $jsonString							
+                        $flowActivationUsers.Add($flowActivateConfig)
                     }
                     elseif($configurationVariableName.StartsWith("connector.teamname.", "CurrentCultureIgnoreCase")) {
                         $connectorSplit = $configurationVariableName.Split(".")
@@ -488,11 +497,11 @@ function New-DeploymentPipelines
                 try{
                     . "$env:POWERSHELLPATH/brach-pipeline-policy.ps1"
                     Write-Host "Branch creation start"
-                   $solutionProjectRepo = Create-Branch "$orgUrl" "$buildProjectName" "$projectName" "$repo" "$buildRepositoryName" "$solutionName" "$environmentNames" "$azdoAuthType" "$solutionRepoId" "$agentPool"
+                   $solutionProjectRepo = Invoke-Create-Branch "$orgUrl" "$buildProjectName" "$projectName" "$repo" "$buildRepositoryName" "$solutionName" "$environmentNames" "$azdoAuthType" "$solutionRepoId" "$agentPool" "$pipelineStageRunId"
 
                    if($null -ne $solutionProjectRepo){
                         Write-Host "Creation of build definitions start"
-                        Update-Build-for-Branch "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$buildRepositoryName" "$buildSourceDirectory" "$currentBranch" "$agentPool"
+                        Update-Build-for-Branch "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$buildRepositoryName" "$buildSourceDirectory" "$currentBranch" "$agentPool" "$pipelineStageRunId"
                         Write-Host "Setting up branch policy start"
                         Set-Branch-Policy "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$agentPool"
                    }
@@ -538,6 +547,41 @@ function Set-BuildDefinitionVariables {
         Write-Host "Body - $body"
         Write-Host "BuildDefinitionResourceUrl - " $buildDefinitionResourceUrl
         Invoke-RestMethod $buildDefinitionResourceUrl -Method 'PUT' -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | Out-Null   
+    }
+}
+
+function Invoke-Create-Update-PipelineStageRun-Parameter{
+    param (
+        [Parameter()] [String]$PipelineStageRunId,
+        [Parameter()] [String]$PipelineServiceConnectionName,
+        [Parameter()] [String]$PipelineServiceConnectionUrl,
+        [Parameter()] [PSCustomObject]$newBuildDefinitionVariables
+    )
+    Write-Host "Inside Invoke-Create-Update-PipelineStageRun-Parameter"
+    Write-Host "newBuildDefinitionVariables - $newBuildDefinitionVariables"
+     if($null -ne $newBuildDefinitionVariables){
+        #If the "ServiceConnection" variable was not found create it 
+        $found = Get-Parameter-Exists "PipelineStageRunId" $newBuildDefinitionVariables
+        if(!$found) { 
+            $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name "PipelineStageRunId" -Value @{value = ''}
+        }
+
+        $newBuildDefinitionVariables.PipelineStageRunId.value = $PipelineStageRunId
+
+        $found = Get-Parameter-Exists "PipelineServiceConnectionName" $newBuildDefinitionVariables
+        if(!$found) { 
+            $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name "PipelineServiceConnectionName" -Value @{value = ''}
+        }
+
+        $newBuildDefinitionVariables.PipelineServiceConnectionName.value = $PipelineServiceConnectionName        
+
+        $found = Get-Parameter-Exists "PipelineServiceConnectionUrl" $newBuildDefinitionVariables
+        if(!$found) { 
+            $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name "PipelineServiceConnectionUrl" -Value @{value = ''}
+        }
+
+        $newBuildDefinitionVariables.PipelineServiceConnectionUrl.value = $PipelineServiceConnectionUrl        
+
     }
 }
 

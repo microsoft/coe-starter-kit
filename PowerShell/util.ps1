@@ -47,7 +47,6 @@ function Get-IndicesOfNodesWithValue {
 
     try {
         Write-Host "Inside Get-IndicesOfNodesWithValue"
-        Write-Host "JsonString - $jsonString"
         Write-Host "SearchName - $searchName"
         Write-Host "SearchValue - $searchValue"
         $jsonArray = ConvertFrom-Json $jsonString

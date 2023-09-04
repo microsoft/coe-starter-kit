@@ -1,0 +1,93 @@
+# Multi-stage starter template for:
+# -Building the solution when changes to the contents of the solution folder are triggered (see trigger-SolutionName.yml for example trigger)
+# -Deploying the solution to a specific environment based on pipeline variables
+# This is most commonly used for PR Validation where both the build and deploy must suceeed in order for the PR checks to succeed.
+parameters:
+- name: pipelineDeploymentStage
+  type: string
+  default: "PreDeployment"
+- name: sourceBranch
+  type: string
+  default: "NA"
+- name: targetBranch
+  type: string
+  default: "NA"
+- name: commitMessage
+  type: string
+  default: ""
+- name: autoCompletePR
+  type: string
+  default: "false"
+steps:
+    - template: set-service-connection-url.yml
+      parameters:
+        serviceConnectionName: $(ServiceConnection)
+        serviceConnectionUrl: $(ServiceConnectionUrl)
+
+    - checkout: PipelineRepo
+      path: 'PipelineUtils'
+      displayName: 'Checkout Pipeline Branch'
+
+    # Use set-connection-variables task to get values from AzDO Service Connection to be used in scripts that don't use tasks
+    - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.set-connection-variables.PowerPlatformSetConnectionVariables@2
+      displayName: 'Set Pipeline Connection Variables'
+      name: pipelineHostVariables
+      inputs:
+        authenticationType: 'PowerPlatformSPN'
+        PowerPlatformSPN: '$(PipelineServiceConnectionName)'
+      condition: and(succeeded(), ne(variables['PipelineServiceConnectionName'], ''), not(contains(variables['PipelineServiceConnectionName'], 'PipelineServiceConnectionName')))
+
+    # Use set-connection-variables task to get values from AzDO Service Connection to be used in scripts that don't use tasks
+    - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.set-connection-variables.PowerPlatformSetConnectionVariables@2
+      displayName: 'Set Environment Connection Variables'
+      name: environmentHostVariables
+      inputs:
+        authenticationType: 'PowerPlatformSPN'
+        PowerPlatformSPN: '$(ServiceConnection)'
+      condition: and(succeeded(), ne(variables['ServiceConnection'], ''), not(contains(variables['ServiceConnection'], 'ServiceConnection')))
+
+    - template: set-spn-token.yml
+      parameters:
+        serviceConnection: $(ServiceConnectionUrl)
+        tenantId: $(environmentHostVariables.BuildTools.TenantId)
+        clientId: $(environmentHostVariables.BuildTools.ApplicationId)
+        clientSecret: $(environmentHostVariables.BuildTools.ClientSecret)
+
+    - pwsh: |
+        Write-Host "Running the Post Deployment Settings Updates"
+        Write-Host "##vso[task.setvariable variable=SkipSolutionImport]true"
+      displayName: "Setting SkipSolutionImport to true for the Post Deployment Settings Updates"
+      condition: and(succeeded(), eq('${{ parameters.pipelineDeploymentStage }}', 'PostDeployment'))
+
+    # Conditionally create a PR if the source and target branches are specified
+    - pwsh: |
+        . "$env:POWERSHELLPATH/pipeline-functions.ps1"
+        New-Pull-Request "$(SolutionName)" "$(System.TeamFoundationCollectionUri)" "$(System.TeamProject)" "$(Build.Repository.Name)" "${{parameters.sourceBranch}}" "${{parameters.sourceBranch}}" "refs/heads/${{parameters.targetBranch}}" "${{parameters.commitMessage}}" "${{parameters.autoCompletePR}}" "$env:SYSTEM_ACCESSTOKEN"
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      displayName: "Conditionally Create a PR to trigger the deployment"
+      condition: and(succeeded(), ne('${{ parameters.sourceBranch }}', 'NA'), ne('${{ parameters.targetBranch }}', 'NA'))
+
+    # Run the post deployment settings updates
+    - ${{ if and(eq(parameters.pipelineDeploymentStage, 'PostDeployment'), eq(parameters.sourceBranch, 'NA'), eq(parameters.targetBranch, 'NA')) }}:
+      - template: deploy-Solution.yml
+        parameters:
+          serviceConnectionName: '$(ServiceConnection)'
+          serviceConnectionUrl: '$(ServiceConnectionUrl)'
+          environmentName: '$(EnvironmentName)'
+          solutionName: '$(SolutionName)'
+          cacheEnabled: 'true'
+
+    # Mark as succeeded
+    - pwsh: |
+        . "$env:POWERSHELLPATH/pipeline-functions.ps1"
+        Invoke-Pre-Deployment-Status-Update "$(PipelineStageRunId)" "20" "$(PipelineServiceConnectionUrl)" "$(AADHost)" "$(pipelineHostVariables.BuildTools.TenantId)" "$(pipelineHostVariables.BuildTools.ApplicationId)" "$(pipelineHostVariables.BuildTools.ClientSecret)"
+      displayName: "Mark the deployment as successful in Pipelines"
+      condition: and(succeeded(), eq('${{ parameters.sourceBranch }}', 'NA'), eq('${{ parameters.targetBranch }}', 'NA'), ne(variables['PipelineStageRunId'], ''), not(contains(variables['PipelineStageRunId'], 'PipelineStageRunId')))
+
+    # Mark as failed
+    - pwsh: |
+        . "$env:POWERSHELLPATH/pipeline-functions.ps1"
+        Invoke-Pre-Deployment-Status-Update "$(PipelineStageRunId)" "30" "$(PipelineServiceConnectionUrl)" "$(AADHost)" "$(pipelineHostVariables.BuildTools.TenantId)" "$(pipelineHostVariables.BuildTools.ApplicationId)" "$(pipelineHostVariables.BuildTools.ClientSecret)"
+      displayName: "Mark the deployment as failed in Pipelines"
+      condition: and(failed(), ne(variables['PipelineStageRunId'], ''), not(contains(variables['PipelineStageRunId'], 'PipelineStageRunId')))
