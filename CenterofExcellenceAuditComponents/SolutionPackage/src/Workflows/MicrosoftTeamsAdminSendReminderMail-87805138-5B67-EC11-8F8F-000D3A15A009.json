@@ -9,6 +9,15 @@
         "api": {
           "name": "shared_commondataserviceforapps"
         }
+      },
+      "shared_office365users_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_CoEGovO365Users"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
       }
     },
     "definition": {
@@ -24,7 +33,7 @@
           "type": "SecureObject"
         },
         "Admin eMail (admin_AdminMail)": {
-          "defaultValue": "PowerPlatformAdmins@powercattools.onmicrosoft.com ",
+          "defaultValue": "PowerPlatformAdmins@powercattools.onmicrosoft.com",
           "type": "String",
           "metadata": {
             "schemaName": "admin_AdminMail",
@@ -32,7 +41,7 @@
           }
         },
         "ProductionEnvironment (admin_ProductionEnvironment)": {
-          "defaultValue": false,
+          "defaultValue": true,
           "type": "Bool",
           "metadata": {
             "schemaName": "admin_ProductionEnvironment",
@@ -100,9 +109,9 @@
                 },
                 "parameters": {
                   "entityName": "admin_environments",
-                  "$select": "admin_environmentcreatedon, admin_displayname, admin_environmentmakerdisplayname, _admin_maker_value",
+                  "$select": "admin_environmentcreatedon, admin_displayname, admin_environmentmakerdisplayname, _admin_maker_value, admin_environmentisorphaned",
                   "$filter": "admin_environmentsku eq 'Teams' and admin_environmentdeleted eq false and admin_businessjustificationdate ne null  and admin_makerrequirementbusinessjustification eq null and admin_adminmicrosoftteamsenvironmentstatus ne 597910000",
-                  "$expand": "admin_Maker($select=admin_userprincipalname, admin_useremail,  admin_preferredlanguage)"
+                  "$expand": "admin_Maker($select=admin_userprincipalname, admin_useremail,  admin_preferredlanguage, admin_userisserviceprinciple, admin_displayname)"
                 },
                 "authentication": "@parameters('$authentication')"
               },
@@ -115,14 +124,6 @@
             "Apply_to_each_envt": {
               "foreach": "@outputs('List_environments_with_business_justification_requested')?['body/value']",
               "actions": {
-                "Check_If_Prod_for_To": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "f91e754e-0c76-48f0-a139-645f9caca77a"
-                  },
-                  "type": "Compose",
-                  "inputs": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), true), items('Apply_to_each_envt')?['admin_maker/admin_useremail'], parameters('Admin eMail (admin_AdminMail)'))"
-                },
                 "Remind_maker_to_provide_justification": {
                   "runAfter": {
                     "Get_Row_-_Remind_maker_to_provide_justification": [
@@ -138,7 +139,7 @@
                       "workflowReferenceName": "5625768c-bd3d-ec11-8c63-00224829720b"
                     },
                     "body": {
-                      "email": "@outputs('Check_If_Prod_for_To')",
+                      "email": "@variables('varMailTo')",
                       "text": "@{outputs('Get_a_row_by_ID')?['body/admin_subject']} @{items('Apply_to_each_envt')?['admin_displayname']}",
                       "text_1": "@outputs('Get_a_row_by_ID')?['body/admin_body']",
                       "email_1": "@if(equals(outputs('Get_a_row_by_ID')?['body/admin_cc'], null), '', outputs('Get_a_row_by_ID')?['body/admin_cc'])",
@@ -178,7 +179,7 @@
                         "parameters": {
                           "entityName": "admin_customizedemails",
                           "$select": "admin_customizedemailid",
-                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{outputs('Get_preferred_language')}'"
+                          "$filter": "admin_basedon eq '@{outputs('emailGUID_to_en-US')}' and admin_language eq '@{variables('varPreferredLanuguage')}'"
                         },
                         "authentication": "@parameters('$authentication')"
                       }
@@ -225,7 +226,7 @@
                     }
                   },
                   "runAfter": {
-                    "Get_preferred_language": [
+                    "Get_Assignee": [
                       "Succeeded"
                     ]
                   },
@@ -234,17 +235,182 @@
                   },
                   "type": "Scope"
                 },
-                "Get_preferred_language": {
-                  "runAfter": {
-                    "Check_If_Prod_for_To": [
-                      "Succeeded"
+                "Get_Assignee": {
+                  "actions": {
+                    "Set_varMailTo": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "fadd410a-9ee0-4c6c-9b72-70e43da730cf"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "varMailTo",
+                        "value": "@parameters('Admin eMail (admin_AdminMail)')"
+                      }
+                    },
+                    "Set_varPreferredLanuguage_to_admins": {
+                      "runAfter": {
+                        "Set_varMailTo": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "0efa4eef-6828-46e2-95e9-c86177cd1754"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "varPreferredLanuguage",
+                        "value": "@parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')"
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "else": {
+                    "actions": {
+                      "Recheck_Orphan_Status": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "c3a5bf90-53e7-492b-9052-e135bdafbb69"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connectionName": "shared_office365users_1",
+                            "operationId": "UserProfile_V2",
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+                          },
+                          "parameters": {
+                            "id": "@items('Apply_to_each_envt')?['_admin_maker_value']",
+                            "$select": "displayName, mail, preferredLanguage"
+                          },
+                          "authentication": "@parameters('$authentication')",
+                          "retryPolicy": {
+                            "type": "exponential",
+                            "count": 10,
+                            "interval": "PT10S"
+                          }
+                        }
+                      },
+                      "Switch": {
+                        "runAfter": {
+                          "Recheck_Orphan_Status": [
+                            "Succeeded",
+                            "Failed"
+                          ]
+                        },
+                        "cases": {
+                          "Case_200_-_User_Found": {
+                            "case": 200,
+                            "actions": {
+                              "Set_varMailTo_to_Owner": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "81013e35-65c8-423b-a4ec-5fe3862df567"
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "varMailTo",
+                                  "value": "@outputs('Recheck_Orphan_Status')?['body/mail']"
+                                }
+                              },
+                              "Set_varPreferredLanuguage_to_Owners": {
+                                "runAfter": {
+                                  "Set_varMailTo_to_Owner": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "ee02ff99-05da-4a71-9bcd-45c42f8cd8e5"
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "varPreferredLanuguage",
+                                  "value": "@{if(equals(outputs('Recheck_Orphan_Status')?['body/preferredLanguage'], null), 'en-US', outputs('Recheck_Orphan_Status')?['body/preferredLanguage'])}"
+                                }
+                              }
+                            }
+                          },
+                          "Case_404_-_New_Orphan": {
+                            "case": 404,
+                            "actions": {
+                              "Set_varMailTo_to_Admin_for_new_Orphan": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "d2e64e51-92f0-4ea7-bf85-119a2bf5125a"
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "varMailTo",
+                                  "value": "@parameters('Admin eMail (admin_AdminMail)')"
+                                }
+                              },
+                              "Set_varPreferredLanuguage_to_admins_for_new_Orphan": {
+                                "runAfter": {
+                                  "Set_varMailTo_to_Admin_for_new_Orphan": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "6e88e33c-d23e-4d9e-8ba3-334ad0c44a2d"
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "varPreferredLanuguage",
+                                  "value": "@parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)')"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "default": {
+                          "actions": {}
+                        },
+                        "expression": "@outputs('Recheck_Orphan_Status')['statusCode']",
+                        "metadata": {
+                          "operationMetadataId": "56abf0fe-ca56-4ab4-804b-35d6c31017d1"
+                        },
+                        "type": "Switch"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "or": [
+                      {
+                        "equals": [
+                          "@variables('isProd')",
+                          "False"
+                        ]
+                      },
+                      {
+                        "equals": [
+                          "@items('Apply_to_each_envt')?['admin_environmentisorphaned']",
+                          "Yes"
+                        ]
+                      },
+                      {
+                        "equals": [
+                          "@items('Apply_to_each_envt')?['admin_environmentmakerdisplayname']",
+                          "SYSTEM"
+                        ]
+                      },
+                      {
+                        "equals": [
+                          "@items('Apply_to_each_envt')?['admin_maker/admin_userisserviceprinciple']",
+                          "@true"
+                        ]
+                      },
+                      {
+                        "equals": [
+                          "@items('Apply_to_each_envt')?['_admin_maker_value']",
+                          "@null"
+                        ]
+                      }
                     ]
                   },
                   "metadata": {
-                    "operationMetadataId": "528a5059-80bd-4b76-aa2b-84d9c89cec3a"
+                    "operationMetadataId": "435ecc8e-d065-4bbe-b676-89a8a339f9ee"
                   },
-                  "type": "Compose",
-                  "inputs": "@if(equals(parameters('ProductionEnvironment (admin_ProductionEnvironment)'), false), parameters('Admin eMail Preferred Language (admin_AdmineMailPreferredLanguage)'), if(equals(items('Apply_to_each_envt')?['admin_maker/admin_preferredlanguage'], null), 'en-US', items('Apply_to_each_envt')?['admin_maker/admin_preferredlanguage']))"
+                  "type": "If"
                 }
               },
               "runAfter": {
@@ -259,7 +425,7 @@
             }
           },
           "runAfter": {
-            "Initialize_emailGUID": [
+            "Initialize_varPreferredLanuguage": [
               "Succeeded"
             ]
           },
@@ -444,6 +610,65 @@
             "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
           },
           "type": "Scope"
+        },
+        "Initialize_var_isProd": {
+          "runAfter": {
+            "Initialize_emailGUID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "88b46fa7-c2e1-44da-9753-fe8af0717f2f"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isProd",
+                "type": "string",
+                "value": "@{parameters('ProductionEnvironment (admin_ProductionEnvironment)')}"
+              }
+            ]
+          }
+        },
+        "Initialize_varMailTo": {
+          "runAfter": {
+            "Initialize_var_isProd": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "f408494f-16f2-4a43-ad32-77b84d61110b"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varMailTo",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_varPreferredLanuguage": {
+          "runAfter": {
+            "Initialize_varMailTo": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "01f70426-9598-45cb-988a-64aa378b30e0"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varPreferredLanuguage",
+                "type": "string",
+                "value": "en-US"
+              }
+            ]
+          }
         }
       },
       "outputs": {}
