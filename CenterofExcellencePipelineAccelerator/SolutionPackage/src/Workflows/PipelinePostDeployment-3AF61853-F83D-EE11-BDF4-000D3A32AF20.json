@@ -1,0 +1,339 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_visualstudioteamservices": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cat_sharedvisualstudioteamservices_0080c"
+        },
+        "api": {
+          "name": "shared_visualstudioteamservices"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cat_sharedcommondataserviceforapps_3bba0"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "When_an_action_is_performed": {
+          "metadata": {
+            "operationMetadataId": "29153f94-dbab-4b69-a754-af030f114a9e"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "BusinessEventsTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "catalog": "commoncatalog",
+              "category": "powerplatformpipelines",
+              "subscriptionRequest/entityname": "none",
+              "subscriptionRequest/sdkmessagename": "OnDeploymentCompleted"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Initialize_Deployment_Profile_ID": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "565f9d89-beb7-4042-9ec9-285ac033d2b8"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "Deployment Profile ID",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Try": {
+          "actions": {
+            "List_pipelines": {
+              "runAfter": {
+                "Retrieve_the_Profile": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "d575ddac-8524-439c-b711-ac23f3138294"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_visualstudioteamservices",
+                  "operationId": "ListPipelines",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_visualstudioteamservices"
+                },
+                "parameters": {
+                  "account": "@outputs('Retrieve_the_Profile')?['body/cat_azdoorganization']",
+                  "project": "@outputs('Retrieve_the_Profile')?['body/cat_azdoproject']"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Send_an_HTTP_request_to_Azure_DevOps": {
+              "runAfter": {
+                "Find_the_Deployment_Pipeline": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c6514da8-ca1a-45bf-a242-04fbfe488d59"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_visualstudioteamservices",
+                  "operationId": "HttpRequest",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_visualstudioteamservices"
+                },
+                "parameters": {
+                  "account": "cattools",
+                  "parameters/Method": "POST",
+                  "parameters/Uri": "https://dev.azure.com/@{outputs('Retrieve_the_Profile')?['body/cat_azdoorganization']}/@{outputs('Retrieve_the_Profile')?['body/cat_azdoproject']}/_apis/pipelines/@{first(body('Find_the_Deployment_Pipeline'))?['id']}/runs?api-version=6.0-preview.1",
+                  "parameters/Body": "{\n    \"resources\": {\n        \"repositories\": {\n            \"self\": {\n                \"refName\": \"refs/heads/@{triggerOutputs()?['body/OutputParameters/ArtifactName']}\"\n            }\n        }\n    },\n    \"templateParameters\": {\n        \"PipelineDeploymentStage\": \"PostDeployment\"\n      }\n}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Check_if_Default_Profile_Exists_If_Not_Get_From_Latest_Request": {
+              "actions": {
+                "Retrieve_Current_Profile_for_Solution": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "43f6578f-c505-4742-94b2-490e3eb1f888"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "cat_deploymentrequests",
+                      "$select": "cat_DeploymentProfileId",
+                      "fetchXml": "<fetch top=\"1\">\n  <entity name=\"cat_deploymentrequest\">\n    <attribute name=\"cat_deploymentstepid\" />\n    <attribute name=\"cat_deploymentprofileid\" />\n    <attribute name=\"cat_requesttype\" />\n    <attribute name=\"cat_solutionname\" />\n    <filter type=\"and\">\n      <condition attribute=\"cat_requesttype\" operator=\"eq\" value=\"809060004\" />\n      <filter type=\"or\">\n          <condition attribute=\"cat_solutionname\" operator=\"eq\" value=\"@{triggerOutputs()?['body/OutputParameters/ArtifactName']}\" />\n          <condition attribute=\"cat_solutionname\" operator=\"eq\" value=\"@{triggerOutputs()?['body/OutputParameters/ArtifactName']}-@{outputs('Get_Development_Environment')?['body/environmentid']}\" />\n      </filter>\n    </filter>\n    <order attribute=\"createdon\" descending=\"true\" />\n  </entity>\n</fetch>"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Set_Deployment_Profile_ID_from_Current_Profile": {
+                  "runAfter": {
+                    "Retrieve_Current_Profile_for_Solution": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3f983e54-cc58-42d9-bad1-16af5e8f1f8d"
+                  },
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "Deployment Profile ID",
+                    "value": "@{first(body('Retrieve_Current_Profile_for_Solution')?['value'])?['_cat_deploymentprofileid_value']}"
+                  }
+                }
+              },
+              "runAfter": {
+                "Retrieve_Default_Profile_for_Solution": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "Set_variable": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "ba866994-dfb8-4e4e-96d9-fd84d907a9b1"
+                    },
+                    "type": "SetVariable",
+                    "inputs": {
+                      "name": "Deployment Profile ID",
+                      "value": "@{first(body('Retrieve_Default_Profile_for_Solution')?['value'])?['cat_deploymentprofileid']}"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@length(outputs('Retrieve_Default_Profile_for_Solution')?['body/value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c32d81e2-fbb3-4bb9-8172-c242a43f8fcf"
+              },
+              "type": "If"
+            },
+            "Retrieve_the_Deployment_Stage_Run": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4a73cec-e272-4002-bd84-2543ea7bb7b9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "deploymentstageruns",
+                  "recordId": "@triggerOutputs()?['body/InputParameters/StageRunId']"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Retrieve_Default_Profile_for_Solution": {
+              "runAfter": {
+                "Get_Development_Environment": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "6db7cca8-6745-42bc-8b89-5d1d495481b3"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "cat_deploymentprofiles",
+                  "$select": "cat_deploymentprofileid",
+                  "fetchXml": "<fetch top=\"1\">\n  <entity name=\"cat_deploymentprofile\">\n    <attribute name=\"cat_deploymentprofileid\" />\n    <filter>\n      <condition attribute=\"cat_defaultdeploymentprofile\" operator=\"eq\" value=\"1\" />\n    </filter>\n  </entity>\n</fetch>",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Retrieve_the_Deployment_Stage": {
+              "runAfter": {
+                "Retrieve_the_Deployment_Stage_Run": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "cbd3ca43-3e28-4b8d-aada-d181ef4820ab"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "deploymentstages",
+                  "recordId": "@outputs('Retrieve_the_Deployment_Stage_Run')?['body/_deploymentstageid_value']",
+                  "$select": "name,_deploymentpipelineid_value"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Retrieve_the_Profile": {
+              "runAfter": {
+                "Check_if_Default_Profile_Exists_If_Not_Get_From_Latest_Request": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "5e29fd7e-d0ed-431d-878e-dbbd962e7d5a"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "cat_deploymentprofiles",
+                  "recordId": "@variables('Deployment Profile ID')",
+                  "$select": "cat_deploymentprofileid, cat_azdoorganization, cat_azdoproject, cat_repository, cat_repositoryid"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_Development_Environment": {
+              "runAfter": {
+                "Retrieve_the_Deployment_Stage": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "8f5baaae-c583-461b-b5d5-2b9788e59cca"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "deploymentenvironments",
+                  "recordId": "@outputs('Retrieve_the_Deployment_Stage_Run')?['body/_devdeploymentenvironment_value']"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Find_the_Deployment_Pipeline": {
+              "runAfter": {
+                "List_pipelines": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c5ce978c-988b-4c2d-b729-2c6dbe63c397"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@outputs('List_pipelines')?['body/value']",
+                "where": "@equals(item()?['name'], concat('deploy-', toLower(outputs('Retrieve_the_Deployment_Stage')?['body/name']), '-', triggerOutputs()?['body/OutputParameters/ArtifactName']))"
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_Deployment_Profile_ID": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "94629852-db90-48be-bcb3-617029c6c2b1"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
