@@ -25,8 +25,9 @@ steps:
 - pwsh: |
     # only attempt to run tests if a test username was provided as a parameter
     $runTests = -not ('${{ parameters.testAccountUsername }}'.Contains("TestAutomationUsername"))
-    
+    Write-Host "RunTests - $runTests"
     if ($runTests) {
+      Write-Host "Running tests..."
       $pipelineUtilsPath = "$(Agent.BuildDirectory)\PipelineUtils"
       $canvasTestFrameworkPath = "$pipelineUtilsPath\CanvasTestFramework"
       Write-Host "##vso[task.setvariable variable=CanvasTestFrameworkPath]$canvasTestFrameworkPath"
@@ -36,33 +37,44 @@ steps:
       . "$env:POWERSHELLPATH\build-test-automation-urls.ps1"    
       
       $solutionName = "${{parameters.solutionName}}"
-      $canvasAppsPath = "$(Agent.TempDirectory)\${{parameters.solutionName}}\SolutionPackage\CanvasApps"
+      $canvasAppsPath = "$(Build.SourcesDirectory)\$(RepoName)\${{parameters.solutionName}}\SolutionPackage\src\CanvasApps"
       $serviceConnection = "${{parameters.serviceConnection}}"
+
+      Write-Host "SolutionName - $solutionName"
+      Write-Host "CanvasAppsPath - $canvasAppsPath"
+      Write-Host "ServiceConnection - $serviceConnection"
 
       $microsoftPowerAppsAdministrationPowerShellModule = '$(CoETools_Microsoft_PowerApps_Administration_PowerShell)'
       Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $(PowerAppsAdminModuleVersion) -ArgumentList @{ NonInteractive = $true }
       Add-PowerAppsAccount -TenantID $(connectionVariables.BuildTools.TenantId) -ApplicationId $(connectionVariables.BuildTools.ApplicationId) -ClientSecret $(connectionVariables.BuildTools.ClientSecret)
 
-      #Set-CanvasTestAutomationURLs $(SpnToken) $serviceConnection $solutionName $canvasAppsPath $(BuildTools.EnvironmentId)
+      Write-Host "Calling Set-CanvasTestAutomationURLs"
       Set-CanvasTestAutomationURLs $env:MAPPED_SPN_Token $serviceConnection $solutionName $canvasAppsPath $(BuildTools.EnvironmentId)
 
       $jsonPath = (Get-Location).Path + "\CanvasTestAutomationURLs.json"
       Write-Host "##vso[task.setvariable variable=JsonPath]$jsonPath"
 
+      Write-Host "JsonPath - $jsonPath"
+
       $hasTests = (Get-ChildItem -Filter CanvasTestAutomationURLs.json) -ne $null
       Write-Host "##vso[task.setvariable variable=RunTests]$hasTests"   
+      Write-Host "HasTests - $hasTests"
     }
     else {
       Write-Host "##vso[task.setvariable variable=RunTests]$runTests" 
     }
 
     $hasTestOverride = -not ('$(TestOverride)'.Contains('TestOverride'))
+    Write-Host "HasTestOverride - $hasTestOverride"
     $isPullRequest = "$(Build.Reason)" -eq "PullRequest"
+    Write-Host "Build reason - $(Build.Reason)"
+    Write-Host "isPullRequest - $isPullRequest"
     $prOrOverride = 'false'
     if ($hasTestOverride -or $isPullRequest) {
       $prOrOverride = 'true'
     }
     
+    Write-Host "prOrOverride - $prOrOverride"
     Write-Host "##vso[task.setvariable variable=PrOrOverride]$prOrOverride" 
   displayName: "Evaluate Running Canvas Tests"
   env:
@@ -80,7 +92,7 @@ steps:
     Get-DisplayResolution
   ignoreLASTEXITCODE: true
   displayName: "Set Agent Screen Resolution to 1920x1080"
-  condition: and(succeeded(), eq(variables.RunTests, 'true'), eq(variables.PrOrOverride,'true'))
+  condition: and(succeeded(), eq(variables.RunTests, 'True'), eq(variables.PrOrOverride,'true'))
 
 - task: VSTest@2 # Only running chrome tests for now since Power Apps is already cross browser.  These test are for UI / Integration testing.  Can revisit if we discover we need cross browser later.
   displayName: "Run Power Apps Test Automation Tests via Chrome"
