@@ -71,10 +71,17 @@ function Set-DeploymentSettingsConfiguration
         $environmentName = $configurationDataEnvironment.DeploymentEnvironmentName
 
         # Fetch the build definition and update variables
-        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?repositoryId=$solutionRepoId&repositoryType=TfsGit&name=$buildName&includeAllProperties=true&api-version=6.0"
-        Write-Host "BuildDefinitionResourceUrl - "$buildDefinitionResourceUrl
+        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?name=$buildName&includeAllProperties=true&api-version=6.0"
+        Write-Host "Fetching Builds for report BuildDefinitionResourceUrl - "$buildDefinitionResourceUrl
         $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
             Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
+        }
+        if($fullBuildDefinitionResponse.count -gt 1) {
+            $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?repositoryId=$solutionRepoId&repositoryType=TfsGit&name=$buildName&includeAllProperties=true&api-version=6.0"
+            Write-Host "Fetching Builds for report BuildDefinitionResourceUrl - "$buildDefinitionResourceUrl
+            $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
+                Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
+            }
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
         Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
@@ -423,12 +430,16 @@ function New-DeploymentPipelines
         Write-Host "Retrieved " $branchResourceResults.length " branch"
 
         #Update / Create Deployment Pipelines
-        Write-Host "Fetching build definitions under the repo - $repo"
-        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?repositoryId=$solutionRepoId&repositoryType=TfsGit&name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"     
-        #$buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?path=\$buildRepositoryName - $solutionName\&name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"
+        Write-Host "Fetching build definitions in all repos"
+        $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"     
         Write-Host "BuildDefinitionResourceUrl - "$buildDefinitionResourceUrl
         $fullBuildDefinitionResponse = Invoke-RestMethod $buildDefinitionResourceUrl -Method Get -Headers @{
             Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
+        }
+
+        if($fullBuildDefinitionResponse.count -gt 1) {
+            Write-Host "Fetching build definitions under the repo - $repo"
+            $buildDefinitionResourceUrl = "$orgUrl$projectName/_apis/build/definitions?repositoryId=$solutionRepoId&repositoryType=TfsGit&name=deploy-*-$solutionName&includeAllProperties=true&api-version=6.0"     
         }
         $buildDefinitionResponseResults = $fullBuildDefinitionResponse.value
         Write-Host "Retrieved " $buildDefinitionResponseResults.length " builds"
