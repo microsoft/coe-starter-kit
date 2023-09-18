@@ -28,7 +28,7 @@ function Set-DeploymentSettingsConfiguration
         [Parameter()] [String]$agentOS = ""
     )
     $configurationData = $env:DEPLOYMENT_SETTINGS | ConvertFrom-Json
-    $reservedVariables = @("TriggerSolutionUpgrade")
+    $reservedVariables = @("TriggerSolutionUpgrade","BypassAppConsent")
     Write-Host (ConvertTo-Json -Depth 10 $configurationData)
 
     #Generate Deployment Settings
@@ -335,7 +335,7 @@ function Set-DeploymentSettingsConfiguration
                         if(!$found) { 
                             $newBuildDefinitionVariables | Add-Member -MemberType NoteProperty -Name $configurationVariableName -Value @{value = ''}
                         }
-                        $newBuildDefinitionVariables.$configurationVariableName.value = $configurationVariableValue
+                        $newBuildDefinitionVariables.$configurationVariableName.value = $configurationVariableValue                        
                     }
                 }
             }

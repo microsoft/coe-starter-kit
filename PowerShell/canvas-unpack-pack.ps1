@@ -133,6 +133,57 @@ function Invoke-Share-Canvas-App-with-AAD-Group
 }
 
 <#
+Read all the Canvas Apps part of the solution.
+Apply PowerShell command to bypass the Canvas app consents.
+#>
+function ByPass-Canvas-App-Consents
+{
+    param (
+        [Parameter(Mandatory)] [String]$microsoftPowerAppsAdministrationPowerShellModule,
+        [Parameter(Mandatory)] [String]$powerAppsAdminModuleVersion,
+        [Parameter(Mandatory)] [String]$tenantId,
+        [Parameter(Mandatory)] [String]$clientId,
+        [Parameter(Mandatory)] [String]$clientSecret,
+        [Parameter(Mandatory)] [String]$microsoftXrmDataPowerShellModule,
+        [Parameter(Mandatory)] [String]$XrmDataPowerShellVersion,
+        [Parameter(Mandatory)] [String]$serviceConnection,
+        [Parameter(Mandatory)] [String]$environmentId,
+        [Parameter(Mandatory)] [String]$dataverseConnectionString,
+        [Parameter(Mandatory)] [String]$solutionName
+    )
+
+    Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $powerAppsAdminModuleVersion -ArgumentList @{ NonInteractive = $true }
+    Add-PowerAppsAccount -TenantID $tenantId -ApplicationId $clientId -ClientSecret $clientSecret
+    #$microsoftXrmDataPowerShellModule = '$(CoETools_Microsoft_Xrm_Data_PowerShell)'
+    Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $XrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
+    $conn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
+
+    $environmentName = "$environmentId"
+
+    # Fetch all solution components
+    $solutions = Get-CrmRecords -conn $conn -EntityLogicalName solution -FilterAttribute "uniquename" -FilterOperator "eq" -FilterValue "$solutionName" -Fields solutionid
+    if($solutions.Count -gt 0) {
+        $solutionId = $solutions.CrmRecords[0].solutionid
+
+        $result = Get-CrmRecords -conn $conn -EntityLogicalName solutioncomponent -FilterAttribute "solutionid" -FilterOperator "eq" -FilterValue $solutionId -Fields objectid,componenttype
+        $solutionComponents = $result.CrmRecords
+
+        $optionSetMetadata = $null
+        foreach ($c in $solutionComponents){
+            $componentType = $c.componenttype
+            Write-Host "Componenttype - $componentType"
+
+            if ($c.componenttype -eq "Canvas App" -and $c.objectid -ne ""){
+                Write-Host "Bypassing the canvas app $($c.objectid) consent. Environment - $environmentName"
+                # Set-AdminPowerAppApisToBypassConsent -EnvironmentName [Guid] -AppName [Guid]
+                Write-Host "Command - Set-AdminPowerAppApisToBypassConsent –EnvironmentName $environmentName –AppName $($c.objectid)"
+                Set-AdminPowerAppApisToBypassConsent –EnvironmentName $environmentName –AppName $($c.objectid)
+            }
+        }
+    }
+}
+
+<#
 This function reads custom deployment Settings and updates canvas app ownership.
 #>
 function Update-Canvas-App-Ownership
