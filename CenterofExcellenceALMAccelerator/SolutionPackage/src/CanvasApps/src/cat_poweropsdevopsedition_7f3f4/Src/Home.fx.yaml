@@ -72,23 +72,27 @@ Home As screen:
                 DefaultUserSettingName,
                 "LastSavedUserSetting"
             );
-            Set(DefaultUserSetting,
-                    LookUp(
+            Set(
+                DefaultUserSetting,
+                LookUp(
                     AppUserSetting_UserSettings,
                     Name = DefaultUserSettingName
                 )
             );
-        
-            If(!IsBlankOrError(DefaultUserSetting), 
-            Set(
-                DeploymentUserSetting,
-                LookUp(DeploymentUserSettings, DisplayName = DefaultUserSetting.Value)
-            ),
-                
-            Set(
-                DeploymentUserSetting,
-                First(DeploymentUserSettings)
-            ));
+            If(
+                !IsBlankOrError(DefaultUserSetting),
+                Set(
+                    DeploymentUserSetting,
+                    LookUp(
+                        DeploymentUserSettings,
+                        DisplayName = DefaultUserSetting.Value
+                    )
+                ),
+                Set(
+                    DeploymentUserSetting,
+                    First(DeploymentUserSettings)
+                )
+            );
             If(
                 !IsBlankOrError(DeploymentUserSetting.'Promote Changes Label'),
                 Set(
@@ -167,6 +171,13 @@ Home As screen:
                 Sort(
                     DeploymentProfiles,
                     DisplayName
+                )
+            );
+            Set(
+                DefaultProfile,
+                LookUp(
+                    'Deployment Profiles',
+                    'Default Deployment Profile' = true
                 )
             );
             
@@ -323,8 +334,8 @@ Home As screen:
                 Filter(
                     'Component Layers',
                     'Solution Name' = "Active",
-                    msdyn_solutioncomponentname = "CanvasApp",
-                    msdyn_componentid = Text(currentCanvasApp.CanvasAppId)
+                    'Solution Component Name' = "CanvasApp",
+                    'Component Id' = Text(currentCanvasApp.CanvasAppId)
                 )
             );
             // get Canvas App solution layers
@@ -1495,12 +1506,30 @@ Home As screen:
             HoverFill: =ColorFade(icoConfigureDeployment.Fill, 20%)
             Icon: =
             OnSelect: |-
-                =Set(ReturnScreen, Home);
-                Set(ReinitializeHome, false);
-                Set(SelectedConfigurationDeploymentProfile, glrSolutions.Selected.deploymentprofile);
-                Set(SelectedDeploymentStep, Blank());
-                Set(SelectedSolutionToConfigure, glrSolutions.Selected);
-                Navigate(DeploymentSettingsScreen, ScreenTransition.Fade)
+                =Set(
+                    ReturnScreen,
+                    Home
+                );
+                Set(
+                    ReinitializeHome,
+                    false
+                );
+                Set(
+                    SelectedConfigurationDeploymentProfile,
+                    glrSolutions.Selected.deploymentprofile
+                );
+                Set(
+                    SelectedDeploymentStep,
+                    Blank()
+                );
+                Set(
+                    SelectedSolutionToConfigure,
+                    glrSolutions.Selected
+                );
+                Navigate(
+                    DeploymentSettingsScreen,
+                    ScreenTransition.Fade
+                )
             PressedBorderColor: =ColorFade(icoConfigureDeployment.BorderColor, -20%)
             PressedColor: =ColorFade(icoConfigureDeployment.Color, -20%)
             PressedFill: =ColorFade(icoConfigureDeployment.Fill, -20%)
@@ -5556,8 +5585,13 @@ Home As screen:
             HoverFill: =ColorFade(btnSavePublishProfile.Fill, 20%)
             OnSelect: |-
                 =UpdateContext({debugText: locUpdateProfile & " - " & locAddNewProfile});
-                UpdateContext({lclValidationEnvironment: txtNewProfile.Text & " - Validation", lclTestEnvironment: txtNewProfile.Text & " - Test", lclProdEnvironment: txtNewProfile.Text & " - Prod"});
-                
+                UpdateContext(
+                    {
+                        lclValidationEnvironment: txtNewProfile.Text & " - Validation",
+                        lclTestEnvironment: txtNewProfile.Text & " - Test",
+                        lclProdEnvironment: txtNewProfile.Text & " - Prod"
+                    }
+                );
                 If(
                     locAddNewProfile,
                     Patch(
@@ -5781,8 +5815,28 @@ Home As screen:
                             locSelectedDeploymentProfile: LookUp(
                                 'Deployment Profiles',
                                 'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile'
+                            ),
+                            locExistingDeploymentSolutionProfile: LookUp(
+                                'Deployment Solution Profiles',
+                                'Solution Name' = glrSolutions.Selected.uniquename And 'Maker Environment Url' = SelectedEnvironment.name
                             )
                         }
+                    );
+                    If(
+                        !IsBlankOrError(locExistingDeploymentSolutionProfile),
+                        Patch(
+                            'Deployment Solution Profiles',
+                            locExistingDeploymentSolutionProfile,
+                            {'Deployment Profile': locSelectedDeploymentProfile}
+                        ),
+                        Patch(
+                            'Deployment Solution Profiles',
+                            {
+                                'Solution Name': glrSolutions.Selected.uniquename,
+                                'Maker Environment Url': SelectedEnvironment.name,
+                                'Deployment Profile': locSelectedDeploymentProfile
+                            }
+                        )
                     );
                     Patch(
                         SelectedEnvironmentSolutions,
@@ -6516,11 +6570,7 @@ Home As screen:
             UpdateContext(
                 {
                     locReloadSolutions: true,
-                    errorMessage: "",
-                    defaultProfile: LookUp(
-                        'Deployment Profiles',
-                        'Default Deployment Profile' = true
-                    )
+                    errorMessage: ""
                 }
             );
             If(
@@ -6560,18 +6610,47 @@ Home As screen:
                                 !IsBlankOrError(
                                     First(
                                         Filter(
-                                            DeploymentRequests,
-                                            'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                            Sort('Deployment Solution Profiles', createdon, SortOrder.Descending),
+                                            'Solution Name' = uniquename And 'Maker Environment Url' = SelectedEnvironment.name
                                         )
                                     ).'Deployment Profile'
                                 ),
                                 First(
                                     Filter(
-                                        DeploymentRequests,
-                                        'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                        Sort('Deployment Solution Profiles', createdon, SortOrder.Descending),
+                                        'Solution Name' = uniquename And 'Maker Environment Url' = SelectedEnvironment.name
                                     )
                                 ).'Deployment Profile',
-                                defaultProfile
+                                If(
+                                    !IsBlankOrError(
+                                        First(
+                                            Filter(
+                                                DeploymentRequests,
+                                                'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                            )
+                                        ).'Deployment Profile'
+                                    ),
+                                    Patch(
+                                        'Deployment Solution Profiles',
+                                        {
+                                            'Solution Name': uniquename,
+                                            'Maker Environment Url': SelectedEnvironment.name,
+                                            'Deployment Profile': First(
+                                                Filter(
+                                                    DeploymentRequests,
+                                                    'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                                )
+                                            ).'Deployment Profile'
+                                        }
+                                    );
+                                    First(
+                                        Filter(
+                                            DeploymentRequests,
+                                            'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                        )
+                                    ).'Deployment Profile',
+                                    DefaultProfile
+                                )
                             )
                         )
                     )
