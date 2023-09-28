@@ -217,26 +217,6 @@
               "actions": {
                 "Get_Flow_Owner_Information": {
                   "actions": {
-                    "Maker_Check_-_Derived_Owner": {
-                      "runAfter": {
-                        "If_DerivedOwner_is_null,_set_to_Creator": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "c164e38c-3540-48cb-90fc-cccbbe40838c"
-                      },
-                      "type": "Workflow",
-                      "inputs": {
-                        "host": {
-                          "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
-                        },
-                        "body": {
-                          "text": "@variables('FlowOwnerID')",
-                          "boolean": false
-                        }
-                      }
-                    },
                     "If_DerivedOwner_is_null,_set_to_Creator": {
                       "actions": {
                         "Set_FlowOwnerID_to_Creator": {
@@ -287,6 +267,71 @@
                         "name": "FlowOwnerID",
                         "value": "@{coalesce(outputs('Get_Flow_from_Inventory')?['body/_admin_derivedowner_value'], '')}"
                       }
+                    },
+                    "If_Owner_still_blank_set_as_orphan": {
+                      "actions": {
+                        "Set_isOrphaned_to_true": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "253dc343-f12e-4ee3-aedc-a872ad25fa20"
+                          },
+                          "type": "SetVariable",
+                          "inputs": {
+                            "name": "isOrphaned",
+                            "value": "@true"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "If_DerivedOwner_is_null,_set_to_Creator": [
+                          "Succeeded"
+                        ]
+                      },
+                      "else": {
+                        "actions": {
+                          "Maker_Check_-_Derived_Owner": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "c164e38c-3540-48cb-90fc-cccbbe40838c"
+                            },
+                            "type": "Workflow",
+                            "inputs": {
+                              "host": {
+                                "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                              },
+                              "body": {
+                                "text": "@variables('FlowOwnerID')",
+                                "boolean": false
+                              }
+                            }
+                          },
+                          "Update_isOrphaned": {
+                            "runAfter": {
+                              "Maker_Check_-_Derived_Owner": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "7cd3da9f-16aa-43de-b33e-936fc1c733c0"
+                            },
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "isOrphaned",
+                              "value": "@body('Maker_Check_-_Derived_Owner')?['userisorphan']"
+                            }
+                          }
+                        }
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(variables('FlowOwnerID'))",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f6c4d9f0-6ad7-4ea7-86c7-bfc9e046f621"
+                      },
+                      "type": "If"
                     }
                   },
                   "runAfter": {
@@ -336,6 +381,7 @@
                               "item/admin_flowsuspensionreason": "@body('Parse_Flow_JSON')?['properties']?['flowSuspensionReason']",
                               "item/admin_flowidstring": "@triggerBody()['text_2']",
                               "item/admin_inventoryme": false,
+                              "item/admin_inventorymyflowactiondetails": true,
                               "item/admin_recordguidasstring": "@triggerBody()['text_2']",
                               "item/admin_referencedresources_dvtables": "@outputs('DV_Table_String')",
                               "item/admin_referencedresources_services": "@outputs('Services_String')",
@@ -398,6 +444,7 @@
                                 "item/admin_flowsuspensionreason": "@body('Parse_Flow_JSON')?['properties']?['flowSuspensionReason']",
                                 "item/admin_flowidstring": "@triggerBody()['text_2']",
                                 "item/admin_inventoryme": false,
+                                "item/admin_inventorymyflowactiondetails": true,
                                 "item/admin_FlowCreator@odata.bind": "admin_makers(@{variables('FlowOwnerID')})",
                                 "item/admin_recordguidasstring": "@triggerBody()['text_2']",
                                 "item/admin_referencedresources_dvtables": "@outputs('DV_Table_String')",
@@ -422,7 +469,7 @@
                       },
                       "expression": {
                         "equals": [
-                          "@body('Maker_Check_-_Derived_Owner')?['userisorphan']",
+                          "@variables('isOrphaned')",
                           "@true"
                         ]
                       },
@@ -1156,7 +1203,7 @@
                             },
                             "parameters": {
                               "entityName": "admin_connectionreferences",
-                              "$select": "_admin_flow_value, _admin_connector_value, admin_displayname, admin_connectionreferenceid",
+                              "$select": "_admin_flow_value, _admin_connector_value, admin_displayname, admin_connectionreferenceid, admin_flow_connectionreferencesource",
                               "$filter": "_admin_flow_value eq '@{triggerBody()['text_2']}'"
                             },
                             "authentication": {
@@ -1180,7 +1227,8 @@
                             "select": {
                               "FlowID": "@item()?['_admin_flow_value']",
                               "ConnectorID": "@item()?['_admin_connector_value']",
-                              "DisplayName": "@item()?['admin_displayname']"
+                              "DisplayName": "@item()?['admin_displayname']",
+                              "Source": "@item()?['admin_flow_connectionreferencesource']"
                             }
                           }
                         },
@@ -1209,6 +1257,12 @@
                                   },
                                   "DisplayName": {
                                     "type": "string"
+                                  },
+                                  "Source": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -1282,7 +1336,8 @@
                                         "value": {
                                           "FlowID": "@triggerBody()['text_2']",
                                           "ConnectorID": "@first(body('Filter_current_flow_Connector'))?['admin_connectorid']",
-                                          "DisplayName": "@coalesce(items('Apply_to_each_Flow_Connection_Reference')?['displayName'], 'No Display Name For Connector')"
+                                          "DisplayName": "@coalesce(items('Apply_to_each_Flow_Connection_Reference')?['displayName'], 'No Display Name For Connector')",
+                                          "Source": "@outputs('Source')"
                                         }
                                       }
                                     }
@@ -1320,7 +1375,7 @@
                                 },
                                 "split_on_slash": {
                                   "runAfter": {
-                                    "ConnectorID": [
+                                    "Source": [
                                       "Succeeded"
                                     ]
                                   },
@@ -1329,6 +1384,18 @@
                                   },
                                   "type": "Compose",
                                   "inputs": "@split(outputs('ConnectorID'), '/')"
+                                },
+                                "Source": {
+                                  "runAfter": {
+                                    "ConnectorID": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "7f6bd13b-48fc-4214-932d-1a31a2377d7a"
+                                  },
+                                  "type": "Compose",
+                                  "inputs": "@items('Apply_to_each_Flow_Connection_Reference')?['source']"
                                 }
                               },
                               "runAfter": {
@@ -1365,7 +1432,8 @@
                                     "value": {
                                       "FlowID": "@triggerBody()['text_2']",
                                       "ConnectorID": "@outputs('GUID_Http')",
-                                      "DisplayName": "Http"
+                                      "DisplayName": "Http",
+                                      "Source": ""
                                     }
                                   }
                                 }
@@ -1399,7 +1467,8 @@
                                     "value": {
                                       "FlowID": "@triggerBody()['text_2']",
                                       "ConnectorID": "@outputs('GUID_HttpWebhook')",
-                                      "DisplayName": "Http Webhook"
+                                      "DisplayName": "Http Webhook",
+                                      "Source": ""
                                     }
                                   }
                                 }
@@ -1433,7 +1502,8 @@
                                     "value": {
                                       "FlowID": "@triggerBody()['text_2']",
                                       "ConnectorID": "@outputs('GUID_HttpRequestReceived')",
-                                      "DisplayName": "Http Request Received"
+                                      "DisplayName": "Http Request Received",
+                                      "Source": ""
                                     }
                                   }
                                 }
@@ -1519,12 +1589,16 @@
                                   },
                                   "DisplayName": {
                                     "type": "string"
+                                  },
+                                  "Source": {
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
                                   "FlowID",
                                   "ConnectorID",
-                                  "DisplayName"
+                                  "DisplayName",
+                                  "Source"
                                 ]
                               }
                             }
@@ -1624,7 +1698,8 @@
                                         "entityName": "admin_connectionreferences",
                                         "item/admin_displayname": "@items('Apply_to_each_new_connection')?['DisplayName']",
                                         "item/admin_Connector@odata.bind": "admin_connectors(@{items('Apply_to_each_new_connection')?['ConnectorID']})",
-                                        "item/admin_Flow@odata.bind": "admin_flows(@{items('Apply_to_each_new_connection')?['FlowID']})"
+                                        "item/admin_Flow@odata.bind": "admin_flows(@{items('Apply_to_each_new_connection')?['FlowID']})",
+                                        "item/admin_flow_connectionreferencesource": "@items('Apply_to_each_new_connection')?['Source']"
                                       },
                                       "authentication": {
                                         "type": "Raw",
@@ -1681,7 +1756,7 @@
                                       "parameters": {
                                         "entityName": "admin_connectionreferences",
                                         "$select": "admin_connectionreferenceid",
-                                        "$filter": "_admin_flow_value eq '@{items('Delete_each')?['FlowID']}' and _admin_connector_value eq '@{items('Delete_each')?['ConnectorID']}' and admin_displayname eq '@{replace(items('Delete_each')?['DisplayName'], '''', '''''')}'"
+                                        "$filter": "_admin_flow_value eq '@{items('Delete_each')?['FlowID']}' and _admin_connector_value eq '@{items('Delete_each')?['ConnectorID']}' and admin_displayname eq '@{replace(items('Delete_each')?['DisplayName'], '''', '''''')}' "
                                       },
                                       "authentication": {
                                         "type": "Raw",
@@ -2121,7 +2196,7 @@
             }
           },
           "runAfter": {
-            "Initialize_ActualConnectionsArray": [
+            "Initialize_isOrphaned": [
               "Succeeded"
             ]
           },
@@ -2398,6 +2473,26 @@
             "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
           },
           "type": "Scope"
+        },
+        "Initialize_isOrphaned": {
+          "runAfter": {
+            "Initialize_ActualConnectionsArray": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c53a08ad-dd1d-4935-89a9-9b2fcf2afc88"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "isOrphaned",
+                "type": "boolean",
+                "value": "@false"
+              }
+            ]
+          }
         }
       }
     },
