@@ -57,14 +57,6 @@
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
             "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
           }
-        },
-        "FullInventory (admin_FullInventory)": {
-          "defaultValue": true,
-          "type": "Bool",
-          "metadata": {
-            "schemaName": "admin_FullInventory",
-            "description": "Inventory - Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running "
-          }
         }
       },
       "triggers": {
@@ -179,9 +171,9 @@
                 "parameters": {
                   "entityName": "admin_coesolutionmetadatas",
                   "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrunstarted": "@null",
                   "item/admin_lastrun": "@utcNow()",
-                  "item/admin_lastrunpassed": false,
-                  "item/admin_lastrunstarted": "@null"
+                  "item/admin_lastrunpassed": false
                 },
                 "authentication": "@parameters('$authentication')"
               }
@@ -550,7 +542,7 @@
                 }
               },
               "runAfter": {
-                "Update_last_run_started_to_now": [
+                "Get_flows_to_update": [
                   "Succeeded"
                 ]
               },
@@ -1648,7 +1640,7 @@
                         "parameters": {
                           "entityName": "admin_flows",
                           "$select": "admin_flowid, _admin_flowenvironment_value, admin_flowmodifiedon, cr5d5_flowtrigger, admin_containsplaintextpassword, _admin_derivedowner_value",
-                          "$filter": "admin_flowdeleted ne true and admin_flowmodifiedon gt @{outputs('FlowsModifiedSince')} and admin_containsplaintextpassword eq true",
+                          "$filter": "admin_flowdeleted ne true and admin_inventorymyflowactiondetails eq true and _admin_flowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_flowispublished ne false and admin_containsplaintextpassword eq true",
                           "$orderby": "admin_flowmodifiedon",
                           "$expand": "admin_FlowEnvironment($select=admin_environmentname)"
                         },
@@ -1767,10 +1759,58 @@
                       }
                     }
                   }
+                },
+                "Clear_Inventory_My_FlowActionDetails_flag": {
+                  "actions": {
+                    "Clear_each_flows_flag": {
+                      "foreach": "@outputs('Flows_to_iterate')?['body/value']",
+                      "actions": {
+                        "Clear_this_flows_flag": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "b32c71d3-4720-45c4-ba03-d003c529e347"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_flows",
+                              "recordId": "@items('Clear_each_flows_flag')?['admin_flowid']",
+                              "item/admin_inventorymyflowactiondetails": false
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "9281e977-2f7a-4e04-aaa8-8580e27141e2"
+                      },
+                      "type": "Foreach",
+                      "runtimeConfiguration": {
+                        "concurrency": {
+                          "repetitions": 50
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Parse_ActualFlowActionDetails": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "7cd14ee8-ca3d-469c-a282-ccc73fb5b20a"
+                  },
+                  "type": "Scope"
                 }
               },
               "runAfter": {
-                "Update_last_run_started_to_now": [
+                "Get_flows_to_update": [
                   "Succeeded"
                 ]
               },
@@ -2106,76 +2146,6 @@
               },
               "type": "Scope"
             },
-            "Update_last_run_started_to_now": {
-              "actions": {
-                "Update_Last_Run_Started": {
-                  "runAfter": {
-                    "Get_ID_for_Started": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
-                  },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_commondataserviceforapps",
-                      "operationId": "UpdateRecord",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                    },
-                    "parameters": {
-                      "entityName": "admin_coesolutionmetadatas",
-                      "recordId": "@first(outputs('Get_ID_for_Started')?['body/value'])?['admin_coesolutionmetadataid']",
-                      "item/admin_lastrunstarted": "@utcnow()"
-                    },
-                    "authentication": "@parameters('$authentication')"
-                  }
-                },
-                "Get_ID_for_Started": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
-                  },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_commondataserviceforapps",
-                      "operationId": "ListRecords",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                    },
-                    "parameters": {
-                      "entityName": "admin_coesolutionmetadatas",
-                      "$select": "admin_coesolutionmetadataid",
-                      "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
-                      "$top": 1
-                    },
-                    "authentication": "@parameters('$authentication')"
-                  }
-                },
-                "Catch_-_not_ready_to_take_last_run_started": {
-                  "runAfter": {
-                    "Update_Last_Run_Started": [
-                      "Failed"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
-                  },
-                  "type": "Compose",
-                  "inputs": "Catch - not ready to take last run date"
-                }
-              },
-              "runAfter": {
-                "Get_flows_to_update": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
-              },
-              "type": "Scope"
-            },
             "Get_identity_for_permission_updates": {
               "actions": {
                 "Get_my_id": {
@@ -2205,57 +2175,8 @@
             },
             "Get_flows_to_update": {
               "actions": {
-                "Get_ID_of_this_flow_from_metatdata": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
-                  },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_commondataserviceforapps_2",
-                      "operationId": "ListRecords",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                    },
-                    "parameters": {
-                      "entityName": "admin_coesolutionmetadatas",
-                      "$select": "admin_coesolutionmetadataid, admin_lastrun, admin_lastrunstarted",
-                      "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
-                      "$top": 1
-                    },
-                    "authentication": "@parameters('$authentication')"
-                  }
-                },
-                "lastRunStartedIsBlank": {
-                  "runAfter": {
-                    "Get_ID_of_this_flow_from_metatdata": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "85036426-ffea-441c-b1c5-67db471ea836"
-                  },
-                  "type": "Compose",
-                  "inputs": "@or(equals(length(outputs('Get_ID_of_this_flow_from_metatdata')?['body/value']), 0), not(contains(first(outputs('Get_ID_of_this_flow_from_metatdata')?['body/value']), 'admin_lastrunstarted')))"
-                },
-                "FlowsModifiedSince": {
-                  "runAfter": {
-                    "lastRunStartedIsBlank": [
-                      "Succeeded"
-                    ]
-                  },
-                  "metadata": {
-                    "operationMetadataId": "d74117fa-5d53-4503-9352-751f96ef2122"
-                  },
-                  "type": "Compose",
-                  "inputs": "@if(equals(parameters('FullInventory (admin_FullInventory)'), true), getPastTime(10, 'Year'), if(equals(outputs('lastRunStartedIsBlank'), true), getPastTime(1, 'Week'), addToTime(first(outputs('Get_ID_of_this_flow_from_metatdata')?['body/value'])['admin_lastrunstarted'], -1, 'Day')))"
-                },
                 "Flows_to_iterate": {
-                  "runAfter": {
-                    "FlowsModifiedSince": [
-                      "Succeeded"
-                    ]
-                  },
+                  "runAfter": {},
                   "metadata": {
                     "operationMetadataId": "a3251373-d429-4865-b477-f353289526e6"
                   },
@@ -2269,7 +2190,7 @@
                     "parameters": {
                       "entityName": "admin_flows",
                       "$select": "admin_flowid, _admin_flowenvironment_value, admin_flowmodifiedon, cr5d5_flowtrigger, admin_containsplaintextpassword, _admin_derivedowner_value",
-                      "$filter": "admin_flowdeleted ne true and admin_flowmodifiedon gt @{outputs('FlowsModifiedSince')} and _admin_flowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_flowispublished ne false",
+                      "$filter": "admin_flowdeleted ne true and admin_inventorymyflowactiondetails eq true and _admin_flowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_flowispublished ne false",
                       "$orderby": "admin_flowmodifiedon",
                       "$expand": "admin_FlowEnvironment($select=admin_environmentname)"
                     },
