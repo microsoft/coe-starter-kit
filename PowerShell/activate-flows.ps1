@@ -128,7 +128,12 @@ function Get-UserConfiguredFlowActivations {
         foreach ($activateConfig in $activationConfigs) {
             if ($activateConfig.solutionComponentUniqueName -ne '') {
                 $flowActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
-                $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $activateConfig.solutionComponentUniqueName -Fields clientdata, category, statecode, name
+                $validatedId = Validate-And-Clean-Guid $activateConfig.solutionComponentUniqueName
+                if (!$validatedId) {
+                    Write-Host "Invalid  flow GUID $($activateConfig.solutionComponentUniqueName). Exiting from Get-UserConfiguredFlowActivations."
+                    return
+                }
+                $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $validatedId -Fields clientdata, category, statecode, name
                 $impersonationCallerId = ''
 				
                 if ($null -eq $flowActivation) {
@@ -291,11 +296,22 @@ function Get-OwnerFlowActivations {
                 if ($ownershipConfig.ownerEmail -ne '' -and $ownershipConfig.solutionComponentType -ne '' -and $ownershipConfig.solutionComponentUniqueName -ne '') {
                     switch ($ownershipConfig.solutionComponentType) {
                         # Workflow 
-                        29 {  
-                            $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $ownershipConfig.solutionComponentUniqueName -Fields name, clientdata, category, statecode
+                        29 { 
+                            $validatedId = Validate-And-Clean-Guid $ownershipConfig.solutionComponentUniqueName
+                            if (!$validatedId) {
+                                Write-Host "Invalid  flow GUID $($ownershipConfig.solutionComponentUniqueName). Exiting from Get-OwnerFlowActivations."
+                                return
+                            }
+
+                            $workflow = Get-CrmRecord -conn $conn -EntityLogicalName workflow -Id $validatedId -Fields name, clientdata, category, statecode
+                            break;
                         } 
+                        300{
+                            Write-Host "Skipping this for Canvas App $($ownershipConfig.solutionComponentName)."
+                            break;
+                        }
                         default {
-                            Write-Host "##vso[task.logissue type=warning]NOT IMPLEMENTED - You supplied a solutionComponentType of $ownershipConfig.solutionComponentType for solutionComponentUniqueName $solutionComponentUniqueName"
+                            Write-Host "##vso[task.logissue type=warning]NOT IMPLEMENTED - You supplied a solutionComponentType of $($ownershipConfig.solutionComponentType) for solutionComponentUniqueName $($ownershipConfig.solutionComponentUniqueName)"
                             exit 1;
                         }      
                     }
@@ -342,10 +358,10 @@ function Get-OwnerFlowActivations {
                             $throwOnComplete = $true
                         }
                     }
-                    else {
-                        Write-Host "##vso[task.logissue type=warning]A specified flow was not found in the target environment. Verify your deployment configuration and try again."
-                        $throwOnComplete = $true
-                    }
+                    #else {
+                    #    Write-Host "##vso[task.logissue type=warning]A specified flow was not found in the target environment. Verify your deployment configuration and try again."
+                    #    $throwOnComplete = $true
+                    #}
                 }
             }
         }

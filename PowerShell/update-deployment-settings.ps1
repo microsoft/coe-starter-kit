@@ -62,7 +62,7 @@ function Set-DeploymentSettingsConfiguration
         $sdkMessages = [System.Collections.ArrayList]@()
         $canvasApps = [System.Collections.ArrayList]@()
         $customConnectorSharings = [System.Collections.ArrayList]@()
-        $flowOwnerships = [System.Collections.ArrayList]@()
+        $componentOwnerships = [System.Collections.ArrayList]@()
         $flowActivationUsers = [System.Collections.ArrayList]@()
         $flowSharings = [System.Collections.ArrayList]@()
         $groupTeams = [System.Collections.ArrayList]@()
@@ -234,7 +234,18 @@ function Set-DeploymentSettingsConfiguration
                         if($usePlaceholders.ToLower() -eq 'false') {
                             $flowOwnerConfig = [PSCustomObject]@{"solutionComponentType"=29; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$flowSplit[$flowSplit.Count-1]; "ownerEmail"="$configurationVariableValue"}
                         }
-                        $flowOwnerships.Add($flowOwnerConfig)
+                        $componentOwnerships.Add($flowOwnerConfig)
+                    }
+                    elseif($configurationVariableName.StartsWith("canvasowner.ownerEmail.", "CurrentCultureIgnoreCase")) {
+                        #Create the canvas ownership deployment settings
+                        $canvasSplit = $configurationVariableName.Split(".")
+                        $solutionComponentName = Get-Flow-Component-Name $configurationVariableName
+
+                        $canvasOwnerConfig = [PSCustomObject]@{"solutionComponentType"=300; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$canvasSplit[$canvasSplit.Count-1]; "ownerEmail"="#{$configurationVariableName}#"}
+                        if($usePlaceholders.ToLower() -eq 'false') {
+                            $canvasOwnerConfig = [PSCustomObject]@{"solutionComponentType"=300; "solutionComponentName"=$solutionComponentName; "solutionComponentUniqueName"=$canvasSplit[$canvasSplit.Count-1]; "ownerEmail"="$configurationVariableValue"}
+                        }
+                        $componentOwnerships.Add($canvasOwnerConfig)
                     }
                     elseif($configurationVariableName.StartsWith("flow.sharing.", "CurrentCultureIgnoreCase")) {
                         $flowSplit = $configurationVariableName.Split(".")
@@ -372,7 +383,7 @@ function Set-DeploymentSettingsConfiguration
             $newCustomConfiguration = [PSCustomObject]@{}
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'ActivateFlowConfiguration' -Value $flowActivationUsers
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'ConnectorShareWithGroupTeamConfiguration' -Value $customConnectorSharings
-            $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'SolutionComponentOwnershipConfiguration' -Value $flowOwnerships
+            $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'SolutionComponentOwnershipConfiguration' -Value $componentOwnerships
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'FlowShareWithGroupTeamConfiguration' -Value $flowSharings
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupCanvasConfiguration' -Value $canvasApps
             $newCustomConfiguration | Add-Member -MemberType NoteProperty -Name 'AadGroupTeamConfiguration' -Value $groupTeams

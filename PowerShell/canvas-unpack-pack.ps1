@@ -172,7 +172,6 @@ function ByPass-Canvas-App-Consents
         foreach ($c in $solutionComponents){
             $componentType = $c.componenttype
             Write-Host "Componenttype - $componentType"
-
             if ($c.componenttype -eq "Canvas App" -and $c.objectid -ne ""){
                 Write-Host "Bypassing the canvas app $($c.objectid) consent. Environment - $environmentName"
                 # Set-AdminPowerAppApisToBypassConsent -EnvironmentName [Guid] -AppName [Guid]
@@ -181,6 +180,117 @@ function ByPass-Canvas-App-Consents
             }
         }
     }
+}
+
+<#
+Reads the Canvas App ownership configuration.
+Triggers 'Set-AdminPowerAppOwner' to set the ownership.
+#>
+function Set-OwnerCanvasApps {
+    param (
+        [Parameter(Mandatory)] [String] [AllowEmptyString()]$solutionComponentOwnershipConfiguration,
+        [Parameter(Mandatory)] [String]$microsoftPowerAppsAdministrationPowerShellModule,
+        [Parameter(Mandatory)] [String]$powerAppsAdminModuleVersion,
+        [Parameter(Mandatory)] [String]$tenantId,
+        [Parameter(Mandatory)] [String]$clientId,
+        [Parameter(Mandatory)] [String]$clientSecret,
+        [Parameter(Mandatory)] [String]$microsoftXrmDataPowerShellModule,
+        [Parameter(Mandatory)] [String]$XrmDataPowerShellVersion,
+        [Parameter(Mandatory)] [String]$dataverseConnectionString,
+        [Parameter(Mandatory)] [String]$environmentId
+    )
+     
+    Import-Module $microsoftPowerAppsAdministrationPowerShellModule -Force -RequiredVersion $powerAppsAdminModuleVersion -ArgumentList @{ NonInteractive = $true }
+    Add-PowerAppsAccount -TenantID $tenantId -ApplicationId $clientId -ClientSecret $clientSecret
+    
+    Import-Module $microsoftXrmDataPowerShellModule -Force -RequiredVersion $XrmDataPowerShellVersion -ArgumentList @{ NonInteractive = $true }
+    $conn = Get-CrmConnection -ConnectionString "$dataverseConnectionString"
+
+    $environmentName = "$environmentId"
+
+    Write-Host "Inside Set-OwnerCanvasApps. SolutionComponentOwnershipConfiguration"
+    if($solutionComponentOwnershipConfiguration -ne "") {
+        $rawContent = Get-Content $solutionComponentOwnershipConfiguration
+        Write-Host "SolutionComponentOwnershipConfiguration - $solutionComponentOwnershipConfiguration"
+        $config = Get-Content $solutionComponentOwnershipConfiguration | ConvertFrom-Json
+        foreach ($ownershipConfig in $config) {
+            if ($ownershipConfig.ownerEmail -ne '' -and $ownershipConfig.solutionComponentType -ne '' -and $ownershipConfig.solutionComponentUniqueName -ne '') {
+                switch ($ownershipConfig.solutionComponentType) {
+                    # Canvas App 
+                    300 {
+                        $matchedUser = Get-User-By-Email-or-DomainName $ownershipConfig.ownerEmail $conn
+                        if ($null -ne $matchedUser) {
+                            Write-Host "Matched user found for $($ownershipConfig.ownerEmail)"
+                            $systemUserId = $matchedUser.systemuserid
+                            $azureactivedirectoryobjectid = $matchedUser.azureactivedirectoryobjectid
+                            # Fetch the Canvas App Id from current environment using App Name (i.e., solutionComponentName)
+                            $canvasApps = Get-CrmRecords -conn $conn -EntityLogicalName canvasapp -FilterAttribute "name" -FilterOperator "eq" -FilterValue "$($ownershipConfig.solutionComponentName)" -Fields canvasappid,uniquecanvasappid
+                            if($canvasApps.Count -gt 0) {
+                                $appId = $canvasApps.CrmRecords[0].canvasappid
+                                Write-Host "Setting canvas app's $($ownershipConfig.solutionComponentName) owner with $systemUserId. Environment - $environmentName"
+                                Write-Host "Command - Set-AdminPowerAppOwner –AppName $appId -AppOwner $azureactivedirectoryobjectid –EnvironmentName $environmentName"
+                                Set-AdminPowerAppOwner –AppName $appId -AppOwner $azureactivedirectoryobjectid –EnvironmentName $environmentName
+                            }
+                            else{
+                                Write-Host "No canvas app found with the name - $($ownershipConfig.solutionComponentName)"
+                            }
+                        }
+                        else{
+                            Write-Host "No matched user found for $($ownershipConfig.ownerEmail)"
+                        }
+                        break;
+                    }
+                    29 {
+                        Write-Host "Skipping this for workflow $($ownershipConfig.solutionComponentName)."
+                        break;
+                    }
+                    default {
+                        Write-Host "##vso[task.logissue type=warning]NOT IMPLEMENTED - You supplied a solutionComponentType of $ownershipConfig.solutionComponentType for solutionComponentUniqueName $solutionComponentUniqueName"
+                        exit 1;
+                    }      
+                }
+            }
+        }
+    }    
+}
+
+function Get-User-By-Email-or-DomainName{
+ param(
+    [Parameter()] [String] [AllowEmptyString()]$filterValue,
+    [Parameter(Mandatory)] [Microsoft.Xrm.Tooling.Connector.CrmServiceClient]$conn
+    )
+
+    $matchedUser = $null
+    $fetch = @"
+    <fetch version='1.0' output-format='xml-platform' mapping='logical' distinct='false'>
+      <entity name='systemuser'>
+        <attribute name='systemuserid' />
+        <attribute name='azureactivedirectoryobjectid' />
+        <filter type='and'>
+          <filter type='or'>
+            <condition attribute='internalemailaddress' operator='eq' value='$filterValue' />
+            <condition attribute='domainname' operator='eq' value='$filterValue' />
+          </filter>
+        </filter>
+      </entity>
+    </fetch>
+"@
+
+    #Write-Host "Request XML - "$fetch
+    $records = Get-CrmRecordsByFetch -Fetch $fetch -conn $conn
+    try{
+        $json = ConvertTo-Json $records
+        #Write-Host "Response - $json"        
+        
+        if($records -and $records.CrmRecords){  
+            $matchedUser = $records.CrmRecords[0]
+        }
+    }
+    catch {
+        Write-Host "An error occurred in Get-User-By-Email-or-DomainName: $($_.Exception.Message)"
+    }
+
+    return $matchedUser
 }
 
 <#
