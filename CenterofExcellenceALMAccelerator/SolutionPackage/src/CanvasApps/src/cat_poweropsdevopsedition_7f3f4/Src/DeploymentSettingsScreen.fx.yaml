@@ -16,6 +16,7 @@ DeploymentSettingsScreen As screen:
                 showOwnerSettings: false,
                 showConnectorSettings: false,
                 showGroupTeamsSettings: false,
+                showClassicFlows: false,
                 showWebHookURLs: false,
                 showPortalConfig: false,
                 showSDKMessage: false,
@@ -76,16 +77,47 @@ DeploymentSettingsScreen As screen:
                             SortOrder.Descending
                         ),
                         "deploymentprofile",
-                        First(
-                            Sort(
+                        If(
+                            !IsBlankOrError(
+                                First(
+                                    Filter(
+                                        Sort(
+                                            'Deployment Solution Profiles',
+                                            createdon,
+                                            SortOrder.Descending
+                                        ),
+                                        'Solution Name' = uniquename And 'Maker Environment Url' = SelectedEnvironment.name
+                                    )
+                                ).'Deployment Profile'
+                            ),
+                            First(
                                 Filter(
-                                    'Deployment Requests',
-                                    'Solution Name' = uniquename
+                                    Sort(
+                                        'Deployment Solution Profiles',
+                                        createdon,
+                                        SortOrder.Descending
+                                    ),
+                                    'Solution Name' = uniquename And 'Maker Environment Url' = SelectedEnvironment.name
+                                )
+                            ).'Deployment Profile',
+                            If(
+                                !IsBlankOrError(
+                                    First(
+                                        Filter(
+                                            DeploymentRequests,
+                                            'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                        )
+                                    ).'Deployment Profile'
                                 ),
-                                'Created On',
-                                SortOrder.Descending
+                                First(
+                                    Filter(
+                                        DeploymentRequests,
+                                        'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                    )
+                                ).'Deployment Profile',
+                                DefaultProfile
                             )
-                        ).'Deployment Profile'
+                        )
                     )
                 );
                 ClearCollect(
@@ -111,6 +143,13 @@ DeploymentSettingsScreen As screen:
                     Param("step")
                 );
                 UpdateContext({SaveDeploymentButtonText: "Save"});
+            );
+            Set(
+                SelectedConfigurationDeploymentProfile,
+                LookUp(
+                    'Deployment Profiles',
+                    'Deployment Profile' = SelectedConfigurationDeploymentProfile.'Deployment Profile'
+                )
             );
             ClearCollect(
                 DeploymentSteps,
@@ -279,6 +318,10 @@ DeploymentSettingsScreen As screen:
                     {}
                 );
                 ClearCollect(
+                    AllSolutionFlows,
+                    {}
+                );
+                ClearCollect(
                     SolutionFlows,
                     {}
                 );
@@ -298,6 +341,7 @@ DeploymentSettingsScreen As screen:
                 Clear(SolutionCanvasApps);
                 Clear(SolutionSecurityRoles);
                 Clear(SolutionEnvironmentVariables);
+                Clear(AllSolutionFlows);
                 Clear(SolutionFlows);
                 Clear(AppSharingPermissions);
                 Clear(SharepointLists);
@@ -379,32 +423,7 @@ DeploymentSettingsScreen As screen:
                                 SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl
                             ).properties.linkedEnvironmentMetadata.uniqueName
                         )
-                    )//,
-        //ClearCollect(
-        //    EnvironmentUsers,
-        //    SearchDeploymentEnvironmentUsers.Run(
-        //        Last(
-        //            FirstN(
-        //                ClearCollect(
-        //                    splitCol3,
-        //                    Split(
-        //                        SelectedDeploymentEnvironment.EnvironmentUrl,
-        //                        "."
-        //                   )
-        //                ),
-        //                2
-        //            )
-        //        ).Result,
-        //        LookUp(
-        //            AllEnvironments,
-        //            SelectedDeploymentEnvironment.EnvironmentUrl in properties.linkedEnvironmentMetadata.instanceUrl
-        //        ).properties.linkedEnvironmentMetadata.uniqueName,
-        //        {
-        //            text_3: "",
-        //            text_4: locEnvironmentUserFilters
-        //        }
-        //    )
-        //)
+                    )
                 );
                 Collect(
                     AADGroups,
@@ -448,19 +467,7 @@ DeploymentSettingsScreen As screen:
                         SortOrder.Ascending
                     )
                 );
-                //Collect(
-        //    EnvironmentUsers,
-        //    {internalemailaddress: ""}
-        //);
-        //ClearCollect(
-        //    EnvironmentUsers,
-        //    Sort(
-        //        EnvironmentUsers,
-        //        internalemailaddress,
-        //        Ascending
-        //    )
-        //);
-        If(
+                If(
                     CountRows(DeploymentEnvironments) > 0,
                     Concurrent(
                         Collect(
@@ -654,6 +661,15 @@ DeploymentSettingsScreen As screen:
                                     EnvironmentDeploymentSettings,
                                     Name = "canvasshare.aadGroupId." & name
                                 ).Value,
+                                "CurrentOwnerValue",
+                                LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "canvasowner.ownerEmail." & Substitute(
+                                        name,
+                                        " ",
+                                        ""
+                                    ) & "." & canvasappid
+                                ).Value,
                                 "CurrentPermission",
                                 LookUp(
                                     EnvironmentDeploymentSettings,
@@ -666,7 +682,7 @@ DeploymentSettingsScreen As screen:
                             )
                         ),
                         Collect(
-                            SolutionFlows,
+                            AllSolutionFlows,
                             AddColumns(
                             //Filter to Modern Flows only for Now category = 5
                                 Filter(
@@ -689,18 +705,14 @@ DeploymentSettingsScreen As screen:
                                         SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName,
                                         SelectedSolutionToConfigure.solutionid
                                     ),
-                                    category = 5
+                                    category = 5 || category = 0
                                 ),
-                                //"EnvironmentUsers",
-        //EnvironmentUsers,
                                 "FilterText",
                                 "",
                                 "FilterIcon",
                                 Icon.FilterFlat,
                                 "FilterVisible",
                                 false,
-                                //"ActivationEnvironmentUsers",
-        //EnvironmentUsers,
                                 "ActivationFilterText",
                                 "",
                                 "ActivationFilterIcon",
@@ -806,6 +818,22 @@ DeploymentSettingsScreen As screen:
                         )
                     );
                 );
+                // Collect 'Cloud Flows' where category = 5
+        Collect(
+                    SolutionFlows,
+                    Filter(
+                        AllSolutionFlows,
+                        category = 5
+                    )
+                );
+                // Collect 'Classic Flows' where category = 0
+        Collect(
+                    SolutionFlows,
+                    Filter(
+                        AllSolutionFlows,
+                        category = 0
+                    )
+                );
                 UpdateContext({showConnectionReferenceSettings: true});
                 Select(fncLoadEnvironmentDeploymentSettings);
             ),
@@ -896,7 +924,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -946,7 +975,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: true,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -1008,7 +1038,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -1106,7 +1137,7 @@ DeploymentSettingsScreen As screen:
             PressedFill: =drpDeployEnvironments.Color
             Tooltip: ="Select an Environment to Configure Deployment Settings"
             Visible: =!showNewDeployEnvironment
-            Width: =1620
+            Width: =1625
             X: =28
             Y: =137
             ZIndex: =15
@@ -1314,6 +1345,23 @@ DeploymentSettingsScreen As screen:
             Y: =274
             ZIndex: =20
 
+            icoClassicFlow As image:
+                AccessibleLabel: ="Flow"
+                BorderColor: =ColorFade(icoClassicFlow.Fill, -20%)
+                Height: =58
+                HoverBorderColor: =ColorFade(icoClassicFlow.BorderColor, 20%)
+                HoverFill: =ColorFade(icoClassicFlow.Fill, 20%)
+                Image: =webhook_icon_138018
+                OnSelect: =Select(Parent);
+                PressedBorderColor: =ColorFade(icoClassicFlow.BorderColor, -20%)
+                PressedFill: =ColorFade(icoClassicFlow.Fill, -20%)
+                Tooltip: ="Classic workflow"
+                Visible: =ThisItem.category = 0// Show only for classic flows
+                Width: =58
+                X: =icoFlow.X
+                Y: =icoFlow.Y
+                ZIndex: =1
+
             icoFlow As image:
                 AccessibleLabel: ="Flow"
                 BorderColor: =ColorFade(icoFlow.Fill, -20%)
@@ -1325,9 +1373,10 @@ DeploymentSettingsScreen As screen:
                 PressedBorderColor: =ColorFade(icoFlow.BorderColor, -20%)
                 PressedFill: =ColorFade(icoFlow.Fill, -20%)
                 Tooltip: ="Select to Open App"
+                Visible: =ThisItem.category = 5// Show only for cloud flows
                 Width: =58
                 Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
-                ZIndex: =1
+                ZIndex: =2
 
             lblFlowName As label:
                 Height: =24
@@ -1342,7 +1391,7 @@ DeploymentSettingsScreen As screen:
                 Width: =300
                 X: =58
                 Y: =10
-                ZIndex: =2
+                ZIndex: =3
 
             lblFlowId As label:
                 Height: =Self.Size * 1.8
@@ -1357,7 +1406,7 @@ DeploymentSettingsScreen As screen:
                 Width: =300
                 X: =58
                 Y: =35
-                ZIndex: =3
+                ZIndex: =4
 
             Separator3_3 As rectangle:
                 BorderColor: =ColorFade(Separator3_3.Fill, -20%)
@@ -1368,7 +1417,7 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =ColorFade(Separator3_3.Fill, -20%)
                 Width: =Parent.TemplateWidth
                 Y: =Parent.TemplateHeight - 1
-                ZIndex: =4
+                ZIndex: =5
 
             icoOpenFlow As icon.Add:
                 AccessibleLabel: ="Open Flow"
@@ -1395,9 +1444,10 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoOpenFlow.Color, -20%)
                 PressedFill: =ColorFade(icoOpenFlow.Fill, -20%)
                 Tooltip: ="Select to Open " & ThisItem.name
+                Visible: =ThisItem.category = 5// Show only for cloud flows
                 Width: =350
                 Y: =10
-                ZIndex: =5
+                ZIndex: =6
 
             drpFlowShareGroupTeams As dropdown:
                 AccessibleLabel: ="App Sharing Group"
@@ -1414,10 +1464,11 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpFlowShareGroupTeams.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select an Existing AAD Group"
+                Visible: =ThisItem.category = 5// Show only for cloud flows
                 Width: =500
                 X: =1072
                 Y: =11
-                ZIndex: =9
+                ZIndex: =7
 
             icoSortFlowsUp As icon.FilterFlat:
                 BorderColor: =ColorFade(icoSortFlowsUp.Fill, -20%)
@@ -1489,10 +1540,11 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoSortFlowsUp.Color, -20%)
                 PressedFill: =ColorFade(icoSortFlowsUp.Fill, -20%)
                 Tooltip: ="Move up " & ThisItem.name
+                Visible: =false//ThisItem.category = 5// Show only for cloud flows //true
                 Width: =35
                 X: =1706
                 Y: =15
-                ZIndex: =10
+                ZIndex: =8
 
             icoSortFlowsDown As icon.FilterFlat:
                 BorderColor: =ColorFade(icoSortFlowsDown.Fill, -20%)
@@ -1562,10 +1614,11 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoSortFlowsDown.Color, -20%)
                 PressedFill: =ColorFade(icoSortFlowsDown.Fill, -20%)
                 Tooltip: ="Move down " & ThisItem.name
+                Visible: =false//ThisItem.category=5 // Show only for cloud flows
                 Width: =35
                 X: =1747
                 Y: =16
-                ZIndex: =11
+                ZIndex: =9
 
             chkActivateFlow As checkbox:
                 Default: =If(IsBlankOrError(ThisItem.Activate) Or ThisItem.Activate = "" Or ThisItem.Activate = "true", true, false)
@@ -1578,10 +1631,11 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =ColorFade(chkActivateFlow.Fill, -20%)
                 Text: =""
                 Tooltip: ="Activate " & ThisItem.name
+                Visible: =ThisItem.category = 5// Show only for cloud flows
                 Width: =50
-                X: =1650
+                X: =1667
                 Y: =6
-                ZIndex: =14
+                ZIndex: =10
 
             txtFlowOwnerUsers As text:
                 Default: |-
@@ -1604,7 +1658,7 @@ DeploymentSettingsScreen As screen:
                 Width: =500
                 X: =491
                 Y: =11
-                ZIndex: =16
+                ZIndex: =11
 
             txtFlowActivationUsers As text:
                 Default: |-
@@ -1626,9 +1680,9 @@ DeploymentSettingsScreen As screen:
                 Tooltip: ="The email address of the user to activate this Flow"
                 Visible: =false
                 Width: =56
-                X: =1658
+                X: =1794
                 Y: =11
-                ZIndex: =17
+                ZIndex: =12
 
             icoCopyOwnerDown As icon.FilterFlat:
                 BorderColor: =ColorFade(icoCopyOwnerDown.Fill, -20%)
@@ -1646,10 +1700,11 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoCopyOwnerDown.Color, -20%)
                 PressedFill: =ColorFade(icoCopyOwnerDown.Fill, -20%)
                 Tooltip: ="Copy Owner to all Flows"
+                Visible: =ThisItem.category = 5// Show only for cloud flows
                 Width: =35
                 X: =996
                 Y: =16
-                ZIndex: =18
+                ZIndex: =13
 
             icoCopyActivationDown As icon.FilterFlat:
                 BorderColor: =ColorFade(icoCopyActivationDown.Fill, -20%)
@@ -1678,7 +1733,7 @@ DeploymentSettingsScreen As screen:
                 Width: =35
                 X: =1722
                 Y: =16
-                ZIndex: =19
+                ZIndex: =14
 
             icoCopySharingDown As icon.FilterFlat:
                 BorderColor: =ColorFade(icoCopySharingDown.Fill, -20%)
@@ -1696,10 +1751,11 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoCopySharingDown.Color, -20%)
                 PressedFill: =ColorFade(icoCopySharingDown.Fill, -20%)
                 Tooltip: ="Copy Owner to all Flows"
+                Visible: =ThisItem.category=5 // Show only for cloud flows
                 Width: =35
                 X: =1580
                 Y: =16
-                ZIndex: =20
+                ZIndex: =15
 
         "glrEnvironmentVariables As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Environment Variables"
@@ -2438,7 +2494,7 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =ColorFade(chkShareConnection.Fill, -20%)
                 Text: ="Share"
                 Tooltip: ="Connections specified in the connection reference tab are required to be shared with the pipeline user that deploys the solution. You must consent to sharing connections in order to deploy your solution with connection references."
-                Width: =125
+                Width: =115
                 X: =1514
                 Y: =5
                 ZIndex: =12
@@ -2541,7 +2597,7 @@ DeploymentSettingsScreen As screen:
 
         "glrCanvasApps As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Canvas Apps"
-            Height: =660
+            Height: =650
             Items: =Sort(SolutionCanvasApps, name)
             Layout: =Layout.Vertical
             TemplatePadding: =0
@@ -2549,7 +2605,7 @@ DeploymentSettingsScreen As screen:
             Visible: =showSharingSettings
             Width: =1850
             X: =24
-            Y: =274
+            Y: =302
             ZIndex: =23
 
             icoCanvasApp As image:
@@ -2564,6 +2620,8 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =ColorFade(icoCanvasApp.Fill, -20%)
                 Tooltip: ="Select to Open App"
                 Width: =58
+                X: =36
+                Y: =7
                 ZIndex: =1
 
             lblCanvasAppName As label:
@@ -2576,9 +2634,9 @@ DeploymentSettingsScreen As screen:
                 Size: =14
                 Text: =ThisItem.displayname
                 VerticalAlign: =VerticalAlign.Top
-                Width: =644
-                X: =58
-                Y: =10
+                Width: =330
+                X: =94
+                Y: =12
                 ZIndex: =2
 
             lblCanvasAppLogicalName As label:
@@ -2591,9 +2649,9 @@ DeploymentSettingsScreen As screen:
                 Size: =12
                 Text: =ThisItem._componentstate_label
                 VerticalAlign: =VerticalAlign.Top
-                Width: =600
-                X: =58
-                Y: =35
+                Width: =330
+                X: =94
+                Y: =37
                 ZIndex: =3
 
             Separator3_2 As rectangle:
@@ -2623,7 +2681,7 @@ DeploymentSettingsScreen As screen:
                 Reset: =resetEnvironment
                 Tooltip: ="Select a Permission for the Group"
                 Width: =220
-                X: =1558
+                X: =1567
                 Y: =12
                 ZIndex: =5
 
@@ -2652,8 +2710,9 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =ColorFade(icoLaunchApp.Color, -20%)
                 PressedFill: =ColorFade(icoLaunchApp.Fill, -20%)
                 Tooltip: ="Select to Open App"
-                Width: =449
-                Y: =10
+                Width: =380
+                X: =36
+                Y: =12
                 ZIndex: =6
 
             drpCanvasAppShareGroups As dropdown:
@@ -2672,8 +2731,8 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpCanvasAppShareGroups.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select an Existing AAD Group"
-                Width: =750
-                X: =707
+                Width: =500
+                X: =951
                 Y: =12
                 ZIndex: =7
 
@@ -2700,7 +2759,7 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =ColorFade(icoViewGroupMembers.Fill, -20%)
                 Tooltip: ="View Azure AD Group Details"
                 Width: =53
-                X: =1501
+                X: =1494
                 Y: =12
                 ZIndex: =8
 
@@ -2715,8 +2774,8 @@ DeploymentSettingsScreen As screen:
                 PressedColor: =txtFilterGroups.Color
                 PressedFill: =txtFilterGroups.Fill
                 Visible: =ThisItem.FilterVisible
-                Width: =750
-                X: =707
+                Width: =550
+                X: =905
                 Y: =12
                 ZIndex: =9
 
@@ -2815,7 +2874,7 @@ DeploymentSettingsScreen As screen:
                 Tooltip: ="Filter this list"
                 Visible: =showSharingSettings
                 Width: =35
-                X: =1470
+                X: =1464
                 Y: =18
                 ZIndex: =10
 
@@ -2885,7 +2944,7 @@ DeploymentSettingsScreen As screen:
                         ""
                     )
                 Width: =525
-                X: =700
+                X: =907
                 Y: =65
                 ZIndex: =12
 
@@ -2907,9 +2966,102 @@ DeploymentSettingsScreen As screen:
                 Tooltip: ="You have selected a 'Microsoft 365' group whose security is not enabled. The group must have security enabled to be shared with the canvas app."
                 Visible: =If(Len(lblGroupSecurityWarning.Text)>0,true,false)
                 Width: =25
-                X: =lblGroupSecurityWarning.X + lblGroupSecurityWarning.Width
+                X: =1378
                 Y: =lblGroupSecurityWarning.Y + lblGroupSecurityWarning.Height / 2 - iconGroupSecurityInfo.Height / 2
                 ZIndex: =13
+
+            txtCanvasOwnerUsers As text:
+                Default: |-
+                    =If(
+                        IsBlank(ThisItem.CurrentOwnerValue),
+                        First(EnvironmentUsers).internalemailaddress,
+                        ThisItem.CurrentOwnerValue
+                    )
+                DisplayMode: |-
+                    =If(
+                        ThisItem.IsCopy,
+                        DisplayMode.Disabled,
+                        DisplayMode.Edit
+                    )
+                Height: =46
+                HintText: ="Enter a User (user@org.domain.com)"
+                HoverBorderColor: =ColorFade(txtCanvasOwnerUsers.BorderColor, 20%)
+                HoverColor: =ColorFade(txtCanvasOwnerUsers.Color, 20%)
+                HoverFill: =ColorFade(txtCanvasOwnerUsers.Fill, 20%)
+                OnChange: =
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =txtCanvasOwnerUsers.HoverBorderColor
+                PressedColor: =txtCanvasOwnerUsers.Color
+                PressedFill: =txtCanvasOwnerUsers.Fill
+                Tooltip: |-
+                    =If(
+                        ThisItem.IsCopy,
+                        "You can only provide email address in the first row.",
+                        "Provide the email address of the owner of this Canvas App."
+                    ) 
+                Visible: |-
+                    =If(
+                        ThisItem.IsCopy,
+                        false,
+                        true
+                    )
+                Width: =445
+                X: =432
+                Y: =12
+                ZIndex: =14
+
+            icoCopyOwnerDownCanvas As icon.FilterFlat:
+                BorderColor: =ColorFade(icoCopyOwnerDownCanvas.Fill, -20%)
+                Color: =PrimaryColor2Value
+                DisabledFill: =ColorFade(icoCopyOwnerDownCanvas.Fill, -80%)
+                DisplayMode: |-
+                    =If(
+                        ThisItem.IsCopy,
+                        DisplayMode.Disabled,
+                        DisplayMode.Edit
+                    )
+                Height: =35
+                HoverBorderColor: =ColorFade(icoCopyOwnerDownCanvas.BorderColor, 20%)
+                HoverColor: =ColorFade(icoCopyOwnerDownCanvas.Color, 20%)
+                HoverFill: =ColorFade(icoCopyOwnerDownCanvas.Fill, 20%)
+                Icon: =Icon.Copy
+                OnSelect: |
+                    =UpdateContext({ownerEmail: glrCanvasApps.Selected.txtCanvasOwnerUsers.Text});
+                    UpdateIf(
+                        SolutionCanvasApps,
+                        true,
+                        {CurrentOwnerValue: ownerEmail}
+                    );
+                PressedBorderColor: =ColorFade(icoCopyOwnerDownCanvas.BorderColor, -20%)
+                PressedColor: =ColorFade(icoCopyOwnerDownCanvas.Color, -20%)
+                PressedFill: =ColorFade(icoCopyOwnerDownCanvas.Fill, -20%)
+                Tooltip: ="Copy Owner to all Flows"
+                Width: =35
+                X: =889
+                Y: =20
+                ZIndex: =15
+
+            glrChkBypassAppConsent As checkbox:
+                Default: =If(Lower(lclBypassConsent)="false", false, true)
+                DisplayMode: =DisplayMode.Disabled
+                FontWeight: =FontWeight.Semibold
+                Height: =42
+                HoverBorderColor: =ColorFade(glrChkBypassAppConsent.BorderColor, 20%)
+                HoverColor: =ColorFade(glrChkBypassAppConsent.Color, 20%)
+                HoverFill: =ColorFade(glrChkBypassAppConsent.Fill, 20%)
+                PaddingBottom: =0
+                PaddingLeft: =0
+                PaddingRight: =0
+                PaddingTop: =0
+                PressedBorderColor: =ColorFade(glrChkBypassAppConsent.BorderColor, -20%)
+                PressedColor: =ColorFade(glrChkBypassAppConsent.Color, -20%)
+                PressedFill: =ColorFade(glrChkBypassAppConsent.Fill, -20%)
+                Text: =""
+                Tooltip: ="This option bypasses the need for users to authorize API connections in the apps listed below. End users will see consent is bypassed for First Party connectors with single sign-on support and custom connectors that don't require authentication, including those with or without a gateway."
+                Visible: =showSharingSettings && !showSolutionComponentLoader
+                Width: =42
+                Y: =15
+                ZIndex: =16
 
         "glrGroupTeams As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
             AccessibleLabel: ="Canvas Apps"
@@ -3500,8 +3652,8 @@ DeploymentSettingsScreen As screen:
             Text: ="Sharing"
             Visible: =showSharingSettings && !IsEmpty(glrCanvasApps.AllItems)
             Width: =182
-            X: =732
-            Y: =249
+            X: =974
+            Y: =265
             ZIndex: =27
 
         lblDeployAppPermission As label:
@@ -3513,8 +3665,8 @@ DeploymentSettingsScreen As screen:
             Text: ="Permissions"
             Visible: =showSharingSettings && !IsEmpty(glrCanvasApps.AllItems)
             Width: =182
-            X: =1583
-            Y: =249
+            X: =1592
+            Y: =265
             ZIndex: =28
 
         btnSaveDeployment As button:
@@ -3568,7 +3720,7 @@ DeploymentSettingsScreen As screen:
                                 SelectedDeploymentEnvironment.EnvironmentId,
                                 drpConnectionReferenceConnections.Selected.ApiId,
                                 drpConnectionReferenceConnections.Selected.ConnectionId,
-                                "CanView"
+                                "CanViewWithShare"
                             )
                         );
                         Collect(
@@ -3578,7 +3730,11 @@ DeploymentSettingsScreen As screen:
                                 Value: If(
                                     IsBlank(drpConnectionReferenceConnections.Selected) And drpConnectionReferenceConnections.Visible,
                                     "",
-                                    If(ManualEntry, txtConnectionId.Text, drpConnectionReferenceConnections.Selected.ConnectionId)
+                                    If(
+                                        ManualEntry,
+                                        txtConnectionId.Text,
+                                        drpConnectionReferenceConnections.Selected.ConnectionId
+                                    )
                                 ),
                                 Data: connectorid
                             }
@@ -3687,7 +3843,32 @@ DeploymentSettingsScreen As screen:
                             Name: "canvasshare.roleName." & name & Suffix,
                             Value: drpCanvasAppSharePermission.Selected.Value
                         }
-                    )
+                    );
+                    // Add the CanvasOwner entry if its not there already
+                If(
+                        IsBlank(
+                            LookUp(
+                                DeploymentSettings,
+                                Name = "canvasowner.ownerEmail." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & canvasappid
+                            )
+                        ),
+                        Collect(
+                            DeploymentSettings,
+                            {
+                                Name: "canvasowner.ownerEmail." & Substitute(
+                                    name,
+                                    " ",
+                                    ""
+                                ) & "." & canvasappid,
+                                Value: txtCanvasOwnerUsers.Text
+                            }
+                        )
+                    );
+                    
                 );
                 //Save Flow Ownership
                 ForAll(
@@ -3786,7 +3967,13 @@ DeploymentSettingsScreen As screen:
                         Value: Text(chkUpgradeSolution.Value)
                     }
                 );
-                
+                Collect(
+                    DeploymentSettings,
+                    {
+                        Name: "BypassAppConsent",
+                        Value: Text(chkBypassAppConsent.Value)
+                    }
+                );
                 //Convert settings to json and store in user settings
                 UpdateContext({locSolutionEnvironmentDeploySettingName: DeploymentSettingName & " - " & SelectedSolutionToConfigure.uniquename & " - " & SelectedDeploymentEnvironment.EnvironmentUrl});
                 // Store 'UserSettings' ID to read Portal configuration file during Commit process
@@ -3800,7 +3987,14 @@ DeploymentSettingsScreen As screen:
                         ).'User Setting'
                     }
                 );
-                UpdateContext({settingsJsonText: JSON(DeploymentSettings, JSONFormat.IndentFour)});
+                UpdateContext(
+                    {
+                        settingsJsonText: JSON(
+                            DeploymentSettings,
+                            JSONFormat.IndentFour
+                        )
+                    }
+                );
                 UpdateContext(
                     {
                         locEnvironmentDeploymentSetting: LookUp(
@@ -4013,11 +4207,11 @@ DeploymentSettingsScreen As screen:
             OnSelect: =
             PaddingLeft: =0
             PaddingTop: =0
-            Text: ="Flows to Activate And Order"
+            Text: ="Activate Flow"
             Visible: =showOwnerSettings && !IsEmpty(glrFlows.AllItems)
             Width: =173
-            X: =1658
-            Y: =241
+            X: =1631
+            Y: =249
             ZIndex: =38
 
         icoAddNewGroupTeam As icon.Add:
@@ -4089,8 +4283,8 @@ DeploymentSettingsScreen As screen:
             Text: ="Upgrade Solution"
             Tooltip: ="If components have been removed that already exist in the target environment, select Upgrade Solution to ensure they are removed in the target environment."
             Visible: =!showSolutionComponentLoader
-            Width: =219
-            X: =1658
+            Width: =212
+            X: =1651
             Y: =137
             ZIndex: =40
 
@@ -4129,7 +4323,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: false
+                        showSDKMessage: false,
+                        showClassicFlows:false
                     }
                 );
             PaddingBottom: =8
@@ -4167,7 +4362,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -4205,7 +4401,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -4273,7 +4470,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: true,
                         showPortalConfig: false,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -4629,6 +4827,30 @@ DeploymentSettingsScreen As screen:
             Y: =249
             ZIndex: =54
 
+        chkBypassAppConsent As checkbox:
+            Default: =If(bypassappconsenttag="true",true,false)
+            FontWeight: =FontWeight.Semibold
+            Height: =39
+            HoverBorderColor: =ColorFade(chkBypassAppConsent.BorderColor, 20%)
+            HoverColor: =ColorFade(chkBypassAppConsent.Color, 20%)
+            HoverFill: =ColorFade(chkBypassAppConsent.Fill, 20%)
+            OnCheck: |-
+                =UpdateContext({lclBypassConsent: "true"})
+            OnUncheck: |-
+                =UpdateContext({lclBypassConsent: "false"})
+            PaddingLeft: =0
+            PaddingTop: =0
+            PressedBorderColor: =ColorFade(chkBypassAppConsent.BorderColor, -20%)
+            PressedColor: =ColorFade(chkBypassAppConsent.Color, -20%)
+            PressedFill: =ColorFade(chkBypassAppConsent.Fill, -20%)
+            Text: ="Bypass App Consent"
+            Tooltip: ="This option bypasses the need for users to authorize API connections in the apps listed below. End users will see consent is bypassed for First Party connectors with single sign-on support and custom connectors that don't require authentication, including those with or without a gateway."
+            Visible: =showSharingSettings && !showSolutionComponentLoader
+            Width: =230
+            X: =24
+            Y: =264
+            ZIndex: =55
+
         iconHelpSkipRoles As icon.Help:
             BorderColor: =ColorFade(iconHelpSkipRoles.Fill, -20%)
             DisabledFill: =ColorFade(iconHelpSkipRoles.Fill, -80%)
@@ -4645,7 +4867,7 @@ DeploymentSettingsScreen As screen:
             Width: =50
             X: =1806
             Y: =253
-            ZIndex: =55
+            ZIndex: =56
 
         icoPortalConfigs As icon.Add:
             AccessibleLabel: ="Webhook URL Variables"
@@ -4669,7 +4891,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: true,
-                        showSDKMessage: false        
+                        showSDKMessage: false,
+                        showClassicFlows:false        
                     }
                 );
             PaddingBottom: =8
@@ -4681,9 +4904,9 @@ DeploymentSettingsScreen As screen:
             PressedFill: =ColorFade(icoPortalConfigs.Fill, -20%)
             Tooltip: ="Set Power Pages Configuration for the Target Environment."
             Width: =lblDeployPortals.Width
-            X: =lblDeployPortals.X
+            X: =1041
             Y: =219
-            ZIndex: =56
+            ZIndex: =57
 
         lblSDKMessages As label:
             FontWeight: =If(showSDKMessage, FontWeight.Bold, FontWeight.Semibold)
@@ -4695,7 +4918,7 @@ DeploymentSettingsScreen As screen:
             Width: =120
             X: =1161
             Y: =219
-            ZIndex: =57
+            ZIndex: =58
 
         icoSDKMessages As icon.Add:
             AccessibleLabel: ="Webhook URL Variables"
@@ -4719,7 +4942,8 @@ DeploymentSettingsScreen As screen:
                         showGroupTeamsSettings: false,
                         showWebHookURLs: false,
                         showPortalConfig: false,
-                        showSDKMessage: true        
+                        showSDKMessage: true,
+                        showClassicFlows:false    
                     }
                 );
             PaddingBottom: =8
@@ -4733,7 +4957,7 @@ DeploymentSettingsScreen As screen:
             Width: =120
             X: =1161
             Y: =219
-            ZIndex: =58
+            ZIndex: =59
 
         lblHeaderSecuredConfig As label:
             FontWeight: =FontWeight.Semibold
@@ -4761,6 +4985,58 @@ DeploymentSettingsScreen As screen:
             Y: =254
             ZIndex: =61
 
+        iconBypassAppConsentHelp As icon.Help:
+            BorderColor: =ColorFade(iconBypassAppConsentHelp.Fill, -20%)
+            DisabledFill: =ColorFade(iconBypassAppConsentHelp.Fill, -80%)
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =23
+            HoverBorderColor: =ColorFade(iconBypassAppConsentHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(iconBypassAppConsentHelp.Color, 20%)
+            HoverFill: =ColorFade(iconBypassAppConsentHelp.Fill, 20%)
+            Icon: =Icon.Help
+            OnSelect: |-
+                =Launch("https://learn.microsoft.com/powershell/module/microsoft.powerapps.administration.powershell/set-adminpowerappapistobypassconsent")
+            PressedBorderColor: =ColorFade(iconBypassAppConsentHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(iconBypassAppConsentHelp.Color, -20%)
+            PressedFill: =ColorFade(iconBypassAppConsentHelp.Fill, -20%)
+            Tooltip: ="This option bypasses the need for users to authorize API connections in the apps listed below. End users will see consent is bypassed for First Party connectors with single sign-on support and custom connectors that don't require authentication, including those with or without a gateway."
+            Visible: =showSharingSettings && !showSolutionComponentLoader
+            Width: =20
+            X: =248
+            Y: =270
+            ZIndex: =62
+
+        lblCanvasOwner As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =37
+            OnSelect: =FontWeight.Semibold
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Owner"
+            Visible: =showSharingSettings && !IsEmpty(glrCanvasApps.AllItems)
+            Width: =68
+            X: =455
+            Y: =265
+            ZIndex: =63
+
+        iconCanvasOwnerHelp As icon.Help:
+            BorderColor: =ColorFade(iconCanvasOwnerHelp.Fill, -20%)
+            DisabledFill: =ColorFade(iconCanvasOwnerHelp.Fill, -80%)
+            Height: =23
+            HoverBorderColor: =ColorFade(iconCanvasOwnerHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(iconCanvasOwnerHelp.Color, 20%)
+            HoverFill: =ColorFade(iconCanvasOwnerHelp.Fill, 20%)
+            Icon: =Icon.Help
+            PressedBorderColor: =ColorFade(iconCanvasOwnerHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(iconCanvasOwnerHelp.Color, -20%)
+            PressedFill: =ColorFade(iconCanvasOwnerHelp.Fill, -20%)
+            Tooltip: ="Please ensure that you provide only one owner per app. If multiple owner values are provided, only the first owner value will be considered."
+            Visible: =false//showSharingSettings && !IsEmpty(glrCanvasApps.AllItems)
+            Width: =20
+            X: =521
+            Y: =270
+            ZIndex: =64
+
         loaderSolutionComponents As Preloader:
             Height: =844
             IsLoading: =showSolutionComponentLoader
@@ -4770,7 +5046,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderSolutionComponents.IsLoading
             Width: =1920
             Y: =204
-            ZIndex: =62
+            ZIndex: =68
 
         loaderDeploymentEnvironment As Preloader:
             Height: =984
@@ -4781,7 +5057,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderDeploymentEnvironment.IsLoading
             Width: =1920
             Y: =64
-            ZIndex: =63
+            ZIndex: =69
 
     btnFunctionsDeploy As groupContainer:
         Height: =320
@@ -4803,7 +5079,9 @@ DeploymentSettingsScreen As screen:
                             showSolutionComponentLoader: true,
                             DeploymentSettingsLoadingText: "LOADING DEPLOYMENT ENVIRONMENT CONFIGURATION...",
                             SolutionLoaderText: "LOADING DEPLOYMENT ENVIRONMENT CONFIGURATION...",
-                            solutionupgradetag: "false"
+                            solutionupgradetag: "false",
+                            bypassappconsenttag: "false",
+                            lclBypassConsent: "false"
                         }
                     );
                     If(
@@ -4878,6 +5156,14 @@ DeploymentSettingsScreen As screen:
                                 solutionupgradetag: LookUp(
                                     EnvironmentDeploymentSettings,
                                     Name = "TriggerSolutionUpgrade"
+                                ).Value,
+                                bypassappconsenttag: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "BypassAppConsent"
+                                ).Value,
+                                lclBypassConsent: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "BypassAppConsent"
                                 ).Value,
                                 deployunmanagedtag: LookUp(
                                     EnvironmentDeploymentSettings,
