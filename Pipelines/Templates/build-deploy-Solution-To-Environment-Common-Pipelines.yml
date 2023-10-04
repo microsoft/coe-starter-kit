@@ -6,23 +6,14 @@ parameters:
 - name: pipelineDeploymentStage
   type: string
   default: "PreDeployment"
-- name: sourceBranch
-  type: string
-  default: "NA"
-- name: targetBranch
-  type: string
-  default: "NA"
-- name: commitMessage
-  type: string
-  default: ""
-- name: autoCompletePR
-  type: string
-  default: "false"
 steps:
     - template: set-service-connection-url.yml
       parameters:
         serviceConnectionName: $(ServiceConnection)
         serviceConnectionUrl: $(ServiceConnectionUrl)
+
+    - checkout: self
+      displayName: 'Checkout Source Branch'
 
     - checkout: PipelineRepo
       path: 'PipelineUtils'
@@ -54,22 +45,22 @@ steps:
         clientSecret: $(environmentHostVariables.BuildTools.ClientSecret)
 
     - pwsh: |
+        Write-Host "Copying deployment settings to artifacts folder: $(Build.ArtifactStagingDirectory)\drop\"
+        $splitName = "$(Build.Repository.Name)".Split("/")
+        $repoName = $splitName[$splitName.Length - 1]
+        $sourceDirectory = "$(Build.SourcesDirectory)\$repoName\$(SolutionName)\config\*"
+        $destinationDirectory = "$(Pipeline.Workspace)\drop\"
+        if(!(Test-Path $destinationDirectory)) { 
+          New-Item -ItemType Directory -Force -Path $destinationDirectory
+        }
+        Copy-item -Force -Recurse -Verbose $sourceDirectory -Destination $destinationDirectory
         Write-Host "Running the Post Deployment Settings Updates"
         Write-Host "##vso[task.setvariable variable=SkipSolutionImport]true"
       displayName: "Setting SkipSolutionImport to true for the Post Deployment Settings Updates"
       condition: and(succeeded(), eq('${{ parameters.pipelineDeploymentStage }}', 'PostDeployment'))
 
-    # Conditionally create a PR if the source and target branches are specified
-    - pwsh: |
-        . "$env:POWERSHELLPATH/pipeline-functions.ps1"
-        New-Pull-Request "$(SolutionName)" "$(System.TeamFoundationCollectionUri)" "$(System.TeamProject)" "$(Build.Repository.Name)" "${{parameters.sourceBranch}}" "${{parameters.sourceBranch}}" "refs/heads/${{parameters.targetBranch}}" "${{parameters.commitMessage}}" "${{parameters.autoCompletePR}}" "$env:SYSTEM_ACCESSTOKEN"
-      env:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      displayName: "Conditionally Create a PR to trigger the deployment"
-      condition: and(succeeded(), ne('${{ parameters.sourceBranch }}', 'NA'), ne('${{ parameters.targetBranch }}', 'NA'))
-
     # Run the post deployment settings updates
-    - ${{ if and(eq(parameters.pipelineDeploymentStage, 'PostDeployment'), eq(parameters.sourceBranch, 'NA'), eq(parameters.targetBranch, 'NA')) }}:
+    - ${{ if eq(parameters.pipelineDeploymentStage, 'PostDeployment') }}:
       - template: deploy-Solution.yml
         parameters:
           serviceConnectionName: '$(ServiceConnection)'
@@ -83,7 +74,7 @@ steps:
         . "$env:POWERSHELLPATH/pipeline-functions.ps1"
         Invoke-Pre-Deployment-Status-Update "$(PipelineStageRunId)" "20" "$(PipelineServiceConnectionUrl)" "$(AADHost)" "$(pipelineHostVariables.BuildTools.TenantId)" "$(pipelineHostVariables.BuildTools.ApplicationId)" "$(pipelineHostVariables.BuildTools.ClientSecret)"
       displayName: "Mark the deployment as successful in Pipelines"
-      condition: and(succeeded(), eq('${{ parameters.sourceBranch }}', 'NA'), eq('${{ parameters.targetBranch }}', 'NA'), ne(variables['PipelineStageRunId'], ''), not(contains(variables['PipelineStageRunId'], 'PipelineStageRunId')))
+      condition: and(succeeded(), ne(variables['PipelineStageRunId'], ''), not(contains(variables['PipelineStageRunId'], 'PipelineStageRunId')))
 
     # Mark as failed
     - pwsh: |

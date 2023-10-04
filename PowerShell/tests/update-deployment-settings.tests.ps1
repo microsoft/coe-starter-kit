@@ -21,6 +21,6 @@ Describe 'Update-Deployment-Settings-Test' {
 
         #Run Update Deployment Settings
         . .\update-deployment-settings.ps1
-        Set-DeploymentSettingsConfiguration $BuildSourceDirectory $PipelineSourceDirectory $BuildProjectName $BuildRepositoryName $DataverseConnectionString $XrmDataPowerShellVersion $MicrosoftXrmDataPowerShellModule $OrgUrl $ProjectName $Repo $AuthType $ServiceConnection $SolutionName $AgentOS $UsePlaceholders $Pat
+        Set-DeploymentSettingsConfiguration $BuildSourceDirectory $PipelineSourceDirectory $BuildProjectName $BuildRepositoryName $DataverseConnectionString $XrmDataPowerShellVersion $MicrosoftXrmDataPowerShellModule $OrgUrl $ProjectName $Repo $AuthType $ServiceConnection $SolutionName '' $AgentOS $UsePlaceholders $Pat
     }
 }

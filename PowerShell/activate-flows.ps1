@@ -128,7 +128,7 @@ function Get-UserConfiguredFlowActivations {
         foreach ($activateConfig in $activationConfigs) {
             if ($activateConfig.solutionComponentUniqueName -ne '') {
                 $flowActivation = $flowsToActivate | Where-Object { $_.solutionComponentUniqueName -eq $activateConfig.solutionComponentUniqueName } | Select-Object -First 1
-                $validatedId = Validate-And-Clean-Guid $activateConfig.solutionComponentUniqueName
+                $validatedId = Invoke-Validate-And-Clean-Guid $activateConfig.solutionComponentUniqueName
                 if (!$validatedId) {
                     Write-Host "Invalid  flow GUID $($activateConfig.solutionComponentUniqueName). Exiting from Get-UserConfiguredFlowActivations."
                     return
@@ -297,7 +297,7 @@ function Get-OwnerFlowActivations {
                     switch ($ownershipConfig.solutionComponentType) {
                         # Workflow 
                         29 { 
-                            $validatedId = Validate-And-Clean-Guid $ownershipConfig.solutionComponentUniqueName
+                            $validatedId = Invoke-Validate-And-Clean-Guid $ownershipConfig.solutionComponentUniqueName
                             if (!$validatedId) {
                                 Write-Host "Invalid  flow GUID $($ownershipConfig.solutionComponentUniqueName). Exiting from Get-OwnerFlowActivations."
                                 return

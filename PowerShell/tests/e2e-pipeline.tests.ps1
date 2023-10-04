@@ -12,7 +12,7 @@
 # Document how to setup inner loop / personal files for local testing in the PowerShell/Ignore folder
 
 param(
-    $Org, $Project, $BranchToTest, $SourceBranch, $BranchToCreate, $CommitMessage, $Data, 
+    $Org, $Project, $BranchToTest, $SourceBranch, $BranchToCreate, $ExportPipelineName, $CommitMessage, $Data, 
     $Email, $Repo, $ServiceConnection, $SolutionName, $UserName, $PortalSiteName, $PublishCustomizations, $CommitScope
 )
 
@@ -37,7 +37,7 @@ class Helper {
         Write-Host "$timestamp - Running $testName..."
     }
 
-    static [bool]QueueExportToGit($org, $project, $solutionName, $body) {        
+    static [bool]QueueExportToGit($org, $project, $solutionName, $exportPipelineName, $body) {        
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
         $token = [Helper]::AccessToken
         $headers.Add("Authorization", "Bearer $token")
@@ -51,7 +51,7 @@ class Helper {
         $pipelineId = 0;
 
         foreach ($pipeline in $response.value) {
-            if ($pipeline.name -eq "export-solution-to-git") {
+            if ($pipeline.name -eq "$exportPipelineName") {
                 $pipelineId = $pipeline.id
                 break
             }
@@ -164,7 +164,7 @@ Describe 'E2E-Pipeline-Test' {
                 CommitScope           = $CommitScope
             }
         }
-        [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $body)
+        [Helper]::ExportToGitNewBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $ExportPipelineName, $body)
         [Helper]::ExportToGitNewBranchSucceeded | Should -BeTrue
     }    
 
@@ -206,7 +206,7 @@ Describe 'E2E-Pipeline-Test' {
             } 
         }
     
-        [Helper]::ExportToGitExistingBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $body)
+        [Helper]::ExportToGitExistingBranchSucceeded = [Helper]::QueueExportToGit($Org, $Project, $SolutionName, $ExportPipelineName, $body)
         [Helper]::ExportToGitExistingBranchSucceeded | Should -BeTrue
     }
     

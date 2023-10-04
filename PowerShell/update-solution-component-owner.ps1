@@ -20,7 +20,7 @@ function Invoke-UpdateSolutionComponentOwner {
         Get-OwnerFlowActivations $solutionComponentOwnershipConfiguration "" $conn $flowsToSetOwners
 
         foreach ($ownershipConfig in $flowsToSetOwners) {
-            $validatedId = Validate-And-Clean-Guid $ownershipConfig.solutionComponentUniqueName
+            $validatedId = Invoke-Validate-And-Clean-Guid $ownershipConfig.solutionComponentUniqueName
             if (!$validatedId) {
                 Write-Host "Invalid  flow GUID $($ownershipConfig.solutionComponentUniqueName). Exiting from Invoke-UpdateSolutionComponentOwner."
                 return

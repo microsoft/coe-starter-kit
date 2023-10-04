@@ -14,7 +14,7 @@ function Grant-AccessToWorkflow {
 
     Write-Host "teamName - $teamName"
     Write-Host "workflowId - $workflowId"
-    $validatedId = Validate-And-Clean-Guid $workflowId
+    $validatedId = Invoke-Validate-And-Clean-Guid $workflowId
     if (!$validatedId) {
         Write-Host "Invalid  workflowId GUID. Exiting from Grant-AccessToWorkflow."
         return
@@ -56,7 +56,7 @@ function Grant-AccessToConnector {
 
     Write-Host "TeamName - $teamName"
     Write-Host "ConnectorId - $connectorId"   
-    $validatedId = Validate-And-Clean-Guid $connectorId
+    $validatedId = Invoke-Validate-And-Clean-Guid $connectorId
     if (!$validatedId) {
         Write-Host "Invalid  ConnectorId GUID. Exiting from Grant-AccessToConnector."
         return

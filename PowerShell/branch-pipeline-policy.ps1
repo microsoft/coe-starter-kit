@@ -9,11 +9,15 @@ function Invoke-Create-Branch{
         [Parameter(Mandatory)] [String]$solutionProjectName,
         [Parameter(Mandatory)] [String]$solutionRepositoryName, 
         [Parameter(Mandatory)] [String]$buildRepositoryName,
+        [Parameter(Mandatory)] [String]$pipelineSourceDirectory,
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$environmentNames,
         [Parameter(Mandatory)] [String]$azdoAuthType,
         [Parameter(Mandatory)] [string]$solutionRepoId,
         [Parameter(Mandatory)] [string]$agentPool,
+        [Parameter(Mandatory)] [String]$currentBranch,
+        [Parameter(Mandatory)] [String]$createSolutionBranch,
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$pipelineStageRunId
     )
         Write-Host "Pipeline Project - $buildProjectName Solution Project - $solutionProjectName"
@@ -77,7 +81,6 @@ function Invoke-Create-Branch{
             {
                 Write-Host "Solution Repo - $repo has been Initialized"
                 $sourceBranch = "main"
-                $defaultBranch = "main"
                 $sourceBranchExists = $false
                 $sourceRefId = $null
                 $solutionBranchExists = $false
@@ -99,13 +102,6 @@ function Invoke-Create-Branch{
                     return $solutionProjectRepo
                 }
 
-                if($solutionBranchExists -eq $true){
-                    Write-Host "Solution Branch $solutionName already exists. Exiting."
-                    return $solutionProjectRepo
-                }else{
-                    Write-Host "Proceeding with Solution Branch - $solutionName creation"
-                }
-
                 # If Environment Names not provided, fall back to validation|test|prod.
                 if([string]::IsNullOrEmpty($environmentNames)){
                     Write-Host "EnvironmentNames not found in Settings. Falling back."
@@ -116,18 +112,13 @@ function Invoke-Create-Branch{
 
                 # Get 'pipelines' content for all environments
                 $collEnvironmentNames = $environmentNames.Split('|')
-                $commitChanges = New-Object System.Collections.ArrayList
                 foreach ($environmentName in $collEnvironmentNames) {
                     Write-Host "Check if content yml file available for $environmentName. If not downloads and commit them to solution branch."
                     # Fetch Commit Changes Collection
-                    $commitChange = Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$buildRepositoryName" "$solutionName" "$environmentName" "$sourceBranch" "$agentPool" "$pipelineStageRunId"
-                    if($null -ne $commitChange){
-                        $commitChanges.Add($commitChange)
-                    }
+                    Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$pipelineSourceDirectory" "$buildRepositoryName" "$buildSourceDirectory" "$solutionName" "$environmentName" "$sourceBranch" "$agentPool" "$pipelineStageRunId"
                 }
 
-                Write-Host "Count of commitChanges - "$commitChanges.Count
-                If($commitChanges.Count -eq 0){
+                if($solutionBranchExists -ne $true -and $createSolutionBranch -ne "false" -and $currentBranch -ne "$solutionName"){
                     # Create a new Branch
                     Write-Host "No commit changes. Creating new solution branch - $solutionName"
                     # Construct the request body for creating a new branch
@@ -162,61 +153,13 @@ function Invoke-Create-Branch{
                     if($null -ne $response){
                         Write-Host "New branch created with ref name $($response.name) and object ID $($response.objectId)"
                     }
-                }
-                else{
-                    Write-Host "Found commit changes. Creating new solution branch - $solutionName"
-                    # Create a new commit object with the changes array
-                    $commit = @(
-                        @{
-                            comment = "Add DevOps Pipeline"
-                            changes = $commitChanges
-                        }
-                    )
-
-                    $newRef = @(
-                        @{
-                            name = "refs/heads/$solutionName"
-                            oldObjectId = "$sourceRefId"
-                        }
-                    )
-
-                    $gitPush = @{
-                        refUpdates = $newRef
-                        commits = $commit
-                    }
-
-                    # Convert the commit object to JSON format
-                    $gitPushBody = $gitPush | ConvertTo-Json -Depth 10
-
-                    Write-Host "GitPushBody - $gitPushBody"
-
-                    $apiUrlGitPush = "$organizationURL$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/pushes?api-version=6.0"
-                    Write-Host "ApiUrlGitPush - $apiUrlGitPush"
-
-                    $response = $null
-                    try{
-                        # Send a POST request to the API endpoint to create a new branch
-                        $response = Invoke-RestMethod -Uri $apiUrlGitPush -Method Post -Headers @{
-                            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
-                            "Content-Type" = "application/json"
-                        } -Body $gitPushBody
-                    }
-                    catch {
-                        #Write-Host "Error while posting Git Push to $apiUrlGitPush. Message - $($_.Exception.Message)"
-                        Write-Host "##vso[task.logissue type=warning]Unable to create solution branch - $solutionName. Message - $($_.Exception.Message)"
-                        throw
-                    }
-
-                    if($response){
-                        Write-Host "New branch created with ref name $($response.name) and object ID $($response.objectId)"
-                    }
                     else{
                         Write-Host "##vso[task.logissue type=warning]Unable to create solution branch - $solutionName."
                         throw
                     }
+                }else{
+                    Write-Host "No commits to this repository yet. Initialize this repository before creating new branches"
                 }
-            }else{
-                Write-Host "No commits to this repository yet. Initialize this repository before creating new branches"
             }
         }
         
@@ -256,7 +199,9 @@ function Get-Git-Commit-Changes{
         [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [String]$solutionProjectName,
         [Parameter(Mandatory)] [String]$solutionRepositoryName, 
+        [Parameter(Mandatory)] [String]$pipelineSourceDirectory,
         [Parameter(Mandatory)] [String]$buildRepositoryName,
+        [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$environmentName,
         [Parameter(Mandatory)] [String]$sourceBranch,
@@ -264,25 +209,15 @@ function Get-Git-Commit-Changes{
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$pipelineStageRunId
     )
 
-    $commitChange = $null
     $deployPipelineName = "deploy-$environmentName".ToLower()
     $ymlContentFilePath = "/$solutionName/$deployPipelineName-$solutionName.yml"
     Write-Host "RepoTemplatePath - $ymlContentFilePath"
     # Check if build yml file available under source branch
-    $getExistingYmlContentFileURL = "$orgUrl$solutionProjectName/_apis/git/repositories/$solutionRepositoryName/items?path=$ymlContentFilePath&api-version=6.0&versionDescriptor.versionType=branch&versionDescriptor.version=$sourceBranch"
-    Write-Host "Get existing YML Content file URL - $getExistingYmlContentFileURL"
+    $deploymentPipelineYamlFile = "$buildSourceDirectory\$repo\$solutionName\$deployPipelineName-$solutionName.yml"
+    Write-Host "Build Source Directory - $buildSourceDirectory\$repo\$solutionName"
+    $ymlContentFileExists = Test-Path $deploymentPipelineYamlFile
 
-    $existingYmlContentFileResponse = $null
-    try{
-        $existingYmlContentFileResponse = Invoke-RestMethod $getExistingYmlContentFileURL -Method Get -Headers @{
-            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
-        }
-    }
-    catch {
-        Write-Host "YML content file does not exist at $ymlContentFilePath. Message - $($_.Exception.Message)"
-    }
-
-    if($null -eq $existingYmlContentFileResponse){
+    if(-not $ymlContentFileExists){
         Write-Host "Downloading YML content file for $environmentName"
         # Fetch the Template from pipeline Repo
         $deployPipelineName = "build-deploy-$environmentName".ToLower()
@@ -300,25 +235,13 @@ function Get-Git-Commit-Changes{
             Write-Host "Template Path not mentioned in Settings for $environmentName"
         }
                                     
-        Write-Host "Fetching the build pipeline content from - $templatePath"
-        # Get the pipeline content from build project's repo under 'main' branch
-        $downloadBuildContentFileUrl = "$orgUrl$buildProjectName/_apis/git/repositories/$buildRepositoryName/items?path=$templatePath&includeContent=true&versionDescriptor.version=$sourceBranch&versionDescriptor.versionType=branch&api-version=5.0"
-        Write-Host "DownloadBuildContentFileUrl - $downloadBuildContentFileUrl"
-        $downloadBuildContentFileResponse = $null
-        try{
-            $downloadBuildContentFileResponse = Invoke-RestMethod $downloadBuildContentFileUrl -Method Get -Headers @{
-                Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
-            }
-        }
-        catch {
-            Write-Host "Build content file does not exist at $templatePath. Message - $($_.Exception.Message)"
-        }
-
-        if($null -ne $downloadBuildContentFileResponse){
+        Write-Host "Fetching the build pipeline content from - $pipelineSourceDirectory\$templatePath"
+        # Get the pipeline content from the local template repo
+        if(Test-Path "$pipelineSourceDirectory\$templatePath"){
             Write-Host "Fetched pipeline content file for $environmentName"
-            # Replace with 'Main' Branch name of Pipeline Build Repository
-            $pipelineContent = $downloadBuildContentFileResponse -replace "BranchContainingTheBuildTemplates", $sourceBranch
-            # Replace with 'Build-Templates-Project/Repo'
+            $pipelineContent = Get-Content "$pipelineSourceDirectory\$templatePath"
+            # Replace Placeholders in the template
+            $pipelineContent = $pipelineContent -replace "BranchContainingTheBuildTemplates", $sourceBranch
             $pipelineContent = $pipelineContent -replace "RepositoryContainingTheBuildTemplates", "$buildProjectName/$buildRepositoryName"
             $pipelineContent = $pipelineContent -replace "SampleSolutionName", $solutionName
             if($agentPool -ne "Azure Pipelines"){
@@ -336,20 +259,8 @@ function Get-Git-Commit-Changes{
                 $pipelineContent = $pipelineContent -replace "alm-accelerator-variable-group", $variableGroup
             }
 
-            #Write-Host "Pipeline content post substitution - $pipelineContent"
-
-            $deployPipelineName = "deploy-$environmentName".ToLower()
-            # Create a new commit change
-            $commitChange = @{
-                changeType = "add"
-                item = @{
-                    path = "/$solutionName/$deployPipelineName-$solutionName.yml"                    
-                }
-                newContent = @{
-                    content = "$pipelineContent"
-                    contentType = "rawtext"
-                }
-            }
+            Write-Host "Pipeline content post substitution - $pipelineContent"
+            $pipelineContent | Out-File $deploymentPipelineYamlFile
         }else{
             Write-Host "Unable to fetch pipeline content for $environmentName"
         }
@@ -357,7 +268,7 @@ function Get-Git-Commit-Changes{
         Write-Host "YML content file exists at $ymlContentFilePath for $environmentName"
     }
 
-    return $commitChange
+    return $deploymentPipelineYamlFile
 }
 
 <#
@@ -393,7 +304,6 @@ function Update-Build-for-Branch{
 
         Write-Host "Fetching Build Definitions under Repository"
         $definitions = Get-Repository-Build-Definitions "$orgUrl" "$solutionProjectName" "$azdoAuthType" "$solutionRepoId"
-        #$definitions = Get-Project-Build-Definitions "$orgUrl" "$solutionProjectName" "$azdoAuthType"
 
         # Get 'pipelines' content for all environments
         $collEnvironmentNames = $environmentNames.Split('|')
@@ -480,51 +390,6 @@ Param(
     $deployPipelineName = "deploy-$environmentName".ToLower()
     $yamlFileName = "/$solutionName/$deployPipelineName-$solutionName.yml"
 
-    Write-Host "Check if yml file exists at $yamlFileName under Project - $solutionProjectName and Repo - $($repo.name)"
-    # Check if yamlfileName exists under Solution Project
-    $isFileExists = Check-File-Exists "$orgUrl" "$solutionProjectName" $azdoAuthType "$($repo.name)" "$solutionName" "$yamlFileName"
-
-    if($isFileExists -eq $false){
-        Write-Host "yml content file unavailable at $yamlFileName under Project - $solutionProjectName and Repo - $($repo.name) and Branch - $solutionName. Need to downloading the file."
-        Write-Host "Downloading yml content file logic starts"
-        $templatePath = "/Pipelines/$deployPipelineName-SampleSolution.yml"
-        if($null -ne $pipelineStageRunId -and $pipelineStageRunId -ne "") {
-            # Fetch the Pipelines for PP template from pipeline Repo
-            $templatePath = "/Pipelines/$deployPipelineName-Pipelines.yml"
-        }
-        Write-Host "Check for buildtemplate in settings. Key - $environmentName-buildtemplate"
-        $settingsTemplatePath = Get-Value-From-settings $settings "$environmentName-buildtemplate"
-        if($null -ne $settingsTemplatePath){
-           Write-Host "Template Path mentioned in Settings for $environmentName. Path - $settingsTemplatePath"
-           $templatePath = $settingsTemplatePath
-        }else{
-           Write-Host "Template Path not mentioned in Settings for $environmentName"
-        }
-
-        Write-Host "Check if yml content file exists at $templatePath under Project - $buildProjectName and Repo - $buildRepoName and Branch - main"
-        # Check if yamlfileName exists under Solution Project
-        $isFileExists = Check-File-Exists "$orgUrl" "$buildProjectName" $azdoAuthType "$buildRepoName" "main" "$templatePath"
-
-        if($isFileExists -eq $true){
-            Write-Host "yml content file available at $templatePath under Project - $buildProjectName and Repo - $buildRepoName and Branch - main. Downloading the file."
-            $tempYamlFilePath = "$buildSourceDirectory\$($repo.name)\$solutionName\$deployPipelineName-$solutionName.yml"
-            Write-Host "TempYamlFilePath - $tempYamlFilePath"
-            $fileDownloaded = Download-File-to-Location "$orgUrl" "$solutionProjectName" $azdoAuthType "$buildRepoName" "main" "$templatePath" "$tempYamlFilePath" "$currentBranch"
-            Write-Host "FileDownloaded - $fileDownloaded"
-            if($true -eq $fileDownloaded){
-                Write-Host "yml content file created."
-            }else{
-                Write-Host "Unable to create build definition. Unable to download content yml file from $tempYMLFilePath"
-                return;
-            }
-        }else{
-            Write-Host "Unable to create build definition. Content yml file unavailable at $templatePath"
-            return;
-        }
-    }else{
-        Write-Host "yml content file is available at $yamlFileName under Project - $solutionProjectName and Repo - $($repo.name)"
-    }
-
     Write-Host "Creating build definition for $yamlFileName"
     # Prepare Variables
     $serviceConnectionName = $null
@@ -537,7 +402,7 @@ Param(
     }
 
     Write-Host "Build definition path - $pathofMatchedBuild"
-
+    Write-Host "Current Branch: $currentBranch"
     Write-Host "Creating a new pipeline $destinationBuildName"
     $pipelinDefinitionBody = @{
         name = "$destinationBuildName"
@@ -546,7 +411,7 @@ Param(
             name = $($repo.name)
             url = $($repo.url)
             type = "TfsGit"
-            defaultBranch = "refs/heads/$solutionName"
+            defaultBranch = "refs/heads/$currentBranch"
             clean = $null
             checkoutSubmodules = $false
         }
@@ -607,10 +472,8 @@ Param(
             "Authorization" = "Bearer $env:SYSTEM_ACCESSTOKEN"
         }
 
-        $buildDefinitionResponse = Invoke-RestMethod -Uri $uriBuildDefinition -Method Post -Headers $headers -Body $jsonBodyCleansed
+        Invoke-RestMethod -Uri $uriBuildDefinition -Method Post -Headers $headers -Body $jsonBodyCleansed
         Write-Host "Pipeline definition created successfully."
-        $buildDefinitionResponseJson = $buildDefinitionResponse | ConvertTo-Json 
-        #Write-Host "BuildDefinitionResponseJson - $buildDefinitionResponseJson"
     }
     catch {
         $errorMessage = $_.Exception.Message
@@ -625,33 +488,6 @@ Param(
     }
 }
 
-<#
-This function is a child function of Invoke-Clone-Build-Settings and Set-Branch-Policy.
-Fetches the build definitions under the projects
-#>
-function Get-Project-Build-Definitions {
-    param (
-        [Parameter(Mandatory)] [String]$orgUrl,
-        [Parameter(Mandatory)] [String]$buildProjectName,
-        [Parameter(Mandatory)] [string]$azdoAuthType
-    )
-
-    $buildDefinitionResponse = $null
-    $uriBuildDefinition = "$orgUrl$buildProjectName/_apis/build/definitions?api-version=6.0"
-    #Write-Host "UriBuildDefinition - $uriBuildDefinition"
-    try {
-        $buildDefinitionResponse = Invoke-RestMethod $uriBuildDefinition -Method Get -Headers @{
-            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
-        }
-    }
-    catch {
-        Write-Error $_.Exception.Message
-        return
-    }
-
-    #Write-Host "Build Definition Response - $buildDefinitionResponse"
-    return $buildDefinitionResponse
-}
 
 <#
 This function is a child function of Invoke-Clone-Build-Settings and Set-Branch-Policy.
@@ -998,35 +834,4 @@ function Download-File-to-Location{
     }
 
     return $false
-}
-
-<#
-This function checks if a file available at a specified location.
-#>
-function Check-File-Exists {
-    param (
-        [Parameter(Mandatory)] [String]$orgUrl,
-        [Parameter(Mandatory)] [String]$solutionProjectName,
-        [Parameter(Mandatory)] [string]$azdoAuthType,
-        [Parameter(Mandatory)] [string]$solutionRepoName,
-        [Parameter(Mandatory)] [string]$branchName,
-        [Parameter(Mandatory)] [string]$filePath
-    )
-
-    $checkFileUrl = "$orgUrl$solutionProjectName/_apis/git/repositories/$solutionRepoName/items?path=$filePath&versionType=branch&version=$branchName&api-version=6.0"
-    Write-Host "Check-File-Exists URL - $checkFileUrl"
-    try {
-        $checkFileResponse = Invoke-RestMethod $checkFileUrl -Method Get -Headers @{
-            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
-        }
-    }
-    catch {
-        Write-Host "Error in Check-File-Exists - " $_.Exception.Message
-        return $false
-    }
-
-    #Write-Host "Check-File-Exists response - $checkFileResponse"
-    Write-Host "File found at $filePath"
-
-    return $true;
 }

@@ -38,24 +38,24 @@ function Get-Decoded-Text
 This function checks if repetative 'Names' mentioned in 'UserSettings'.
 If yes, returns the index
 #>
-function Get-IndicesOfNodesWithValue {
+function Update-IndicesOfNodesWithValue {
     param (
-        [string]$jsonString,
+        [System.Object]$jsonArray,
         [string]$searchName,
-        [string]$searchValue
+        [string]$searchValue,
+        [string]$searchProperty = "Name"
     )
 
     try {
-        Write-Host "Inside Get-IndicesOfNodesWithValue"
+        Write-Host "Inside Update-IndicesOfNodesWithValue"
         Write-Host "SearchName - $searchName"
         Write-Host "SearchValue - $searchValue"
-        $jsonArray = ConvertFrom-Json $jsonString
         $matchingIndex = -1
 
         $nameMatches = @()
 
         for ($i = 0; $i -lt $jsonArray.Count; $i++) {
-            if ($jsonArray[$i].Name -eq $searchName) {
+            if ($jsonArray[$i].($searchProperty) -eq $searchName) {
                 $nameMatches += ($i + 1)
             }
         }
@@ -74,7 +74,15 @@ function Get-IndicesOfNodesWithValue {
             }
         }
 
-        return $matchingIndex
+        if ($matchingIndex -ne -1) {
+            Write-Host "Multiple $configurationVariableName defined."
+            $searchName = $searchName + "_$matchingIndex"
+            Write-Host "Appended the MatchingIndices - $matchingIndex. Update Variable Name - $searchName"
+        } else {
+            Write-Host "No multiple $searchName defined."
+        }
+
+        return $searchName
     }
     catch {
         Write-Host "Error parsing JSON: $_"
@@ -86,7 +94,7 @@ function Get-IndicesOfNodesWithValue {
 Sometimes GUID contains underscore (incase of multiple share with teams scenario).
 This function trims and validates the GUID.
 #>
-function Validate-And-Clean-Guid {
+function Invoke-Validate-And-Clean-Guid {
     param (
         [string]$inputGuid
     )

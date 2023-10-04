@@ -25,6 +25,9 @@ parameters:
 - name: BranchToCreate
   type: string
   default: "Commit to existing branch specified in Branch parameter"
+- name: CreateSolutionBranch
+  type: string
+  default: "true"
 - name: CommitMessage
   type: string
 - name: Data
@@ -71,6 +74,9 @@ parameters:
 - name: CreatePR
   type: string
   default: "false"
+- name: PRTargetBranch
+  type: string
+  default: "NA"
 - name: AutoCompletePR
   type: string
   default: "false"
@@ -90,7 +96,9 @@ name: 1.0.$(Date:yyyyMMdd)$(Rev:.r)
 
 variables:
 - group: alm-accelerator-variable-group
-
+- name: UseSolutionVersionFromDataverse
+  value: true
+  
 stages:
 - stage: export_solution_to_git
   displayName: 'Export solution to git' 
@@ -132,6 +140,7 @@ stages:
         repo: ${{parameters.Repo}}
         branch: ${{parameters.Branch}}
         branchToCreate: ${{parameters.BranchToCreate}}
+        createSolutionBranch: ${{parameters.CreateSolutionBranch}}
         commitMessage: ${{parameters.CommitMessage}}
         email: ${{parameters.Email}}
         serviceConnectionName: ${{parameters.ServiceConnectionName}}
@@ -166,15 +175,27 @@ stages:
     # Conditionally create a pull request to the solution branch for the new branch
     - pwsh: |
         . "$env:POWERSHELLPATH/pipeline-functions.ps1"
+
         $sourceBranch = "${{parameters.Branch}}"
-        if(${{parameters.BranchToCreate}} -ne "Commit to existing branch specified in Branch parameter") {
+        if("${{parameters.BranchToCreate}}" -ne "Commit to existing branch specified in Branch parameter") {
           $sourceBranch = "${{parameters.BranchToCreate}}"
         }
-        New-Pull-Request "${{parameters.SolutionName}}" "$(System.TeamFoundationCollectionUri)" "${{parameters.Project}}" "${{parameters.Repo}}" "${{parameters.Branch}}" "refs/heads/${{parameters.BranchToCreate}}" "refs/heads/${{parameters.SolutionName}}" "${{parameters.CommitMessage}}" "${{parameters.AutoCompletePR}}" "$env:SYSTEM_ACCESSTOKEN"
+
+        $targetBranch = "${{parameters.Branch}}"
+        if("${{parameters.PRTargetBranch}}" -ne "NA" -and "${{parameters.PRTargetBranch}}" -ne "") {
+          $targetBranch = "${{parameters.PRTargetBranch}}"
+        }
+        elseif("${{parameters.CreateSolutionBranch}}" -eq "true") {
+          $targetBranch = "${{parameters.SolutionName}}"
+        }
+
+        $encodedCommitMessage = "${{parameters.CommitMessage}}".replace("`n",", ").replace("`r",", ")
+        $encodedCommitMessage = $encodedCommitMessage -creplace '\P{IsBasicLatin}'
+        New-Pull-Request -solutionName "${{parameters.SolutionName}}" -org "$(System.TeamFoundationCollectionUri)" -project "${{parameters.Project}}" -repo "${{parameters.Repo}}" -branch "${{parameters.Branch}}" -sourceBranch "refs/heads/$sourceBranch" -targetBranch "refs/heads/$targetBranch" -encodedCommitMessage "$encodedCommitMessage" -autocompletePR "${{parameters.AutoCompletePR}}" -accessToken "$env:SYSTEM_ACCESSTOKEN"
       env:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       displayName: 'Create a pull request for the new branch'
-      condition: and(succeeded(), ne(variables['NothingToCommit'], 'true'), eq('${{parameters.CreatePR}}', 'true'))
+      condition: and(succeeded(), eq('${{parameters.CreatePR}}', 'true'))
 
     # Mark the deployment stage as succeeded
     - pwsh: |
@@ -182,7 +203,7 @@ stages:
         Invoke-Pre-Deployment-Status-Update "${{parameters.PipelineStageRunId}}" "20" "${{parameters.PipelineServiceConnectionUrl}}" "$(AADHost)" "$(pipelineHostVariables.BuildTools.TenantId)" "$(pipelineHostVariables.BuildTools.ApplicationId)" "$(pipelineHostVariables.BuildTools.ClientSecret)"
       displayName: 'Mark the deployment stage as succeeded'
       enabled: true
-      condition: and(succeeded(), or(eq(variables['NothingToCommit'], 'true'), ne('${{parameters.CreatePR}}', 'true')))
+      condition: and(succeeded(), ne('${{parameters.CreatePR}}', 'true'))
 
     # Mark the deployment stage as failed
     - pwsh: |
