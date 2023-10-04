@@ -69,8 +69,29 @@ Home As screen:
                 )
             );
             Set(
-                DeploymentUserSetting,
-                First(DeploymentUserSettings)
+                DefaultUserSettingName,
+                "LastSavedUserSetting"
+            );
+            Set(
+                DefaultUserSetting,
+                LookUp(
+                    AppUserSetting_UserSettings,
+                    Name = DefaultUserSettingName
+                )
+            );
+            If(
+                !IsBlankOrError(DefaultUserSetting),
+                Set(
+                    DeploymentUserSetting,
+                    LookUp(
+                        DeploymentUserSettings,
+                        DisplayName = DefaultUserSetting.Value
+                    )
+                ),
+                Set(
+                    DeploymentUserSetting,
+                    First(DeploymentUserSettings)
+                )
             );
             If(
                 !IsBlankOrError(DeploymentUserSetting.'Promote Changes Label'),
@@ -120,7 +141,8 @@ Home As screen:
                 DeploymentProfiles,
                 AddColumns(
                     Filter(
-                        DeploymentUserSetting.'Deployment Profiles',
+                        'Deployment Profiles',
+                        'Deployment Profile' in DeploymentUserSetting.'Deployment Profiles'.'Deployment Profile',
                         Status = 'Status (Deployment Profiles)'.Active
                     ),
                     "DisplayName",
@@ -138,7 +160,9 @@ Home As screen:
                     "SourceBranch",
                     'Promote Source Branch Name',
                     "TargetBranch",
-                    'Promote Target Branch Name'
+                    'Promote Target Branch Name',
+                    "DefaultProfile",
+                    'Default Deployment Profile'
                 )
             );
             Collect(
@@ -150,6 +174,13 @@ Home As screen:
                 Sort(
                     DeploymentProfiles,
                     DisplayName
+                )
+            );
+            Set(
+                DefaultProfile,
+                LookUp(
+                    DeploymentProfiles,
+                    DefaultProfile = true
                 )
             );
             
@@ -236,18 +267,8 @@ Home As screen:
                 "LastSavedEnvironment"
             );
             Set(
-                DefaultUserSettingName,
-                "LastSavedUserSetting"
-            );
-            Set(
                 DeploymentSettingName,
                 "Deployment - "
-            );
-            Set(DefaultUserSetting,
-                    LookUp(
-                    AppUserSetting_UserSettings,
-                    Name = DefaultUserSettingName
-                )
             );
             Set(
                 DefaultEnvironment,
@@ -316,8 +337,8 @@ Home As screen:
                 Filter(
                     'Component Layers',
                     'Solution Name' = "Active",
-                    msdyn_solutioncomponentname = "CanvasApp",
-                    msdyn_componentid = Text(currentCanvasApp.CanvasAppId)
+                    'Solution Component Name' = "CanvasApp",
+                    'Component Id' = Text(currentCanvasApp.CanvasAppId)
                 )
             );
             // get Canvas App solution layers
@@ -1488,12 +1509,30 @@ Home As screen:
             HoverFill: =ColorFade(icoConfigureDeployment.Fill, 20%)
             Icon: =
             OnSelect: |-
-                =Set(ReturnScreen, Home);
-                Set(ReinitializeHome, false);
-                Set(SelectedConfigurationDeploymentProfile, glrSolutions.Selected.deploymentprofile);
-                Set(SelectedDeploymentStep, Blank());
-                Set(SelectedSolutionToConfigure, glrSolutions.Selected);
-                Navigate(DeploymentSettingsScreen, ScreenTransition.Fade)
+                =Set(
+                    ReturnScreen,
+                    Home
+                );
+                Set(
+                    ReinitializeHome,
+                    false
+                );
+                Set(
+                    SelectedConfigurationDeploymentProfile,
+                    glrSolutions.Selected.deploymentprofile
+                );
+                Set(
+                    SelectedDeploymentStep,
+                    Blank()
+                );
+                Set(
+                    SelectedSolutionToConfigure,
+                    glrSolutions.Selected
+                );
+                Navigate(
+                    DeploymentSettingsScreen,
+                    ScreenTransition.Fade
+                )
             PressedBorderColor: =ColorFade(icoConfigureDeployment.BorderColor, -20%)
             PressedColor: =ColorFade(icoConfigureDeployment.Color, -20%)
             PressedFill: =ColorFade(icoConfigureDeployment.Fill, -20%)
@@ -2536,12 +2575,6 @@ Home As screen:
                                                 ),
                                                 PublishCustomizations: tglPublishCustomizations.Value,
                                                 CommitScope: drpCommitScope.Selected.Id,
-                                                ArtifactUrl: "NA",
-                                                PipelinesServiceConnectionName: "NA",
-                                                PipelinesServiceConnectionUrl: "NA",
-                                                PipelinesStageRunId: "NA",
-                                                CreatePR: "false",
-                                                AutoCompletePR: "false",
                                                 AgentPool: If(
                                                     IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                                     "Azure Pipelines",
@@ -3210,13 +3243,27 @@ Home As screen:
                     LastSavedImportPipelineRunsSettingName,
                     "LastSavedImportPipelineRuns - " & selectedConfigurationDeploymentProfile.Organization & " - " & selectedConfigurationDeploymentProfile.Project
                 );
+                ClearCollect(
+                    locProjectPipelines,
+                    CustomAzureDevOps.GetPipelines(
+                        selectedConfigurationDeploymentProfile.Organization,
+                        selectedConfigurationDeploymentProfile.Project
+                    ).value
+                );
+                If(
+                    !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                    ClearCollect(
+                        locPipelineProjectPipelines,
+                        CustomAzureDevOps.GetPipelines(
+                            selectedConfigurationDeploymentProfile.Organization,
+                            selectedConfigurationDeploymentProfile.'Pipeline Project'
+                        ).value
+                    )
+                );
                 UpdateContext(
                     {
                         piplineIdToRun: LookUp(
-                            CustomAzureDevOps.GetPipelines(
-                                selectedConfigurationDeploymentProfile.Organization,
-                                selectedConfigurationDeploymentProfile.Project
-                            ).value,
+                            locProjectPipelines,
                             name = "deploy-" & Lower(drpConfigFolders.Selected.DisplayName) & "-" & drpSolutionFolders.Selected.DisplayName
                         ).id,
                         pipelineProject: selectedConfigurationDeploymentProfile.Project
@@ -3227,40 +3274,28 @@ Home As screen:
                     UpdateContext(
                         {
                             piplineIdToRun: LookUp(
-                                CustomAzureDevOps.GetPipelines(
-                                    selectedConfigurationDeploymentProfile.Organization,
-                                    selectedConfigurationDeploymentProfile.'Pipeline Project'
-                                ).value,
+                                locPipelineProjectPipelines,
                                 name = "deploy-" & Lower(drpConfigFolders.Selected.DisplayName) & "-" & drpSolutionFolders.Selected.DisplayName
                             ).id,
                             pipelineProject: selectedConfigurationDeploymentProfile.'Pipeline Project'
                         }
                     )
                 );
-                If(
-                    IsBlankOrError(piplineIdToRun),
-                    UpdateContext(
-                        {
-                            piplineIdToRun: LookUp(
-                                CustomAzureDevOps.GetPipelines(
-                                    selectedConfigurationDeploymentProfile.Organization,
-                                    selectedConfigurationDeploymentProfile.Project
-                                ).value,
-                                name = "import-unmanaged-to-dev-environment"
-                            ).id,
-                            pipelineProject: selectedConfigurationDeploymentProfile.Project
-                        }
-                    )
+                UpdateContext(
+                    {
+                        importPiplineIdToRun: LookUp(
+                            locProjectPipelines,
+                            name = "import-unmanaged-to-dev-environment"
+                        ).id,
+                        pipelineProject: selectedConfigurationDeploymentProfile.Project
+                    }
                 );
                 If(
-                    IsBlankOrError(piplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
+                    IsBlankOrError(importPiplineIdToRun) && !IsBlankOrError(selectedConfigurationDeploymentProfile.'Pipeline Project'),
                     UpdateContext(
                         {
-                            piplineIdToRun: LookUp(
-                                CustomAzureDevOps.GetPipelines(
-                                    selectedConfigurationDeploymentProfile.Organization,
-                                    selectedConfigurationDeploymentProfile.'Pipeline Project'
-                                ).value,
+                            importPiplineIdToRun: LookUp(
+                                locPipelineProjectPipelines,
                                 name = "import-unmanaged-to-dev-environment"
                             ).id,
                             pipelineProject: selectedConfigurationDeploymentProfile.'Pipeline Project'
@@ -3311,12 +3346,6 @@ Home As screen:
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
                                         CommitScope: "1",
-                                        ArtifactUrl: "NA",
-                                        PipelinesServiceConnectionName: "NA",
-                                        PipelinesServiceConnectionUrl: "NA",
-                                        PipelinesStageRunId: "NA",
-                                        CreatePR: "false",
-                                        AutoCompletePR: "false",
                                         AgentPool: If(
                                             IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                             "Azure Pipelines",
@@ -3334,8 +3363,60 @@ Home As screen:
                                     }
                                 }
                             ).id,
-                            UpdateContext({errorMessage: FirstError.Details.HttpResponse});
-                            Notify("Error running pipeline: " & errorMessage);
+                            IfError(
+                                CustomAzureDevOps.RunPipeline(
+                                    locImportProfile.Organization,
+                                    pipelineProject,
+                                    importPiplineIdToRun,
+                                    {
+                                        definition: {id: importPiplineIdToRun},
+                                        templateParameters: {
+                                            Project: locImportProfile.Project,
+                                            Repo: locImportProfile.Repository,
+                                            SolutionName: drpSolutionFolders.Selected.DisplayName,
+                                            Email: gblUser.Email,
+                                            UserName: gblUser.FullName,
+                                            CommitMessage: "NA",
+                                            Branch: drpBranchName.Selected.name,
+                                            BranchToCreate: "NA",
+                                            ServiceConnectionName: If(
+                                                !IsBlankOrError(selectedCommitProfile.'Service Connection Name'),
+                                                selectedCommitProfile.'Service Connection Name',
+                                                SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl
+                                            ),
+                                            ServiceConnectionUrl: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                            BuildDefinitionId: "NA",
+                                            PipelineId: "NA",
+                                            ImportUnmanaged: If(
+                                                tglImportAsManaged.Value,
+                                                "false",
+                                                "true"
+                                            ),
+                                            EnvironmentName: drpConfigFolders.Selected.DisplayName,
+                                            Data: "[]",
+                                            PortalSiteName: "NA",
+                                            PublishCustomizations: "NA",
+                                            CommitScope: "1",
+                                            AgentPool: If(
+                                                IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
+                                                "Azure Pipelines",
+                                                selectedCommitProfile.'AZDO Agent Pool'
+                                            ),
+                                            VMImage: If(
+                                                IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool') And IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                                "windows-latest",
+                                                If(
+                                                    !IsBlankOrError(selectedCommitProfile.'AZDO VM Image'),
+                                                    selectedCommitProfile.'AZDO VM Image',
+                                                    "NA"
+                                                )
+                                            )
+                                        }
+                                    }
+                                ).id,
+                                UpdateContext({errorMessage: FirstError.Details.HttpResponse});
+                                Notify("Error running pipeline (" & importPiplineIdToRun & "): " & errorMessage);
+                            )
                         )
                     }
                 );
@@ -4925,6 +5006,7 @@ Home As screen:
                                         ServiceConnectionUrl: SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
                                         PipelineId: "NA",
                                         TriggerSolutionUpgrade: false,
+                                        BypassAppConsent: false,
                                         CommitMessage: "NA",
                                         BuildDefinitionId: "NA",
                                         ImportUnmanaged: "NA",
@@ -4933,12 +5015,6 @@ Home As screen:
                                         PortalSiteName: "NA",
                                         PublishCustomizations: "NA",
                                         CommitScope: "1",
-                                        ArtifactUrl: "NA",
-                                        PipelinesServiceConnectionName: "NA",
-                                        PipelinesServiceConnectionUrl: "NA",
-                                        PipelinesStageRunId: "NA",
-                                        CreatePR: "false",
-                                        AutoCompletePR: "false",
                                         AgentPool: If(
                                             IsBlankOrError(selectedCommitProfile.'AZDO Agent Pool'),
                                             "Azure Pipelines",
@@ -5275,8 +5351,8 @@ Home As screen:
                 NoSelectionText: ="Select a Deployment Environment"
                 OnChange: =true
                 PressedBorderColor: =cmbDeploymentEnvironmentUrl.HoverBorderColor
-                SearchFields: =["DisplayName"]
-                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"DisplayName")
+                SearchFields: =["id"]
+                SearchItems: =Search(AllEnvironments,cmbDeploymentEnvironmentUrl.SearchText,"id")
                 SelectMultiple: =false
                 Template: =ListItemTemplate.Double
                 Tooltip: ="Select the deployment environment for this deployment stage"
@@ -5512,8 +5588,13 @@ Home As screen:
             HoverFill: =ColorFade(btnSavePublishProfile.Fill, 20%)
             OnSelect: |-
                 =UpdateContext({debugText: locUpdateProfile & " - " & locAddNewProfile});
-                UpdateContext({lclValidationEnvironment: txtNewProfile.Text & " - Validation", lclTestEnvironment: txtNewProfile.Text & " - Test", lclProdEnvironment: txtNewProfile.Text & " - Prod"});
-                
+                UpdateContext(
+                    {
+                        lclValidationEnvironment: txtNewProfile.Text & " - Validation",
+                        lclTestEnvironment: txtNewProfile.Text & " - Test",
+                        lclProdEnvironment: txtNewProfile.Text & " - Prod"
+                    }
+                );
                 If(
                     locAddNewProfile,
                     Patch(
@@ -5737,8 +5818,28 @@ Home As screen:
                             locSelectedDeploymentProfile: LookUp(
                                 'Deployment Profiles',
                                 'Deployment Profile' = locSelectedDeploymentProfile.'Deployment Profile'
+                            ),
+                            locExistingDeploymentSolutionProfile: LookUp(
+                                'Deployment Solution Profiles',
+                                'Solution Name' = glrSolutions.Selected.uniquename And 'Maker Environment Url' = SelectedEnvironment.name
                             )
                         }
+                    );
+                    If(
+                        !IsBlankOrError(locExistingDeploymentSolutionProfile),
+                        Patch(
+                            'Deployment Solution Profiles',
+                            locExistingDeploymentSolutionProfile,
+                            {'Deployment Profile': locSelectedDeploymentProfile}
+                        ),
+                        Patch(
+                            'Deployment Solution Profiles',
+                            {
+                                'Solution Name': glrSolutions.Selected.uniquename,
+                                'Maker Environment Url': SelectedEnvironment.name,
+                                'Deployment Profile': locSelectedDeploymentProfile
+                            }
+                        )
                     );
                     Patch(
                         SelectedEnvironmentSolutions,
@@ -6472,11 +6573,7 @@ Home As screen:
             UpdateContext(
                 {
                     locReloadSolutions: true,
-                    errorMessage: "",
-                    defaultProfile: LookUp(
-                        'Deployment Profiles',
-                        'Default Deployment Profile' = true
-                    )
+                    errorMessage: ""
                 }
             );
             If(
@@ -6516,18 +6613,51 @@ Home As screen:
                                 !IsBlankOrError(
                                     First(
                                         Filter(
-                                            DeploymentRequests,
-                                            'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                            'Deployment Solution Profiles',
+                                            'Solution Name' = uniquename And 'Maker Environment Url' = SelectedEnvironment.name
                                         )
                                     ).'Deployment Profile'
                                 ),
                                 First(
                                     Filter(
-                                        DeploymentRequests,
-                                        'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                        Sort(
+                                            'Deployment Solution Profiles',
+                                            createdon,
+                                            SortOrder.Descending
+                                        ),
+                                        'Solution Name' = uniquename And 'Maker Environment Url' = SelectedEnvironment.name
                                     )
                                 ).'Deployment Profile',
-                                defaultProfile
+                                If(
+                                    !IsBlankOrError(
+                                        First(
+                                            Filter(
+                                                DeploymentRequests,
+                                                'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                            )
+                                        ).'Deployment Profile'
+                                    ),
+                                    Patch(
+                                        'Deployment Solution Profiles',
+                                        {
+                                            'Solution Name': uniquename,
+                                            'Maker Environment Url': SelectedEnvironment.name,
+                                            'Deployment Profile': First(
+                                                Filter(
+                                                    DeploymentRequests,
+                                                    'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                                )
+                                            ).'Deployment Profile'
+                                        }
+                                    );
+                                    First(
+                                        Filter(
+                                            DeploymentRequests,
+                                            'Request Type' = [@Type].Profile And ('Solution Name' = uniquename & "-" & SelectedEnvironment.name Or 'Solution Name' = uniquename)
+                                        )
+                                    ).'Deployment Profile',
+                                    DefaultProfile
+                                )
                             )
                         )
                     )
