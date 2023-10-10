@@ -5,9 +5,8 @@ The Pipeline Extensions for Power Platform is a set of tools and processes that 
 ## Current Limitations
 
 The current release of the Pipeline Extensions for Power Platform has the following limitations:
- - The extensiosn will only work for new Azure DevOps Projects setup using the ALM Accelerator Project Admin app which will create the necessary Azure DevOps Project and Repositories. If you have an existing Azure DevOps Project you will need to create the necessary Repositories and Pipelines manually.
- - Merging from Solution Branch to main during the production phase of the release is not currently supported. You will need to manually merge the changes from the Solution Branch to the main branch after the release is complete. This will be addressed in a future release.
- - Currently, there is no native support for Sharing, Group Teams creation, Component Ownership or Data Ingestion. In order to use these features you will need to manually create the customDeploymentSettings.json and upload your Data into the repository. This will be addressed in a future release.
+ - The extensions will only work for new Azure DevOps Projects setup using the ALM Accelerator Project Admin app which will create the necessary Azure DevOps Project and Repositories. If you have an existing Azure DevOps Project you will need to create the necessary Repositories and Pipelines manually.
+ - Currently, there is no native support for Sharing, Group Teams creation, Component Ownership or Data Ingestion. In order to use these features you will need to manually create the customDeploymentSettings.json and pass these settings to the export-solution-to-git pipeline in the DeploymentSettings node of the Data parameter.
 
 ## Set up Pipelines for Power Platform
 
@@ -16,7 +15,7 @@ You can follow the steps [here](https://learn.microsoft.com/en-us/power-platform
 
 ## Set up the Pipeline Extensions for Power Platform
 
-To set up the Pipeline Extensions for Power Platform, download the latest version of the follow the steps outlined in the Microsoft Learn content [here](https://learn.microsoft.com/en-us/power-platform/guidance/alm-accelerator/setup-admin-tasks). In the case of the Pipeline Extensions, you will need to download the latest version of the solution Center of Excellence - Pipelines Accelerator instead of the Center of Excellence - ALM Accelerator solution noted in the documentation. The Pipeline Accelerator Sample Solution can be found in the Samples.zip artifact in the coe-starter-kit repository's latest release.
+To set up the Pipeline Extensions for Power Platform, download the latest version of the follow the steps outlined in the Microsoft Learn content [here](https://learn.microsoft.com/en-us/power-platform/guidance/alm-accelerator/setup-admin-tasks). In the case of the Pipeline Extensions, you will need to download the latest version of the solution Center of Excellence - Pipelines Accelerator instead of the Center of Excellence - ALM Accelerator solution noted in the documentation. The Pipeline Accelerator Sample Solution can be found in the Samples.zip artifact in the coe-starter-kit repository's latest release. The solution has to be imported to the same environment as the Pipelines for Power Platform host.
 
 ## Set up a Default Deployment Profile
 
@@ -27,6 +26,8 @@ The Pipeline Extensions for Power Platform rely on Deployment Profiles to define
     - Set the Default Deployment Profile flag to Yes
     - Enter the Azure DevOps Organization, Project and Repository name where the pipelines exist and into which the solution source code will be saved (Note: This is the project you just created in the previous step)
 - Select Save
+
+Alternatively, you can create specific profiles for each solution or a group of solutions. For example, you may have a profile for your Sales solutions and another for your Customer Service solutions. You can create these profiles by following the steps above and setting the Default Deployment Profile flag to No and then creating a Deployment Solution Profile record for each solution. If there are no Deployment Solution Profiles for a solution, the Default Deployment Profile will be used.
 
 ## Create the deployment steps
 
