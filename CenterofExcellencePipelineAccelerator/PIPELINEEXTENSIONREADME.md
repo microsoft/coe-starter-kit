@@ -1,4 +1,9 @@
-# Pipeline Extensions for Power Platform
+# Pipeline Extensions for Power Platform (preview)
+
+> [!IMPORTANT]
+> - These extensions are an early preview.  
+> - They do not embody all the capabilities of the full ALM Accelerator.  They are being shared as-is as a reference implementation of advanced customization of pipelines in Power Platform using extensibility (https://learn.microsoft.com/en-us/power-platform/alm/extend-pipelines). 
+> - These extensions are a work in progress of the the Power CAT teams progress towards moving their own ALM to pipelines in Power Platform.  To learn more about ongoing progress, you can monitor the CoE ALM Accelerator project (https://github.com/orgs/microsoft/projects/233) or attend our Office Hours (https://aka.ms/whoispowercat).
 
 The Pipeline Extensions for Power Platform is a set of tools and processes that add Azure DevOps pipeline functionality to the in-product Pipelines for Power Platform. It includes features such as source control, automated testing, Pull Request approvals and custom hooks for adding specific business processes. The pipeline extensions solution allows you to add the ALM Accelerator features to your in-product Pipelines for Power Platform experience.
 
