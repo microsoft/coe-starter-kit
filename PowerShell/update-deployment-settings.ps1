@@ -323,7 +323,7 @@ function Set-DeploymentSettingsConfiguration
                     Add-Pipeline-Variable $configurationVariableName $configurationVariableValue $newBuildDefinitionVariables $reservedVariables
                 }
             } elseif($null -ne $configurationDataEnvironment.DeploymentSettings) {
-                Update-Deployment-Settings-Slugs $configurationDataEnvironment.DeploymentSettings $usePlaceholders $newBuildDefinitionVariables $reservedVariables ([ref]$environmentVariables) ([ref]$connectionReferences) ([ref]$flowActivationUsers) ([ref]$customConnectorSharings) ([ref]$flowOwnerships) ([ref]$flowSharings) ([ref]$canvasApps) ([ref]$groupTeams) ([ref]$webHookUrls) ([ref]$sdkMessages)
+                Update-Deployment-Settings-Slugs $configurationDataEnvironment.DeploymentSettings $usePlaceholders $newBuildDefinitionVariables $reservedVariables ([ref]$environmentVariables) ([ref]$connectionReferences) ([ref]$flowActivationUsers) ([ref]$customConnectorSharings) ([ref]$componentOwnerships) ([ref]$flowSharings) ([ref]$canvasApps) ([ref]$groupTeams) ([ref]$webHookUrls) ([ref]$sdkMessages)
             }
 
             if(Test-Path "$buildSourceDirectory\$repo\$solutionName\config\$environmentName\") {
@@ -398,7 +398,7 @@ function Update-Deployment-Settings-Slugs
         [Parameter(Mandatory)] [ref] $connectionReferences,
         [Parameter(Mandatory)] [ref] $flowActivationUsers,
         [Parameter(Mandatory)] [ref] $customConnectorSharings,
-        [Parameter(Mandatory)] [ref] $flowOwnerships,
+        [Parameter(Mandatory)] [ref] $componentOwnerships,
         [Parameter(Mandatory)] [ref] $flowSharings,
         [Parameter(Mandatory)] [ref] $canvasApps,
         [Parameter(Mandatory)] [ref] $groupTeams,
@@ -474,7 +474,7 @@ function Update-Deployment-Settings-Slugs
                     $componentOwnership.ownerEmail = "#{$configurationVariableName}#"
                 }
             }
-            $flowOwnerships.Value = $deploymentSettings.SolutionComponentOwnershipConfiguration
+            $componentOwnerships.Value = $deploymentSettings.SolutionComponentOwnershipConfiguration
         } 
         if($null -ne $deploymentSettings.FlowShareWithGroupTeamConfiguration) {
             if($usePlaceholders.ToLower() -ne 'false') {

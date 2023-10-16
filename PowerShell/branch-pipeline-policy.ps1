@@ -302,13 +302,10 @@ function Update-Build-for-Branch{
             $environmentNames = "validation|test|prod"
         }
 
-        Write-Host "Fetching Build Definitions under Repository"
-        $definitions = Get-Repository-Build-Definitions "$orgUrl" "$solutionProjectName" "$azdoAuthType" "$solutionRepoId"
-
         # Get 'pipelines' content for all environments
         $collEnvironmentNames = $environmentNames.Split('|')
         foreach ($environmentName in $collEnvironmentNames) {
-            Invoke-Clone-Build-Settings "$orgUrl" "$solutionProjectName" "$settings" $definitions "$environmentName" "$solutionName" $repo "$azdoAuthType" $defaultAgentQueue "$solutionProjectName" "$buildRepoName" "$buildDirectory" "$currentBranch" "$pipelineStageRunId"
+            Invoke-Clone-Build-Settings "$orgUrl" "$solutionProjectName" "$settings" "$environmentName" "$solutionName" $repo "$azdoAuthType" $defaultAgentQueue "$solutionProjectName" "$buildRepoName" "$buildDirectory" "$currentBranch" "$pipelineStageRunId"
         }
     }else{
         Write-Host "'$agentPool' queue Not Found. You will need to set the default queue manually. Please verify the permissions for the user executing this command include access to queues."
@@ -324,7 +321,6 @@ function Invoke-Clone-Build-Settings {
         [Parameter(Mandatory)] [String]$orgUrl,
         [Parameter(Mandatory)] [String]$buildProjectName,
         [Parameter(Mandatory)] [string]$settings,
-        [Parameter(Mandatory)] [object]$pipelines,
         [Parameter(Mandatory)] [string]$environmentName,
         [Parameter(Mandatory)] [string]$solutionName,
         [Parameter(Mandatory)] [object]$repo,
@@ -340,12 +336,11 @@ function Invoke-Clone-Build-Settings {
     $destinationBuildName = "deploy-$environmentName".ToLower()
     $destinationBuildName = "$destinationBuildName-$solutionName"
     Write-Host "Looking for DestinationBuildName - $destinationBuildName from the build definitions"
-
+    $pipelines = Get-Repository-Build-Definitions "$orgUrl" "$solutionProjectName" "$destinationBuildName" "$azdoAuthType" "$solutionRepoId"
     $destinationBuild = $pipelines.value | Where-Object {$_.name -eq "$destinationBuildName"}
-
     # Backward compatibility logic. Check if there other pipleines available with matching pattern. If yes, fetch the Path
     $matchedSolutionBuilds = $pipelines.value | Where-Object {$_.name -like "deploy-*-$solutionName"}
-    #Write-Host "Number of matched solution builds - " $matchedSolutionBuilds.Count
+    Write-Host "Number of matched solution builds - " $matchedSolutionBuilds.Count
     # If no matched builds available create a new folder with convention \\Repo - SolutionName
     # If matched builds available, take the $pathofMatchedBuild
     $pathofMatchedBuild = $null
@@ -354,6 +349,7 @@ function Invoke-Clone-Build-Settings {
     }else{
         $pathofMatchedBuild = "/$($repo.name) - $solutionName"
     }
+    Write-Host "Path of matched build - $pathofMatchedBuild"
 
     if($destinationBuild){
         Write-Host "Pipeline already configured for $destinationBuildName. No action needed. Returning"
@@ -497,12 +493,33 @@ function Get-Repository-Build-Definitions {
     param (
         [Parameter(Mandatory)] [String]$orgUrl,
         [Parameter(Mandatory)] [String]$buildProjectName,
+        [Parameter(Mandatory)] [String]$buildName,
         [Parameter(Mandatory)] [string]$azdoAuthType,
         [Parameter(Mandatory)] [string]$solutionRepoId
     )
 
+    #Retrieve the build by name
     $buildDefinitionResponse = $null
-    $uriBuildDefinition = "$orgUrl$buildProjectName/_apis/build/definitions?repositoryId=$solutionRepoId&repositoryType=TfsGit&api-version=6.0"
+    $uriBuildDefinition = "$orgUrl$buildProjectName/_apis/build/definitions?name=$buildName&api-version=6.0"
+    Write-Host "UriBuildDefinition - $uriBuildDefinition"
+    try {
+        $buildDefinitionResponse = Invoke-RestMethod $uriBuildDefinition -Method Get -Headers @{
+            Authorization = "$azdoAuthType  $env:SYSTEM_ACCESSTOKEN"
+        }
+    }
+    catch {
+        Write-Error $_.Exception.Message
+        return
+    }
+
+    #If only one result is returned then return the result
+    if($buildDefinitionResponse.value.length -eq 1){
+        Write-Host "Build Definition Response - $buildDefinitionResponse"
+        return $buildDefinitionResponse
+    }
+
+    #If more than one result is returned then filter by repository
+    $uriBuildDefinition = "$orgUrl$buildProjectName/_apis/build/definitions?name=$buildName&repositoryId=$solutionRepoId&repositoryType=TfsGit&api-version=6.0"
 
     Write-Host "UriBuildDefinition - $uriBuildDefinition"
     try {
@@ -642,7 +659,7 @@ function Set-Branch-Policy{
         }
 
         Write-Host "Creating a new Policy."
-        $builds = Get-Repository-Build-Definitions "$orgUrl" "$solutionProjectName" "$azdoAuthType" "$solutionRepoId"
+        $builds = Get-Repository-Build-Definitions "$orgUrl" "$solutionProjectName" "deploy-validation-$solutionName" "$azdoAuthType" "$solutionRepoId"
 
         $destinationBuild = $builds.value | Where-Object {$_.name -eq "deploy-validation-$solutionName"}
 
