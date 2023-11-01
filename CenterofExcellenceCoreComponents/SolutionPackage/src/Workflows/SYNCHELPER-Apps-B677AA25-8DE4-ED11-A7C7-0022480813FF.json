@@ -48,6 +48,14 @@
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
             "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
           }
+        },
+        "GetAppAsAdmin API Version (admin_GetAppAsAdminAPIVersion)": {
+          "defaultValue": "2023-06-01",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_GetAppAsAdminAPIVersion",
+            "description": "Temp env var for the missing API version in DoD and GCCH for the Get App as Admin call needed"
+          }
         }
       },
       "triggers": {
@@ -493,6 +501,8 @@
                               "item/admin_dlplastevaluationdate": "@outputs('Get_App_as_Admin')?['body/properties/executionRestrictions/dataLossPreventionEvaluationResult/lastEvaluationDate']",
                               "item/admin_dlppoliciesviolated": "@outputs('ViolatedPoliciesString')",
                               "item/admin_dlpviolationdetails": "@outputs('Get_App_as_Admin')?['body/properties/executionRestrictions/dataLossPreventionEvaluationResult/violationErrorMessage']",
+                              "item/admin_hasimplicitconnections": "@outputs('has_Shared_Connection')",
+                              "item/admin_hasinsecureimplicitconnections": "@outputs('has_Insecure_Shared_Connection')",
                               "item/admin_iconbackgroundcolor": "@outputs('Get_App_as_Admin')?['body/properties/backgroundColor']",
                               "item/admin_inventoryme": false,
                               "item/admin_powerappsreleaseversion": "@outputs('Get_App_as_Admin')?['body/tags/publisherVersion']",
@@ -570,6 +580,8 @@
                                 "item/admin_dlplastevaluationdate": "@outputs('Get_App_as_Admin')?['body/properties/executionRestrictions/dataLossPreventionEvaluationResult/lastEvaluationDate']",
                                 "item/admin_dlppoliciesviolated": "@outputs('ViolatedPoliciesString')",
                                 "item/admin_dlpviolationdetails": "@outputs('Get_App_as_Admin')?['body/properties/executionRestrictions/dataLossPreventionEvaluationResult/violationErrorMessage']",
+                                "item/admin_hasimplicitconnections": "@outputs('has_Shared_Connection')",
+                                "item/admin_hasinsecureimplicitconnections": "@outputs('has_Insecure_Shared_Connection')",
                                 "item/admin_iconbackgroundcolor": "@outputs('Get_App_as_Admin')?['body/properties/backgroundColor']",
                                 "item/admin_inventoryme": false,
                                 "item/admin_powerappsreleaseversion": "@outputs('Get_App_as_Admin')?['body/tags/publisherVersion']",
@@ -790,7 +802,7 @@
                     }
                   },
                   "runAfter": {
-                    "Get_DLP_Policies_Violated": [
+                    "Implicit_Connections": [
                       "Succeeded"
                     ]
                   },
@@ -1369,17 +1381,6 @@
                         "actions": {
                           "Add_New_Connections": {
                             "actions": {
-                              "Connections_to_Add": {
-                                "runAfter": {},
-                                "metadata": {
-                                  "operationMetadataId": "23111389-de69-49a7-85d9-bee2bb97ba1b"
-                                },
-                                "type": "Query",
-                                "inputs": {
-                                  "from": "@body('Parse_Actual')",
-                                  "where": "@not(contains(body('Parse_Inventory'), item()))"
-                                }
-                              },
                               "Apply_to_each_new_connection": {
                                 "foreach": "@body('Connections_to_Add')",
                                 "actions": {
@@ -1417,6 +1418,29 @@
                                   "operationMetadataId": "f18a11e6-cf04-4d3d-b8f8-9c80496b86db"
                                 },
                                 "type": "Foreach"
+                              },
+                              "Distinct_Connectors": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "be10f057-ac09-4d63-9e95-c0bd9a02bfe5"
+                                },
+                                "type": "Compose",
+                                "inputs": "@union(body('Parse_Actual'), body('Parse_Actual'))"
+                              },
+                              "Connections_to_Add": {
+                                "runAfter": {
+                                  "Distinct_Connectors": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "23111389-de69-49a7-85d9-bee2bb97ba1b"
+                                },
+                                "type": "Query",
+                                "inputs": {
+                                  "from": "@outputs('Distinct_Connectors')",
+                                  "where": "@not(contains(body('Parse_Inventory'), item()))"
+                                }
                               }
                             },
                             "runAfter": {},
@@ -1535,6 +1559,39 @@
                     "operationMetadataId": "e0da0770-9fe9-4a45-8bab-00a5bee141be"
                   },
                   "type": "Scope"
+                },
+                "Implicit_Connections": {
+                  "actions": {
+                    "has_Shared_Connection": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "a24e9994-e602-42eb-9d48-e9866ba78a46"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(greater(length(split(string(outputs('Get_App_as_Admin')?['body/properties/connectionReferences']), 'sharedConnectionId')), 1), true, false)"
+                    },
+                    "has_Insecure_Shared_Connection": {
+                      "runAfter": {
+                        "has_Shared_Connection": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "4761ef5e-0c1c-4d9f-b653-90799475624c"
+                      },
+                      "type": "Compose",
+                      "inputs": "@if(and(equals(outputs('has_Shared_Connection'), true), lessOrEquals(length(split(string(outputs('Get_App_as_Admin')?['body/properties/connectionReferences']), 'executionRestrictions')), 1)), true, false)"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_DLP_Policies_Violated": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "1983ded0-b0e2-492f-91eb-655cadff35cc"
+                  },
+                  "type": "Scope"
                 }
               },
               "runAfter": {
@@ -1596,7 +1653,7 @@
             },
             "Get_App_as_Admin": {
               "runAfter": {
-                "Ensure_Envt_Inventoried": [
+                "APIVersionToUse": [
                   "Succeeded"
                 ]
               },
@@ -1613,13 +1670,26 @@
                 "parameters": {
                   "environment": "@triggerBody()['text_1']",
                   "app": "@triggerBody()['text_2']",
-                  "api-version": "2023-06-01"
+                  "api-version": "@outputs('APIVersionToUse')"
                 },
                 "authentication": {
                   "type": "Raw",
                   "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
                 }
               }
+            },
+            "APIVersionToUse": {
+              "runAfter": {
+                "Ensure_Envt_Inventoried": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "200a2a61-e922-4ea0-977a-00f008f37b66"
+              },
+              "type": "Compose",
+              "inputs": "@parameters('GetAppAsAdmin API Version (admin_GetAppAsAdminAPIVersion)')",
+              "description": "VersionToUse - while await for 2023-06-01 to be in GCCH and DoD"
             }
           },
           "runAfter": {

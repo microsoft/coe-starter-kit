@@ -50,7 +50,7 @@
           }
         },
         "FullInventory (admin_FullInventory)": {
-          "defaultValue": true,
+          "defaultValue": false,
           "type": "Bool",
           "metadata": {
             "schemaName": "admin_FullInventory",
@@ -134,6 +134,12 @@
                 "equals": [
                   "@triggerOutputs()?['body/admin_environmentname']",
                   "@null"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentstate']",
+                  "Disabled"
                 ]
               }
             ]
@@ -1070,47 +1076,9 @@
                         "where": "@contains(item()?['properties'], 'estimatedSuspensionData')"
                       }
                     },
-                    "Apply_to_tenant_flow_with_estimated_suspension": {
-                      "foreach": "@body('Filter_to_tenant_flows_with_estimated_suspension_data')",
-                      "actions": {
-                        "Update_pending_suspension": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "a49cacd4-ce03-4fcf-aeb2-a350599c7f50"
-                          },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_commondataserviceforapps_2",
-                              "operationId": "UpdateRecord",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                            },
-                            "parameters": {
-                              "entityName": "admin_flows",
-                              "recordId": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['name']",
-                              "item/admin_FlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
-                              "item/admin_flowpendingsuspensionon": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['properties']?['estimatedSuspensionData']?['time']",
-                              "item/admin_flowpendingsuspensionpowerappplanexcluded": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['properties']?['estimatedSuspensionData']?['powerAppPlanExcluded']",
-                              "item/admin_flowpendingsuspensionreason": "@items('Apply_to_tenant_flow_with_estimated_suspension')?['properties']?['estimatedSuspensionData']?['reason']",
-                              "item/admin_inventoryme": true
-                            },
-                            "authentication": "@parameters('$authentication')"
-                          }
-                        }
-                      },
-                      "runAfter": {
-                        "Filter_to_tenant_flows_with_estimated_suspension_data": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "1c5a261c-9e2d-476e-9c59-eeff69dfa109"
-                      },
-                      "type": "Foreach"
-                    },
                     "List_inventory_flows_with_estimated_suspension_data": {
                       "runAfter": {
-                        "Apply_to_tenant_flow_with_estimated_suspension": [
+                        "Select_Tenant_-_Pending_Suspension": [
                           "Succeeded"
                         ]
                       },
@@ -1126,32 +1094,149 @@
                         },
                         "parameters": {
                           "entityName": "admin_flows",
-                          "$select": "admin_flowid, admin_displayname",
+                          "$select": "admin_flowid, admin_displayname, admin_flowpendingsuspensionon, admin_flowpendingsuspensionpowerappplanexcluded, admin_flowpendingsuspensionreason",
                           "$filter": "_admin_flowenvironment_value eq  @{triggerOutputs()?['body/admin_environmentid']} and admin_flowpendingsuspensionreason ne null"
                         },
                         "authentication": "@parameters('$authentication')"
                       }
                     },
-                    "Apply_to_each_inventory_flow_with_estimated_suspension": {
-                      "foreach": "@outputs('List_inventory_flows_with_estimated_suspension_data')?['body/value']",
+                    "Select_Tenant_-_Pending_Suspension": {
+                      "runAfter": {
+                        "Filter_to_tenant_flows_with_estimated_suspension_data": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "469fbe62-52f9-4f26-a352-ff1e2453379d"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@body('Filter_to_tenant_flows_with_estimated_suspension_data')",
+                        "select": {
+                          "FlowID": "@item()?['name']",
+                          "FPS_On": "@coalesce(split(item()?['properties/estimatedSuspensionData/time'], 'T')[0], null)",
+                          "FPS_PAExcluded": "@item()?['properties/estimatedSuspensionData/powerAppPlanExcluded']",
+                          "FPS_Reason": "@item()?['properties/estimatedSuspensionData/reason']"
+                        }
+                      }
+                    },
+                    "Select_Inventory_-_Pending_Suspension": {
+                      "runAfter": {
+                        "List_inventory_flows_with_estimated_suspension_data": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e69d9531-e87e-425a-9474-3173f67305a7"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_inventory_flows_with_estimated_suspension_data')?['body/value']",
+                        "select": {
+                          "FlowID": "@item()?['admin_flowid']",
+                          "FPS_On": "@coalesce(split(item()?['admin_flowpendingsuspensionon'], 'T')[0], null)",
+                          "FPS_PAExcluded": "@item()?['admin_flowpendingsuspensionpowerappplanexcluded']",
+                          "FPS_Reason": "@item()?['admin_flowpendingsuspensionreason']"
+                        }
+                      }
+                    },
+                    "Clear_things_no_longer_pending_suspension": {
                       "actions": {
-                        "See_if_still_has_estimated_suspension": {
+                        "Apply_to_each_inventory_flow_with_estimated_suspension": {
+                          "foreach": "@outputs('List_inventory_flows_with_estimated_suspension_data')?['body/value']",
+                          "actions": {
+                            "See_if_still_has_estimated_suspension": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "dce03b01-0766-4969-95fa-ed0028184819"
+                              },
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@body('Filter_to_tenant_flows_with_estimated_suspension_data')",
+                                "where": "@equals(item()?['name'], items('Apply_to_each_inventory_flow_with_estimated_suspension')?['admin_flowid'])"
+                              }
+                            },
+                            "If_no_longer_has_estimated_suspension_then_clear": {
+                              "actions": {
+                                "Clear_estimated_suspension_data": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "563f6894-cc37-4f0d-8c52-65c963387683"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_flows",
+                                      "recordId": "@items('Apply_to_each_inventory_flow_with_estimated_suspension')?['admin_flowid']",
+                                      "item/admin_FlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_flowpendingsuspensionon": "@null",
+                                      "item/admin_flowpendingsuspensionpowerappplanexcluded": "@null",
+                                      "item/admin_flowpendingsuspensionreason": "@null",
+                                      "item/admin_inventoryme": true
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "See_if_still_has_estimated_suspension": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@length(body('See_if_still_has_estimated_suspension'))",
+                                  0
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "43ce9af8-165e-4136-9619-90e22da971ed"
+                              },
+                              "type": "If"
+                            }
+                          },
                           "runAfter": {},
                           "metadata": {
-                            "operationMetadataId": "dce03b01-0766-4969-95fa-ed0028184819"
+                            "operationMetadataId": "c187e70b-f563-4d13-b0b8-ac98bbc7bae1"
+                          },
+                          "type": "Foreach"
+                        }
+                      },
+                      "runAfter": {
+                        "Flag_to_inventory_things_whos_pending_suspension_reason_has_changed": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "971b7299-e132-45ba-8766-dd465cb51b6e"
+                      },
+                      "type": "Scope"
+                    },
+                    "Flag_to_inventory_things_whos_pending_suspension_reason_has_changed": {
+                      "actions": {
+                        "Filter_to_tenant_flows_whos_reason_or_date_has_changed_": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "03ce36a8-9fc2-4c29-bbbf-d2bf59ea3ab6"
                           },
                           "type": "Query",
                           "inputs": {
-                            "from": "@body('Filter_to_tenant_flows_with_estimated_suspension_data')",
-                            "where": "@equals(item()?['name'], items('Apply_to_each_inventory_flow_with_estimated_suspension')?['admin_flowid'])"
+                            "from": "@body('Select_Tenant_-_Pending_Suspension')",
+                            "where": "@not(contains(body('Select_Inventory_-_Pending_Suspension'), item()))"
                           }
                         },
-                        "If_no_longer_has_estimated_suspension_then_clear": {
+                        "Apply_to_tenant_flow_with_new_estimated_suspension": {
+                          "foreach": "@body('Filter_to_tenant_flows_whos_reason_or_date_has_changed_')",
                           "actions": {
-                            "Clear_estimated_suspension_data": {
+                            "Update_pending_suspension": {
                               "runAfter": {},
                               "metadata": {
-                                "operationMetadataId": "563f6894-cc37-4f0d-8c52-65c963387683"
+                                "operationMetadataId": "a49cacd4-ce03-4fcf-aeb2-a350599c7f50"
                               },
                               "type": "OpenApiConnection",
                               "inputs": {
@@ -1162,11 +1247,11 @@
                                 },
                                 "parameters": {
                                   "entityName": "admin_flows",
-                                  "recordId": "@items('Apply_to_each_inventory_flow_with_estimated_suspension')?['admin_flowid']",
+                                  "recordId": "@items('Apply_to_tenant_flow_with_new_estimated_suspension')?['FlowID']",
                                   "item/admin_FlowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
-                                  "item/admin_flowpendingsuspensionon": "@null",
-                                  "item/admin_flowpendingsuspensionpowerappplanexcluded": "@null",
-                                  "item/admin_flowpendingsuspensionreason": "@null",
+                                  "item/admin_flowpendingsuspensionon": "@items('Apply_to_tenant_flow_with_new_estimated_suspension')?['FPS_On']",
+                                  "item/admin_flowpendingsuspensionpowerappplanexcluded": "@items('Apply_to_tenant_flow_with_new_estimated_suspension')?['FPS_PAExcluded']",
+                                  "item/admin_flowpendingsuspensionreason": "@items('Apply_to_tenant_flow_with_new_estimated_suspension')?['FPS_Reason']",
                                   "item/admin_inventoryme": true
                                 },
                                 "authentication": "@parameters('$authentication')"
@@ -1174,31 +1259,25 @@
                             }
                           },
                           "runAfter": {
-                            "See_if_still_has_estimated_suspension": [
+                            "Filter_to_tenant_flows_whos_reason_or_date_has_changed_": [
                               "Succeeded"
                             ]
                           },
-                          "expression": {
-                            "equals": [
-                              "@length(body('See_if_still_has_estimated_suspension'))",
-                              0
-                            ]
-                          },
                           "metadata": {
-                            "operationMetadataId": "43ce9af8-165e-4136-9619-90e22da971ed"
+                            "operationMetadataId": "1c5a261c-9e2d-476e-9c59-eeff69dfa109"
                           },
-                          "type": "If"
+                          "type": "Foreach"
                         }
                       },
                       "runAfter": {
-                        "List_inventory_flows_with_estimated_suspension_data": [
+                        "Select_Inventory_-_Pending_Suspension": [
                           "Succeeded"
                         ]
                       },
                       "metadata": {
-                        "operationMetadataId": "c187e70b-f563-4d13-b0b8-ac98bbc7bae1"
+                        "operationMetadataId": "b095c1f1-c28b-4820-9a15-532cdf95f13c"
                       },
-                      "type": "Foreach"
+                      "type": "Scope"
                     }
                   },
                   "runAfter": {},
