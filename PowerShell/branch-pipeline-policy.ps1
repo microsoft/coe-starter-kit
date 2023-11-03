@@ -80,26 +80,14 @@ function Invoke-Create-Branch{
             if($repoRefUrlResponse.value.length -gt 0)
             {
                 Write-Host "Solution Repo - $repo has been Initialized"
-                $sourceBranch = "main"
-                $sourceBranchExists = $false
                 $sourceRefId = $null
                 $solutionBranchExists = $false
                 # Check if 'Soure Branch' exists
                 foreach($refBranch in $repoRefUrlResponse.value){
-                    if($refBranch.name -eq "refs/heads/$sourceBranch"){
-                        $sourceBranchExists = $true
-                        $sourceRefId = $refBranch.objectId
-                        Write-Host "Source Branch - $sourceBranch found. objectId -  $sourceRefId"
-                    }
                     if($refBranch.name -eq "refs/heads/$solutionName"){
                         $solutionBranchExists = $true
                         Write-Host "Solution Branch - $solutionName found."
                     }
-                }
-
-                if($sourceBranchExists -eq $false){
-                    Write-Host "Source Branch $sourceBranch not found.Exiting."
-                    return $solutionProjectRepo
                 }
 
                 # If Environment Names not provided, fall back to validation|test|prod.
@@ -111,11 +99,10 @@ function Invoke-Create-Branch{
                 Write-Host "Environment Names - $environmentNames"
 
                 # Get 'pipelines' content for all environments
-                $collEnvironmentNames = $environmentNames.Split('|')
-                foreach ($environmentName in $collEnvironmentNames) {
+                foreach ($environmentName in $environmentNames.Split('|')) {
                     Write-Host "Check if content yml file available for $environmentName. If not downloads and commit them to solution branch."
                     # Fetch Commit Changes Collection
-                    Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$pipelineSourceDirectory" "$buildRepositoryName" "$buildSourceDirectory" "$solutionName" "$environmentName" "$sourceBranch" "$agentPool" "$pipelineStageRunId"
+                    Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$pipelineSourceDirectory" "$buildRepositoryName" "$buildSourceDirectory" "$solutionName" "$environmentName" "$agentPool" "$pipelineStageRunId"
                 }
 
                 if($solutionBranchExists -ne $true -and $createSolutionBranch -ne "false" -and $currentBranch -ne "$solutionName"){
@@ -204,7 +191,6 @@ function Get-Git-Commit-Changes{
         [Parameter(Mandatory)] [String]$buildSourceDirectory,
         [Parameter(Mandatory)] [String]$solutionName,
         [Parameter(Mandatory)] [String]$environmentName,
-        [Parameter(Mandatory)] [String]$sourceBranch,
         [Parameter(Mandatory)] [String]$agentPool,
         [Parameter(Mandatory)] [String] [AllowEmptyString()]$pipelineStageRunId
     )
@@ -240,8 +226,8 @@ function Get-Git-Commit-Changes{
         if(Test-Path "$pipelineSourceDirectory\$templatePath"){
             Write-Host "Fetched pipeline content file for $environmentName"
             $pipelineContent = Get-Content "$pipelineSourceDirectory\$templatePath"
-            # Replace Placeholders in the template
-            $pipelineContent = $pipelineContent -replace "BranchContainingTheBuildTemplates", $sourceBranch
+            # Replace Placeholders in the template. Hardcoding main for now as the default branch containing the build templates
+            $pipelineContent = $pipelineContent -replace "BranchContainingTheBuildTemplates", "main"
             $pipelineContent = $pipelineContent -replace "RepositoryContainingTheBuildTemplates", "$buildProjectName/$buildRepositoryName"
             $pipelineContent = $pipelineContent -replace "SampleSolutionName", $solutionName
             if($agentPool -ne "Azure Pipelines"){

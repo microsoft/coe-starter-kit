@@ -657,65 +657,61 @@ function New-DeploymentPipelines
         
         Write-Host "Retrieved " $deploymentConfigurationData.length " deployment configurations"
 
-        if($branchResourceResults.length -eq 0 -or $buildDefinitionResponseResults.length -lt $deploymentConfigurationData.length) {
-            Write-Host "Creating new deployment pipelines"
-            $settings= ""
-            $environmentNames = ""
-            foreach($deploymentEnvironment in $deploymentConfigurationData) {
-                Write-Host "Environment Name: " $deploymentEnvironment.DeploymentEnvironmentName
+        Write-Host "Creating new deployment pipelines"
+        $settings= ""
+        $environmentNames = ""
+        foreach($deploymentEnvironment in $deploymentConfigurationData) {
+            Write-Host "Environment Name: " $deploymentEnvironment.DeploymentEnvironmentName
+            if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+                $settings = $settings + ","
+            }
+
+            if(-Not [string]::IsNullOrWhiteSpace($environmentNames)) {
+                $environmentNames = $environmentNames + "|"
+            }
+
+            if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentUrl) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
+                $environmentNames = $environmentNames + $deploymentEnvironment.DeploymentEnvironmentName
+                $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "=" + $deploymentEnvironment.DeploymentEnvironmentUrl
+            }
+
+            if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.ServiceConnectionName) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
                 if(-Not [string]::IsNullOrWhiteSpace($settings)) {
                     $settings = $settings + ","
                 }
-
-                if(-Not [string]::IsNullOrWhiteSpace($environmentNames)) {
-                    $environmentNames = $environmentNames + "|"
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentUrl) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
-                    $environmentNames = $environmentNames + $deploymentEnvironment.DeploymentEnvironmentName
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "=" + $deploymentEnvironment.DeploymentEnvironmentUrl
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.ServiceConnectionName) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-scname=" + $deploymentEnvironment.ServiceConnectionName
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.VariableGroup) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-variablegroup=" + $deploymentEnvironment.VariableGroup
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildName) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildName)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-buildname=" + $deploymentEnvironment.BuildName
-                }
-
-                if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildTemplate) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildTemplate)) {
-                    if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                        $settings = $settings + ","
-                    }
-                    $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-buildtemplate=" + $deploymentEnvironment.BuildTemplate
-                }
+                $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-scname=" + $deploymentEnvironment.ServiceConnectionName
             }
-            if(-Not [string]::IsNullOrWhiteSpace($settings)) {
-                $settings = $settings + ",environments=" + $environmentNames
-                Write-Host "Settings: " $settings
 
-                $currentPath = Get-Location
-                Set-Location "$pipelineSourceDirectory"
-                if(Test-Path ".\combined.log") {
-                    Remove-Item ".\combined.log"
+            if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.VariableGroup) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.DeploymentEnvironmentName)) {
+                if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+                    $settings = $settings + ","
                 }
-                
-                try{
-                    . "$env:POWERSHELLPATH/branch-pipeline-policy.ps1"
+                $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-variablegroup=" + $deploymentEnvironment.VariableGroup
+            }
+
+            if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildName) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildName)) {
+                if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+                    $settings = $settings + ","
+                }
+                $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-buildname=" + $deploymentEnvironment.BuildName
+            }
+
+            if(-Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildTemplate) -and -Not [string]::IsNullOrWhiteSpace($deploymentEnvironment.BuildTemplate)) {
+                if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+                    $settings = $settings + ","
+                }
+                $settings = $settings + $deploymentEnvironment.DeploymentEnvironmentName.ToLower() + "-buildtemplate=" + $deploymentEnvironment.BuildTemplate
+            }
+        }
+        if(-Not [string]::IsNullOrWhiteSpace($settings)) {
+            $settings = $settings + ",environments=" + $environmentNames
+            Write-Host "Settings: " $settings
+
+            $currentPath = Get-Location
+            Set-Location "$pipelineSourceDirectory"
+            try{
+                . "$env:POWERSHELLPATH/branch-pipeline-policy.ps1"
+                if($branchResourceResults.length -eq 0 -or $buildDefinitionResponseResults.length -lt $deploymentConfigurationData.length) {
                     Write-Host "Branch creation start"
                     $solutionProjectRepo = Invoke-Create-Branch "$orgUrl" "$buildProjectName" "$projectName" "$repo" "$buildRepositoryName" "$pipelineSourceDirectory" "$buildSourceDirectory" "$solutionName" "$environmentNames" "$azdoAuthType" "$solutionRepoId" "$agentPool" "$currentBranch" "$createSolutionBranch" "$pipelineStageRunId"
 
@@ -725,17 +721,20 @@ function New-DeploymentPipelines
                         Write-Host "Setting up branch policy start"
                         Set-Branch-Policy "$orgUrl" "$projectName" "$azdoAuthType" "$environmentNames" "$solutionName" $solutionProjectRepo "$settings" "$solutionRepoId" "$agentPool"
                     }
+                } else {
+                    # Generate 'pipelines' content for all environments if they don't exist
+                    foreach ($environmentName in $environmentNames.Split('|')) {
+                        Write-Host "Check if content yml file available for $environmentName. If not download and create them."
+                        # Fetch Commit Changes Collection
+                        Get-Git-Commit-Changes "$orgUrl" "$buildProjectName" "$projectName" "$repo" "$pipelineSourceDirectory" "$buildRepositoryName" "$buildSourceDirectory" "$solutionName" "$environmentName" "$agentPool" "$pipelineStageRunId"
+                    }
                 }
-                catch{
-                    # Code to handle the error goes here
-                    Write-Host "An error occurred duirng Branch creation with definitions and policy configurations : $($_.Exception.Message)"
-                }
-
-                if(Test-Path ".\combined.log") {
-                    Write-Host ((Get-Content ".\combined.log") -join "`n") 
-                }
-                Set-Location $currentPath
             }
+            catch{
+                # Code to handle the error goes here
+                Write-Host "An error occurred during Branch creation with definitions and policy configurations : $($_.Exception.Message)"
+            }
+            Set-Location $currentPath
         }
     }
 }
