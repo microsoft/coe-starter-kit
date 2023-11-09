@@ -80,16 +80,20 @@ function Invoke-Create-Branch{
             if($repoRefUrlResponse.value.length -gt 0)
             {
                 Write-Host "Solution Repo - $repo has been Initialized"
-                $sourceRefId = $null
                 $solutionBranchExists = $false
+                $sourceRefId = $null
                 # Check if 'Soure Branch' exists
                 foreach($refBranch in $repoRefUrlResponse.value){
+                    if($refBranch.name -eq "refs/heads/main"){
+                        $sourceRefId = $refBranch.objectId
+                        Write-Host "Source Branch - $sourceBranch found. objectId -  $sourceRefId"
+                    }                    
                     if($refBranch.name -eq "refs/heads/$solutionName"){
                         $solutionBranchExists = $true
                         Write-Host "Solution Branch - $solutionName found."
                     }
                 }
-
+                
                 # If Environment Names not provided, fall back to validation|test|prod.
                 if([string]::IsNullOrEmpty($environmentNames)){
                     Write-Host "EnvironmentNames not found in Settings. Falling back."
@@ -105,7 +109,7 @@ function Invoke-Create-Branch{
                     Get-Git-Commit-Changes "$organizationURL" "$buildProjectName" "$solutionProjectName" "$solutionRepositoryName" "$pipelineSourceDirectory" "$buildRepositoryName" "$buildSourceDirectory" "$solutionName" "$environmentName" "$agentPool" "$pipelineStageRunId"
                 }
 
-                if($solutionBranchExists -ne $true -and $createSolutionBranch -ne "false" -and $currentBranch -ne "$solutionName"){
+                if($solutionBranchExists -ne $true -and $null -ne $sourceRefId -and $createSolutionBranch -ne "false" -and $currentBranch -ne "$solutionName"){
                     # Create a new Branch
                     Write-Host "No commit changes. Creating new solution branch - $solutionName"
                     # Construct the request body for creating a new branch
