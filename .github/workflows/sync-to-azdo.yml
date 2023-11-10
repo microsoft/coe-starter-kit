@@ -3,49 +3,127 @@ name: Sync issue to Azure DevOps work item
 on:
   issues:
     types:
-      [opened, edited, deleted, closed, reopened, labeled, unlabeled, assigned]      
+      [opened, edited, deleted, closed, reopened, labeled, unlabeled, assigned, milestoned]
   issue_comment:
     types: [created, edited, deleted]
 concurrency:
   group: issue-${{ github.event.issue.number }}
-  cancel-in-progress: false    
+  cancel-in-progress: false 
+
+jobs:
+  prepareIterationPathJob:
+    runs-on: ubuntu-latest
+    outputs:
+      ITERATION: ${{ steps.set-iteration.outputs.ITERATION }}
+    steps:
+      - name: Set Milestone
+        id: set-milestone
+        run: echo "MILESTONE=${{ github.event.issue.milestone.title }}" >> $GITHUB_ENV
+
+      - name: Print Milestone
+        run: echo "Milestone is ${{ env.MILESTONE }}"        
+        
+      - name: Extract Month
+        id: extract-month
+        run: |
+          MILESTONE_PART=$(echo $MILESTONE | cut -d'-' -f2)
+          MONTH=$(echo $MILESTONE_PART | cut -d' ' -f1)
+          echo "MONTH=$MONTH" >> $GITHUB_ENV
+        
+      - name: Print Month
+        run: echo "Month ${{ env.MONTH }}"
+
+      - name: Extract Year
+        id: extract-year
+        run: |
+            MILESTONE_PART=$(echo $MILESTONE | cut -d'-' -f2)
+            YEAR=$(echo $MILESTONE_PART | cut -d' ' -f2)
+            echo "YEAR=$YEAR" >> $GITHUB_ENV
+      
+      - name: Determine Quarter
+        id: determine-quarter
+        run: |
+          LOWERCASE_MONTH=$(echo "$MONTH" | tr '[:upper:]' '[:lower:]')
+          if [[ "$LOWERCASE_MONTH" == "october" || "$LOWERCASE_MONTH" == "november" || "$LOWERCASE_MONTH" == "december" ]]; then
+            QUARTER="Q2"
+          elif [[ "$LOWERCASE_MONTH" == "january" || "$LOWERCASE_MONTH" == "february" || "$LOWERCASE_MONTH" == "march" ]]; then
+            QUARTER="Q3"
+          elif [[ "$LOWERCASE_MONTH" == "april" || "$LOWERCASE_MONTH" == "may" || "$LOWERCASE_MONTH" == "june" ]]; then
+            QUARTER="Q4"              
+          else
+            QUARTER="Q1"
+          fi
+          echo "QUARTER=$QUARTER" >> $GITHUB_ENV          
+
+      - name: Print QUARTER
+        run: echo "QUARTER is $QUARTER"
+
+      - name: Increment Year if Q1 or Q2
+        id: increment-year
+        if: ${{ env.QUARTER == 'Q1' || env.QUARTER == 'Q2' }}
+        run: |
+          YEAR=$(($YEAR + 1))
+          echo "YEAR=$YEAR" >> $GITHUB_ENV
+
+      - name: Print YEAR
+        run: echo "YEAR is $YEAR"        
+
+      - name: Replace first two characters with 'FY'
+        id: replace-fy
+        run: echo "YEAR=$(echo $YEAR | sed 's/^../FY/')" >> $GITHUB_ENV
+        
+      - name: Print FY Year
+        run: echo "FY Year - ${{ env.YEAR }}"        
+        
+      - name: Set Iteration Path
+        id: set-iteration
+        run: |
+          if [ -n "${{ github.event.issue.milestone.title }}" ]; then
+            echo "ITERATION=OneCatTools\\$YEAR\\$QUARTER\\$MONTH" >> $GITHUB_OUTPUT
+          else
+            echo "ITERATION=OneCatTools" >> $GITHUB_OUTPUT
+          fi   
 
 jobs:
   alertEnhancementCOE:
     if: |
       contains(github.event.issue.labels.*.name, 'enhancement') &&
       contains(github.event.issue.labels.*.name, 'coe-starter-kit')
+    needs: prepareIterationPathJob
     runs-on: ubuntu-latest
     steps:
-      - uses: danhellem/github-actions-issue-to-work-item@master
+      - name: Sync to Azure DevOps
+        uses: RajeevPentyala/github-actions-issue-to-work-item@master
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "cattools"
           ado_project: "OneCatTools"
           ado_area_path: "OneCatTools\\COE Starter Kit\\Develop"
-          ado_iteration_path: "OneCatTools\\FY24\\Q2\\October"  
+          ado_iteration_path: "${{ needs.prepareIterationPathJob.outputs.ITERATION }}"  
           ado_wit: "User Story"
           ado_new_state: "New"
           ado_active_state: "Active"
           ado_close_state: "Resolved"
           ado_bypassrules: true
           log_level: 100
-          
+
   alertIssueCOE:
     if: |
       contains(github.event.issue.labels.*.name, 'bug') &&
       contains(github.event.issue.labels.*.name, 'coe-starter-kit')
+    needs: prepareIterationPathJob
     runs-on: ubuntu-latest
     steps:
-      - uses: danhellem/github-actions-issue-to-work-item@master
+      - name: Sync to Azure DevOps
+        uses: RajeevPentyala/github-actions-issue-to-work-item@master
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "cattools"
           ado_project: "OneCatTools"
           ado_area_path: "OneCatTools\\COE Starter Kit\\Develop"
-          ado_iteration_path: "OneCatTools\\FY24\\Q2\\October"  
+          ado_iteration_path: "${{ needs.prepareIterationPathJob.outputs.ITERATION }}"  
           ado_wit: "Bug"
           ado_new_state: "New"
           ado_active_state: "Active"
@@ -57,58 +135,64 @@ jobs:
     if: |
       contains(github.event.issue.labels.*.name, 'question') &&
       contains(github.event.issue.labels.*.name, 'coe-starter-kit')
+    needs: prepareIterationPathJob
     runs-on: ubuntu-latest
     steps:
-      - uses: danhellem/github-actions-issue-to-work-item@master
+      - name: Sync to Azure DevOps
+        uses: RajeevPentyala/github-actions-issue-to-work-item@master
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "cattools"
           ado_project: "OneCatTools"
           ado_area_path: "OneCatTools\\COE Starter Kit\\Develop"
-          ado_iteration_path: "OneCatTools\\FY24\\Q2\\October"  
+          ado_iteration_path: "${{ needs.prepareIterationPathJob.outputs.ITERATION }}"  
           ado_wit: "Question"
           ado_new_state: "New"
           ado_active_state: "Active"
           ado_close_state: "Closed"
           ado_bypassrules: true
-          log_level: 100          
-          
+          log_level: 100 
+
   alertEnhancementALM:
     if: |
       contains(github.event.issue.labels.*.name, 'enhancement') &&
       contains(github.event.issue.labels.*.name, 'alm-accelerator')
+    needs: prepareIterationPathJob
     runs-on: ubuntu-latest
     steps:
-      - uses: danhellem/github-actions-issue-to-work-item@master
+      - name: Sync to Azure DevOps
+        uses: RajeevPentyala/github-actions-issue-to-work-item@master
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "cattools"
           ado_project: "OneCatTools"
           ado_area_path: "OneCatTools\\ALMAccelerator\\Develop"
-          ado_iteration_path: "OneCatTools\\FY24\\Q2\\October"  
+          ado_iteration_path: "${{ needs.prepareIterationPathJob.outputs.ITERATION }}"  
           ado_wit: "User Story"
           ado_new_state: "New"
           ado_active_state: "Active"
           ado_close_state: "Resolved"
           ado_bypassrules: true
           log_level: 100
-          
+
   alertIssueALM:
     if: |
       contains(github.event.issue.labels.*.name, 'bug') &&
       contains(github.event.issue.labels.*.name, 'alm-accelerator')
+    needs: prepareIterationPathJob
     runs-on: ubuntu-latest
     steps:
-      - uses: danhellem/github-actions-issue-to-work-item@master
+      - name: Sync to Azure DevOps
+        uses: RajeevPentyala/github-actions-issue-to-work-item@master
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "cattools"
           ado_project: "OneCatTools"
           ado_area_path: "OneCatTools\\ALMAccelerator\\Develop"
-          ado_iteration_path: "OneCatTools\\FY24\\Q2\\October"
+          ado_iteration_path: "${{ needs.prepareIterationPathJob.outputs.ITERATION }}"  
           ado_wit: "Bug"
           ado_new_state: "New"
           ado_active_state: "Active"
@@ -120,19 +204,21 @@ jobs:
     if: |
       contains(github.event.issue.labels.*.name, 'question') &&
       contains(github.event.issue.labels.*.name, 'alm-accelerator')
+    needs: prepareIterationPathJob
     runs-on: ubuntu-latest
     steps:
-      - uses: danhellem/github-actions-issue-to-work-item@master
+      - name: Sync to Azure DevOps
+        uses: RajeevPentyala/github-actions-issue-to-work-item@master
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "cattools"
           ado_project: "OneCatTools"
           ado_area_path: "OneCatTools\\ALMAccelerator\\Develop"
-          ado_iteration_path: "OneCatTools\\FY24\\Q2\\October"
+          ado_iteration_path: "${{ needs.prepareIterationPathJob.outputs.ITERATION }}"  
           ado_wit: "Question"
           ado_new_state: "New"
           ado_active_state: "Active"
           ado_close_state: "Closed"
           ado_bypassrules: true
-          log_level: 100             
+          log_level: 100   
