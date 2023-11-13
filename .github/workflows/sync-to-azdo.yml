@@ -8,7 +8,7 @@ on:
     types: [created, edited, deleted]
 concurrency:
   group: issue-${{ github.event.issue.number }}
-  cancel-in-progress: false 
+  cancel-in-progress: false    
 
 jobs:
   prepareIterationPathJob:
@@ -39,9 +39,34 @@ jobs:
             MILESTONE_PART=$(echo $MILESTONE | cut -d'-' -f2)
             YEAR=$(echo $MILESTONE_PART | cut -d' ' -f2)
             echo "YEAR=$YEAR" >> $GITHUB_ENV
+
+      - name: Validate Month and Year
+        id: validate-month-and-year
+        run: |
+          # List of valid month names
+          VALID_MONTHS="January February March April May June July August September October November December"
+      
+          # Check if the extracted month is in the list of valid months
+          if [[ $VALID_MONTHS =~ (^| )$MONTH($| ) ]]; then
+            echo "Valid month: $MONTH"
+            echo "MONTH_VALID=true" >> $GITHUB_ENV
+          else
+            echo "Invalid month: $MONTH"
+            echo "MONTH_VALID=false" >> $GITHUB_ENV
+          fi
+      
+          # Check if the year is a 4-digit number
+          if [[ $YEAR =~ ^[0-9]{4}$ ]]; then
+            echo "Valid year: $YEAR"
+            echo "YEAR_VALID=true" >> $GITHUB_ENV
+          else
+            echo "Invalid year: $YEAR"
+            echo "YEAR_VALID=false" >> $GITHUB_ENV
+          fi            
       
       - name: Determine Quarter
         id: determine-quarter
+        if: ${{ env.MONTH_VALID == 'true' && env.YEAR_VALID == 'true' }}        
         run: |
           LOWERCASE_MONTH=$(echo "$MONTH" | tr '[:upper:]' '[:lower:]')
           if [[ "$LOWERCASE_MONTH" == "october" || "$LOWERCASE_MONTH" == "november" || "$LOWERCASE_MONTH" == "december" ]]; then
@@ -56,6 +81,7 @@ jobs:
           echo "QUARTER=$QUARTER" >> $GITHUB_ENV          
 
       - name: Print QUARTER
+        if: ${{ env.MONTH_VALID == 'true' && env.YEAR_VALID == 'true' }}        
         run: echo "QUARTER is $QUARTER"
 
       - name: Increment Year if Q1 or Q2
@@ -66,23 +92,29 @@ jobs:
           echo "YEAR=$YEAR" >> $GITHUB_ENV
 
       - name: Print YEAR
+        if: ${{ env.MONTH_VALID == 'true' && env.YEAR_VALID == 'true' }}        
         run: echo "YEAR is $YEAR"        
 
       - name: Replace first two characters with 'FY'
+        if: ${{ env.MONTH_VALID == 'true' && env.YEAR_VALID == 'true' }}        
         id: replace-fy
         run: echo "YEAR=$(echo $YEAR | sed 's/^../FY/')" >> $GITHUB_ENV
         
       - name: Print FY Year
+        if: ${{ env.MONTH_VALID == 'true' && env.YEAR_VALID == 'true' }}        
         run: echo "FY Year - ${{ env.YEAR }}"        
         
       - name: Set Iteration Path
         id: set-iteration
         run: |
-          if [ -n "${{ github.event.issue.milestone.title }}" ]; then
+          if [ "${{ env.MONTH_VALID }}" == "true" ] && [ "${{ env.YEAR_VALID }}" == "true" ]; then
+            echo "Iteration Path - OneCatTools\\$YEAR\\$QUARTER\\$MONTH"
             echo "ITERATION=OneCatTools\\$YEAR\\$QUARTER\\$MONTH" >> $GITHUB_OUTPUT
           else
+            echo "Invalid month or year. Using default Iteration Path."
+            echo "Iteration Path - OneCatTools"
             echo "ITERATION=OneCatTools" >> $GITHUB_OUTPUT
-          fi 
+          fi
 
   alertEnhancementCOE:
     if: |
