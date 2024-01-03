@@ -1,0 +1,2791 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_commondataserviceforapps_3": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "InventoryFilter_DaysToLookBack (admin_InventoryFilter_DaysToLookBack)": {
+          "defaultValue": 50,
+          "type": "Int",
+          "metadata": {
+            "schemaName": "admin_InventoryFilter_DaysToLookBack",
+            "description": "Inventory - When not running a full inventory, we filter back this number of days and then see if the object needs updated in order to save API calls. Default 7"
+          }
+        },
+        "FullInventory (admin_FullInventory)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_FullInventory",
+            "description": "Inventory - Determines if you want to only update objects that have changed, or all objects. Defaults to No. Switching to Yes will cause the flows to inventory every single app/flow/etc in the tenant and make the flows long running "
+          }
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "CoE System User ID (admin_CoESystemUserID)": {
+          "defaultValue": "f039b642-ad47-ee11-be6d-000d3a3411d9",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_CoESystemUserID",
+            "description": "in the maker table we store a user for system with an id. Storing here so that it can be referenced without having to look it up all the time."
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added_or_modified": {
+          "metadata": {
+            "operationMetadataId": "26ca7bc4-b502-4e71-82e1-5b3e3c124d33"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Check_if_PVAs_can_and_should_be_retrieved_for_this_environment": {
+          "actions": {
+            "Terminate,_inquiry_not_supported": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "303cf191-ec29-40ed-b90b-d73833e269c0"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_hascds']",
+                  "@false"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_excusefrominventory']",
+                  "@true"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9b6688e4-c25b-4e40-9deb-fcf181094357"
+          },
+          "type": "If"
+        },
+        "Initialize_pvasToInvenotry": {
+          "runAfter": {
+            "Check_if_PVAs_can_and_should_be_retrieved_for_this_environment": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b133bb41-c98a-45c4-a8f4-fbf40b3c3873"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "pvasToInvenotry",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Inventory_Bots_(PVAs)_for_this_envt": {
+          "actions": {
+            "Get_Basics": {
+              "actions": {
+                "Get_PVAs_and_Exit_if_no_PVAs_in_envt_or_if_no_permissions": {
+                  "actions": {
+                    "Count_PVAs": {
+                      "actions": {
+                        "Quit_if_no_PVAs": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "f8a93c00-c6c9-4716-9e92-62ed6d148503"
+                          },
+                          "type": "Terminate",
+                          "inputs": {
+                            "runStatus": "Succeeded"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Terminate_if_no_access": [
+                          "Skipped"
+                        ]
+                      },
+                      "expression": {
+                        "equals": [
+                          "@length(outputs('List_Envt_PVAs')?['body/value'])",
+                          0
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "b7370f16-6982-490a-92dd-0fd0001e2c79"
+                      },
+                      "type": "If"
+                    },
+                    "Terminate_if_no_access": {
+                      "runAfter": {
+                        "List_Envt_PVAs": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "713f1ba1-95d3-4176-80c2-0488efa1cb30"
+                      },
+                      "type": "Terminate",
+                      "inputs": {
+                        "runStatus": "Failed",
+                        "runError": {
+                          "code": "404",
+                          "message": "Unauthorized"
+                        }
+                      }
+                    },
+                    "List_Envt_PVAs": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "6ef2cc8a-c705-4ed3-a72a-c92fe9bc39f4"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                          "entityName": "bots",
+                          "$select": "botid, name, modifiedon",
+                          "$filter": "botid ne null"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 20,
+                          "interval": "PT20S"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "3e11da85-65c2-4bec-a9d3-76ca594e26b2"
+                  },
+                  "type": "Scope"
+                },
+                "List_Inventory_Bots": {
+                  "runAfter": {
+                    "Get_PVA_Component_Flows_and_Exit_if_no_permissions": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "90eb78c4-2fb8-4e37-af13-0da2fd53c059"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvas",
+                      "$select": "admin_botid, admin_pvadisplayname",
+                      "$filter": "_admin_pvaenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}' and admin_pvadeleted ne true"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 20,
+                      "interval": "PT20S"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Get_PVA_Components_and_Exit_if_no_permissions": {
+                  "actions": {
+                    "Terminate_if_no_access_components": {
+                      "runAfter": {
+                        "List_Envt_PVA_Components": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "713f1ba1-95d3-4176-80c2-0488efa1cb30"
+                      },
+                      "type": "Terminate",
+                      "inputs": {
+                        "runStatus": "Failed",
+                        "runError": {
+                          "code": "404",
+                          "message": "Unauthorized"
+                        }
+                      }
+                    },
+                    "List_Envt_PVA_Components": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "6ef2cc8a-c705-4ed3-a72a-c92fe9bc39f4"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                          "entityName": "botcomponents",
+                          "$select": "name, createdon, modifiedon, botcomponentid, componenttype, componentstate, schemaname, description, _parentbotid_value",
+                          "$filter": "botcomponentid ne null"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 20,
+                          "interval": "PT20S"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_PVAs_and_Exit_if_no_PVAs_in_envt_or_if_no_permissions": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3e11da85-65c2-4bec-a9d3-76ca594e26b2"
+                  },
+                  "type": "Scope"
+                },
+                "List_Inventory_Components": {
+                  "runAfter": {
+                    "List_Inventory_Bots": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "90eb78c4-2fb8-4e37-af13-0da2fd53c059"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvacomponents",
+                      "$select": "admin_name, admin_componentcreatedon, admin_componentdescription, admin_componentmodifiedon, admin_componentstatecode, admin_componenttypecode, _admin_pvabot_value, admin_schemaname, admin_pvacomponentnonunique, admin_pvacomponentunique",
+                      "$filter": "_admin_componentenvt_value eq '@{triggerOutputs()?['body/admin_environmentid']}'"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 20,
+                      "interval": "PT20S"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "List_Inventory_Component_Flows": {
+                  "runAfter": {
+                    "List_Inventory_Components": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "90eb78c4-2fb8-4e37-af13-0da2fd53c059"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_pvacomponentflowlookups",
+                      "$select": "_admin_flow_value, _admin_pvacomponent_value, admin_pvacomponentnonunique, admin_flownonunique, admin_pvacomponentflowlookupid",
+                      "$filter": "_admin_pvacomponentenvt_value eq '@{triggerOutputs()?['body/admin_environmentid']}'"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 20,
+                      "interval": "PT20S"
+                    }
+                  },
+                  "runtimeConfiguration": {
+                    "paginationPolicy": {
+                      "minimumItemCount": 100000
+                    }
+                  }
+                },
+                "Get_PVA_Component_Flows_and_Exit_if_no_permissions": {
+                  "actions": {
+                    "Terminate_if_no_access_component_flows": {
+                      "runAfter": {
+                        "List_Envt_PVA_Component_Flows": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "713f1ba1-95d3-4176-80c2-0488efa1cb30"
+                      },
+                      "type": "Terminate",
+                      "inputs": {
+                        "runStatus": "Failed",
+                        "runError": {
+                          "code": "404",
+                          "message": "Unauthorized"
+                        }
+                      }
+                    },
+                    "List_Envt_PVA_Component_Flows": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "6ef2cc8a-c705-4ed3-a72a-c92fe9bc39f4"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                          "entityName": "botcomponent_workflowset",
+                          "$select": "botcomponentid, workflowid, botcomponent_workflowid",
+                          "$filter": "botcomponent_workflowid ne null"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 20,
+                          "interval": "PT20S"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_PVA_Components_and_Exit_if_no_permissions": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3e11da85-65c2-4bec-a9d3-76ca594e26b2"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "efeb0f32-2b27-4c3f-b104-0b2d7d855845"
+              },
+              "type": "Scope"
+            },
+            "PVA_Bot_Components": {
+              "actions": {
+                "Added_Components": {
+                  "actions": {
+                    "AddToInventory_Components": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_Actual_-_PVA_Components')",
+                        "where": "@not(contains(body('Parse_Inventory_-_PVA_Components'), item()))"
+                      }
+                    },
+                    "Add_new_Components": {
+                      "foreach": "@body('AddToInventory_Components')",
+                      "actions": {
+                        "Get_Parent_Bot_ID": {
+                          "actions": {
+                            "List_bot_for_a_botcomponent": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "63e4211a-a1b7-4559-aa0d-7181990357bc"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecordsWithOrganization",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                                  "entityName": "bot_botcomponentset",
+                                  "$filter": "botcomponentid eq @{items('Add_new_Components')?['ID_NonUnique']}"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "theBotID": {
+                              "runAfter": {
+                                "List_component_with_parent_bot": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "29c67bf1-2193-46a8-83ae-2012803765a7"
+                              },
+                              "type": "Compose",
+                              "inputs": "@coalesce(first(outputs('List_component_with_parent_bot')?['body/value'])?['_parentbotid_value'], first(outputs('List_bot_for_a_botcomponent')?['body/value'])?['botid'])"
+                            },
+                            "List_component_with_parent_bot": {
+                              "runAfter": {
+                                "List_bot_for_a_botcomponent": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "ffb6f9d6-9b22-47c9-bf05-10c8662a5eaa"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecordsWithOrganization",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                                  "entityName": "botcomponents",
+                                  "$select": "name, createdon, modifiedon, botcomponentid, componenttype, componentstate, schemaname, description, _parentbotid_value",
+                                  "$filter": "botcomponentid eq @{items('Add_new_Components')?['ID_NonUnique']}"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "hasParentBotID": {
+                              "runAfter": {
+                                "theBotID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "64df11f9-fa51-4216-bdd5-00ced4f12b5d"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(or(equals(outputs('theBotID'), null), equals(length(outputs('theBotID')), 0)), false, true)"
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "b75a2934-06f5-4470-a94e-acd0b10e5b9d"
+                          },
+                          "type": "Scope"
+                        },
+                        "Get_Component_GUID": {
+                          "actions": {
+                            "Look_for_PVA_Component_GUID": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "cfa993b7-e99c-4343-b222-7181a5c9bf81"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_3",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvacomponents",
+                                  "$select": "admin_pvacomponentid",
+                                  "$filter": "admin_pvacomponentunique eq '@{items('Add_new_Components')?['ID_Unique']}' and admin_schemaname eq '@{items('Add_new_Components')?['SchemaName']}'"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "Component_GUID_to_use": {
+                              "runAfter": {
+                                "Look_for_PVA_Component_GUID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "2aa06b3d-bba6-4ec1-a0df-be421c60ae9c"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(length(outputs('Look_for_PVA_Component_GUID')?['body/value']), 0), guid(), first(outputs('Look_for_PVA_Component_GUID')?['body/value'])['admin_pvacomponentid'])"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Parent_Bot_ID": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2f7b42bf-f64f-486a-9395-093128fbe6de"
+                          },
+                          "type": "Scope"
+                        },
+                        "If_has_Parent_BotID": {
+                          "actions": {
+                            "Update_the_component": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "6926a1b2-ed7a-46be-8c4b-b8463fef69b9"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_3",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvacomponents",
+                                  "recordId": "@outputs('Component_GUID_to_use')",
+                                  "item/admin_name": "@items('Add_new_Components')?['Name']",
+                                  "item/admin_componentcreatedon": "@items('Add_new_Components')?['CreatedOn']",
+                                  "item/admin_componentdescription": "@items('Add_new_Components')?['Description']",
+                                  "item/admin_componentdisplayname": "@items('Add_new_Components')?['Name']",
+                                  "item/admin_ComponentEnvt@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_componentmodifiedon": "@items('Add_new_Components')?['ModifiedOn']",
+                                  "item/admin_componentstatecode": "@items('Add_new_Components')?['State']",
+                                  "item/admin_componenttypecode": "@items('Add_new_Components')?['Type']",
+                                  "item/admin_PVABot@odata.bind": "admin_pvas(@{outputs('theBotID')})",
+                                  "item/admin_pvacomponentnonunique": "@items('Add_new_Components')?['ID_NonUnique']",
+                                  "item/admin_pvacomponentunique": "@items('Add_new_Components')?['ID_Unique']",
+                                  "item/admin_recordguidasstring": "@outputs('Component_GUID_to_use')",
+                                  "item/admin_schemaname": "@items('Add_new_Components')?['SchemaName']"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Component_GUID": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "Update_the_component_(no_bot)": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "6926a1b2-ed7a-46be-8c4b-b8463fef69b9"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps_3",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_pvacomponents",
+                                    "recordId": "@outputs('Component_GUID_to_use')",
+                                    "item/admin_name": "@items('Add_new_Components')?['Name']",
+                                    "item/admin_componentcreatedon": "@items('Add_new_Components')?['CreatedOn']",
+                                    "item/admin_componentdescription": "@items('Add_new_Components')?['Description']",
+                                    "item/admin_componentdisplayname": "@items('Add_new_Components')?['Name']",
+                                    "item/admin_ComponentEnvt@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_componentmodifiedon": "@items('Add_new_Components')?['ModifiedOn']",
+                                    "item/admin_componentstatecode": "@items('Add_new_Components')?['State']",
+                                    "item/admin_componenttypecode": "@items('Add_new_Components')?['Type']",
+                                    "item/admin_pvacomponentnonunique": "@items('Add_new_Components')?['ID_NonUnique']",
+                                    "item/admin_pvacomponentunique": "@items('Add_new_Components')?['ID_Unique']",
+                                    "item/admin_recordguidasstring": "@outputs('Component_GUID_to_use')",
+                                    "item/admin_schemaname": "@items('Add_new_Components')?['SchemaName']"
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@outputs('hasParentBotID')",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "1441e78a-9195-4131-b0aa-8b844c05fc9a"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "AddToInventory_Components": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "432f3419-c6cf-484e-bb68-6423925c8eda"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Actual_-_PVA_Components": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e201560e-ea4a-4844-a4e1-1a38aeefe1ed"
+                  },
+                  "type": "Scope"
+                },
+                "Get_Actual_-_PVA_Components": {
+                  "actions": {
+                    "Parse_Actual_-_PVA_Components": {
+                      "runAfter": {
+                        "Select_Actual_-_PVA_Components": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "bb1cea14-82ae-4c5e-93a4-66f7d675861e"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_Actual_-_PVA_Components')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "Name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "CreatedOn": {
+                                "type": "string"
+                              },
+                              "Description": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ModifiedOn": {
+                                "type": "string"
+                              },
+                              "State": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "SchemaName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "Type": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "ID_NonUnique": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ID_Unique": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "Name",
+                              "CreatedOn",
+                              "Description",
+                              "ModifiedOn",
+                              "State",
+                              "SchemaName",
+                              "Type",
+                              "ID_NonUnique",
+                              "ID_Unique"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "Select_Actual_-_PVA_Components": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_Envt_PVA_Components')?['body/value']",
+                        "select": {
+                          "Name": "@item()?['name']",
+                          "CreatedOn": "@item()?['createdon']",
+                          "Description": "@item()?['description']",
+                          "ModifiedOn": "@item()?['modifiedon']",
+                          "State": "@item()?['componentstate']",
+                          "SchemaName": "@item()?['schemaname']",
+                          "Type": "@item()?['componenttype']",
+                          "ID_NonUnique": "@item()?['botcomponentid']",
+                          "ID_Unique": "@concat(triggerOutputs()?['body/admin_environmentid'], '_', item()?['botcomponentid'])"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Inventory_-_PVAs_Components": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "7343aee1-301c-4197-a13f-d3e6968adc8b"
+                  },
+                  "type": "Scope"
+                },
+                "Get_Inventory_-_PVAs_Components": {
+                  "actions": {
+                    "Select_Inventory_-_PVA_Components": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_Inventory_Components')?['body/value']",
+                        "select": {
+                          "Name": "@item()?['admin_name']",
+                          "CreatedOn": "@item()?['admin_componentcreatedon']",
+                          "Description": "@item()?['admin_componentdescription']",
+                          "ModifiedOn": "@item()?['admin_componentmodifiedon']",
+                          "State": "@item()?['admin_componentstatecode']",
+                          "SchemaName": "@item()?['admin_schemaname']",
+                          "Type": "@item()?['admin_componenttypecode']",
+                          "ID_NonUnique": "@item()?['admin_pvacomponentnonunique']",
+                          "ID_Unique": "@item()?['admin_pvacomponentunique']"
+                        }
+                      }
+                    },
+                    "Parse_Inventory_-_PVA_Components": {
+                      "runAfter": {
+                        "Select_Inventory_-_PVA_Components": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "274daa1f-66a7-4bf4-be08-c3a0e2f758d7"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_Inventory_-_PVA_Components')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "Name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "CreatedOn": {
+                                "type": "string"
+                              },
+                              "Description": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ModifiedOn": {
+                                "type": "string"
+                              },
+                              "State": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "SchemaName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "Type": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "ID_NonUnique": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ID_Unique": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "Name",
+                              "CreatedOn",
+                              "Description",
+                              "ModifiedOn",
+                              "State",
+                              "SchemaName",
+                              "Type",
+                              "ID_NonUnique",
+                              "ID_Unique"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "61117d90-0e7a-40c6-8484-f0212a2b0cc4"
+                  },
+                  "type": "Scope"
+                },
+                "Removed_Components": {
+                  "actions": {
+                    "RemoveFromInventory_Components": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_Inventory_-_PVA_Components__after_update')",
+                        "where": "@not(contains(body('Parse_Actual_-_PVA_Components'), item()))"
+                      }
+                    },
+                    "Remove_bad_Components": {
+                      "foreach": "@body('RemoveFromInventory_Components')",
+                      "actions": {
+                        "Look_for_PVA_Component_GUID_to_remove": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "cfa993b7-e99c-4343-b222-7181a5c9bf81"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_3",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_pvacomponents",
+                              "$select": "admin_pvacomponentid",
+                              "$filter": "admin_pvacomponentunique eq '@{items('Remove_bad_Components')?['ID_Unique']}' and admin_schemaname eq '@{items('Remove_bad_Components')?['SchemaName']}'"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Remove_if_found": {
+                          "actions": {
+                            "Component_GUID_to_remove": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "2aa06b3d-bba6-4ec1-a0df-be421c60ae9c"
+                              },
+                              "type": "Compose",
+                              "inputs": "@first(outputs('Look_for_PVA_Component_GUID_to_remove')?['body/value'])['admin_pvacomponentid']"
+                            },
+                            "Delete_PVA_Component": {
+                              "runAfter": {
+                                "Component_GUID_to_remove": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "7f7af3a3-8726-4dba-8761-746d7a89a8a8"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "DeleteRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvacomponents",
+                                  "recordId": "@outputs('Component_GUID_to_remove')"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Look_for_PVA_Component_GUID_to_remove": [
+                              "Succeeded"
+                            ]
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(outputs('Look_for_PVA_Component_GUID_to_remove')?['body/value'])",
+                              0
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "08824747-3d4d-46d8-bbc6-efdc00be5e12"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "RemoveFromInventory_Components": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "432f3419-c6cf-484e-bb68-6423925c8eda"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Inventory_-_PVAs_Components_after_update_for_remove": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "8e0396aa-b30d-45a3-b81f-85304c2bce04"
+                  },
+                  "type": "Scope"
+                },
+                "Get_Inventory_-_PVAs_Components_after_update_for_remove": {
+                  "actions": {
+                    "Parse_Inventory_-_PVA_Components__after_update": {
+                      "runAfter": {
+                        "Select_Inventory_-_PVA_Components_after_update": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "274daa1f-66a7-4bf4-be08-c3a0e2f758d7"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_Inventory_-_PVA_Components_after_update')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "Name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "CreatedOn": {
+                                "type": "string"
+                              },
+                              "Description": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ModifiedOn": {
+                                "type": "string"
+                              },
+                              "State": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "SchemaName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "Type": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "ID_NonUnique": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ID_Unique": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "Name",
+                              "CreatedOn",
+                              "Description",
+                              "ModifiedOn",
+                              "State",
+                              "SchemaName",
+                              "Type",
+                              "ID_NonUnique",
+                              "ID_Unique"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "List_Inventory_Components_after_update": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "90eb78c4-2fb8-4e37-af13-0da2fd53c059"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_pvacomponents",
+                          "$select": "admin_name, admin_componentcreatedon, admin_componentdescription, admin_componentmodifiedon, admin_componentstatecode, admin_componenttypecode, _admin_pvabot_value, admin_schemaname, admin_pvacomponentnonunique, admin_pvacomponentunique",
+                          "$filter": "_admin_componentenvt_value eq '@{triggerOutputs()?['body/admin_environmentid']}'"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 20,
+                          "interval": "PT20S"
+                        }
+                      },
+                      "runtimeConfiguration": {
+                        "paginationPolicy": {
+                          "minimumItemCount": 100000
+                        }
+                      }
+                    },
+                    "Select_Inventory_-_PVA_Components_after_update": {
+                      "runAfter": {
+                        "List_Inventory_Components_after_update": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_Inventory_Components_after_update')?['body/value']",
+                        "select": {
+                          "Name": "@item()?['admin_name']",
+                          "CreatedOn": "@item()?['admin_componentcreatedon']",
+                          "Description": "@item()?['admin_componentdescription']",
+                          "ModifiedOn": "@item()?['admin_componentmodifiedon']",
+                          "State": "@item()?['admin_componentstatecode']",
+                          "SchemaName": "@item()?['admin_schemaname']",
+                          "Type": "@item()?['admin_componenttypecode']",
+                          "ID_NonUnique": "@item()?['admin_pvacomponentnonunique']",
+                          "ID_Unique": "@item()?['admin_pvacomponentunique']"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Added_Components": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "61117d90-0e7a-40c6-8484-f0212a2b0cc4"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "Inventory_PVAs": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "56e0b93c-406d-4fee-a0e4-db36e29aff38"
+              },
+              "type": "Scope"
+            },
+            "Look_for_PVAs_to_Inventory": {
+              "actions": {
+                "Look_for_new_PVAs": {
+                  "actions": {
+                    "Get_Inventory_-_New_PVAs": {
+                      "actions": {
+                        "Select_Inventory_-_New_PVAs": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                          },
+                          "type": "Select",
+                          "inputs": {
+                            "from": "@outputs('List_Inventory_Bots')?['body/value']",
+                            "select": {
+                              "ID": "@item()?['admin_botid']"
+                            }
+                          }
+                        },
+                        "Parse_Inventory_-_New_PVAs": {
+                          "runAfter": {
+                            "Select_Inventory_-_New_PVAs": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "274daa1f-66a7-4bf4-be08-c3a0e2f758d7"
+                          },
+                          "type": "ParseJson",
+                          "inputs": {
+                            "content": "@body('Select_Inventory_-_New_PVAs')",
+                            "schema": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ID": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ID"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "61117d90-0e7a-40c6-8484-f0212a2b0cc4"
+                      },
+                      "type": "Scope"
+                    },
+                    "Get_Actual_-_New_PVAs": {
+                      "actions": {
+                        "Select_Actual_-_New_PVAs": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "8410edf3-be25-420e-9c3d-d5c2a4d8ef20"
+                          },
+                          "type": "Select",
+                          "inputs": {
+                            "from": "@outputs('List_Envt_PVAs')?['body/value']",
+                            "select": {
+                              "ID": "@item()?['botid']"
+                            }
+                          }
+                        },
+                        "Parse_Actual_-_New_PVAs": {
+                          "runAfter": {
+                            "Select_Actual_-_New_PVAs": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "bb1cea14-82ae-4c5e-93a4-66f7d675861e"
+                          },
+                          "type": "ParseJson",
+                          "inputs": {
+                            "content": "@body('Select_Actual_-_New_PVAs')",
+                            "schema": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ID": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ID"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Get_Inventory_-_New_PVAs": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "7343aee1-301c-4197-a13f-d3e6968adc8b"
+                      },
+                      "type": "Scope"
+                    },
+                    "Add_new_ones_to_inventory_array": {
+                      "actions": {
+                        "AddToInventory": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                          },
+                          "type": "Query",
+                          "inputs": {
+                            "from": "@body('Parse_Actual_-_New_PVAs')",
+                            "where": "@not(contains(body('Parse_Inventory_-_New_PVAs'), item()))"
+                          }
+                        },
+                        "Add_new_to_array": {
+                          "foreach": "@body('AddToInventory')",
+                          "actions": {
+                            "Append_to_pvasToInventory_-_new_pvas": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "b5cba045-3339-477f-a67f-2b5ce63b9928"
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "pvasToInvenotry",
+                                "value": "@items('Add_new_to_array')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "AddToInventory": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "6db8b7e6-0fdd-4817-b396-693634e27477"
+                          },
+                          "type": "Foreach",
+                          "runtimeConfiguration": {
+                            "concurrency": {
+                              "repetitions": 50
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Get_Actual_-_New_PVAs": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "e201560e-ea4a-4844-a4e1-1a38aeefe1ed"
+                      },
+                      "type": "Scope"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "0c3972e2-243e-4814-bbac-18203f99e3f9"
+                  },
+                  "type": "Scope"
+                },
+                "If_full_inventory_run": {
+                  "actions": {
+                    "Add_every_inventoried_pva_to_pvasToInventory": {
+                      "foreach": "@outputs('List_Inventory_Bots')?['body/value']",
+                      "actions": {
+                        "Append_to_pvasToInventory_-_full_inventory": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "5be2389e-be4a-4737-aa0d-487ae30aa1c4"
+                          },
+                          "type": "AppendToArrayVariable",
+                          "inputs": {
+                            "name": "pvasToInvenotry",
+                            "value": {
+                              "ID": "@items('Add_every_inventoried_pva_to_pvasToInventory')?['admin_botid']"
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "afd988eb-2f3e-4962-ba12-7e4f2f573c82"
+                      },
+                      "type": "Foreach",
+                      "runtimeConfiguration": {
+                        "concurrency": {
+                          "repetitions": 50
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Look_for_new_PVAs": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Look_for_rpas_manually_flagged_for_inventory": {
+                        "actions": {
+                          "PVAsToInventory_-_ManualRequest": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "0e8d8c5b-cc57-472d-864e-103af0ef245b"
+                            },
+                            "type": "OpenApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connectionName": "shared_commondataserviceforapps",
+                                "operationId": "ListRecords",
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                              },
+                              "parameters": {
+                                "entityName": "admin_pvas",
+                                "$select": "admin_botid, admin_pvadisplayname",
+                                "$filter": "_admin_pvaenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}' and admin_inventoryme eq true"
+                              },
+                              "authentication": "@parameters('$authentication')",
+                              "retryPolicy": {
+                                "type": "exponential",
+                                "count": 20,
+                                "interval": "PT20S"
+                              }
+                            },
+                            "runtimeConfiguration": {
+                              "paginationPolicy": {
+                                "minimumItemCount": 100000
+                              }
+                            }
+                          },
+                          "Add_manual_requests_to_array": {
+                            "foreach": "@outputs('PVAsToInventory_-_ManualRequest')?['body/value']",
+                            "actions": {
+                              "Append_to_pvasToInventory_-_Manual_Requests": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "f6a9316e-3842-469d-b7b0-2fad69e91448"
+                                },
+                                "type": "AppendToArrayVariable",
+                                "inputs": {
+                                  "name": "pvasToInvenotry",
+                                  "value": {
+                                    "ID": "@items('Add_manual_requests_to_array')?['admin_botid']"
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {
+                              "PVAsToInventory_-_ManualRequest": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "36d126b2-b699-44ff-91bb-804ce9296a8c"
+                            },
+                            "type": "Foreach",
+                            "runtimeConfiguration": {
+                              "concurrency": {
+                                "repetitions": 50
+                              }
+                            }
+                          }
+                        },
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "9616f302-9d94-44a0-b657-9b1daa4f78a2"
+                        },
+                        "type": "Scope"
+                      },
+                      "Look_for_ones_modified_since_date": {
+                        "actions": {
+                          "Get_past_time": {
+                            "runAfter": {},
+                            "metadata": {
+                              "operationMetadataId": "214bd6fa-e96e-4732-9380-2b5f1f449478"
+                            },
+                            "type": "Expression",
+                            "kind": "GetPastTime",
+                            "inputs": {
+                              "interval": "@parameters('InventoryFilter_DaysToLookBack (admin_InventoryFilter_DaysToLookBack)')",
+                              "timeUnit": "Day"
+                            },
+                            "description": "from env variable"
+                          },
+                          "Filter_to_pvas_modified_since_Get_past_time": {
+                            "runAfter": {
+                              "Get_past_time": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "63cbd0e2-57e8-449a-942a-5d8fd1f78b09"
+                            },
+                            "type": "Query",
+                            "inputs": {
+                              "from": "@outputs('List_Envt_PVAs')?['body/value']",
+                              "where": "@or(equals(item()?['modifiedon'], null), greater(item()?['modifiedon'], body('Get_past_time')))"
+                            }
+                          },
+                          "Add_each_recently_modified_to_array": {
+                            "foreach": "@body('Filter_to_pvas_modified_since_Get_past_time')",
+                            "actions": {
+                              "Get_PVA_from_Inventory": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "c2776441-5eeb-4fb9-9e49-21a132061f3a"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "ListRecords",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_pvas",
+                                    "$select": "admin_botid, admin_pvadisplayname, admin_pvamodifiedon",
+                                    "$filter": "admin_botid eq '@{items('Add_each_recently_modified_to_array')?['botid']}'"
+                                  },
+                                  "authentication": "@parameters('$authentication')",
+                                  "retryPolicy": {
+                                    "type": "exponential",
+                                    "count": 20,
+                                    "interval": "PT20S"
+                                  }
+                                },
+                                "runtimeConfiguration": {
+                                  "paginationPolicy": {
+                                    "minimumItemCount": 100000
+                                  }
+                                }
+                              },
+                              "If_exists_in_inventory": {
+                                "actions": {
+                                  "see_if_recently_modified": {
+                                    "actions": {
+                                      "theLastDateModifiedProduct": {
+                                        "runAfter": {},
+                                        "metadata": {
+                                          "operationMetadataId": "168ece0f-af10-456a-9b2c-2b86b076359c"
+                                        },
+                                        "type": "Compose",
+                                        "inputs": "@if(equals(items('Add_each_recently_modified_to_array')?['modifiedon'], null), '', formatDateTime(items('Add_each_recently_modified_to_array')?['modifiedon'], 'yyyy-MM-dd HH:mm:ss'))"
+                                      },
+                                      "If_modified_add_to_inventory": {
+                                        "actions": {
+                                          "Append_to_array_variable_-_recently_modified": {
+                                            "runAfter": {},
+                                            "metadata": {
+                                              "operationMetadataId": "4737fe2b-cdfd-4ba7-85b9-b515b604a8c2"
+                                            },
+                                            "type": "AppendToArrayVariable",
+                                            "inputs": {
+                                              "name": "pvasToInvenotry",
+                                              "value": {
+                                                "ID": "@first(outputs('Get_PVA_from_Inventory')?['body/value'])?['admin_botid']"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "runAfter": {
+                                          "theLastDateModfiedCoE": [
+                                            "Succeeded"
+                                          ]
+                                        },
+                                        "expression": {
+                                          "or": [
+                                            {
+                                              "equals": [
+                                                "@length(outputs('theLastDateModfiedCoE'))",
+                                                0
+                                              ]
+                                            },
+                                            {
+                                              "equals": [
+                                                "@length(outputs('theLastDateModifiedProduct'))",
+                                                0
+                                              ]
+                                            },
+                                            {
+                                              "less": [
+                                                "@outputs('theLastDateModfiedCoE')",
+                                                "@outputs('theLastDateModifiedProduct')"
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        "metadata": {
+                                          "operationMetadataId": "e844dd8a-5c7b-4d80-92e9-7b26ab15397b"
+                                        },
+                                        "type": "If"
+                                      },
+                                      "theLastDateModfiedCoE": {
+                                        "runAfter": {
+                                          "theLastDateModifiedProduct": [
+                                            "Succeeded"
+                                          ]
+                                        },
+                                        "metadata": {
+                                          "operationMetadataId": "0a56b9d1-ffc4-433e-abe7-c520c8f318e7"
+                                        },
+                                        "type": "Compose",
+                                        "inputs": "@if(equals(first(outputs('Get_PVA_from_Inventory')?['body/value'])?['admin_pvamodifiedon'], null), '', formatDateTime(first(outputs('Get_PVA_from_Inventory')?['body/value'])?['admin_pvamodifiedon'], 'yyyy-MM-dd HH:mm:ss'))"
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "24b0a08f-7f0b-4995-8834-add08a612a97"
+                                    },
+                                    "type": "Scope"
+                                  }
+                                },
+                                "runAfter": {
+                                  "Get_PVA_from_Inventory": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "expression": {
+                                  "greater": [
+                                    "@length(outputs('Get_PVA_from_Inventory')?['body/value'])",
+                                    0
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "c153161f-e91f-4ab1-9dc8-280b4f3816c0"
+                                },
+                                "type": "If"
+                              }
+                            },
+                            "runAfter": {
+                              "Filter_to_pvas_modified_since_Get_past_time": [
+                                "Succeeded"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "32127bd9-2400-4d2f-b15e-6d176fc23554"
+                            },
+                            "type": "Foreach",
+                            "runtimeConfiguration": {
+                              "concurrency": {
+                                "repetitions": 50
+                              }
+                            }
+                          }
+                        },
+                        "runAfter": {
+                          "Look_for_rpas_manually_flagged_for_inventory": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "4c090145-2a78-4b48-994e-32e2be8b1c11"
+                        },
+                        "type": "Scope"
+                      }
+                    }
+                  },
+                  "expression": {
+                    "equals": [
+                      "@parameters('FullInventory (admin_FullInventory)')",
+                      "@true"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "c0e211f1-0938-41a4-ac62-faf1ae2e371c"
+                  },
+                  "type": "If"
+                },
+                "Raw_to_Inventory": {
+                  "runAfter": {
+                    "If_full_inventory_run": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "ed6ce112-c849-4027-9411-49f382ff01fc"
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('pvasToInvenotry')"
+                },
+                "Distinct_to_Inventory": {
+                  "runAfter": {
+                    "Raw_to_Inventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "15557393-f770-4298-8857-aa91a143b52e"
+                  },
+                  "type": "Compose",
+                  "inputs": "@union(variables('pvasToInvenotry'), variables('pvasToInvenotry'))"
+                }
+              },
+              "runAfter": {
+                "Get_Basics": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b9ef3d69-2a72-41e6-9640-f43ba22c8ed0"
+              },
+              "type": "Scope"
+            },
+            "Inventory_PVAs": {
+              "actions": {
+                "For_each_item_to_inventory": {
+                  "foreach": "@outputs('Distinct_to_Inventory')",
+                  "actions": {
+                    "Get_actual_object": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "c392d00b-9e49-4834-92e3-ebe566f67ca3"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItemWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                          "entityName": "bots",
+                          "recordId": "@items('For_each_item_to_inventory')?['ID']"
+                        },
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 20,
+                          "interval": "PT20S"
+                        }
+                      }
+                    },
+                    "CATCH:_Object_no_longer_exists": {
+                      "runAfter": {
+                        "Get_actual_object": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "8a5890f6-d918-4a9f-b39f-bd646233e439"
+                      },
+                      "type": "Compose",
+                      "inputs": "Object no longer exists"
+                    },
+                    "Object_Found_so_add_or_update_inventory": {
+                      "actions": {
+                        "Get_Owner_Details": {
+                          "actions": {
+                            "Get_Owner": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "790069e7-1747-45da-a4f3-f6b9dda38e5a"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_3",
+                                  "operationId": "GetItemWithOrganization",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                                  "entityName": "systemusers",
+                                  "recordId": "@outputs('Get_actual_object')?['body/_ownerid_value']"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              }
+                            },
+                            "OwnerID": {
+                              "runAfter": {
+                                "Get_Owner": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(body('Get_Owner')?['azureactivedirectoryobjectid'], null), if(equals(body('Get_Owner')?['fullname'], 'SYSTEM'), parameters('CoE System User ID (admin_CoESystemUserID)'), ''), body('Get_Owner')?['azureactivedirectoryobjectid'])"
+                            },
+                            "See_if_already_in_Maker_Table": {
+                              "runAfter": {
+                                "OwnerID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "6a7ef4f9-5a59-45f9-a290-e89115a2f36d"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "$filter": "admin_makerid eq @{outputs('OwnerID')}"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              }
+                            },
+                            "If_not,_add_them": {
+                              "actions": {
+                                "OwnerID_for_Helper": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
+                                  },
+                                  "type": "Compose",
+                                  "inputs": "@if(equals(body('Get_Owner')?['azureactivedirectoryobjectid'], null), if(equals(body('Get_Owner')?['fullname'], 'SYSTEM'), 'SYSTEM', ''), body('Get_Owner')?['azureactivedirectoryobjectid'])"
+                                },
+                                "Maker_Check": {
+                                  "runAfter": {
+                                    "OwnerID_for_Helper": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "9b77404f-4d8e-4e72-992d-f09db75c4167"
+                                  },
+                                  "type": "Workflow",
+                                  "inputs": {
+                                    "host": {
+                                      "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                                    },
+                                    "body": {
+                                      "text": "@outputs('OwnerID_for_Helper')",
+                                      "boolean": false
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "See_if_already_in_Maker_Table": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@length(outputs('See_if_already_in_Maker_Table')?['body/value'])",
+                                  0
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b0599ae4-1806-47c1-9c32-955838f93048"
+                              },
+                              "type": "If"
+                            },
+                            "Get_Maker": {
+                              "runAfter": {
+                                "If_not,_add_them": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "ae6d172a-7fcb-44c7-88dc-32f5b1cec2c8"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "GetItem",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "recordId": "@outputs('OwnerID')"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              }
+                            },
+                            "catch_for_orphans_no_id": {
+                              "runAfter": {
+                                "Get_Maker": [
+                                  "Failed"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b420ec58-4b1d-4f34-8cf4-880c0c0b82ab"
+                              },
+                              "type": "Compose",
+                              "inputs": "catch for orphans no id"
+                            },
+                            "IsOrphan": {
+                              "runAfter": {
+                                "catch_for_orphans_no_id": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "5ba88760-724b-482e-b7c5-72b125a595a0"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(or(equals(outputs('OwnerID'), null), equals(length(outputs('OwnerID')), 0), equals(outputs('Get_Maker')?['body/admin_makerisorphaned'], true), equals(outputs('Get_Maker')?['body/admin_makerid'], null)), true, false)"
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "615c25ea-17df-47c6-b0b2-1620d61d03c7"
+                          },
+                          "type": "Scope"
+                        },
+                        "Upsert_Record": {
+                          "actions": {
+                            "Upsert_PVA_(Orphaned)": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "af29f0b0-afa2-4b70-bb2b-be91d7f3446b"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvas",
+                                  "recordId": "@items('For_each_item_to_inventory')?['ID']",
+                                  "item/admin_name": "@outputs('Get_actual_object')?['body/name']",
+                                  "item/admin_botcomponentidunique": "@outputs('Get_actual_object')?['body/componentidunique']",
+                                  "item/admin_pvacreatedon": "@outputs('Get_actual_object')?['body/createdon']",
+                                  "item/admin_pvadeleted": "@if(or(equals(outputs('Get_actual_object')?['body/componentstate'], 2), equals(outputs('Get_actual_object')?['body/componentstate'], 3)), true, false)",
+                                  "item/admin_pvadeletedon": "@if(or(equals(outputs('Get_actual_object')?['body/componentstate'], 2), equals(outputs('Get_actual_object')?['body/componentstate'], 3)), outputs('PotentialDelDate'), null)",
+                                  "item/admin_pvadisplayname": "@outputs('Get_actual_object')?['body/name']",
+                                  "item/admin_PVAEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_pvaenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_botid": "@items('For_each_item_to_inventory')?['ID']",
+                                  "item/admin_pvaisorphaned": "Yes",
+                                  "item/admin_botlanguage": "@{outputs('Get_actual_object')?['body/language@OData.Community.Display.V1.FormattedValue']} (@{outputs('Get_actual_object')?['body/language']})",
+                                  "item/admin_pvamodifiedon": "@outputs('Get_actual_object')?['body/modifiedon']",
+                                  "item/admin_botschemaname": "@outputs('Get_actual_object')?['body/schemaname']",
+                                  "item/admin_pvastate": "@outputs('Get_actual_object')?['body/componentstate@OData.Community.Display.V1.FormattedValue']",
+                                  "item/admin_botstatecode": "@outputs('Get_actual_object')?['body/componentstate']",
+                                  "item/admin_bottemplate": "@outputs('Get_actual_object')?['body/template']",
+                                  "item/admin_inventoryme": false,
+                                  "item/admin_recordguidasstring": "@items('For_each_item_to_inventory')?['ID']"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Object_for_Deleted_Date": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "Upsert_PVA": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "af29f0b0-afa2-4b70-bb2b-be91d7f3446b"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_pvas",
+                                    "recordId": "@items('For_each_item_to_inventory')?['ID']",
+                                    "item/admin_name": "@outputs('Get_actual_object')?['body/name']",
+                                    "item/admin_botcomponentidunique": "@outputs('Get_actual_object')?['body/componentidunique']",
+                                    "item/admin_pvacreatedon": "@outputs('Get_actual_object')?['body/createdon']",
+                                    "item/admin_pvadeleted": "@if(or(equals(outputs('Get_actual_object')?['body/componentstate'], 2), equals(outputs('Get_actual_object')?['body/componentstate'], 3)), true, false)",
+                                    "item/admin_pvadeletedon": "@if(or(equals(outputs('Get_actual_object')?['body/componentstate'], 2), equals(outputs('Get_actual_object')?['body/componentstate'], 3)), outputs('PotentialDelDate'), null)",
+                                    "item/admin_pvadisplayname": "@outputs('Get_actual_object')?['body/name']",
+                                    "item/admin_PVAEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_pvaenvironmentdisplayname": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_botid": "@items('For_each_item_to_inventory')?['ID']",
+                                    "item/admin_pvaisorphaned": "No",
+                                    "item/admin_botlanguage": "@{outputs('Get_actual_object')?['body/language@OData.Community.Display.V1.FormattedValue']} (@{outputs('Get_actual_object')?['body/language']})",
+                                    "item/admin_pvamodifiedon": "@outputs('Get_actual_object')?['body/modifiedon']",
+                                    "item/admin_PVAOwner@odata.bind": "admin_makers(@{outputs('Get_Maker')?['body/admin_makerid']})",
+                                    "item/admin_botschemaname": "@outputs('Get_actual_object')?['body/schemaname']",
+                                    "item/admin_pvastate": "@outputs('Get_actual_object')?['body/componentstate@OData.Community.Display.V1.FormattedValue']",
+                                    "item/admin_botstatecode": "@outputs('Get_actual_object')?['body/componentstate']",
+                                    "item/admin_bottemplate": "@outputs('Get_actual_object')?['body/template']",
+                                    "item/admin_inventoryme": false,
+                                    "item/admin_recordguidasstring": "@items('For_each_item_to_inventory')?['ID']"
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@outputs('IsOrphan')",
+                              true
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "be0a6eb2-7133-4fd0-912c-f8bba4a7d144"
+                          },
+                          "type": "If"
+                        },
+                        "Get_Object_for_Deleted_Date": {
+                          "actions": {
+                            "See_if_exists": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "d1082aa8-a7bc-4742-b58f-c91af127c397"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvas",
+                                  "$select": "admin_botid, admin_pvadeletedon",
+                                  "$filter": "admin_botid ne null"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "PotentialDelDate": {
+                              "runAfter": {
+                                "See_if_exists": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b764d485-d6db-449d-a727-7b074d6d45e5"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(length(outputs('See_if_exists')?['body/value']), 0), utcnow(), first(outputs('See_if_exists')?['body/value'])?['admin_pvadeletedon'])",
+                              "description": "If the bot is deleted via component state this will be its deletedon date"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Owner_Details": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "438a6d5b-e0c1-4082-a49e-0c1ae794e79f"
+                          },
+                          "type": "Scope"
+                        }
+                      },
+                      "runAfter": {
+                        "CATCH:_Object_no_longer_exists": [
+                          "Skipped"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "28e14234-542b-4cdf-80cc-10089718f981"
+                      },
+                      "type": "Scope"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "b7cba24f-db60-4fcd-9d25-3367415d1537"
+                  },
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Look_for_PVAs_to_Inventory": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f69952e0-f7f4-4a4e-bb9b-50ad877ae173"
+              },
+              "type": "Scope"
+            },
+            "PVA_Flows": {
+              "actions": {
+                "Get_Inventory_-_PVA_Flows": {
+                  "actions": {
+                    "Select_Inventory_-_PVA_Flows": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d9864193-358e-4194-9acd-28dab1de4882"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_Inventory_Component_Flows')?['body/value']",
+                        "select": {
+                          "FlowID": "@item()?['admin_flownonunique']",
+                          "ComponentID": "@item()?['admin_pvacomponentnonunique']",
+                          "ID": "@item()?['admin_pvacomponentflowlookupid']"
+                        }
+                      }
+                    },
+                    "Parse_Inventory_-_PVA_Flows": {
+                      "runAfter": {
+                        "Select_Inventory_-_PVA_Flows": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "274daa1f-66a7-4bf4-be08-c3a0e2f758d7"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_Inventory_-_PVA_Flows')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "FlowID": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ComponentID": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ID": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "FlowID",
+                              "ComponentID",
+                              "ID"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "61117d90-0e7a-40c6-8484-f0212a2b0cc4"
+                  },
+                  "type": "Scope"
+                },
+                "Get_Actual_-_PVA_Flows": {
+                  "actions": {
+                    "Select_Actual_-_PVA_Flows": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "8410edf3-be25-420e-9c3d-d5c2a4d8ef20"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_Envt_PVA_Component_Flows')?['body/value']",
+                        "select": {
+                          "FlowID": "@item()?['workflowid']",
+                          "ComponentID": "@item()?['botcomponentid']",
+                          "ID": "@item()?['botcomponent_workflowid']"
+                        }
+                      }
+                    },
+                    "Parse_Actual_-_PVA_Flows": {
+                      "runAfter": {
+                        "Select_Actual_-_PVA_Flows": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "bb1cea14-82ae-4c5e-93a4-66f7d675861e"
+                      },
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@body('Select_Actual_-_PVA_Flows')",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "FlowID": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ComponentID": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ID": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "FlowID",
+                              "ComponentID",
+                              "ID"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Inventory_-_PVA_Flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "7343aee1-301c-4197-a13f-d3e6968adc8b"
+                  },
+                  "type": "Scope"
+                },
+                "Added_Flows": {
+                  "actions": {
+                    "AddToInventory_Flows": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_Actual_-_PVA_Flows')",
+                        "where": "@not(contains(body('Parse_Inventory_-_PVA_Flows'), item()))"
+                      }
+                    },
+                    "Add_Each_PVA_Flow": {
+                      "foreach": "@body('AddToInventory_Flows')",
+                      "actions": {
+                        "Get_Flow_from_CoE": {
+                          "actions": {
+                            "Find_flow_for_GUID": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "622ffa11-16f5-428c-b85e-4c29fbd009df"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_3",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_flows",
+                                  "$select": "admin_flowid",
+                                  "$filter": "_admin_flowenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}' and admin_workflowentityid eq '@{items('Add_Each_PVA_Flow')?['FlowID']}'"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "FlowID": {
+                              "runAfter": {
+                                "Find_flow_for_GUID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b315cac4-781d-4a96-ab9c-539c99273734"
+                              },
+                              "type": "Compose",
+                              "inputs": "@first(outputs('Find_flow_for_GUID')?['body/value'])?['admin_flowid']"
+                            },
+                            "FlowInInventory": {
+                              "runAfter": {
+                                "FlowID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "1130706f-191d-44ad-ae75-347eb3e6184f"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(length(outputs('Find_flow_for_GUID')?['body/value']), 0), false, true)"
+                            }
+                          },
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "5d99adbf-3cc4-4e2c-8536-ae465fa0cdb6"
+                          },
+                          "type": "Scope"
+                        },
+                        "If_flow_found_put_component_flow_in_inventory": {
+                          "actions": {
+                            "Add_with_our_without_Bot": {
+                              "actions": {
+                                "Upsert_PVA_Component_Flow": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "aea32e6c-04c1-404c-86f5-f722afbb075b"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps_3",
+                                      "operationId": "UpdateRecord",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_pvacomponentflowlookups",
+                                      "recordId": "@items('Add_Each_PVA_Flow')?['ID']",
+                                      "item/admin_name": "@outputs('ComponentID')",
+                                      "item/admin_Flow@odata.bind": "admin_flows(@{outputs('FlowID')})",
+                                      "item/admin_flownonunique": "@items('Add_Each_PVA_Flow')?['FlowID']",
+                                      "item/admin_PVAComponent@odata.bind": "admin_pvacomponents(@{outputs('ComponentID')})",
+                                      "item/admin_PVAComponentBot@odata.bind": "admin_pvas(@{outputs('BotID')})",
+                                      "item/admin_PVAComponentEnvt@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                      "item/admin_pvacomponentnonunique": "@items('Add_Each_PVA_Flow')?['ComponentID']"
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              },
+                              "runAfter": {},
+                              "else": {
+                                "actions": {
+                                  "Upsert_PVA_Component_Flow_(no_bot)": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "aea32e6c-04c1-404c-86f5-f722afbb075b"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps_3",
+                                        "operationId": "UpdateRecord",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_pvacomponentflowlookups",
+                                        "recordId": "@items('Add_Each_PVA_Flow')?['ID']",
+                                        "item/admin_name": "@outputs('ComponentID')",
+                                        "item/admin_Flow@odata.bind": "admin_flows(@{outputs('FlowID')})",
+                                        "item/admin_flownonunique": "@items('Add_Each_PVA_Flow')?['FlowID']",
+                                        "item/admin_PVAComponent@odata.bind": "admin_pvacomponents(@{outputs('ComponentID')})",
+                                        "item/admin_PVAComponentEnvt@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                        "item/admin_pvacomponentnonunique": "@items('Add_Each_PVA_Flow')?['ComponentID']"
+                                      },
+                                      "authentication": "@parameters('$authentication')"
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@outputs('hasBotID')",
+                                  "@true"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "a311663e-6043-4962-9069-d63b862f38ef"
+                              },
+                              "type": "If"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Component_from_CoE": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "Flow_not_yet_in_inventory": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "0b965ef3-58d6-4973-b231-946f0681c26d"
+                                },
+                                "type": "Compose",
+                                "inputs": "Flow not yet in inventory"
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@outputs('FlowInInventory')",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "159e90a7-302b-49f3-a358-3a3507c88723"
+                          },
+                          "type": "If"
+                        },
+                        "Get_Component_from_CoE": {
+                          "actions": {
+                            "Find_component_for_GUID": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "3150cacf-7d46-4241-aa99-392f49214b9d"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_3",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_pvacomponents",
+                                  "$select": "admin_pvacomponentid, _admin_pvabot_value",
+                                  "$filter": "_admin_componentenvt_value eq '@{triggerOutputs()?['body/admin_environmentid']}' and admin_pvacomponentnonunique eq '@{items('Add_Each_PVA_Flow')?['ComponentID']}'"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "ComponentID": {
+                              "runAfter": {
+                                "Find_component_for_GUID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "9ffb3dd6-47f9-4909-bdbe-df8b74b8d9e5"
+                              },
+                              "type": "Compose",
+                              "inputs": "@first(outputs('Find_component_for_GUID')?['body/value'])?['admin_pvacomponentid']"
+                            },
+                            "hasBotID": {
+                              "runAfter": {
+                                "BotID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "df916ff8-1c1c-4541-9f99-bde14a7f439b"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(length(outputs('BotID')), 0), false, true)"
+                            },
+                            "BotID": {
+                              "runAfter": {
+                                "ComponentID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b8c7beaf-2982-4353-bdf6-6a28c6f1a31b"
+                              },
+                              "type": "Compose",
+                              "inputs": "@coalesce(first(outputs('Find_component_for_GUID')?['body/value'])?['_admin_pvabot_value'], '')"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Flow_from_CoE": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "5049d30b-c5a3-4f58-a40a-398e0637bf69"
+                          },
+                          "type": "Scope"
+                        }
+                      },
+                      "runAfter": {
+                        "AddToInventory_Flows": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "4653987e-4160-4e46-ba9f-869297d53b03"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Get_Actual_-_PVA_Flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e201560e-ea4a-4844-a4e1-1a38aeefe1ed"
+                  },
+                  "type": "Scope"
+                },
+                "Removed_Flows": {
+                  "actions": {
+                    "RemoveFromInventory_Flows": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "ec8ebf56-f3e3-4251-9491-440c69d207e4"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_Inventory_-_PVA_Flows')",
+                        "where": "@not(contains(body('Parse_Actual_-_PVA_Flows'), item()))"
+                      }
+                    },
+                    "Remove_Each_PVA_Flow": {
+                      "foreach": "@body('RemoveFromInventory_Flows')",
+                      "actions": {
+                        "Remove_PVA_Flow": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "b28adc02-fad1-44fa-b4e1-5ff731e90695"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_3",
+                              "operationId": "DeleteRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_pvacomponentflowlookups",
+                              "recordId": "@items('Remove_Each_PVA_Flow')?['ID']"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "RemoveFromInventory_Flows": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "6acf0e83-6d99-47f7-b4b4-d28ca2beca6e"
+                      },
+                      "type": "Foreach"
+                    }
+                  },
+                  "runAfter": {
+                    "Added_Flows": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "8e0396aa-b30d-45a3-b81f-85304c2bce04"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "PVA_Bot_Components": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "166f6567-9625-4391-86d7-bb24383b54dc"
+              },
+              "type": "Scope"
+            }
+          },
+          "runAfter": {
+            "Initialize_pvasToInvenotry": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7fabdbe3-cca0-4e6b-9f0b-b9ac39bea0b9"
+          },
+          "type": "Scope"
+        },
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Inventory_Bots_(PVAs)_for_this_envt": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

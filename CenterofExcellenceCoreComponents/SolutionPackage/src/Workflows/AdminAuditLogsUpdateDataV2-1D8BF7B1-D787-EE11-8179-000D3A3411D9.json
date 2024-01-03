@@ -1,0 +1,552 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_commondataserviceforapps_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverseForApps"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added_or_modified": {
+          "metadata": {
+            "operationMetadataId": "9b2e45d5-d26c-4d2a-8257-70c620ef5535"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_auditlog",
+              "subscriptionRequest/scope": 4,
+              "subscriptionRequest/filteringattributes": "admin_operation, admin_userupn",
+              "subscriptionRequest/filterexpression": "admin_operation eq 'LaunchPowerApp'"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": false
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Update_Data": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']",
+                  "item/admin_lastrun": "@utcNow()",
+                  "item/admin_lastrunpassed": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        },
+        "Update_Data": {
+          "actions": {
+            "Derive_and_Update_App_Data": {
+              "actions": {
+                "AppID": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "2be019cd-19c8-4a15-b9e5-db33600a8b1c"
+                  },
+                  "type": "Compose",
+                  "inputs": "s"
+                },
+                "GetApp": {
+                  "runAfter": {
+                    "AppID": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "b107147e-fcbf-4667-af14-f76ddefa9ed0"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps_1",
+                      "operationId": "GetItem",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "admin_apps",
+                      "recordId": "@triggerOutputs()?['body/admin_appid']",
+                      "$select": "admin_applastlaunchedon, admin_displayname",
+                      "$expand": "admin_AppEnvironment($select=admin_displayname)"
+                    },
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 20,
+                      "interval": "PT20S"
+                    }
+                  }
+                },
+                "AppDoesNotExist": {
+                  "runAfter": {
+                    "GetApp": [
+                      "Failed"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "67672326-2603-4e00-9bc5-a840e94e3af3"
+                  },
+                  "type": "Compose",
+                  "inputs": "APP DOES NOT EXISTS"
+                },
+                "Updaet_App_Data": {
+                  "actions": {
+                    "Update_AppLastLaunched": {
+                      "actions": {
+                        "Update_Last_Launched_if_newer": {
+                          "actions": {
+                            "Update_App_Last_Launch_Date": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "8b7d56a0-b151-4654-9da6-a6c556d29ce3"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_1",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_apps",
+                                  "recordId": "@triggerOutputs()?['body/admin_appid']",
+                                  "item/admin_applastlaunchedon": "@triggerOutputs()?['body/admin_creationtime']"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "expression": {
+                            "or": [
+                              {
+                                "equals": [
+                                  "@outputs('GetApp')?['body/admin_applastlaunchedon']",
+                                  "@null"
+                                ]
+                              },
+                              {
+                                "less": [
+                                  "@outputs('GetApp')?['body/admin_applastlaunchedon']",
+                                  "@triggerOutputs()?['body/admin_creationtime']"
+                                ]
+                              }
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "4c1b10a6-f191-4e7e-9ec1-6c8d7acee840"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "8dc80306-05c7-4c29-94d0-a8d686258e56"
+                      },
+                      "type": "Scope"
+                    },
+                    "Update_Audit_Log_record_with_App_information": {
+                      "actions": {
+                        "Update_audit_log_record_app_info": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "cfde3dce-9224-4fea-b8a0-985680b1bd72"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "UpdateRecord",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_auditlogs",
+                              "recordId": "@triggerOutputs()?['body/admin_auditlogid']",
+                              "item/admin_appenvironment": "@outputs('GetApp')?['body/admin_appenvironment/admin_displayname']",
+                              "item/admin_appname": "@outputs('GetApp')?['body/admin_displayname']"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Update_AppLastLaunched": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "d9085feb-ce1c-4a21-a250-3dafb2f1bfb9"
+                      },
+                      "type": "Scope"
+                    }
+                  },
+                  "runAfter": {
+                    "AppDoesNotExist": [
+                      "Skipped"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "a8efc134-7786-43b3-a485-4bc4ca7fdf44"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "11ac214f-0e9d-47a6-a3df-3aa27cef4bc9"
+              },
+              "type": "Scope"
+            },
+            "Derive_and_Update_User_Data": {
+              "actions": {
+                "Search_for_users_(V2)": {
+                  "runAfter": {
+                    "UPN": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0a97d3ff-11ad-4aa0-9ca8-eaac2bcd5f2a"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_office365users",
+                      "operationId": "SearchUserV2",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+                    },
+                    "parameters": {
+                      "searchTerm": "@outputs('UPN')",
+                      "isSearchTermRequired": true
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "split_UPN_on_hashtag": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "6c53ea04-c7a7-42c3-ab6a-de94f511ecb7"
+                  },
+                  "type": "Compose",
+                  "inputs": "@split(triggerOutputs()?['body/admin_userupn'], '#')"
+                },
+                "UPN": {
+                  "runAfter": {
+                    "split_UPN_on_hashtag": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "e181d967-249e-4921-8c88-75911890141d"
+                  },
+                  "type": "Compose",
+                  "inputs": "@if(greater(length(outputs('split_UPN_on_hashtag')), 1), outputs('split_UPN_on_hashtag')[1], outputs('split_UPN_on_hashtag')[0])"
+                },
+                "if_found_update_with_user_info": {
+                  "actions": {
+                    "Get_user_profile_(V2)": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "6757ee8e-a004-4c12-865a-c906f7eb8bac"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_office365users",
+                          "operationId": "UserProfile_V2",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+                        },
+                        "parameters": {
+                          "id": "@first(outputs('Search_for_users_(V2)')?['body/value'])?['Id']",
+                          "$select": "city, country, department, id, displayname, jobtitle"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Update_audit_log_record": {
+                      "runAfter": {
+                        "Get_user_profile_(V2)": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "cfde3dce-9224-4fea-b8a0-985680b1bd72"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_auditlogs",
+                          "recordId": "@triggerOutputs()?['body/admin_auditlogid']",
+                          "item/admin_usercity": "@outputs('Get_user_profile_(V2)')?['body/city']",
+                          "item/admin_usercountry": "@outputs('Get_user_profile_(V2)')?['body/country']",
+                          "item/admin_userdepartment": "@outputs('Get_user_profile_(V2)')?['body/department']",
+                          "item/admin_userid": "@outputs('Get_user_profile_(V2)')?['body/id']",
+                          "item/admin_userjobtitle": "@outputs('Get_user_profile_(V2)')?['body/jobTitle']",
+                          "item/admin_username": "@outputs('Get_user_profile_(V2)')?['body/displayName']"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Search_for_users_(V2)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": {
+                    "equals": [
+                      "@length(outputs('Search_for_users_(V2)')?['body/value'])",
+                      1
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "5230b249-bf69-4faf-9f7d-3f7e5914d0c4"
+                  },
+                  "type": "If"
+                }
+              },
+              "runAfter": {
+                "Derive_and_Update_App_Data": [
+                  "Succeeded",
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "29b9d909-96c4-41e4-8616-5423169cba34"
+              },
+              "type": "Scope"
+            }
+          },
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "46eabbaa-5526-40c2-b050-a4712e81b0b1"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

@@ -33,7 +33,7 @@
           "type": "SecureObject"
         },
         "InventoryFilter_DaysToLookBack (admin_InventoryFilter_DaysToLookBack)": {
-          "defaultValue": 7,
+          "defaultValue": 50,
           "type": "Int",
           "metadata": {
             "schemaName": "admin_InventoryFilter_DaysToLookBack",
@@ -66,7 +66,7 @@
         }
       },
       "triggers": {
-        "When_a_row_is_added,_modified_or_deleted": {
+        "When_a_row_is_added_or_modified": {
           "metadata": {
             "operationMetadataId": "26ca7bc4-b502-4e71-82e1-5b3e3c124d33"
           },
@@ -117,18 +117,6 @@
               },
               {
                 "equals": [
-                  "@triggerOutputs()?['body/admin_environmentsku']",
-                  "Teams"
-                ]
-              },
-              {
-                "equals": [
-                  "@triggerOutputs()?['body/admin_environmentsku']",
-                  "Developer"
-                ]
-              },
-              {
-                "equals": [
                   "@triggerOutputs()?['body/admin_excusefrominventory']",
                   "@true"
                 ]
@@ -158,27 +146,6 @@
               }
             ]
           }
-        },
-        "Initialize_variable_flowEnvironment": {
-          "runAfter": {
-            "Initialize_rpasToInvenotry": [
-              "Succeeded"
-            ]
-          },
-          "metadata": {
-            "operationMetadataId": "d983cd7c-cde0-47c7-8fc8-d8f5720f1b26"
-          },
-          "type": "InitializeVariable",
-          "inputs": {
-            "variables": [
-              {
-                "name": "flowEnvironment",
-                "type": "string",
-                "value": "@parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)')"
-              }
-            ]
-          },
-          "description": "Environment location specific Flow URL - remember / at the end"
         },
         "Inventory_Desktop_Flows_(RPAs)_for_this_envt": {
           "actions": {
@@ -251,7 +218,12 @@
                           "$select": "workflowid, createdon, name, modifiedon",
                           "$filter": "category eq 6 and uiflowtype ne 101"
                         },
-                        "authentication": "@parameters('$authentication')"
+                        "authentication": "@parameters('$authentication')",
+                        "retryPolicy": {
+                          "type": "exponential",
+                          "count": 20,
+                          "interval": "PT20S"
+                        }
                       },
                       "runtimeConfiguration": {
                         "paginationPolicy": {
@@ -285,9 +257,14 @@
                     "parameters": {
                       "entityName": "admin_rpas",
                       "$select": "admin_rpaid, admin_rpauniquename, admin_name, admin_displayname",
-                      "$filter": "_admin_desktopflowenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}'"
+                      "$filter": "_admin_desktopflowenvironment_value eq '@{triggerOutputs()?['body/admin_environmentid']}' and admin_rpadeleted ne true"
                     },
-                    "authentication": "@parameters('$authentication')"
+                    "authentication": "@parameters('$authentication')",
+                    "retryPolicy": {
+                      "type": "exponential",
+                      "count": 20,
+                      "interval": "PT20S"
+                    }
                   },
                   "runtimeConfiguration": {
                     "paginationPolicy": {
@@ -539,7 +516,12 @@
                                 "$select": "admin_rpaid, admin_rpauniquename, admin_name",
                                 "$filter": "_admin_desktopflowenvironment_value eq @{triggerOutputs()?['body/admin_environmentid']} and admin_inventoryme eq true"
                               },
-                              "authentication": "@parameters('$authentication')"
+                              "authentication": "@parameters('$authentication')",
+                              "retryPolicy": {
+                                "type": "exponential",
+                                "count": 20,
+                                "interval": "PT20S"
+                              }
                             },
                             "runtimeConfiguration": {
                               "paginationPolicy": {
@@ -637,7 +619,12 @@
                                     "$select": "admin_rpaid, admin_rpauniquename, admin_name, admin_displayname, admin_rpamodifiedon",
                                     "$filter": "admin_rpauniquename eq '@{concat(triggerOutputs()?['body/admin_environmentid'], '_', items('Add_each_recently_modified_to_array')?['workflowid'])}'"
                                   },
-                                  "authentication": "@parameters('$authentication')"
+                                  "authentication": "@parameters('$authentication')",
+                                  "retryPolicy": {
+                                    "type": "exponential",
+                                    "count": 20,
+                                    "interval": "PT20S"
+                                  }
                                 },
                                 "runtimeConfiguration": {
                                   "paginationPolicy": {
@@ -781,6 +768,30 @@
                     "operationMetadataId": "c0e211f1-0938-41a4-ac62-faf1ae2e371c"
                   },
                   "type": "If"
+                },
+                "Raw_to_Inventory": {
+                  "runAfter": {
+                    "If_full_inventory_run": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "ed6ce112-c849-4027-9411-49f382ff01fc"
+                  },
+                  "type": "Compose",
+                  "inputs": "@variables('rpasToInvenotry')"
+                },
+                "Distinct_to_Inventory": {
+                  "runAfter": {
+                    "Raw_to_Inventory": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "5613ac17-2bf2-4318-9f9a-6bfd8c3fd7f6"
+                  },
+                  "type": "Compose",
+                  "inputs": "@union(variables('rpasToInvenotry'), variables('rpasToInvenotry'))"
                 }
               },
               "runAfter": {
@@ -793,10 +804,10 @@
               },
               "type": "Scope"
             },
-            "Invenotry_RPAs": {
+            "Inventory_RPAs": {
               "actions": {
                 "For_each_item_to_inventory": {
-                  "foreach": "@variables('rpasToInvenotry')",
+                  "foreach": "@outputs('Distinct_to_Inventory')",
                   "actions": {
                     "Get_actual_object": {
                       "runAfter": {},
@@ -813,7 +824,8 @@
                         "parameters": {
                           "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
                           "entityName": "workflows",
-                          "recordId": "@items('For_each_item_to_inventory')?['RPA_NonUnique']"
+                          "recordId": "@items('For_each_item_to_inventory')?['RPA_NonUnique']",
+                          "$select": "_ownerid_value, createdon, description, name, modifiedon, componentstate, uiflowtype"
                         },
                         "authentication": "@parameters('$authentication')",
                         "retryPolicy": {
@@ -823,53 +835,207 @@
                         }
                       }
                     },
-                    "Get_Owner_Details": {
+                    "CATCH:_Object_no_longer_exists": {
+                      "runAfter": {
+                        "Get_actual_object": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "39579654-f6d3-426f-b22f-c3b8fc2ee364"
+                      },
+                      "type": "Compose",
+                      "inputs": "Object no longer exists"
+                    },
+                    "Object_Found_so_add_or_update_inventory": {
                       "actions": {
-                        "Get_Owner": {
+                        "Get_Owner_Details": {
+                          "actions": {
+                            "Get_Owner": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "790069e7-1747-45da-a4f3-f6b9dda38e5a"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_3",
+                                  "operationId": "GetItemWithOrganization",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                                  "entityName": "systemusers",
+                                  "recordId": "@outputs('Get_actual_object')?['body/_ownerid_value']"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              }
+                            },
+                            "OwnerID": {
+                              "runAfter": {
+                                "Get_Owner": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(body('Get_Owner')?['azureactivedirectoryobjectid'], null), if(equals(body('Get_Owner')?['fullname'], 'SYSTEM'), parameters('CoE System User ID (admin_CoESystemUserID)'), ''), body('Get_Owner')?['azureactivedirectoryobjectid'])"
+                            },
+                            "See_if_already_in_Maker_Table": {
+                              "runAfter": {
+                                "OwnerID": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "6a7ef4f9-5a59-45f9-a290-e89115a2f36d"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "$filter": "admin_makerid eq @{outputs('OwnerID')}"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              }
+                            },
+                            "If_not,_add_them": {
+                              "actions": {
+                                "OwnerID_for_Helper": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
+                                  },
+                                  "type": "Compose",
+                                  "inputs": "@if(equals(body('Get_Owner')?['azureactivedirectoryobjectid'], null), if(equals(body('Get_Owner')?['fullname'], 'SYSTEM'), 'SYSTEM', ''), body('Get_Owner')?['azureactivedirectoryobjectid'])"
+                                },
+                                "Maker_Check": {
+                                  "runAfter": {
+                                    "OwnerID_for_Helper": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "9b77404f-4d8e-4e72-992d-f09db75c4167"
+                                  },
+                                  "type": "Workflow",
+                                  "inputs": {
+                                    "host": {
+                                      "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
+                                    },
+                                    "body": {
+                                      "text": "@outputs('OwnerID_for_Helper')",
+                                      "boolean": false
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "See_if_already_in_Maker_Table": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "expression": {
+                                "equals": [
+                                  "@length(outputs('See_if_already_in_Maker_Table')?['body/value'])",
+                                  0
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b0599ae4-1806-47c1-9c32-955838f93048"
+                              },
+                              "type": "If"
+                            },
+                            "Get_Maker": {
+                              "runAfter": {
+                                "If_not,_add_them": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "ae6d172a-7fcb-44c7-88dc-32f5b1cec2c8"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "GetItem",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_makers",
+                                  "recordId": "@outputs('OwnerID')"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              }
+                            },
+                            "catch_for_orphans_no_id": {
+                              "runAfter": {
+                                "Get_Maker": [
+                                  "Failed"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b420ec58-4b1d-4f34-8cf4-880c0c0b82ab"
+                              },
+                              "type": "Compose",
+                              "inputs": "catch for orphans no id"
+                            },
+                            "IsOrphan": {
+                              "runAfter": {
+                                "catch_for_orphans_no_id": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "5ba88760-724b-482e-b7c5-72b125a595a0"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(or(equals(outputs('OwnerID'), null), equals(length(outputs('OwnerID')), 0), equals(outputs('Get_Maker')?['body/admin_makerisorphaned'], true), equals(outputs('Get_Maker')?['body/admin_makerid'], null)), true, false)"
+                            }
+                          },
                           "runAfter": {},
                           "metadata": {
-                            "operationMetadataId": "790069e7-1747-45da-a4f3-f6b9dda38e5a"
+                            "operationMetadataId": "615c25ea-17df-47c6-b0b2-1620d61d03c7"
                           },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_commondataserviceforapps_3",
-                              "operationId": "GetItemWithOrganization",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                            },
-                            "parameters": {
-                              "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
-                              "entityName": "systemusers",
-                              "recordId": "@outputs('Get_actual_object')?['body/_ownerid_value']"
-                            },
-                            "authentication": "@parameters('$authentication')",
-                            "retryPolicy": {
-                              "type": "exponential",
-                              "count": 20,
-                              "interval": "PT20S"
-                            }
-                          }
+                          "type": "Scope"
                         },
-                        "OwnerID": {
+                        "See_if_in_inventory": {
                           "runAfter": {
-                            "Get_Owner": [
+                            "Get_unmapped_types": [
                               "Succeeded"
                             ]
                           },
                           "metadata": {
-                            "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
-                          },
-                          "type": "Compose",
-                          "inputs": "@if(equals(body('Get_Owner')?['azureactivedirectoryobjectid'], null), if(equals(body('Get_Owner')?['fullname'], 'SYSTEM'), parameters('CoE System User ID (admin_CoESystemUserID)'), ''), body('Get_Owner')?['azureactivedirectoryobjectid'])"
-                        },
-                        "See_if_already_in_Maker_Table": {
-                          "runAfter": {
-                            "OwnerID": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "6a7ef4f9-5a59-45f9-a290-e89115a2f36d"
+                            "operationMetadataId": "db3e5b77-c2eb-430b-a5a1-2b9fd96c1d71"
                           },
                           "type": "OpenApiConnection",
                           "inputs": {
@@ -879,180 +1045,9 @@
                               "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
                             },
                             "parameters": {
-                              "entityName": "admin_makers",
-                              "$filter": "admin_makerid eq @{outputs('OwnerID')}"
-                            },
-                            "authentication": "@parameters('$authentication')"
-                          }
-                        },
-                        "If_not,_add_them": {
-                          "actions": {
-                            "OwnerID_for_Helper": {
-                              "runAfter": {},
-                              "metadata": {
-                                "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
-                              },
-                              "type": "Compose",
-                              "inputs": "@if(equals(body('Get_Owner')?['azureactivedirectoryobjectid'], null), if(equals(body('Get_Owner')?['fullname'], 'SYSTEM'), 'SYSTEM', ''), body('Get_Owner')?['azureactivedirectoryobjectid'])"
-                            },
-                            "Maker_Check": {
-                              "runAfter": {
-                                "OwnerID_for_Helper": [
-                                  "Succeeded"
-                                ]
-                              },
-                              "metadata": {
-                                "operationMetadataId": "9b77404f-4d8e-4e72-992d-f09db75c4167"
-                              },
-                              "type": "Workflow",
-                              "inputs": {
-                                "host": {
-                                  "workflowReferenceName": "9301f01a-cb40-ec11-8c62-00224829b4c1"
-                                },
-                                "body": {
-                                  "text": "@outputs('OwnerID_for_Helper')",
-                                  "boolean": false
-                                }
-                              }
-                            }
-                          },
-                          "runAfter": {
-                            "See_if_already_in_Maker_Table": [
-                              "Succeeded"
-                            ]
-                          },
-                          "expression": {
-                            "equals": [
-                              "@length(outputs('See_if_already_in_Maker_Table')?['body/value'])",
-                              0
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "b0599ae4-1806-47c1-9c32-955838f93048"
-                          },
-                          "type": "If"
-                        },
-                        "Get_Maker": {
-                          "runAfter": {
-                            "If_not,_add_them": [
-                              "Succeeded"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "ae6d172a-7fcb-44c7-88dc-32f5b1cec2c8"
-                          },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_commondataserviceforapps",
-                              "operationId": "GetItem",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                            },
-                            "parameters": {
-                              "entityName": "admin_makers",
-                              "recordId": "@outputs('OwnerID')"
-                            },
-                            "authentication": "@parameters('$authentication')"
-                          }
-                        },
-                        "catch_for_orphans_no_id": {
-                          "runAfter": {
-                            "Get_Maker": [
-                              "Failed"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "b420ec58-4b1d-4f34-8cf4-880c0c0b82ab"
-                          },
-                          "type": "Compose",
-                          "inputs": "catch for orphans no id"
-                        },
-                        "IsOrphan": {
-                          "runAfter": {
-                            "catch_for_orphans_no_id": [
-                              "Succeeded",
-                              "Skipped"
-                            ]
-                          },
-                          "metadata": {
-                            "operationMetadataId": "5ba88760-724b-482e-b7c5-72b125a595a0"
-                          },
-                          "type": "Compose",
-                          "inputs": "@if(or(equals(outputs('OwnerID'), null), equals(length(outputs('OwnerID')), 0), equals(outputs('Get_Maker')?['body/admin_makerisorphaned'], true), equals(outputs('Get_Maker')?['body/admin_makerid'], null)), true, false)"
-                        }
-                      },
-                      "runAfter": {
-                        "Get_actual_object": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "615c25ea-17df-47c6-b0b2-1620d61d03c7"
-                      },
-                      "type": "Scope"
-                    },
-                    "See_if_in_inventory": {
-                      "runAfter": {
-                        "Get_Owner_Details": [
-                          "Succeeded"
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "db3e5b77-c2eb-430b-a5a1-2b9fd96c1d71"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_commondataserviceforapps",
-                          "operationId": "ListRecords",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                        },
-                        "parameters": {
-                          "entityName": "admin_rpas",
-                          "$select": "admin_rpaid",
-                          "$filter": "admin_rpauniquename eq '@{items('For_each_item_to_inventory')?['RPA_Unique']}'"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      },
-                      "runtimeConfiguration": {
-                        "paginationPolicy": {
-                          "minimumItemCount": 100000
-                        }
-                      }
-                    },
-                    "Upsert_Record": {
-                      "actions": {
-                        "Upsert_Desktop_Flow_(Orphan)": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "a6ad3d03-29ee-4c4d-8897-3dd7f1adaaee"
-                          },
-                          "type": "OpenApiConnection",
-                          "inputs": {
-                            "host": {
-                              "connectionName": "shared_commondataserviceforapps",
-                              "operationId": "UpdateRecord",
-                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                            },
-                            "parameters": {
                               "entityName": "admin_rpas",
-                              "recordId": "@outputs('GUID_to_use')",
-                              "item/admin_name": "@items('For_each_item_to_inventory')?['RPA_NonUnique']",
-                              "item/admin_rpacreatedon": "@outputs('Get_actual_object')?['body/createdon']",
-                              "item/admin_rpadeleted": false,
-                              "item/admin_rpadeletedon": "@null",
-                              "item/admin_rpadescription": "@coalesce(outputs('Get_actual_object')?['body/description'], '')",
-                              "item/admin_displayname": "@outputs('Get_actual_object')?['body/name']",
-                              "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
-                              "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
-                              "item/admin_rpaisorphaned": "Yes",
-                              "item/admin_rpamodifiedon": "@outputs('Get_actual_object')?['body/modifiedon']",
-                              "item/admin_rpastate": "@outputs('Get_actual_object')?['body/componentstate@OData.Community.Display.V1.FormattedValue']",
-                              "item/admin_desktopflowstatecode": "@outputs('Get_actual_object')?['body/componentstate']",
-                              "item/admin_uiflowtype": "@outputs('Get_actual_object')?['body/uiflowtype@OData.Community.Display.V1.FormattedValue']",
-                              "item/admin_inventoryme": false,
-                              "item/admin_recordguidasstring": "@outputs('GUID_to_use')",
-                              "item/admin_rpauniquename": "@items('For_each_item_to_inventory')?['RPA_Unique']"
+                              "$select": "admin_rpaid",
+                              "$filter": "admin_rpauniquename eq '@{items('For_each_item_to_inventory')?['RPA_Unique']}'"
                             },
                             "authentication": "@parameters('$authentication')",
                             "retryPolicy": {
@@ -1060,88 +1055,196 @@
                               "count": 20,
                               "interval": "PT20S"
                             }
-                          }
-                        }
-                      },
-                      "runAfter": {
-                        "GUID_to_use": [
-                          "Succeeded"
-                        ]
-                      },
-                      "else": {
-                        "actions": {
-                          "Upsert_Desktop_Flow": {
-                            "runAfter": {},
-                            "metadata": {
-                              "operationMetadataId": "7a113f99-3fe5-46d0-853f-d96a302cdeaa"
-                            },
-                            "type": "OpenApiConnection",
-                            "inputs": {
-                              "host": {
-                                "connectionName": "shared_commondataserviceforapps",
-                                "operationId": "UpdateRecord",
-                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                              },
-                              "parameters": {
-                                "entityName": "admin_rpas",
-                                "recordId": "@outputs('GUID_to_use')",
-                                "item/admin_name": "@items('For_each_item_to_inventory')?['RPA_NonUnique']",
-                                "item/admin_rpacreatedon": "@outputs('Get_actual_object')?['body/createdon']",
-                                "item/admin_rpadeleted": false,
-                                "item/admin_rpadeletedon": "@null",
-                                "item/admin_rpadescription": "@coalesce(outputs('Get_actual_object')?['body/description'], '')",
-                                "item/admin_displayname": "@outputs('Get_actual_object')?['body/name']",
-                                "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
-                                "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
-                                "item/admin_rpaisorphaned": "No",
-                                "item/admin_rpamodifiedon": "@outputs('Get_actual_object')?['body/modifiedon']",
-                                "item/admin_RPAOwner@odata.bind": "admin_makers(@{outputs('Get_Maker')?['body/admin_makerid']})",
-                                "item/admin_rpastate": "@outputs('Get_actual_object')?['body/componentstate@OData.Community.Display.V1.FormattedValue']",
-                                "item/admin_desktopflowstatecode": "@outputs('Get_actual_object')?['body/componentstate']",
-                                "item/admin_uiflowtype": "@outputs('Get_actual_object')?['body/uiflowtype@OData.Community.Display.V1.FormattedValue']",
-                                "item/admin_inventoryme": false,
-                                "item/admin_recordguidasstring": "@outputs('GUID_to_use')",
-                                "item/admin_rpauniquename": "@items('For_each_item_to_inventory')?['RPA_Unique']"
-                              },
-                              "authentication": "@parameters('$authentication')",
-                              "retryPolicy": {
-                                "type": "exponential",
-                                "count": 20,
-                                "interval": "PT20S"
-                              }
+                          },
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
                             }
                           }
+                        },
+                        "GUID_to_use": {
+                          "runAfter": {
+                            "See_if_in_inventory": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2aa06b3d-bba6-4ec1-a0df-be421c60ae9c"
+                          },
+                          "type": "Compose",
+                          "inputs": "@if(equals(length(outputs('See_if_in_inventory')?['body/value']), 0), guid(), first(outputs('See_if_in_inventory')?['body/value'])['admin_rpaid'])"
+                        },
+                        "Upsert_Record": {
+                          "actions": {
+                            "Upsert_Desktop_Flow_(Orphan)": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "a6ad3d03-29ee-4c4d-8897-3dd7f1adaaee"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_rpas",
+                                  "recordId": "@outputs('GUID_to_use')",
+                                  "item/admin_name": "@items('For_each_item_to_inventory')?['RPA_NonUnique']",
+                                  "item/admin_rpacreatedon": "@outputs('Get_actual_object')?['body/createdon']",
+                                  "item/admin_rpadeleted": false,
+                                  "item/admin_rpadeletedon": "@null",
+                                  "item/admin_rpadescription": "@coalesce(outputs('Get_actual_object')?['body/description'], '')",
+                                  "item/admin_displayname": "@outputs('Get_actual_object')?['body/name']",
+                                  "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                  "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
+                                  "item/admin_rpaisorphaned": "Yes",
+                                  "item/admin_rpamodifiedon": "@outputs('Get_actual_object')?['body/modifiedon']",
+                                  "item/admin_rpastate": "@outputs('Component_State_String')",
+                                  "item/admin_desktopflowstatecode": "@outputs('Get_actual_object')?['body/componentstate']",
+                                  "item/admin_uiflowtype": "@outputs('UI_Flow_Type_String')",
+                                  "item/admin_inventoryme": false,
+                                  "item/admin_recordguidasstring": "@outputs('GUID_to_use')",
+                                  "item/admin_rpauniquename": "@items('For_each_item_to_inventory')?['RPA_Unique']"
+                                },
+                                "authentication": "@parameters('$authentication')",
+                                "retryPolicy": {
+                                  "type": "exponential",
+                                  "count": 20,
+                                  "interval": "PT20S"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "GUID_to_use": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "Upsert_Desktop_Flow": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "7a113f99-3fe5-46d0-853f-d96a302cdeaa"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps",
+                                    "operationId": "UpdateRecord",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "entityName": "admin_rpas",
+                                    "recordId": "@outputs('GUID_to_use')",
+                                    "item/admin_name": "@items('For_each_item_to_inventory')?['RPA_NonUnique']",
+                                    "item/admin_rpacreatedon": "@outputs('Get_actual_object')?['body/createdon']",
+                                    "item/admin_rpadeleted": false,
+                                    "item/admin_rpadeletedon": "@null",
+                                    "item/admin_rpadescription": "@coalesce(outputs('Get_actual_object')?['body/description'], '')",
+                                    "item/admin_displayname": "@outputs('Get_actual_object')?['body/name']",
+                                    "item/admin_DesktopflowEnvironment@odata.bind": "admin_environments(@{triggerBody()?['admin_environmentid']})",
+                                    "item/admin_rpaenvironment": "@triggerOutputs()?['body/admin_displayname']",
+                                    "item/admin_rpaisorphaned": "No",
+                                    "item/admin_rpamodifiedon": "@outputs('Get_actual_object')?['body/modifiedon']",
+                                    "item/admin_RPAOwner@odata.bind": "admin_makers(@{outputs('Get_Maker')?['body/admin_makerid']})",
+                                    "item/admin_rpastate": "@outputs('Component_State_String')",
+                                    "item/admin_desktopflowstatecode": "@outputs('Get_actual_object')?['body/componentstate']",
+                                    "item/admin_uiflowtype": "@outputs('UI_Flow_Type_String')",
+                                    "item/admin_inventoryme": false,
+                                    "item/admin_recordguidasstring": "@outputs('GUID_to_use')",
+                                    "item/admin_rpauniquename": "@items('For_each_item_to_inventory')?['RPA_Unique']"
+                                  },
+                                  "authentication": "@parameters('$authentication')",
+                                  "retryPolicy": {
+                                    "type": "exponential",
+                                    "count": 20,
+                                    "interval": "PT20S"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@outputs('IsOrphan')",
+                              true
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "be0a6eb2-7133-4fd0-912c-f8bba4a7d144"
+                          },
+                          "type": "If"
+                        },
+                        "Get_unmapped_types": {
+                          "actions": {
+                            "Component_State_String": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "45bb3908-5d6c-4c6b-9eab-e8be68cb991f"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(outputs('Get_actual_object')?['body/componentstate'], 0), 'Published', if(equals(outputs('Get_actual_object')?['body/componentstate'], 1), 'Unpublished', if(equals(outputs('Get_actual_object')?['body/componentstate'], 2), 'Deleted', if(equals(outputs('Get_actual_object')?['body/componentstate'], 3), 'Deleted Unpublished', 'Error Type Not Map'))))"
+                            },
+                            "UI_Flow_Type_String": {
+                              "runAfter": {
+                                "Component_State_String": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "0286057e-1fba-4cdd-9fa4-96b8a854cde3"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(outputs('Get_actual_object')?['body/uiflowtype'], 0), 'Windows recorder (V1)', if(equals(outputs('Get_actual_object')?['body/uiflowtype'], 1), 'Selenium IDE', if(equals(outputs('Get_actual_object')?['body/uiflowtype'], 2), 'Power Automate Desktop', if(equals(outputs('Get_actual_object')?['body/uiflowtype'], 101), '101 Recording', 'Error Type Not Map'))))"
+                            },
+                            "Compose": {
+                              "runAfter": {
+                                "UI_Flow_Type_String": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "5a5dd024-64c4-4a4c-b0b8-822278e06f69"
+                              },
+                              "type": "Compose",
+                              "inputs": "@outputs('Get_actual_object')?['body/uiflowtype']"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_Owner_Details": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "1d3aa1de-7804-4229-96e8-a097a98916db"
+                          },
+                          "type": "Scope"
                         }
                       },
-                      "expression": {
-                        "equals": [
-                          "@outputs('IsOrphan')",
-                          true
-                        ]
-                      },
-                      "metadata": {
-                        "operationMetadataId": "be0a6eb2-7133-4fd0-912c-f8bba4a7d144"
-                      },
-                      "type": "If"
-                    },
-                    "GUID_to_use": {
                       "runAfter": {
-                        "See_if_in_inventory": [
-                          "Succeeded"
+                        "CATCH:_Object_no_longer_exists": [
+                          "Skipped"
                         ]
                       },
                       "metadata": {
-                        "operationMetadataId": "2aa06b3d-bba6-4ec1-a0df-be421c60ae9c"
+                        "operationMetadataId": "37af0f99-f48c-40ae-a861-1adc0f6a9d55"
                       },
-                      "type": "Compose",
-                      "inputs": "@if(equals(length(outputs('See_if_in_inventory')?['body/value']), 0), guid(), first(outputs('See_if_in_inventory')?['body/value'])['admin_rpaid'])"
+                      "type": "Scope"
                     }
                   },
                   "runAfter": {},
                   "metadata": {
                     "operationMetadataId": "b7cba24f-db60-4fcd-9d25-3367415d1537"
                   },
-                  "type": "Foreach"
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
                 }
               },
               "runAfter": {
@@ -1156,7 +1259,7 @@
             }
           },
           "runAfter": {
-            "Initialize_variable_flowEnvironment": [
+            "Initialize_rpasToInvenotry": [
               "Succeeded"
             ]
           },
