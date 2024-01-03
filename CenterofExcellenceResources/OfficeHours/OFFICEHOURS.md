@@ -2,7 +2,7 @@
 
 Join the CoE Starter Kit Office hours held on the second Wednesday of each month between 7:00AM and 8:00AM Pacific time.
 
-Download calendar file to add to Calendar
+[Download calendar file to add to Calendar](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceResources/OfficeHours/Power%20Platform%20CoE%20Starter%20Kit%20Office%20Hours.ics)
 
 Description
 This meeting is a regular open forum for customers and partners to learn and ask questions about the Power Platform CoE Starter Kit. Come prepared to ask questions about existing features, learn how something works and new features you'd like to see.
