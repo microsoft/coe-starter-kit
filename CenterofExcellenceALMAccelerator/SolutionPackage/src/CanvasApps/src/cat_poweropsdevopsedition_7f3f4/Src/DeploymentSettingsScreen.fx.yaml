@@ -20,6 +20,7 @@ DeploymentSettingsScreen As screen:
                 showWebHookURLs: false,
                 showPortalConfig: false,
                 showSDKMessage: false,
+                showOrgSettings: false,
                 locCloseAfterSave: true,
                 locShareConnections: true,
                 locDeploymentEnvironmentLabel: "Select an Environment to Configure",
@@ -229,7 +230,11 @@ DeploymentSettingsScreen As screen:
                     If(
                         IsBlank(locEnvironmentDeploymentSetting.Data),
                         UpdateContext({EnvironmentDeploymentSettings: []}),
-                        UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)})
+                        UpdateContext({EnvironmentDeploymentSettings: ParseDeploymentSettings.Run(locEnvironmentDeploymentSetting.Data)}),
+                        Set(
+                            gblDeploymentSettings,
+                            EnvironmentDeploymentSettings
+                        )
                     );
                     UpdateContext(
                         {
@@ -310,6 +315,10 @@ DeploymentSettingsScreen As screen:
                     {}
                 );
                 ClearCollect(
+                    EnvironmentOrgSettings,
+                    {}
+                );
+                ClearCollect(
                     SolutionWebHookURLs,
                     {}
                 );
@@ -339,6 +348,7 @@ DeploymentSettingsScreen As screen:
                 );
                 Clear(SolutionConnectionReferences);
                 Clear(SolutionCanvasApps);
+                Clear(EnvironmentOrgSettings);
                 Clear(SolutionSecurityRoles);
                 Clear(SolutionEnvironmentVariables);
                 Clear(AllSolutionFlows);
@@ -541,6 +551,34 @@ DeploymentSettingsScreen As screen:
                             )
                         ),
                         Collect(
+                            EnvironmentOrgSettings,
+                            AddColumns(
+                                GetOrganizationSettings.Run(
+                                    Last(
+                                        FirstN(
+                                            ClearCollect(
+                                                splitColOrgSettings,
+                                                ForAll(
+                                                    Split(
+                                                        SelectedEnvironment.properties.linkedEnvironmentMetadata.instanceUrl,
+                                                        "."
+                                                    ),
+                                                    {Result: ThisRecord.Value}
+                                                )
+                                            ),
+                                            2
+                                        )
+                                    ).Result,
+                                    SelectedEnvironment.properties.linkedEnvironmentMetadata.uniqueName
+                                ),
+                                "CurrentValue",
+                                LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "orgsetting." & settingname
+                                ).Value
+                            )
+                        ),
+                        Collect(
                             SolutionSDKSteps,
                             AddColumns(
                                 GetSolutionSDKSteps.Run(
@@ -620,11 +658,7 @@ DeploymentSettingsScreen As screen:
                             {
                                 Text: "Can Edit",
                                 Value: "CanEdit"
-                            }//,
-        //{
-        //    Text: "Can View and Share",
-        //    Value: "CanViewWithShare"
-        //}
+                            }
                         ),
                         Collect(
                             SolutionCanvasApps,
@@ -685,7 +719,7 @@ DeploymentSettingsScreen As screen:
                             AllSolutionFlows,
                             AddColumns(
                             //Filter to Modern Flows only for Now category = 5
-                            // Filter Desktopflows category = 6
+        // Filter Desktopflows category = 6
                                 Filter(
                                     GetSolutionFlows.Run(
                                         Last(
@@ -827,6 +861,7 @@ DeploymentSettingsScreen As screen:
                         category = 5
                     )
                 );
+                
         // Collect 'Desktop Flows' where category = 6
         Collect(
                     SolutionFlows,
@@ -834,7 +869,7 @@ DeploymentSettingsScreen As screen:
                         AllSolutionFlows,
                         category = 6
                     )
-                );        
+                );
                 // Collect 'Classic Flows' where category = 0
         Collect(
                     SolutionFlows,
@@ -845,6 +880,7 @@ DeploymentSettingsScreen As screen:
                 );
                 UpdateContext({showConnectionReferenceSettings: true});
                 Select(fncLoadEnvironmentDeploymentSettings);
+                UpdateContext({skipOrgSettingsLoad: true});
             ),
             UpdateContext({errorMessage: FirstError.Message});
             Notify("Error getting solution dependencies: " & errorMessage);
@@ -934,7 +970,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -985,7 +1022,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -1048,7 +1086,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -1132,6 +1171,13 @@ DeploymentSettingsScreen As screen:
             ChevronHoverFill: =ColorFade(drpDeployEnvironments.ChevronFill, 20%)
             Default: |
                 =SelectedDeploymentEnvironment.Name
+            DisplayMode: |-
+                =// Disable until the save deployment settings to Dataverse completes
+                If(
+                    locCloseAfterSave,
+                    DisplayMode.Edit,
+                    DisplayMode.Disabled
+                )
             Height: =46
             HoverBorderColor: =ColorFade(drpDeployEnvironments.BorderColor, 20%)
             HoverColor: =ColorFade(drpDeployEnvironments.Color, 20%)
@@ -2183,7 +2229,20 @@ DeploymentSettingsScreen As screen:
                 AccessibleLabel: ="Connections"
                 ChevronHoverBackground: =ColorFade(drpConnectionReferenceConnections.ChevronBackground, 20%)
                 ChevronHoverFill: =ColorFade(drpConnectionReferenceConnections.ChevronFill, 20%)
-                Default: =If(IsBlank(ThisItem.CurrentValue), First(Filter(EnvironmentConnections, ApiId = ThisItem.connectorid And Status = "Connected")).DisplayName, LookUp(EnvironmentConnections, ConnectionId = ThisItem.CurrentValue).DisplayName)
+                Default: |-
+                    =If(
+                        IsBlank(ThisItem.CurrentValue),
+                        First(
+                            Filter(
+                                EnvironmentConnections,
+                                ApiId = ThisItem.connectorid And Status = "Connected"
+                            )
+                        ).FullName,
+                        LookUp(
+                            EnvironmentConnections,
+                            ConnectionId = ThisItem.CurrentValue
+                        ).FullName
+                    )
                 Height: =45
                 HoverBorderColor: =ColorFade(drpConnectionReferenceConnections.BorderColor, 20%)
                 HoverColor: =ColorFade(drpConnectionReferenceConnections.Color, 20%)
@@ -2238,7 +2297,7 @@ DeploymentSettingsScreen As screen:
                 PressedFill: =drpConnectionReferenceConnections.Color
                 Reset: =resetEnvironment
                 Tooltip: ="Select and Existing Connection"
-                Visible: =!ThisItem.ManualEntry
+                Visible: =true//!ThisItem.ManualEntry
                 Width: =665
                 X: =842
                 Y: =12
@@ -3824,6 +3883,18 @@ DeploymentSettingsScreen As screen:
                         }
                     )
                 );
+                //Save Organization Settings
+                ForAll(
+                    glrOrgSettings.AllItems,
+                    Collect(
+                        DeploymentSettings,
+                        {
+                            Name: "orgsetting." & lblOrgSettingSchemaName.Text,
+                            Value: Text(chkEnableOrgSetting.Value),
+                            Data: lblOrgSettingSchemaName.Text
+                        }
+                    )
+                );
                 //Save SDK Steps
                 ForAll(
                     glrSDKMesages.AllItems,
@@ -3981,6 +4052,13 @@ DeploymentSettingsScreen As screen:
                     {
                         Name: "BypassAppConsent",
                         Value: Text(chkBypassAppConsent.Value)
+                    }
+                );
+                Collect(
+                    DeploymentSettings,
+                    {
+                        Name: "ApplyOrgSetting",
+                        Value: Text(chkApplyOrgSetting.Value)
                     }
                 );
                 //Convert settings to json and store in user settings
@@ -4333,7 +4411,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false
+                        showClassicFlows:false,
+                        showOrgSettings:false
                     }
                 );
             PaddingBottom: =8
@@ -4372,7 +4451,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -4411,7 +4491,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -4480,7 +4561,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: true,
                         showPortalConfig: false,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -4901,7 +4983,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: true,
                         showSDKMessage: false,
-                        showClassicFlows:false        
+                        showClassicFlows:false,
+                        showOrgSettings:false        
                     }
                 );
             PaddingBottom: =8
@@ -4952,7 +5035,8 @@ DeploymentSettingsScreen As screen:
                         showWebHookURLs: false,
                         showPortalConfig: false,
                         showSDKMessage: true,
-                        showClassicFlows:false    
+                        showClassicFlows:false,
+                        showOrgSettings:false    
                     }
                 );
             PaddingBottom: =8
@@ -5046,6 +5130,312 @@ DeploymentSettingsScreen As screen:
             Y: =270
             ZIndex: =64
 
+        lblOrgSettings As label:
+            FontWeight: =If(showOrgSettings, FontWeight.Bold, FontWeight.Semibold)
+            Height: =24
+            OnSelect: =
+            PaddingLeft: =0
+            PaddingTop: =0
+            Text: ="Environment Settings"
+            Visible: |-
+                =If(
+                    allowEnvironmentSettingsUpdate = 'A Yes or No boolean'.Allowed,
+                    false,
+                    false
+                )
+            Width: =200
+            X: =1280
+            Y: =219
+            ZIndex: =65
+
+        icoOrgSettings As icon.Add:
+            AccessibleLabel: ="Webhook URL Variables"
+            BorderColor: =ColorFade(icoOrgSettings.Fill, -20%)
+            Color: =PrimaryColor2Value
+            DisabledFill: =ColorFade(icoOrgSettings.Fill, -80%)
+            FocusedBorderThickness: =
+            Height: =24
+            HoverBorderColor: =ColorFade(icoOrgSettings.BorderColor, 20%)
+            HoverColor: =ColorFade(icoOrgSettings.Color, 20%)
+            HoverFill: =ColorFade(icoOrgSettings.Fill, 20%)
+            Icon: =
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        showConnectionReferenceSettings: false,
+                        showEnvironmentVariablesSettings: false,
+                        showOwnerSettings: false,
+                        showSharingSettings: false,
+                        showConnectorSettings: false,
+                        showGroupTeamsSettings: false,
+                        showWebHookURLs: false,
+                        showPortalConfig: false,
+                        showSDKMessage: false,
+                        showClassicFlows:false,
+                        showOrgSettings:false    
+                    }
+                );
+            PaddingBottom: =8
+            PaddingLeft: =8
+            PaddingRight: =5
+            PaddingTop: =8
+            PressedBorderColor: =ColorFade(icoOrgSettings.BorderColor, -20%)
+            PressedColor: =ColorFade(icoOrgSettings.Color, -20%)
+            PressedFill: =ColorFade(icoOrgSettings.Fill, -20%)
+            Tooltip: ="Set Plugin Steps Secure and Unsecure Configurations."
+            Visible: =lblOrgSettings.Visible
+            Width: =lblOrgSettings.Width
+            X: =1275
+            Y: =220
+            ZIndex: =66
+
+        "glrOrgSettings As gallery.'BrowseLayout_Vertical_TwoTextOneImageVariant_ver4.0'":
+            AccessibleLabel: ="Canvas Apps"
+            Height: =618
+            Items: =Sort(EnvironmentOrgSettings,settingname)
+            Layout: =Layout.Vertical
+            TemplatePadding: =0
+            TemplateSize: =44
+            Visible: =showOrgSettings
+            Width: =1850
+            X: =24
+            Y: =366
+            ZIndex: =67
+
+            Separator3_8 As rectangle:
+                BorderColor: =ColorFade(Separator3_8.Fill, -20%)
+                DisabledFill: =Separator3_8.Fill
+                Height: =1
+                HoverFill: =ColorFade(Separator3_8.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedFill: =ColorFade(Separator3_8.Fill, -20%)
+                Width: =Parent.TemplateWidth
+                Y: =Parent.TemplateHeight - 1
+                ZIndex: =4
+
+            chkEnableOrgSetting As checkbox:
+                Default: =If(ThisItem.settingvalue="True",true,false)
+                Height: =48
+                HoverBorderColor: =ColorFade(chkEnableOrgSetting.BorderColor, 20%)
+                HoverColor: =ColorFade(chkEnableOrgSetting.Color, 20%)
+                HoverFill: =ColorFade(chkEnableOrgSetting.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =ColorFade(chkEnableOrgSetting.BorderColor, -20%)
+                PressedColor: =ColorFade(chkEnableOrgSetting.Color, -20%)
+                PressedFill: =ColorFade(chkEnableOrgSetting.Fill, -20%)
+                Text: =""
+                X: =999
+                ZIndex: =12
+
+            OrgSettingName As label:
+                FontWeight: =FontWeight.Semibold
+                OnSelect: =Select(Parent)
+                Size: =13
+                Text: =ThisItem.settingdisplayname
+                Width: =400
+                X: =314
+                ZIndex: =14
+
+            OrgSettingMakerValue As label:
+                Align: =Align.Center
+                FontWeight: =FontWeight.Semibold
+                OnSelect: =Select(Parent)
+                Text: =ThisItem.settingvalue
+                Visible: =false
+                Width: =200
+                X: =628
+                Y: =13
+                ZIndex: =15
+
+            chkApplyIndividualSetting As checkbox:
+                Default: =If(lclApplyOrgSetting="true",true,false)
+                DisplayMode: =DisplayMode.Disabled
+                Height: =48
+                HoverBorderColor: =ColorFade(chkApplyIndividualSetting.BorderColor, 20%)
+                HoverColor: =ColorFade(chkApplyIndividualSetting.Color, 20%)
+                HoverFill: =ColorFade(chkApplyIndividualSetting.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =ColorFade(chkApplyIndividualSetting.BorderColor, -20%)
+                PressedColor: =ColorFade(chkApplyIndividualSetting.Color, -20%)
+                PressedFill: =ColorFade(chkApplyIndividualSetting.Fill, -20%)
+                Text: =""
+                X: =17
+                ZIndex: =16
+
+            chkmakerOrgSetting As checkbox:
+                Default: =If(ThisItem.settingvalue="True",true,false)
+                DisplayMode: =DisplayMode.Disabled
+                Height: =48
+                HoverBorderColor: =ColorFade(chkmakerOrgSetting.BorderColor, 20%)
+                HoverColor: =ColorFade(chkmakerOrgSetting.Color, 20%)
+                HoverFill: =ColorFade(chkmakerOrgSetting.Fill, 20%)
+                OnSelect: =Select(Parent)
+                PressedBorderColor: =ColorFade(chkmakerOrgSetting.BorderColor, -20%)
+                PressedColor: =ColorFade(chkmakerOrgSetting.Color, -20%)
+                PressedFill: =ColorFade(chkmakerOrgSetting.Fill, -20%)
+                Text: =""
+                X: =700
+                ZIndex: =17
+
+            iconApplyOrgSettingHelp_1 As icon.Help:
+                BorderColor: =ColorFade(iconApplyOrgSettingHelp_1.Fill, -20%)
+                DisabledFill: =ColorFade(iconApplyOrgSettingHelp_1.Fill, -80%)
+                Fill: =RGBA(255, 255, 255, 1)
+                Height: =23
+                HoverBorderColor: =ColorFade(iconApplyOrgSettingHelp_1.BorderColor, 20%)
+                HoverColor: =ColorFade(iconApplyOrgSettingHelp_1.Color, 20%)
+                HoverFill: =ColorFade(iconApplyOrgSettingHelp_1.Fill, 20%)
+                Icon: =Icon.Information
+                OnSelect: =Launch(ThisItem.helpurl)
+                PressedBorderColor: =ColorFade(iconApplyOrgSettingHelp_1.BorderColor, -20%)
+                PressedColor: =ColorFade(iconApplyOrgSettingHelp_1.Color, -20%)
+                PressedFill: =ColorFade(iconApplyOrgSettingHelp_1.Fill, -20%)
+                Tooltip: ="By selecting 'Apply Settings,' you agree to update the settings at the target. Please note that this action may override other settings, so exercise caution."
+                Visible: =showOrgSettings && !showSolutionComponentLoader
+                Width: =20
+                X: =294
+                Y: =8
+                ZIndex: =18
+
+            lblOrgSettingSchemaName As label:
+                OnSelect: =Select(Parent)
+                Text: =ThisItem.settingname
+                Visible: =false
+                X: =1444
+                ZIndex: =19
+
+        lblOrgSettingName As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =39
+            Text: ="Setting Name"
+            Visible: =showOrgSettings
+            Width: =200
+            X: =309
+            Y: =327
+            ZIndex: =68
+
+        lblOrgSettingValue As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =39
+            Text: ="Set Value for Target Environment"
+            Visible: =showOrgSettings
+            Width: =295
+            X: =1025
+            Y: =327
+            ZIndex: =69
+
+        lblOrgSettingsNote As label:
+            Align: =Align.Center
+            BorderThickness: =1
+            Color: =RGBA(0, 0, 0, 1)
+            Fill: =RGBA(219, 219, 219, 1)
+            FontWeight: =FontWeight.Semibold
+            Height: =48
+            HoverColor: =RGBA(0, 0, 0, 1)
+            PaddingLeft: =0
+            PaddingTop: =0
+            Size: =14
+            Text: =""
+            Visible: =showOrgSettings
+            Width: =62
+            X: =1823
+            Y: =272
+            ZIndex: =71
+
+        icoOrgSettingsHelp As icon.Help:
+            BorderColor: =ColorFade(icoOrgSettingsHelp.Fill, -20%)
+            DisabledFill: =ColorFade(icoOrgSettingsHelp.Fill, -80%)
+            Height: =23
+            HoverBorderColor: =ColorFade(icoOrgSettingsHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(icoOrgSettingsHelp.Color, 20%)
+            HoverFill: =ColorFade(icoOrgSettingsHelp.Fill, 20%)
+            Icon: =Icon.Help
+            OnSelect: |-
+                =Launch(
+                        "https://learn.microsoft.com/en-us/power-platform/developer/cli/reference/org#pac-org-list-settings"
+                    );
+            PressedBorderColor: =ColorFade(icoOrgSettingsHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(icoOrgSettingsHelp.Color, -20%)
+            PressedFill: =ColorFade(icoOrgSettingsHelp.Fill, -20%)
+            Tooltip: ="Learn More"
+            Visible: =showOrgSettings
+            Width: =23
+            X: =1843
+            Y: =285
+            ZIndex: =72
+
+        lblOrgSettingsLegend As label:
+            BorderThickness: =1
+            Color: =RGBA(0, 0, 0, 1)
+            Fill: =RGBA(219, 219, 219, 1)
+            FontWeight: =FontWeight.Semibold
+            Height: =48
+            HoverColor: =RGBA(0, 0, 0, 1)
+            PaddingLeft: =0
+            PaddingTop: =7
+            Size: =14
+            Text: ="   Customize the environment settings for the target environment by selecting the available options below. Click on the help icon to access additional information."
+            Visible: =showOrgSettings
+            Width: =1790
+            X: =40
+            Y: =272
+            ZIndex: =73
+
+        lblExistingOrgSettingTitle As label:
+            FontWeight: =FontWeight.Semibold
+            Height: =39
+            Text: ="Maker Environment Value"
+            Visible: =showOrgSettings
+            Width: =270
+            X: =722
+            Y: =327
+            ZIndex: =74
+
+        iconApplyOrgSettingHelp As icon.Help:
+            BorderColor: =ColorFade(iconApplyOrgSettingHelp.Fill, -20%)
+            DisabledFill: =ColorFade(iconApplyOrgSettingHelp.Fill, -80%)
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =23
+            HoverBorderColor: =ColorFade(iconApplyOrgSettingHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(iconApplyOrgSettingHelp.Color, 20%)
+            HoverFill: =ColorFade(iconApplyOrgSettingHelp.Fill, 20%)
+            Icon: =Icon.Help
+            OnSelect: |-
+                =Launch("https://learn.microsoft.com/powershell/module/microsoft.powerapps.administration.powershell/set-adminpowerappapistobypassconsent")
+            PressedBorderColor: =ColorFade(iconApplyOrgSettingHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(iconApplyOrgSettingHelp.Color, -20%)
+            PressedFill: =ColorFade(iconApplyOrgSettingHelp.Fill, -20%)
+            Tooltip: ="By selecting 'Apply Settings,' you agree to update the settings at the target. Please note that this action may override other settings, so exercise caution."
+            Visible: =showOrgSettings && !showSolutionComponentLoader
+            Width: =20
+            X: =220
+            Y: =335
+            ZIndex: =75
+
+        chkApplyOrgSetting As checkbox:
+            Default: =false//If(bypassorsettingtag="true",true,false)
+            FontWeight: =FontWeight.Semibold
+            Height: =39
+            HoverBorderColor: =ColorFade(chkApplyOrgSetting.BorderColor, 20%)
+            HoverColor: =ColorFade(chkApplyOrgSetting.Color, 20%)
+            HoverFill: =ColorFade(chkApplyOrgSetting.Fill, 20%)
+            OnCheck: |-
+                =UpdateContext({lclApplyOrgSetting: "true"})
+            OnUncheck: |-
+                =UpdateContext({lclApplyOrgSetting: "false"})
+            PaddingLeft: =0
+            PaddingTop: =0
+            PressedBorderColor: =ColorFade(chkApplyOrgSetting.BorderColor, -20%)
+            PressedColor: =ColorFade(chkApplyOrgSetting.Color, -20%)
+            PressedFill: =ColorFade(chkApplyOrgSetting.Fill, -20%)
+            Text: ="Apply Setting"
+            Tooltip: ="Select the 'Apply Setting' option if you wish to update the organization settings in the target environment."
+            Visible: =showOrgSettings && !showSolutionComponentLoader
+            Width: =175
+            X: =51
+            Y: =331
+            ZIndex: =76
+
         loaderSolutionComponents As Preloader:
             Height: =844
             IsLoading: =showSolutionComponentLoader
@@ -5055,7 +5445,7 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderSolutionComponents.IsLoading
             Width: =1920
             Y: =204
-            ZIndex: =68
+            ZIndex: =77
 
         loaderDeploymentEnvironment As Preloader:
             Height: =984
@@ -5066,7 +5456,28 @@ DeploymentSettingsScreen As screen:
             Visible: =loaderDeploymentEnvironment.IsLoading
             Width: =1920
             Y: =64
-            ZIndex: =69
+            ZIndex: =78
+
+        iconTargetOrgSettingHelp As icon.Help:
+            BorderColor: =ColorFade(iconTargetOrgSettingHelp.Fill, -20%)
+            DisabledFill: =ColorFade(iconTargetOrgSettingHelp.Fill, -80%)
+            Fill: =RGBA(255, 255, 255, 1)
+            Height: =23
+            HoverBorderColor: =ColorFade(iconTargetOrgSettingHelp.BorderColor, 20%)
+            HoverColor: =ColorFade(iconTargetOrgSettingHelp.Color, 20%)
+            HoverFill: =ColorFade(iconTargetOrgSettingHelp.Fill, 20%)
+            Icon: =Icon.Help
+            OnSelect: |-
+                =Launch("https://learn.microsoft.com/en-us/power-platform/developer/cli/reference/org#pac-org-list-settings")
+            PressedBorderColor: =ColorFade(iconTargetOrgSettingHelp.BorderColor, -20%)
+            PressedColor: =ColorFade(iconTargetOrgSettingHelp.Color, -20%)
+            PressedFill: =ColorFade(iconTargetOrgSettingHelp.Fill, -20%)
+            Tooltip: ="The default value will be the maker environment setting value. Toggle the checkboxes below to enable or disable specific organization settings at the target. These changes will only take effect if the 'Apply Setting' option is selected."
+            Visible: =showOrgSettings && !showSolutionComponentLoader
+            Width: =20
+            X: =1316
+            Y: =335
+            ZIndex: =79
 
     btnFunctionsDeploy As groupContainer:
         Height: =320
@@ -5090,7 +5501,9 @@ DeploymentSettingsScreen As screen:
                             SolutionLoaderText: "LOADING DEPLOYMENT ENVIRONMENT CONFIGURATION...",
                             solutionupgradetag: "false",
                             bypassappconsenttag: "false",
-                            lclBypassConsent: "false"
+                            lclBypassConsent: "false",
+                            bypassorsettingtag: "false",
+                            lclApplyOrgSetting: "false"
                         }
                     );
                     If(
@@ -5173,6 +5586,14 @@ DeploymentSettingsScreen As screen:
                                 lclBypassConsent: LookUp(
                                     EnvironmentDeploymentSettings,
                                     Name = "BypassAppConsent"
+                                ).Value,
+                                bypassorsettingtag: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "ApplyOrgSetting"
+                                ).Value,
+                                lclApplyOrgSetting: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "ApplyOrgSetting"
                                 ).Value,
                                 deployunmanagedtag: LookUp(
                                     EnvironmentDeploymentSettings,
@@ -5463,7 +5884,9 @@ DeploymentSettingsScreen As screen:
                             "Status",
                             First(properties.statuses).status,
                             "UserId",
-                            properties.createdBy.id
+                            properties.createdBy.id,
+                            "FullName",
+                            properties.displayName & " (" & name & ")"
                         )
                     );
                     Concurrent(
@@ -5505,6 +5928,16 @@ DeploymentSettingsScreen As screen:
                                 CurrentValue: LookUp(
                                     EnvironmentDeploymentSettings,
                                     Name = "webhookurl." & name
+                                ).Value
+                            }
+                        ),
+                        UpdateIf(
+                            EnvironmentOrgSettings,
+                            true,
+                            {
+                                CurrentValue: LookUp(
+                                    EnvironmentDeploymentSettings,
+                                    Name = "orgsetting." & settingname
                                 ).Value
                             }
                         ),
@@ -5735,7 +6168,8 @@ DeploymentSettingsScreen As screen:
                                                 locConnectors,
                                                 id = connectorid
                                             )
-                                        ).properties.iconUri
+                                        ).properties.iconUri,
+                                        FullName:""
                                     }
                                 )
                             )
