@@ -1,6 +1,15 @@
 {
   "properties": {
     "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
       "shared_commondataserviceforapps_2": {
         "runtimeSource": "embedded",
         "connection": {
@@ -10,13 +19,22 @@
           "name": "shared_commondataserviceforapps"
         }
       },
-      "shared_commondataserviceforapps": {
+      "shared_webcontents": {
         "runtimeSource": "embedded",
         "connection": {
-          "connectionReferenceLogicalName": "admin_sharedcommondataserviceforapps_98924"
+          "connectionReferenceLogicalName": "admin_CoECoreHTTPWithAzureAD"
         },
         "api": {
-          "name": "shared_commondataserviceforapps"
+          "name": "shared_webcontents"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Users"
+        },
+        "api": {
+          "name": "shared_office365users"
         }
       },
       "shared_commondataserviceforapps_1": {
@@ -47,14 +65,6 @@
           "metadata": {
             "schemaName": "admin_PowerAutomateEnvironmentVariable",
             "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
-          }
-        },
-        "Get Security Roles for All BUs (admin_GetSecurityRolesforAllBUs)": {
-          "defaultValue": false,
-          "type": "Bool",
-          "metadata": {
-            "schemaName": "admin_GetSecurityRolesforAllBUs",
-            "description": "If false (Default) gathers the SYSTEM Admin users only for the environments parent BU. If true gathers for all BUs. This due to some tenants having too many BUs to do this."
           }
         }
       },
@@ -93,7 +103,11 @@
               }
             }
           },
-          "runAfter": {},
+          "runAfter": {
+            "Initialize_KnownMicrosoftAccounts": [
+              "Succeeded"
+            ]
+          },
           "expression": {
             "or": [
               {
@@ -303,122 +317,216 @@
         },
         "Get_Security_Roles": {
           "actions": {
-            "System_Administrator_Template_ID": {
+            "List_SRs_to_track": {
               "runAfter": {},
               "metadata": {
-                "operationMetadataId": "37847778-06e1-4dbe-95ed-bf10a726a7b0"
-              },
-              "type": "Compose",
-              "inputs": "627090ff-40a3-4053-8790-584edc5be201"
-            },
-            "List_System_Admin_SRs": {
-              "runAfter": {
-                "System_Administrator_Template_ID": [
-                  "Succeeded"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "99bceb37-81f2-4d61-aca4-7e649b9b34b4"
+                "operationMetadataId": "d01836e1-98e6-4967-88cf-1bb5ab34bf79"
               },
               "type": "OpenApiConnection",
               "inputs": {
                 "host": {
                   "connectionName": "shared_commondataserviceforapps_2",
-                  "operationId": "ListRecordsWithOrganization",
+                  "operationId": "ListRecords",
                   "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
                 },
                 "parameters": {
-                  "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
-                  "entityName": "roles",
-                  "$filter": "_roletemplateid_value eq '@{outputs('System_Administrator_Template_ID')}'"
+                  "entityName": "admin_tenantsecurityroleses",
+                  "$select": "admin_name, admin_roletemplateid, admin_tracksr, admin_trackbu",
+                  "$filter": "admin_tracksr eq true"
                 },
                 "authentication": "@parameters('$authentication')"
               }
             },
-            "CATCH_-_Cannot_gather_due_to_GDS_issue": {
-              "runAfter": {
-                "List_System_Admin_SRs": [
-                  "Failed"
-                ]
-              },
-              "metadata": {
-                "operationMetadataId": "4d22658b-fcb3-4e1c-a832-47e9e1b555b9"
-              },
-              "type": "Compose",
-              "inputs": "CATCH - Cannot gather due to GDS issue"
-            },
-            "Call_for_SRs": {
+            "Apply_to_each_SR": {
+              "foreach": "@outputs('List_SRs_to_track')?['body/value']",
               "actions": {
-                "See_if_want_to_gather_for_all_BUs_or_just_parent": {
+                "if_has_TID": {
                   "actions": {
-                    "Apply_to_SR": {
-                      "foreach": "@outputs('List_System_Admin_SRs')?['body/value']",
-                      "actions": {
-                        "Run_a_Child_Flow_-_All_BUs": {
-                          "runAfter": {},
-                          "metadata": {
-                            "operationMetadataId": "cf6b1054-53df-4159-a437-33b034da8bb0"
-                          },
-                          "type": "Workflow",
-                          "inputs": {
-                            "host": {
-                              "workflowReferenceName": "5c248f24-f7c9-ed11-b597-0022480813ff"
-                            },
-                            "body": {
-                              "text": "@triggerOutputs()?['body/admin_environmentid']",
-                              "text_1": "@outputs('System_Administrator_Template_ID')",
-                              "text_2": "@items('Apply_to_SR')?['_businessunitid_value']"
-                            }
-                          },
-                          "description": "System Administrator Template ID = 627090ff-40a3-4053-8790-584edc5be201"
-                        }
-                      },
+                    "TID": {
                       "runAfter": {},
                       "metadata": {
-                        "operationMetadataId": "437236c1-3272-4f7e-abff-63743ef77e86"
+                        "operationMetadataId": "2be636ad-23ab-4576-8a73-94b30bdc36a7"
                       },
-                      "type": "Foreach"
+                      "type": "Compose",
+                      "inputs": "@items('Apply_to_each_SR')?['admin_roletemplateid']"
+                    },
+                    "Get_SRs_by_TID": {
+                      "runAfter": {
+                        "TID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "99bceb37-81f2-4d61-aca4-7e649b9b34b4"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                          "entityName": "roles",
+                          "$filter": "_roletemplateid_value eq '@{items('Apply_to_each_SR')?['admin_roletemplateid']}'"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "CATCH_-_Cannot_gather_due_to_GDS_issue": {
+                      "runAfter": {
+                        "Get_SRs_by_TID": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "4d22658b-fcb3-4e1c-a832-47e9e1b555b9"
+                      },
+                      "type": "Compose",
+                      "inputs": "CATCH - Cannot gather due to GDS issue"
+                    },
+                    "Call_for_SRs": {
+                      "actions": {
+                        "See_if_want_to_gather_for_all_BUs_or_just_parent": {
+                          "actions": {
+                            "Apply_to_SR": {
+                              "foreach": "@outputs('Get_SRs_by_TID')?['body/value']",
+                              "actions": {
+                                "Run_a_Child_Flow_-_All_BUs": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "cf6b1054-53df-4159-a437-33b034da8bb0"
+                                  },
+                                  "type": "Workflow",
+                                  "inputs": {
+                                    "host": {
+                                      "workflowReferenceName": "5c248f24-f7c9-ed11-b597-0022480813ff"
+                                    },
+                                    "body": {
+                                      "text": "@triggerOutputs()?['body/admin_environmentid']",
+                                      "text_1": "@items('Apply_to_each_SR')?['admin_name']",
+                                      "text_2": "@items('Apply_to_SR')?['_businessunitid_value']",
+                                      "boolean": true,
+                                      "text_3": "@items('Apply_to_each_SR')?['admin_roletemplateid']"
+                                    }
+                                  },
+                                  "description": "Call for this SR"
+                                }
+                              },
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "437236c1-3272-4f7e-abff-63743ef77e86"
+                              },
+                              "type": "Foreach",
+                              "runtimeConfiguration": {
+                                "concurrency": {
+                                  "repetitions": 50
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "else": {
+                            "actions": {
+                              "ParentBU": {
+                                "runAfter": {
+                                  "Get_Parent_BU": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "36f781bd-85a7-4efe-bbb4-225e85e2cfc2"
+                                },
+                                "type": "Compose",
+                                "inputs": "@first(outputs('Get_Parent_BU')?['body/value'])?['businessunitid']"
+                              },
+                              "Run_a_Child_Flow_-_Parent_BU": {
+                                "runAfter": {
+                                  "ParentBU": [
+                                    "Succeeded"
+                                  ]
+                                },
+                                "metadata": {
+                                  "operationMetadataId": "9d92e3b5-3056-476b-944b-245e182659ab"
+                                },
+                                "type": "Workflow",
+                                "inputs": {
+                                  "host": {
+                                    "workflowReferenceName": "5c248f24-f7c9-ed11-b597-0022480813ff"
+                                  },
+                                  "body": {
+                                    "text": "@triggerOutputs()?['body/admin_environmentid']",
+                                    "text_1": "@items('Apply_to_each_SR')?['admin_name']",
+                                    "text_2": "@outputs('ParentBU')",
+                                    "boolean": true,
+                                    "text_3": "@items('Apply_to_each_SR')?['admin_roletemplateid']"
+                                  }
+                                },
+                                "description": "Call for this SR"
+                              },
+                              "Get_Parent_BU": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "99bceb37-81f2-4d61-aca4-7e649b9b34b4"
+                                },
+                                "type": "OpenApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connectionName": "shared_commondataserviceforapps_2",
+                                    "operationId": "ListRecordsWithOrganization",
+                                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                  },
+                                  "parameters": {
+                                    "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                                    "entityName": "businessunits",
+                                    "$filter": "parentbusinessunitid eq null"
+                                  },
+                                  "authentication": "@parameters('$authentication')"
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "equals": [
+                              "@items('Apply_to_each_SR')?['admin_trackbu']",
+                              "@true"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "d7fe39db-e652-44fb-8a41-7b170b5846d8"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "CATCH_-_Cannot_gather_due_to_GDS_issue": [
+                          "Skipped"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "28fb2487-b4e6-4829-bbc7-9ef63b02b475"
+                      },
+                      "type": "Scope"
                     }
                   },
                   "runAfter": {},
                   "else": {
                     "actions": {
-                      "ParentBU": {
-                        "runAfter": {
-                          "Get_Parent_BU": [
-                            "Succeeded"
-                          ]
-                        },
+                      "Name": {
+                        "runAfter": {},
                         "metadata": {
-                          "operationMetadataId": "36f781bd-85a7-4efe-bbb4-225e85e2cfc2"
+                          "operationMetadataId": "2be636ad-23ab-4576-8a73-94b30bdc36a7"
                         },
                         "type": "Compose",
-                        "inputs": "@first(outputs('Get_Parent_BU')?['body/value'])?['businessunitid']"
+                        "inputs": "@items('Apply_to_each_SR')?['admin_name']"
                       },
-                      "Run_a_Child_Flow_-_Parent_BU": {
+                      "Get_SRs_by_Name": {
                         "runAfter": {
-                          "ParentBU": [
+                          "Name": [
                             "Succeeded"
                           ]
                         },
-                        "metadata": {
-                          "operationMetadataId": "9d92e3b5-3056-476b-944b-245e182659ab"
-                        },
-                        "type": "Workflow",
-                        "inputs": {
-                          "host": {
-                            "workflowReferenceName": "5c248f24-f7c9-ed11-b597-0022480813ff"
-                          },
-                          "body": {
-                            "text": "@triggerOutputs()?['body/admin_environmentid']",
-                            "text_1": "@outputs('System_Administrator_Template_ID')",
-                            "text_2": "@outputs('ParentBU')"
-                          }
-                        },
-                        "description": "System Administrator Template ID = 627090ff-40a3-4053-8790-584edc5be201"
-                      },
-                      "Get_Parent_BU": {
-                        "runAfter": {},
                         "metadata": {
                           "operationMetadataId": "99bceb37-81f2-4d61-aca4-7e649b9b34b4"
                         },
@@ -431,35 +539,1036 @@
                           },
                           "parameters": {
                             "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
-                            "entityName": "businessunits",
-                            "$filter": "parentbusinessunitid eq null"
+                            "entityName": "roles",
+                            "$filter": "name eq '@{items('Apply_to_each_SR')?['admin_name']}'"
                           },
                           "authentication": "@parameters('$authentication')"
                         }
+                      },
+                      "CATCH_-_Cannot_gather_by_name_due_to_GDS_issue": {
+                        "runAfter": {
+                          "Get_SRs_by_Name": [
+                            "Failed"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "4d22658b-fcb3-4e1c-a832-47e9e1b555b9"
+                        },
+                        "type": "Compose",
+                        "inputs": "CATCH - Cannot gather due to GDS issue"
+                      },
+                      "Call_for_SRs_by_Name": {
+                        "actions": {
+                          "See_if_want_to_gather_by_name_for_all_BUs_or_just_parent": {
+                            "actions": {
+                              "Apply_to_SR_by_Name": {
+                                "foreach": "@outputs('Get_SRs_by_Name')?['body/value']",
+                                "actions": {
+                                  "Run_a_Child_Flow_-_All_BUs_By_Name": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "cf6b1054-53df-4159-a437-33b034da8bb0"
+                                    },
+                                    "type": "Workflow",
+                                    "inputs": {
+                                      "host": {
+                                        "workflowReferenceName": "5c248f24-f7c9-ed11-b597-0022480813ff"
+                                      },
+                                      "body": {
+                                        "text": "@triggerOutputs()?['body/admin_environmentid']",
+                                        "text_1": "@items('Apply_to_each_SR')?['admin_name']",
+                                        "text_2": "@items('Apply_to_SR_by_Name')?['_businessunitid_value']",
+                                        "boolean": false,
+                                        "text_3": "unknown"
+                                      }
+                                    },
+                                    "description": "Call for this SR"
+                                  }
+                                },
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "437236c1-3272-4f7e-abff-63743ef77e86"
+                                },
+                                "type": "Foreach",
+                                "runtimeConfiguration": {
+                                  "concurrency": {
+                                    "repetitions": 50
+                                  }
+                                }
+                              }
+                            },
+                            "runAfter": {},
+                            "else": {
+                              "actions": {
+                                "ParentBU_by_Name": {
+                                  "runAfter": {
+                                    "Get_Parent_BU_by_Name": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "36f781bd-85a7-4efe-bbb4-225e85e2cfc2"
+                                  },
+                                  "type": "Compose",
+                                  "inputs": "@first(outputs('Get_Parent_BU_by_Name')?['body/value'])?['businessunitid']"
+                                },
+                                "Run_a_Child_Flow_-_Parent_BU_By_Name": {
+                                  "runAfter": {
+                                    "ParentBU_by_Name": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "9d92e3b5-3056-476b-944b-245e182659ab"
+                                  },
+                                  "type": "Workflow",
+                                  "inputs": {
+                                    "host": {
+                                      "workflowReferenceName": "5c248f24-f7c9-ed11-b597-0022480813ff"
+                                    },
+                                    "body": {
+                                      "text": "@triggerOutputs()?['body/admin_environmentid']",
+                                      "text_1": "@items('Apply_to_each_SR')?['admin_name']",
+                                      "text_2": "@outputs('ParentBU_by_Name')",
+                                      "boolean": false,
+                                      "text_3": "unknown"
+                                    }
+                                  },
+                                  "description": "Call for this SR"
+                                },
+                                "Get_Parent_BU_by_Name": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "99bceb37-81f2-4d61-aca4-7e649b9b34b4"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "ListRecordsWithOrganization",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                                      "entityName": "businessunits",
+                                      "$filter": "parentbusinessunitid eq null"
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              }
+                            },
+                            "expression": {
+                              "equals": [
+                                "@items('Apply_to_each_SR')?['admin_trackbu']",
+                                "@true"
+                              ]
+                            },
+                            "metadata": {
+                              "operationMetadataId": "d7fe39db-e652-44fb-8a41-7b170b5846d8"
+                            },
+                            "type": "If"
+                          }
+                        },
+                        "runAfter": {
+                          "CATCH_-_Cannot_gather_by_name_due_to_GDS_issue": [
+                            "Skipped"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "28fb2487-b4e6-4829-bbc7-9ef63b02b475"
+                        },
+                        "type": "Scope"
                       }
                     }
                   },
                   "expression": {
-                    "equals": [
-                      "@parameters('Get Security Roles for All BUs (admin_GetSecurityRolesforAllBUs)')",
-                      "@true"
-                    ]
+                    "not": {
+                      "equals": [
+                        "@items('Apply_to_each_SR')?['admin_roletemplateid']",
+                        "@null"
+                      ]
+                    }
                   },
                   "metadata": {
-                    "operationMetadataId": "d7fe39db-e652-44fb-8a41-7b170b5846d8"
+                    "operationMetadataId": "dc46c4ee-2121-425f-9631-67ce72c4dc49"
                   },
                   "type": "If"
                 }
               },
               "runAfter": {
-                "CATCH_-_Cannot_gather_due_to_GDS_issue": [
-                  "Skipped"
+                "List_SRs_to_track": [
+                  "Succeeded"
                 ]
               },
               "metadata": {
-                "operationMetadataId": "28fb2487-b4e6-4829-bbc7-9ef63b02b475"
+                "operationMetadataId": "07bbcbcf-4a26-42e1-bbb6-78a76c9af937"
               },
-              "type": "Scope"
+              "type": "Foreach",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 50
+                }
+              }
+            },
+            "Add_User_Identity_and_Guest_User_information": {
+              "actions": {
+                "Find_user_with_ID": {
+                  "actions": {
+                    "List_envt_SR_Users_without_known_Identity": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d35b164b-0933-408e-9909-d319f877c5a9"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_environmentsecurityrolepermissions",
+                          "$select": "admin_userid",
+                          "$filter": "admin_useridentityprovider eq null and admin_userid ne null and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Select_ID_and_RowID_for_record_update": {
+                      "runAfter": {
+                        "List_envt_SR_Users_without_known_Identity": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3de9bf9e-84d4-43b5-944b-0186b19aaddb"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_envt_SR_Users_without_known_Identity')?['body/value']",
+                        "select": {
+                          "RowID": "@item()?['admin_environmentsecurityrolepermissionid']",
+                          "UserID": "@item()?['admin_userid']"
+                        }
+                      }
+                    },
+                    "Select_just_User_ID": {
+                      "runAfter": {
+                        "Select_ID_and_RowID_for_record_update": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "da203a17-7aa6-4672-ac30-0d1bc482a2c2"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_envt_SR_Users_without_known_Identity')?['body/value']",
+                        "select": "@item()?['admin_userid']"
+                      }
+                    },
+                    "Distinct_List_of_User_IDs": {
+                      "runAfter": {
+                        "Select_just_User_ID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "2edbd4eb-1c29-4014-955e-93bcf84d6a55"
+                      },
+                      "type": "Compose",
+                      "inputs": "@union(body('Select_just_User_ID'), body('Select_just_User_ID'))"
+                    },
+                    "Apply_to_each_user_with_unknown_identity": {
+                      "foreach": "@outputs('Distinct_List_of_User_IDs')",
+                      "actions": {
+                        "User_not_found": {
+                          "actions": {
+                            "Find_this_unknown_users_name": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "0720c802-c4ac-4728-bc79-38a58f1fd15d"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "ListRecords",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_environmentsecurityrolepermissions",
+                                  "$select": "admin_environmentsecurityrolepermissionid, admin_name",
+                                  "$filter": "admin_useridentityprovider eq null and admin_userid eq '@{items('Apply_to_each_user_with_unknown_identity')}' and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "Look_up_in_AD": {
+                              "runAfter": {
+                                "Users_Modified_Name": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "34d9c5c0-157b-473b-922d-985e884479ab"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_webcontents",
+                                  "operationId": "InvokeHttp",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+                                },
+                                "parameters": {
+                                  "request/method": "GET",
+                                  "request/url": "https://graph.microsoft.com/v1.0/servicePrincipals?$filter=displayName eq '@{outputs('Users_Modified_Name')}'"
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            },
+                            "App_Reg_Returned": {
+                              "actions": {
+                                "Apply_to_each_user_-_app_reg": {
+                                  "foreach": "@outputs('Find_this_unknown_users_name')?['body/value']",
+                                  "actions": {
+                                    "Mark_as_an_app_reg": {
+                                      "runAfter": {},
+                                      "metadata": {
+                                        "operationMetadataId": "cfcfc37b-4ffa-443f-891e-c81d7cf695ec"
+                                      },
+                                      "type": "OpenApiConnection",
+                                      "inputs": {
+                                        "host": {
+                                          "connectionName": "shared_commondataserviceforapps_2",
+                                          "operationId": "UpdateRecord",
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_environmentsecurityrolepermissions",
+                                          "recordId": "@items('Apply_to_each_user_-_app_reg')?['admin_environmentsecurityrolepermissionid']",
+                                          "item/admin_useridentityprovider": "unknown",
+                                          "item/admin_usertype": 597910002
+                                        },
+                                        "authentication": "@parameters('$authentication')"
+                                      }
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "ae51df21-2727-4ec3-aec4-a76b56159519"
+                                  },
+                                  "type": "Foreach",
+                                  "runtimeConfiguration": {
+                                    "concurrency": {
+                                      "repetitions": 50
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Get_App_Reg_failed": [
+                                  "Skipped"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "No_op_-_Agg_Reg_Not_Found": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "3628ce4b-18dd-4c9f-b1cb-15767ff9a2cc"
+                                    },
+                                    "type": "Compose",
+                                    "inputs": "Do nothing, will clean below"
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "not": {
+                                      "equals": [
+                                        "",
+                                        "@null"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "greater": [
+                                      "@length(body('Look_up_in_AD')?['value'])",
+                                      0
+                                    ]
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "7e4f1150-8b53-4dc2-ae6c-ce51adad5f80"
+                              },
+                              "type": "If"
+                            },
+                            "Get_App_Reg_failed": {
+                              "actions": {
+                                "No_op_-_Agg_Reg_Failed": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "583f57ed-ff58-44c0-9e52-3ba8711e8260"
+                                  },
+                                  "type": "Compose",
+                                  "inputs": "Do nothing, will clean below"
+                                }
+                              },
+                              "runAfter": {
+                                "Look_up_in_AD": [
+                                  "Failed"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "18ec3ee5-4014-43c4-a735-0bf003e93e29"
+                              },
+                              "type": "Scope"
+                            },
+                            "Users_Modified_Name": {
+                              "runAfter": {
+                                "Users_Name": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b23cbc70-6949-41f1-86be-0d12eb97f90e"
+                              },
+                              "type": "Compose",
+                              "inputs": "@replace(first(outputs('Find_this_unknown_users_name')?['body/value'])?['admin_name'], '# ', '')"
+                            },
+                            "Users_Name": {
+                              "runAfter": {
+                                "Find_this_unknown_users_name": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "13d85a3b-8d59-4b76-a7c5-cbbae204dcd8"
+                              },
+                              "type": "Compose",
+                              "inputs": "@first(outputs('Find_this_unknown_users_name')?['body/value'])?['admin_name']"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_user_profile_(V2)": [
+                              "Failed"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ce4d504f-a8c0-40dc-a414-9290285e6a1a"
+                          },
+                          "type": "Scope"
+                        },
+                        "User_found_update": {
+                          "actions": {
+                            "isGuestUser": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "10fac958-fd13-49e2-bfce-247b11bb64e1"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(outputs('Get_user_profile_(V2)')?['body/userType'], 'Guest'), true, false)"
+                            },
+                            "user_identity_type": {
+                              "runAfter": {
+                                "isGuestUser": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "a919440c-8e2f-413d-9e8b-1227fbeb4e0f"
+                              },
+                              "type": "Compose",
+                              "inputs": "@coalesce(first(outputs('Get_user_profile_(V2)')?['body/identities'])?['issuer'], 'unknown')"
+                            },
+                            "Set_users_identintities": {
+                              "foreach": "@outputs('Find_this_users_records')?['body/value']",
+                              "actions": {
+                                "Update_user_identity_and_type": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "01dc9e0f-60ca-49f2-b8aa-720fd8f05509"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "UpdateRecord",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_environmentsecurityrolepermissions",
+                                      "recordId": "@items('Set_users_identintities')?['admin_environmentsecurityrolepermissionid']",
+                                      "item/admin_useridentityprovider": "@outputs('user_identity_type')",
+                                      "item/admin_usertype": "@if(equals(outputs('isGuestUser'), true), 597910001, 597910000)"
+                                    },
+                                    "authentication": "@parameters('$authentication')"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "user_identity_type": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "4e5e3c3a-a3ae-4c07-9823-bfcf71a4ba5b"
+                              },
+                              "type": "Foreach",
+                              "runtimeConfiguration": {
+                                "concurrency": {
+                                  "repetitions": 50
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "User_not_found": [
+                              "Skipped"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "ed539179-b82b-4de7-b7d1-349b8d68a695"
+                          },
+                          "type": "Scope"
+                        },
+                        "Get_user_profile_(V2)": {
+                          "runAfter": {
+                            "Find_this_users_records": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "a370973c-d13d-43d8-b1a5-4b138a6e9aad"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_office365users",
+                              "operationId": "UserProfile_V2",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+                            },
+                            "parameters": {
+                              "id": "@items('Apply_to_each_user_with_unknown_identity')",
+                              "$select": "userType, identities"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Find_this_users_records": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "61074816-bd4e-4fe8-ba6b-b5b1a7cd9351"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environmentsecurityrolepermissions",
+                              "$select": "admin_environmentsecurityrolepermissionid",
+                              "$filter": "admin_useridentityprovider eq null and admin_userid eq '@{items('Apply_to_each_user_with_unknown_identity')}' and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Distinct_List_of_User_IDs": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "a64855a2-1312-445d-b7d2-d0a5c2afeb99"
+                      },
+                      "type": "Foreach",
+                      "runtimeConfiguration": {
+                        "concurrency": {
+                          "repetitions": 50
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "469fcb5b-4b9e-47d5-aa64-4bcdc3c5314f"
+                  },
+                  "type": "Scope"
+                },
+                "Find_Microsoft_Accounts_from_List": {
+                  "actions": {
+                    "List_envt_SR_Users_still_unknown_-_list": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d35b164b-0933-408e-9909-d319f877c5a9"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_environmentsecurityrolepermissions",
+                          "$select": "admin_name",
+                          "$filter": "admin_useridentityprovider eq null and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Select_Name_-_list": {
+                      "runAfter": {
+                        "List_envt_SR_Users_still_unknown_-_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "da203a17-7aa6-4672-ac30-0d1bc482a2c2"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_envt_SR_Users_still_unknown_-_list')?['body/value']",
+                        "select": "@item()?['admin_name']"
+                      }
+                    },
+                    "Distinct_Names_-_list": {
+                      "runAfter": {
+                        "Select_Name_-_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "d8b3c25b-f954-457e-8ed3-dfd32287aaa2"
+                      },
+                      "type": "Compose",
+                      "inputs": "@union(body('Select_Name_-_list'), body('Select_Name_-_list'))"
+                    },
+                    "Find_names_in_known_list": {
+                      "runAfter": {
+                        "Distinct_Names_-_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "278a020e-0511-4dd0-b580-daae01e3646c"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@outputs('Distinct_Names_-_list')",
+                        "where": "@contains(variables('KnownMicrosoftAccounts'), item())"
+                      }
+                    },
+                    "Apply_to_each_known_Microsoft_Account": {
+                      "foreach": "@body('Find_names_in_known_list')",
+                      "actions": {
+                        "Find_this_users_records_-_list": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "61074816-bd4e-4fe8-ba6b-b5b1a7cd9351"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environmentsecurityrolepermissions",
+                              "$select": "admin_environmentsecurityrolepermissionid",
+                              "$filter": "admin_name eq '@{items('Apply_to_each_known_Microsoft_Account')}' and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Apply_to_each_record_found_-_list": {
+                          "foreach": "@outputs('Find_this_users_records_-_list')?['body/value']",
+                          "actions": {
+                            "Mark_as_Microsoft_Account_-_list": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "5e655c4c-857f-47c1-a5bd-44038b394314"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_commondataserviceforapps_2",
+                                  "operationId": "UpdateRecord",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                },
+                                "parameters": {
+                                  "entityName": "admin_environmentsecurityrolepermissions",
+                                  "recordId": "@items('Apply_to_each_record_found_-_list')?['admin_environmentsecurityrolepermissionid']",
+                                  "item/admin_useridentityprovider": "unknown",
+                                  "item/admin_usertype": 597910004
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Find_this_users_records_-_list": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "b8e2ab16-5836-4764-a95f-5e3563ef3113"
+                          },
+                          "type": "Foreach",
+                          "runtimeConfiguration": {
+                            "concurrency": {
+                              "repetitions": 50
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Find_names_in_known_list": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "d37a5df2-d265-4bc7-9ad2-98c401359553"
+                      },
+                      "type": "Foreach",
+                      "runtimeConfiguration": {
+                        "concurrency": {
+                          "repetitions": 50
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Find_user_with_ID": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "450e2a88-0060-42ee-9408-a9fe7cb9e0a0"
+                  },
+                  "type": "Scope"
+                },
+                "Differentiate_the_rest_-_Microsoft_Account_v_Unknown": {
+                  "actions": {
+                    "List_envt_SR_Users_still_unknown": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "d35b164b-0933-408e-9909-d319f877c5a9"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_2",
+                          "operationId": "ListRecords",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_environmentsecurityrolepermissions",
+                          "$select": "admin_name",
+                          "$filter": "admin_useridentityprovider eq null and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Select_Name": {
+                      "runAfter": {
+                        "List_envt_SR_Users_still_unknown": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "da203a17-7aa6-4672-ac30-0d1bc482a2c2"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_envt_SR_Users_still_unknown')?['body/value']",
+                        "select": "@item()?['admin_name']"
+                      }
+                    },
+                    "Distinct_Names": {
+                      "runAfter": {
+                        "Select_Name": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "efdb036a-9c03-4bd5-8b65-78ae553964c9"
+                      },
+                      "type": "Compose",
+                      "inputs": "@union(body('Select_Name'), body('Select_Name'))"
+                    },
+                    "Apply_to_each_still_unknown": {
+                      "foreach": "@outputs('Distinct_Names')",
+                      "actions": {
+                        "Find_this_users_records_-_still_unknown": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "61074816-bd4e-4fe8-ba6b-b5b1a7cd9351"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_environmentsecurityrolepermissions",
+                              "$select": "admin_environmentsecurityrolepermissionid",
+                              "$filter": "admin_name eq '@{items('Apply_to_each_still_unknown')}' and _admin_environment_value eq @{triggerOutputs()?['body/admin_environmentid']}"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "List_SystemUser_Record": {
+                          "runAfter": {
+                            "Find_this_users_records_-_still_unknown": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "66ae1ff8-248c-4bdc-a662-c5d329e138be"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps_2",
+                              "operationId": "ListRecordsWithOrganization",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                              "entityName": "systemusers",
+                              "$filter": "fullname eq '@{items('Apply_to_each_still_unknown')}'"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "If_found": {
+                          "actions": {
+                            "Access_Mode": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "2e7cd82a-d99e-4e90-a6ee-be55272bdc9b"
+                              },
+                              "type": "Compose",
+                              "inputs": "@first(outputs('List_SystemUser_Record')?['body/value'])?['accessmode']"
+                            },
+                            "If_acess_mode_non-interactive,_support_user_or_delegated_admin": {
+                              "actions": {
+                                "Deduce_as_MSFT_owned_-_mark_all_Microsoft_Account": {
+                                  "foreach": "@outputs('Find_this_users_records_-_still_unknown')?['body/value']",
+                                  "actions": {
+                                    "Deduce_as_MSFT_owned_-_mark_as_Microsoft_Account": {
+                                      "runAfter": {},
+                                      "metadata": {
+                                        "operationMetadataId": "a1ab693d-a23f-4295-add8-3ff705ff3b67"
+                                      },
+                                      "type": "OpenApiConnection",
+                                      "inputs": {
+                                        "host": {
+                                          "connectionName": "shared_commondataserviceforapps_2",
+                                          "operationId": "UpdateRecord",
+                                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                        },
+                                        "parameters": {
+                                          "entityName": "admin_environmentsecurityrolepermissions",
+                                          "recordId": "@items('Deduce_as_MSFT_owned_-_mark_all_Microsoft_Account')?['admin_environmentsecurityrolepermissionid']",
+                                          "item/admin_useridentityprovider": "unknown",
+                                          "item/admin_usertype": 597910004
+                                        },
+                                        "authentication": "@parameters('$authentication')"
+                                      }
+                                    }
+                                  },
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "f9e0cf4e-3d35-49c1-b8c3-3629606271fd"
+                                  },
+                                  "type": "Foreach",
+                                  "runtimeConfiguration": {
+                                    "concurrency": {
+                                      "repetitions": 50
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Access_Mode": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "else": {
+                                "actions": {
+                                  "Still_not_known_-_mark_all_unknown_": {
+                                    "foreach": "@outputs('Find_this_users_records_-_still_unknown')?['body/value']",
+                                    "actions": {
+                                      "Still_not_known__-_Mark_as_unknown": {
+                                        "runAfter": {},
+                                        "metadata": {
+                                          "operationMetadataId": "d3db7067-221b-474f-be37-e5a10938ed99"
+                                        },
+                                        "type": "OpenApiConnection",
+                                        "inputs": {
+                                          "host": {
+                                            "connectionName": "shared_commondataserviceforapps_2",
+                                            "operationId": "UpdateRecord",
+                                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                          },
+                                          "parameters": {
+                                            "entityName": "admin_environmentsecurityrolepermissions",
+                                            "recordId": "@items('Still_not_known_-_mark_all_unknown_')?['admin_environmentsecurityrolepermissionid']",
+                                            "item/admin_useridentityprovider": "unknown",
+                                            "item/admin_usertype": 597910003
+                                          },
+                                          "authentication": "@parameters('$authentication')"
+                                        }
+                                      }
+                                    },
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "cab0bf26-bae7-4e2b-8ce7-30b7e53fff78"
+                                    },
+                                    "type": "Foreach",
+                                    "runtimeConfiguration": {
+                                      "concurrency": {
+                                        "repetitions": 50
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "or": [
+                                  {
+                                    "equals": [
+                                      "@outputs('Access_Mode')",
+                                      3
+                                    ]
+                                  },
+                                  {
+                                    "equals": [
+                                      "@outputs('Access_Mode')",
+                                      4
+                                    ]
+                                  },
+                                  {
+                                    "equals": [
+                                      "@outputs('Access_Mode')",
+                                      5
+                                    ]
+                                  }
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "e722f013-b475-4f29-aa3c-4c68b1f4bea7"
+                              },
+                              "type": "If",
+                              "description": "User owned App Registrations already covered above with call to Azure AD"
+                            }
+                          },
+                          "runAfter": {
+                            "List_SystemUser_Record": [
+                              "Succeeded"
+                            ]
+                          },
+                          "else": {
+                            "actions": {
+                              "No_System_User_record_-_mark_all_unknown": {
+                                "foreach": "@outputs('Find_this_users_records_-_still_unknown')?['body/value']",
+                                "actions": {
+                                  "No_System_User_Record_-_Mark_as_unknown": {
+                                    "runAfter": {},
+                                    "metadata": {
+                                      "operationMetadataId": "3af277b9-d320-4eaa-97de-d9705c92fa3a"
+                                    },
+                                    "type": "OpenApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connectionName": "shared_commondataserviceforapps_2",
+                                        "operationId": "UpdateRecord",
+                                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                      },
+                                      "parameters": {
+                                        "entityName": "admin_environmentsecurityrolepermissions",
+                                        "recordId": "@items('No_System_User_record_-_mark_all_unknown')?['admin_environmentsecurityrolepermissionid']",
+                                        "item/admin_useridentityprovider": "unknown",
+                                        "item/admin_usertype": 597910003
+                                      },
+                                      "authentication": "@parameters('$authentication')"
+                                    }
+                                  }
+                                },
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "f1c24cd1-e1f4-4551-a6a1-99dd05283993"
+                                },
+                                "type": "Foreach",
+                                "runtimeConfiguration": {
+                                  "concurrency": {
+                                    "repetitions": 50
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "greater": [
+                              "@length(outputs('List_SystemUser_Record')?['body/value'])",
+                              0
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "53e8eaf3-0ad4-48cc-b8c7-e635282d971b"
+                          },
+                          "type": "If"
+                        }
+                      },
+                      "runAfter": {
+                        "Distinct_Names": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "c9ae0f0a-427f-48b5-b994-7ed91c64c3ae"
+                      },
+                      "type": "Foreach",
+                      "runtimeConfiguration": {
+                        "concurrency": {
+                          "repetitions": 50
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Find_Microsoft_Accounts_from_List": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "163e6daf-e7b9-4a20-a7fb-f11677522020"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {
+                "Apply_to_each_SR": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9d49922d-7870-49fc-b0fe-3c07d5fbbad4"
+              },
+              "type": "Scope",
+              "description": "Will update a few fields like User Type for the newly added users"
             }
           },
           "runAfter": {
@@ -471,7 +1580,136 @@
             "operationMetadataId": "fc03018b-12ab-48d7-87b5-72d88709947a"
           },
           "type": "Scope",
-          "description": "Only storing System Administrator but same process could run for all SRs"
+          "description": "Configure what SRs to track in the Tenant Security Roles table"
+        },
+        "Initialize_KnownMicrosoftAccounts": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "309ce83c-0e0a-4822-ac32-92badc44a049"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "KnownMicrosoftAccounts",
+                "type": "array",
+                "value": [
+                  "# AIBuilder_StructuredML_Prod_CDS",
+                  "# AIBuilderProd",
+                  "# AppDeploymentOrchestration",
+                  "# AriaMdlExporter",
+                  "# BAP",
+                  "# BizQA",
+                  "# CatalogServiceNam",
+                  "# CCADataAnalyticsML",
+                  "# CDSAcisInfraAppGlobal",
+                  "# CDSFileStorage",
+                  "# CDSGlobalDiscovery",
+                  "# CDSReportService-APJ",
+                  "# CDSReportService-CAN",
+                  "# CDSReportService-CHE",
+                  "# CDSReportService-EMEA",
+                  "# CDSReportService-FRA",
+                  "# CDSReportService-GBR",
+                  "# CDSReportService-GER",
+                  "# CDSReportService-IND",
+                  "# CDSReportService-JPN",
+                  "# CDSReportService-KOR",
+                  "# CDSReportService-NAM",
+                  "# CDSReportService-NOR",
+                  "# CDSReportService-OCE",
+                  "# CDSReportService-SAM",
+                  "# CDSReportService-UAE",
+                  "# CDSReportService-ZAF",
+                  "# CDSUserManagement",
+                  "# D365IntegratedKnowledgeSearch-Admin-Prod-IL",
+                  "# D365IntegratedKnowledgeSearch-Ingestion-Prod-IL",
+                  "# D365IntegratedKnowledgeSearch-Sync-Prod-IL",
+                  "# D365OfficeDataSvc",
+                  "# DAMS",
+                  "# DAMSIsland",
+                  "# DataLakeStorage",
+                  "# DataServices",
+                  "# DataSyncFramework-APJ",
+                  "# DataSyncFramework-CAN",
+                  "# DataSyncFramework-CHE",
+                  "# DataSyncFramework-EMEA-FRA-GBR-GER",
+                  "# DataSyncFramework-IND-UAE-ZAF",
+                  "# DataSyncFramework-JPN",
+                  "# DataSyncFramework-KOR",
+                  "# DataSyncFramework-NAM",
+                  "# DataSyncFramework-NOR",
+                  "# DataSyncFramework-OCE",
+                  "# DataSyncFramework-SAM",
+                  "# DataSyncService-APJ",
+                  "# DataSyncService-CAN",
+                  "# DataSyncService-CHE",
+                  "# DataSyncService-EMEA-FRA-GBR-GER",
+                  "# DataSyncService-IND-UAE-ZAF",
+                  "# DataSyncService-JPN",
+                  "# DataSyncService-KOR",
+                  "# DataSyncService-NAM",
+                  "# DataSyncService-NOR",
+                  "# DataSyncService-OCE",
+                  "# DataSyncService-SAM",
+                  "# Deflection",
+                  "# Dynamics365Athena",
+                  "# Dynamics365Athena2",
+                  "# Dynamics365SCV",
+                  "# DynamicsInstaller",
+                  "# EnterpriseSales",
+                  "# Flow-CDSNativeConnector",
+                  "# Flow-CDSNativeConnectorAsia",
+                  "# Flow-CDSNativeConnectorAustralia",
+                  "# Flow-CDSNativeConnectorBrazil",
+                  "# Flow-CDSNativeConnectorCanada",
+                  "# Flow-CDSNativeConnectorEurope",
+                  "# Flow-CDSNativeConnectorFrance",
+                  "# Flow-CDSNativeConnectorGermany",
+                  "# Flow-CDSNativeConnectorIndia",
+                  "# Flow-CDSNativeConnectorJapan",
+                  "# Flow-CDSNativeConnectorKorea",
+                  "# Flow-CDSNativeConnectorNorway",
+                  "# Flow-CDSNativeConnectorPreview",
+                  "# Flow-CDSNativeConnectorSingapore",
+                  "# Flow-CDSNativeConnectorSouthAfrica",
+                  "# Flow-CDSNativeConnectorSwitzerland",
+                  "# Flow-CDSNativeConnectorUAE",
+                  "# Flow-CDSNativeConnectorUK",
+                  "# Flow-CDSNativeConnectorUS",
+                  "# Flow-RP",
+                  "# GlobalActiveMetricsMonitoringAlerting",
+                  "# InsightsAppsPlatform",
+                  "# JobsServiceProd",
+                  "# MicrosoftCustomerEngagementPortalInfra",
+                  "# MicrosoftDynamicsNRDService",
+                  "# Omnichannel",
+                  "# Pegasus-NAM",
+                  "# PowerAppsCustomerManagementPlaneBackend",
+                  "# PowerAppsDataPlaneBackend",
+                  "# PowerAutomate-DesktopFlowAI",
+                  "# PowerAutomate-DesktopFlowRuntime",
+                  "# PowerAutomate-MachineManagementRelay",
+                  "# PowerAutomate-MachineProvisioning",
+                  "# PowerAutomate-ProcessMining",
+                  "# PowerBIApplicationUser",
+                  "# PowerCards-S2S-IL-Prod",
+                  "# PowerPlatformAuthorization",
+                  "# PowerPlatformEnvironmentManagement",
+                  "# PowerQueryOnline",
+                  "# PowerVirtualAgentsProd",
+                  "# PpdfCDSClient",
+                  "# ProductInsights",
+                  "# Quartzite",
+                  "# RelevanceSearch",
+                  "# SharePointOnline",
+                  "# TPSProxyService",
+                  "Microsoft Forms Pro",
+                  "Power Apps Checker Application"
+                ]
+              }
+            ]
+          }
         }
       }
     },
