@@ -1,0 +1,1658 @@
+Screen1 As screen:
+    LoadingSpinnerColor: =RGBA(0, 120, 212, 1)
+    OnVisible: |-
+        =UpdateContext({ShowSpinner: true});
+        UpdateContext({ShowFilters: false});
+        UpdateContext({ShowNote: false});
+        
+        //get connection details
+        Set(SelectedRecordID, If(IsBlank(Param("recordId")), 
+            First('Connection Reference Identities').'Connection Reference Identity', 
+            LookUp('Connection Reference Identities', 'Connection Reference Identity' = GUID(Param("recordId"))).'Connection Reference Identity'
+            ));
+        //debug
+        //Set(SelectedRecordID, "297680c6-abdd-ee11-904d-000d3a341d27");
+        //end debug
+        Set(SelectedRecord, LookUp('Connection Reference Identities', 'Connection Reference Identity' = GUID(SelectedRecordID)));
+        
+        //get current record details
+        Concurrent(
+        Set(allEnvts, false);
+        Set(allUsers, false);
+        Set(allConnectors, false);
+        Set(LookupUserName, If(Len(SelectedRecord.accountName) = 0, "all", SelectedRecord.accountName)),
+        Set(LookupEnvtName, SelectedRecord.Environment.Name),
+        Set(LookUpEnvtDisplayName, SelectedRecord.Environment.'Display Name'),
+        Set(LookupConnectorName, If(Len(SelectedRecord.Connector.admin_id_short) = 0, "all", SelectedRecord.Connector.admin_id_short)));
+        
+        //Get Data
+        ClearCollect(ConnectorData, 'HELPER-GetConnectionstoClean'.Run(LookupUserName, LookupEnvtName, LookupConnectorName, false, false, false, ""));
+        
+        //if empty notify user why
+        If(CountRows(ConnectorData) = 0, Notify("No connections found. Envt may have been deleted", NotificationType.Information));
+        
+        //load data into app
+        //Reset(EnvtSelection);
+        //Reset(UserSelection);
+        //Reset(ConnectorSelection);
+        Reset(ErrorsOnlyCheckbox);
+        Select(RunFilterVars);
+        
+        UpdateContext({ShowSpinner: false});
+
+    MainContentContainer As groupContainer.verticalAutoLayoutContainer:
+        Height: =Parent.Height
+        LayoutDirection: =LayoutDirection.Vertical
+        LayoutMode: =LayoutMode.Auto
+        Width: =Parent.Width
+        ZIndex: =1
+
+        ActionHeader As groupContainer.horizontalAutoLayoutContainer:
+            Fill: =RGBA(243, 242, 241, 1)
+            FillPortions: =0
+            Height: =44
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutGap: =10
+            LayoutJustifyContent: =LayoutJustifyContent.SpaceBetween
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =32
+            PaddingRight: =32
+            ZIndex: =1
+
+            "CommandBar As 'Fluent Command Bar (1.0.22)'.pcfdataset":
+                AlignInContainer: =AlignInContainer.Center
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                Height: =32
+                Items: |-
+                    =Table(
+                        {
+                            ItemKey: "back",
+                            ItemDisplayName: "Back",
+                            ItemIconName: "NavigateBack"
+                        },
+                        {
+                            ItemKey: "showhide",
+                            ItemDisplayName: If(ShowFilters, "Hide Filters", "Show Filters"),
+                            ItemIconName: If(ShowFilters, "DoubleChevronUp", "DoubleChevronDown"),
+                            ItemEnabled: If(ShowSpinner, false, true)
+                        },
+                        {
+                            ItemKey: "export",
+                            ItemDisplayName: "Export to CSV",
+                            ItemIconName: "ExcelLogoInverse",
+                            ItemEnabled: If(ShowSpinner, false, true)
+                        },
+                        {
+                            ItemKey: "delete",
+                            ItemDisplayName: "Delete Connection",
+                            ItemIconName: "Delete",
+                            ItemEnabled: If(ShowSpinner || CountRows(ConnectionsList.SelectedItems) = 0, false, true)
+                        },
+                        {
+                            ItemKey: "note",
+                            ItemDisplayName: "About this App",
+                            ItemIconName: "Lightbulb",
+                            ItemEnabled: If(ShowSpinner, false, true)
+                        }
+                    )
+                LayoutMinHeight: =32
+                LayoutMinWidth: =200
+                OnChange: =false
+                OnSelect: |-
+                    =Switch(Self.Selected.ItemKey,
+                    "back", Back(),
+                    "note", UpdateContext({ShowNote: !ShowNote});,
+                    "showhide", UpdateContext({ShowFilters: !ShowFilters}),
+                    "export", 
+                        UpdateContext({ShowSpinner: true});
+                        Notify("Fetching data and exporting to your email as CSV");
+                        //get current values
+                        Set(LookupUserName, If(CountRows(UserSelection.SelectedItems) = 0, "all", UserSelection.Selected.'User Email'));
+                        Set(LookupEnvtName, If(CountRows(EnvtSelection.SelectedItems) = 0, "all",EnvtSelection.Selected.Name));
+                        Set(LookupConnectorName, If(CountRows(ConnectorSelection.SelectedItems) = 0, "all", ConnectorSelection.Selected.admin_id_short));
+                        Set(LookupErrorsOnly, If(ErrorsOnlyCheckbox.Checked = true, true, false));
+                    
+                        ClearCollect(ConnectorData, 'HELPER-GetConnectionstoClean'.Run(LookupUserName, LookupEnvtName, LookupConnectorName, LookupErrorsOnly, 
+                                    false, true, User().Email));
+                        Select(RunFilterVars);
+                        UpdateContext({ShowSpinner: false});,
+                        
+                    "delete", 
+                        Clear(DeletedList); //prepare list for collecting deleted items to remove from list
+                        ForAll(ConnectionsList.SelectedItems, //for all items to delete
+                        //call delete connection helper 
+                        If('HELPER-DeleteConnection'.Run(ThisRecord.connectionEnvt, ThisRecord.connectorName, ThisRecord.connectionIdentifier).result = "Pass",
+                            //if pass add to collection to remove
+                            Collect(DeletedList, ThisRecord.connectionIdentifier);,
+                            //if fail notify them
+                            Notify("Failed to delete: " & ThisRecord.connectorName & " in " 
+                            & ThisRecord.connectionEnvtDisplay & " for " & ThisRecord.accountName, NotificationType.Error)));
+                    
+                        //remove from collection and run filters so pagination correct
+                        Remove(ConnectorData, Filter(ConnectorData, connectionIdentifier in DeletedList));
+                        Select(RunFilterVars); 
+                        Clear(DeletedList);
+                    )
+                Theme: =AppThemeJson
+                Width: =200
+                X: =0
+                Y: =0
+                ZIndex: =1
+
+            "SearchBox As 'Fluent SearchBox (1.0.22) Preview'":
+                AlignInContainer: =AlignInContainer.Center
+                DisplayMode: =DisplayMode.Edit
+                Height: =33
+                LayoutMinHeight: =32
+                LayoutMinWidth: =200
+                OnChange: =Select(RunFilterVars)
+                PlaceHolderText: ="Search"
+                Theme: =SearchBoxThemeJson
+                Underlined: =true
+                Visible: =true
+                Width: =300
+                X: =0
+                Y: =0
+                ZIndex: =4
+
+        FilterHeader As groupContainer.horizontalAutoLayoutContainer:
+            Fill: =RGBA(243, 242, 241, 1)
+            FillPortions: =0
+            Height: =44
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =40
+            PaddingRight: =32
+            Visible: =ShowFilters
+            ZIndex: =2
+
+            EnvtSelection As Combobox.pcfdataset:
+                AlignInContainer: =AlignInContainer.Center
+                DefaultSelectedItems: |-
+                    =If(allEnvts, [],
+                    [First(Filter(Environments, 'Display Name' = LookUpEnvtDisplayName))])
+                DisplayMode: =DisplayMode.Edit
+                Height: =32
+                InputTextPlaceholder: ="All Environments"
+                Items: =Environments
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                Width: =320
+                X: =675
+                Y: =1
+                ZIndex: =1
+
+                "'Display Name1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Display Name"
+                    FieldName: ="admin_displayname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =1
+                    ZIndex: =179
+
+                "'Administration Mode1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Administration Mode"
+                    FieldName: ="admin_administrationmode"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =2
+                    ZIndex: =180
+
+                "'Admin - Microsoft Teams Environment Status1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin - Microsoft Teams Environment Status"
+                    FieldName: ="admin_adminmicrosoftteamsenvironmentstatus"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =4
+                    ZIndex: =181
+
+                "'Admin - Status Reason1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin - Status Reason"
+                    FieldName: ="admin_adminreason"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =6
+                    ZIndex: =182
+
+                "'Admin Requirement - Risk Assessment2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin Requirement - Risk Assessment"
+                    FieldName: ="admin_adminrequirementriskassessment"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =7
+                    ZIndex: =183
+
+                "'Admin Requirement - Risk Assessment State2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin Requirement - Risk Assessment State"
+                    FieldName: ="admin_adminrequirementriskassessmentstate"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =9
+                    ZIndex: =184
+
+                "'Admin - Review Teams Environment Status On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin - Review Teams Environment Status On"
+                    FieldName: ="admin_adminreviewon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =11
+                    ZIndex: =185
+
+                "'Approved Environment Capacity1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Approved Environment Capacity"
+                    FieldName: ="admin_allocatedenvironmentcapacity"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =12
+                    ZIndex: =186
+
+                "'Background Operations Enabled1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Background Operations Enabled"
+                    FieldName: ="admin_backgroundoperationsenabled"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =13
+                    ZIndex: =187
+
+                "'Date Asked for Business Justification1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Date Asked for Business Justification"
+                    FieldName: ="admin_businessjustificationdate"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =16
+                    ZIndex: =188
+
+                "'Connected Group ID1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connected Group ID"
+                    FieldName: ="admin_connectedgroupid"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =17
+                    ZIndex: =189
+
+                "'Environment CDS Instance URL1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment CDS Instance URL"
+                    FieldName: ="admin_environmentcdsinstanceurl"
+                    FieldType: ="h"
+                    FieldVariantName: ="textualColumn"
+                    Order: =18
+                    ZIndex: =190
+
+                "'Environment CDS Metadata Name1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment CDS Metadata Name"
+                    FieldName: ="admin_environmentcdsmetadataname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =19
+                    ZIndex: =191
+
+                "'Environment Created On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Created On"
+                    FieldName: ="admin_environmentcreatedon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =20
+                    ZIndex: =192
+
+                "'Environment Deleted1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Deleted"
+                    FieldName: ="admin_environmentdeleted"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =21
+                    ZIndex: =193
+
+                "'Environment Deleted On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Deleted On"
+                    FieldName: ="admin_environmentdeletedon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =23
+                    ZIndex: =194
+
+                "'Environment is Orphaned1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment is Orphaned"
+                    FieldName: ="admin_environmentisorphaned"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =24
+                    ZIndex: =195
+
+                "'Environment Maker Display Name1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Maker Display Name"
+                    FieldName: ="admin_environmentmakerdisplayname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =25
+                    ZIndex: =196
+
+                "'Environment Maker UPN1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Maker UPN"
+                    FieldName: ="admin_environmentmakerupn"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =26
+                    ZIndex: =197
+
+                "'Environment Modified On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Modified On"
+                    FieldName: ="admin_environmentmodifiedon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =27
+                    ZIndex: =198
+
+                Name2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Name"
+                    FieldName: ="admin_environmentname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =28
+                    ZIndex: =199
+
+                "'Environment Owner1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Owner"
+                    FieldName: ="admin_environmentowner"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =29
+                    ZIndex: =200
+
+                "'Environment Purpose1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Purpose"
+                    FieldName: ="admin_environmentpurpose"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =30
+                    ZIndex: =201
+
+                "'Environment Purpose Text1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Purpose Text"
+                    FieldName: ="admin_environmentpurposetext"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =32
+                    ZIndex: =202
+
+                "'Environment Queried On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Queried On"
+                    FieldName: ="admin_environmentqueriedon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =33
+                    ZIndex: =203
+
+                "'Environment Sku1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Sku"
+                    FieldName: ="admin_environmentsku"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =34
+                    ZIndex: =204
+
+                "'Environment State1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment State"
+                    FieldName: ="admin_environmentstate"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =35
+                    ZIndex: =205
+
+                "'Excuse From App Quarantine Flow1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Excuse From App Quarantine Flow"
+                    FieldName: ="admin_excusefromappquarantineflow"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =36
+                    ZIndex: =206
+
+                "'Excuse From Inactivity Flows1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Excuse From Inactivity Flows"
+                    FieldName: ="admin_excusefromarchivalflows"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =38
+                    ZIndex: =207
+
+                "'Excuse From Compliance Flow1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Excuse From Compliance Flow"
+                    FieldName: ="admin_excusefromcomplianceflow"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =40
+                    ZIndex: =208
+
+                "'Excuse From Empty Environment Cleanup1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Excuse From Empty Environment Cleanup"
+                    FieldName: ="admin_excusefromemptyenvironmentcleanup"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =42
+                    ZIndex: =209
+
+                "'Excuse From Inventory1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Excuse From Inventory"
+                    FieldName: ="admin_excusefrominventory"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =44
+                    ZIndex: =210
+
+                "'Governance Protection Level1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Governance Protection Level"
+                    FieldName: ="admin_governanceprotectionlevel"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =46
+                    ZIndex: =211
+
+                hasCDS1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="hasCDS"
+                    FieldName: ="admin_hascds"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =47
+                    ZIndex: =212
+
+                "'Has DLP Policy1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Has DLP Policy"
+                    FieldName: ="admin_hasdlppolicy"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =49
+                    ZIndex: =213
+
+                isCOE1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="isCOE"
+                    FieldName: ="admin_iscoe"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =51
+                    ZIndex: =214
+
+                "'Maker Requirement - Business Impact1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Requirement - Business Impact"
+                    FieldName: ="admin_makerrequirementbusinessimpact"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =54
+                    ZIndex: =215
+
+                "'Maker Requirement - Business Justification2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Requirement - Business Justification"
+                    FieldName: ="admin_makerrequirementbusinessjustification"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =56
+                    ZIndex: =216
+
+                "'Microsoft Teams ID1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Microsoft Teams ID"
+                    FieldName: ="admin_microsoftteamsid"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =57
+                    ZIndex: =217
+
+                "'Microsoft Teams URL1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Microsoft Teams URL"
+                    FieldName: ="admin_microsoftteamsurl"
+                    FieldType: ="h"
+                    FieldVariantName: ="textualColumn"
+                    Order: =58
+                    ZIndex: =218
+
+                "'Organization ID1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Organization ID"
+                    FieldName: ="admin_organizationid"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =59
+                    ZIndex: =219
+
+                "'PCF enabled1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="PCF enabled"
+                    FieldName: ="admin_pcfenabled"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =60
+                    ZIndex: =220
+
+                "'Record GUID as String3' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Record GUID as String"
+                    FieldName: ="admin_recordguidasstring"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =62
+                    ZIndex: =221
+
+                "'Environment Region1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Region"
+                    FieldName: ="admin_region"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =63
+                    ZIndex: =222
+
+                TenantID1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="TenantID"
+                    FieldName: ="admin_tenantid"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =64
+                    ZIndex: =223
+
+                "'Environment External Connection Count1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment External Connection Count"
+                    FieldName: ="admin_environmentexternalconnectioncount"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =65
+                    ZIndex: =224
+
+                "'Environment External Connection Count (Last Updated On)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment External Connection Count (Last Updated On)"
+                    FieldName: ="admin_environmentexternalconnectioncount_date"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =66
+                    ZIndex: =225
+
+                "'Environment External Connection Count (State)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment External Connection Count (State)"
+                    FieldName: ="admin_environmentexternalconnectioncount_state"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =67
+                    ZIndex: =226
+
+                "'Number Of Apps1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number Of Apps"
+                    FieldName: ="admin_numberofapps"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =68
+                    ZIndex: =227
+
+                "'Number Of Apps (Last Updated On)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number Of Apps (Last Updated On)"
+                    FieldName: ="admin_numberofapps_date"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =69
+                    ZIndex: =228
+
+                "'Number Of Apps (State)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number Of Apps (State)"
+                    FieldName: ="admin_numberofapps_state"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =70
+                    ZIndex: =229
+
+                "'Number of Custom Connectors1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number of Custom Connectors"
+                    FieldName: ="admin_numberofconnectors"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =71
+                    ZIndex: =230
+
+                "'Number of Custom Connectors (Last Updated On)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number of Custom Connectors (Last Updated On)"
+                    FieldName: ="admin_numberofconnectors_date"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =72
+                    ZIndex: =231
+
+                "'Number of Custom Connectors (State)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number of Custom Connectors (State)"
+                    FieldName: ="admin_numberofconnectors_state"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =73
+                    ZIndex: =232
+
+                "'Number Of Flows1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number Of Flows"
+                    FieldName: ="admin_numberofflows"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =74
+                    ZIndex: =233
+
+                "'Number Of Flows (Last Updated On)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number Of Flows (Last Updated On)"
+                    FieldName: ="admin_numberofflows_date"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =75
+                    ZIndex: =234
+
+                "'Number Of Flows (State)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Number Of Flows (State)"
+                    FieldName: ="admin_numberofflows_state"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =76
+                    ZIndex: =235
+
+                "'Maker Copilot enabled1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Copilot enabled"
+                    FieldName: ="admin_makercopilotenabled"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =79
+                    ZIndex: =236
+
+                "'Environment Runtime State1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Environment Runtime State"
+                    FieldName: ="admin_environmentruntimestate"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =81
+                    ZIndex: =237
+
+                "'Security Group ID1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Security Group ID"
+                    FieldName: ="admin_securitygroupid"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =82
+                    ZIndex: =238
+
+                "'Security Group Name1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Security Group Name"
+                    FieldName: ="admin_securitygroupname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =83
+                    ZIndex: =239
+
+                "'DLP Policies1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="DLP Policies"
+                    FieldName: ="admin_dlppolicies"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =84
+                    ZIndex: =240
+
+                "'Connections Inaccessible1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connections Inaccessible"
+                    FieldName: ="admin_connectionsinaccessible"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =85
+                    ZIndex: =241
+
+            "ClearEnvt As 'Fluent Icon (1.0.22)'":
+                AlignInContainer: =AlignInContainer.Center
+                DisplayMode: =DisplayMode.Edit
+                Height: =20
+                IconColor: |-
+                    ="#747474"
+                IconName: ="StatusCircleErrorX"
+                IconType: ='PowerCAT.Icon.IconType'.IconButon
+                LayoutMinHeight: =20
+                LayoutMinWidth: =Self.LayoutMinHeight
+                OnChange: |-
+                    =Set(allEnvts, true);
+                    Reset(EnvtSelection);
+                TextAlignment: ='PowerCAT.Icon.TextAlignment'.Right
+                Theme: =AppThemeJson
+                Width: =Self.Height
+                X: =462
+                Y: =0
+                ZIndex: =2
+
+            UserSelection As Combobox.pcfdataset:
+                AlignInContainer: =AlignInContainer.Center
+                DefaultSelectedItems: |-
+                    =If(allUsers, [],
+                    [First(Filter('Power Platform Users', 'User Email' = LookupUserName))])
+                DisplayMode: =DisplayMode.Edit
+                Height: =32
+                InputTextPlaceholder: ="All Users"
+                Items: =Filter('Power Platform Users', Type = "User")
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                Width: =320
+                X: =675
+                Y: =1
+                ZIndex: =3
+
+                "'Display Name3' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Display Name"
+                    FieldName: ="admin_displayname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =1
+                    ZIndex: =242
+
+                Company2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Company"
+                    FieldName: ="admin_company"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =2
+                    ZIndex: =243
+
+                Department2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Department"
+                    FieldName: ="admin_department"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =3
+                    ZIndex: =244
+
+                "'Group Size2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Group Size"
+                    FieldName: ="admin_groupsize"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =4
+                    ZIndex: =245
+
+                admin_PhotoObjectId2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="admin_PhotoObjectId"
+                    FieldName: ="admin_photoobjectid"
+                    FieldType: ="g"
+                    FieldVariantName: ="textualColumn"
+                    Order: =5
+                    ZIndex: =246
+
+                PhotoObject2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="PhotoObject"
+                    FieldName: ="admin_photoobject"
+                    FieldType: ="I"
+                    FieldVariantName: ="textualColumn"
+                    Order: =8
+                    ZIndex: =247
+
+                "'Record GUID as String4' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Record GUID as String"
+                    FieldName: ="admin_recordguidasstring"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =9
+                    ZIndex: =248
+
+                Type2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Type"
+                    FieldName: ="admin_type"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =10
+                    ZIndex: =249
+
+                "'User Email2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="User Email"
+                    FieldName: ="admin_useremail"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =11
+                    ZIndex: =250
+
+                "'User Principal Name2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="User Principal Name"
+                    FieldName: ="admin_userprincipalname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =12
+                    ZIndex: =251
+
+                "'User Is Orphaned2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="User Is Orphaned"
+                    FieldName: ="admin_userisorphaned"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =13
+                    ZIndex: =252
+
+            "ClearUser As 'Fluent Icon (1.0.22)'":
+                AlignInContainer: =AlignInContainer.Center
+                DisplayMode: =DisplayMode.Edit
+                Height: =20
+                IconColor: |-
+                    ="#747474"
+                IconName: ="StatusCircleErrorX"
+                IconType: ='PowerCAT.Icon.IconType'.IconButon
+                LayoutMinHeight: =20
+                LayoutMinWidth: =Self.LayoutMinHeight
+                OnChange: |-
+                    =Set(allUsers, true);
+                    Reset(UserSelection);
+                TextAlignment: ='PowerCAT.Icon.TextAlignment'.Right
+                Theme: =AppThemeJson
+                Width: =Self.Height
+                X: =462
+                Y: =0
+                ZIndex: =4
+
+            ConnectorSelection As Combobox.pcfdataset:
+                AlignInContainer: =AlignInContainer.Center
+                DefaultSelectedItems: |-
+                    =If(allConnectors, [],
+                    [First(Filter('PowerApps Connectors', admin_id_short = LookupConnectorName))])
+                DisplayMode: =DisplayMode.Edit
+                Height: =32
+                InputTextPlaceholder: ="All Connectors"
+                Items: ='PowerApps Connectors'
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                Width: =320
+                X: =675
+                Y: =1
+                ZIndex: =5
+
+                "'Connector Display Name2' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Display Name"
+                    FieldName: ="admin_displayname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =1
+                    ZIndex: =145
+
+                "'Admin Requirement - Reviewed Connector1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin Requirement - Reviewed Connector"
+                    FieldName: ="admin_adminrequirementreviewedconnector"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =2
+                    ZIndex: =146
+
+                "'Admin Requirement - Risk Assessment1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin Requirement - Risk Assessment"
+                    FieldName: ="admin_adminrequirementriskassessment"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =4
+                    ZIndex: =147
+
+                "'Admin Requirement - Risk Assessment State1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Admin Requirement - Risk Assessment State"
+                    FieldName: ="admin_adminrequirementriskassessmentstate"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =6
+                    ZIndex: =148
+
+                "'Connector is Orphaned1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector is Orphaned"
+                    FieldName: ="admin_appisorphaned"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =8
+                    ZIndex: =149
+
+                "'Connector Background Color1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Background Color"
+                    FieldName: ="admin_backgroundcolor"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =9
+                    ZIndex: =150
+
+                "'Compliance Requested on1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Compliance Requested on"
+                    FieldName: ="admin_compliancerequestedon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =10
+                    ZIndex: =151
+
+                "'Connector Created On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Created On"
+                    FieldName: ="admin_connectorcreateddatetime"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =11
+                    ZIndex: =152
+
+                "'Connector Creator Display Name1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Creator Display Name"
+                    FieldName: ="admin_connectorcreatordisplayname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =12
+                    ZIndex: =153
+
+                "'Connector Deleted1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Deleted"
+                    FieldName: ="admin_connectordeleted"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =13
+                    ZIndex: =154
+
+                "'Connector Deleted On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Deleted On"
+                    FieldName: ="admin_connectordeletedon"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =15
+                    ZIndex: =155
+
+                "'Connector Modified On1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Modified On"
+                    FieldName: ="admin_connectormodified"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =16
+                    ZIndex: =156
+
+                "'Custom Connector Host1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Custom Connector Host"
+                    FieldName: ="admin_customconnectorhost"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =17
+                    ZIndex: =157
+
+                "'Custom Connector Host is HTTP1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Custom Connector Host is HTTP"
+                    FieldName: ="admin_customconnectorhostishttp"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =18
+                    ZIndex: =158
+
+                "'Connector Environment Display Name1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Environment Display Name"
+                    FieldName: ="admin_environmentdisplayname"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =21
+                    ZIndex: =159
+
+                "'Connector Icon Uri1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Connector Icon Uri"
+                    FieldName: ="admin_iconuri"
+                    FieldType: ="h"
+                    FieldVariantName: ="textualColumn"
+                    Order: =22
+                    ZIndex: =160
+
+                admin_id1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="admin_id"
+                    FieldName: ="admin_id"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =23
+                    ZIndex: =161
+
+                "'Is Custom Api1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Is Custom Api"
+                    FieldName: ="admin_iscustomapi"
+                    FieldType: ="l"
+                    FieldVariantName: ="textualColumn"
+                    Order: =27
+                    ZIndex: =162
+
+                "'Maker Requirement - Access Management1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Requirement - Access Management"
+                    FieldName: ="admin_makerrequirementaccessmanagement"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =28
+                    ZIndex: =163
+
+                "'Maker Requirement - Business Justification1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Requirement - Business Justification"
+                    FieldName: ="admin_makerrequirementbusinessjustification"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =29
+                    ZIndex: =164
+
+                "'Maker Requirement - Conditions of Use1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Requirement - Conditions of Use"
+                    FieldName: ="admin_makerrequirementconditionsofuse"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =30
+                    ZIndex: =165
+
+                "'Maker Requirement - Dependencies1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Maker Requirement - Dependencies"
+                    FieldName: ="admin_makerrequirementdependencies"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =31
+                    ZIndex: =166
+
+                Name1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Name"
+                    FieldName: ="admin_name"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =32
+                    ZIndex: =167
+
+                Publisher1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Publisher"
+                    FieldName: ="admin_publisher"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =33
+                    ZIndex: =168
+
+                "'Record GUID as String1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Record GUID as String"
+                    FieldName: ="admin_recordguidasstring"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =34
+                    ZIndex: =169
+
+                "'Record Modified1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Record Modified"
+                    FieldName: ="admin_recordmodified"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =35
+                    ZIndex: =170
+
+                Tier1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="Tier"
+                    FieldName: ="admin_tier"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =38
+                    ZIndex: =171
+
+                "'Num Flows1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Num Flows"
+                    FieldName: ="admin_numflows"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =39
+                    ZIndex: =172
+
+                "'Num Flows (Last Updated On)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Num Flows (Last Updated On)"
+                    FieldName: ="admin_numflows_date"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =40
+                    ZIndex: =173
+
+                "'Num Flows (State)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Num Flows (State)"
+                    FieldName: ="admin_numflows_state"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =41
+                    ZIndex: =174
+
+                "'Num Apps1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Num Apps"
+                    FieldName: ="admin_numapps"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =42
+                    ZIndex: =175
+
+                "'Num Apps (Last Updated On)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Num Apps (Last Updated On)"
+                    FieldName: ="admin_numapps_date"
+                    FieldType: ="d"
+                    FieldVariantName: ="textualColumn"
+                    Order: =43
+                    ZIndex: =176
+
+                "'Num Apps (State)1' As pcfDataField.textualColumn":
+                    FieldDisplayName: ="Num Apps (State)"
+                    FieldName: ="admin_numapps_state"
+                    FieldType: ="n"
+                    FieldVariantName: ="textualColumn"
+                    Order: =44
+                    ZIndex: =177
+
+                admin_id_short2 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="admin_id_short"
+                    FieldName: ="admin_admin_id_short"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =24
+                    ZIndex: =178
+
+            "ClearConnector As 'Fluent Icon (1.0.22)'":
+                AlignInContainer: =AlignInContainer.Center
+                DisplayMode: =DisplayMode.Edit
+                Height: =20
+                IconColor: |-
+                    ="#747474"
+                IconName: ="StatusCircleErrorX"
+                IconType: ='PowerCAT.Icon.IconType'.IconButon
+                LayoutMinHeight: =20
+                LayoutMinWidth: =Self.LayoutMinHeight
+                OnChange: |-
+                    =Set(allConnectors, true);
+                    Reset(ConnectorSelection);
+                TextAlignment: ='PowerCAT.Icon.TextAlignment'.Right
+                Theme: =AppThemeJson
+                Width: =Self.Height
+                X: =462
+                Y: =0
+                ZIndex: =6
+
+            ErrorsOnlyCheckbox As Checkbox:
+                BasePaletteColor: =
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                FontColor: =
+                Height: =32
+                Label: ="Errors Only"
+                LayoutMinHeight: =32
+                LayoutMinWidth: =160
+                OnCheck: =false
+                OnUncheck: =false
+                Width: =160
+                X: =0
+                Y: =0
+                ZIndex: =7
+
+            GetNewDataBtn As Button:
+                AlignInContainer: =AlignInContainer.Center
+                BasePaletteColor: =
+                DisplayMode: =DisplayMode.Edit
+                FontColor: =
+                Height: =32
+                LayoutMinHeight: =32
+                LayoutMinWidth: =96
+                OnSelect: |-
+                    =UpdateContext({ShowSpinner: true});
+                    
+                    //get current values
+                    Set(LookupUserName, If(CountRows(UserSelection.SelectedItems) = 0, "all", UserSelection.Selected.'User Email'));
+                    Set(LookupEnvtName, If(CountRows(EnvtSelection.SelectedItems) = 0, "all",EnvtSelection.Selected.Name));
+                    Set(LookupConnectorName, If(CountRows(ConnectorSelection.SelectedItems) = 0, "all", ConnectorSelection.Selected.admin_id_short));
+                    Set(LookupErrorsOnly, If(ErrorsOnlyCheckbox.Checked = true, true, false));
+                    
+                    ClearCollect(ConnectorData, 'HELPER-GetConnectionstoClean'.Run(LookupUserName, LookupEnvtName, LookupConnectorName, LookupErrorsOnly, false, false, ""));
+                    Select(RunFilterVars);
+                    UpdateContext({ShowSpinner: false});
+                Text: ="Get New Data"
+                Width: =120
+                X: =0
+                Y: =0
+                ZIndex: =8
+
+        Note As groupContainer.horizontalAutoLayoutContainer:
+            DropShadow: =DropShadow.Light
+            FillPortions: =0
+            Height: =44
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =32
+            PaddingRight: =32
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            Visible: =ShowNote
+            X: =40
+            Y: =40
+            ZIndex: =3
+
+            theNote As Label:
+                AlignInContainer: =AlignInContainer.Center
+                Color: =
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                Height: =32
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                OnChange: =false
+                Text: ="Connections can be dangerous to delete. Please remove with caution."
+                Width: =320
+                X: =0
+                Y: =0
+                ZIndex: =1
+
+        HeaderDivider As rectangle:
+            AlignInContainer: =AlignInContainer.Stretch
+            BorderColor: =RGBA(166, 166, 166, 1)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            DisabledFill: =RGBA(166, 166, 166, 1)
+            Fill: =RGBA(225, 223, 221, 1)
+            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+            Height: =1
+            HoverFill: =RGBA(225, 223, 221, 1)
+            PressedFill: =RGBA(225, 223, 221, 1)
+            Width: =1366
+            Y: =72
+            ZIndex: =4
+
+        Header As groupContainer.verticalAutoLayoutContainer:
+            FillPortions: =0
+            Height: =100
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =40
+            PaddingRight: =40
+            PaddingTop: =32
+            ZIndex: =5
+
+            "'header lbl' As Label":
+                AutoHeight: =true
+                Color: =
+                DisplayMode: =DisplayMode.Edit
+                FontSize: =18
+                FontWeight: =FontWeight.Semibold
+                Height: =43
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                OnChange: =false
+                PaddingStart: =0  
+                Text: ="Connection Cleanup"
+                Width: =320
+                X: =35
+                Y: =15
+                ZIndex: =1
+
+        HeaderDivider2 As rectangle:
+            AlignInContainer: =AlignInContainer.Stretch
+            BorderColor: =RGBA(166, 166, 166, 1)
+            BorderStyle: =BorderStyle.None
+            BorderThickness: =2
+            DisabledFill: =RGBA(166, 166, 166, 1)
+            Fill: =RGBA(225, 223, 221, 1)
+            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+            Height: =1
+            HoverFill: =RGBA(225, 223, 221, 1)
+            PressedFill: =RGBA(225, 223, 221, 1)
+            Width: =1366
+            Y: =72
+            ZIndex: =6
+
+        BodyContainer As groupContainer.horizontalAutoLayoutContainer:
+            LayoutGap: =20
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =40
+            PaddingRight: =40
+            PaddingTop: =10
+            ZIndex: =7
+
+            "ConnectionsList As 'Fluent Details List (1.0.22)'.pcfdataset":
+                columns_Items: |-
+                    =Table(
+                        {ColName:"accountName",ColDisplayName:"Account",ColWidth:300,ColRowHeader:true,ColResizable:true, ColSortable: true},
+                        {ColName:"connectionEnvtDisplay", ColDisplayName:"Environment",ColWidth:400,ColRowHeader:true,ColResizable:true, ColSortable: true},
+                        {ColName:"connectorName",ColDisplayName:"Connector",ColWidth:300,ColRowHeader:true,ColResizable:true, ColSortable: true},
+                        {ColName:"StatusString", ColDisplayName:"Connector State",ColWidth:200,ColRowHeader:true,ColResizable:true, 
+                            ColSortable: true, ColCellType: "tag", ColTagColorColumn: "StatusColorString", ColTagBorderColorColumn: "StatusColorString"}
+                    )
+                        
+                CurrentSortColumn: =ctxSortCol
+                CurrentSortDirection: |-
+                    =If(ctxSortAsc,
+                        'PowerCAT.FluentDetailsList.CurrentSortDirection'.Ascending, 
+                        'PowerCAT.FluentDetailsList.CurrentSortDirection'.Descending)
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                Height: =Parent.Height-Parent.PaddingBottom-Parent.PaddingTop
+                InputEvent: =""
+                Items: |-
+                    =LastN(
+                        FirstN(
+                            galPaging.AllItems,
+                            ctxPage * ctxPageSize
+                        ),
+                        If(// If last page and records are not divisible by the page size
+                            ctxPage = ctxTotalPages && IfError(Mod(ctxTotalRows, ctxPageSize), 0) > 0,
+                            Mod(ctxTotalRows, ctxPageSize),
+                            ctxPageSize
+                        )
+                    )
+                LargeDatasetPaging: =true
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                OnChange: |-
+                    =If(Self.EventName="Sort",
+                    UpdateContext({
+                            ctxSortCol: Self.SortEventColumn,
+                            ctxSortAsc: If(Self.SortEventDirection='PowerCAT.FluentDetailsList.SortEventDirection'.Ascending, true, false),
+                            ctxPage: 1
+                    });
+                    );
+                RecordKey: =""
+                SelectionType: ='PowerCAT.FluentDetailsList.SelectionType'.Multiple
+                Theme: =AppThemeJson
+                Tooltip: =""
+                Width: =1316
+                X: =25
+                Y: =127
+                ZIndex: =2
+
+                accountName1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="accountName"
+                    FieldName: ="accountName"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =1
+                    ZIndex: =26
+
+                connectionCreator1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="connectionCreator"
+                    FieldName: ="connectionCreator"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =2
+                    ZIndex: =27
+
+                connectionCreatorUPN1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="connectionCreatorUPN"
+                    FieldName: ="connectionCreatorUPN"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =3
+                    ZIndex: =28
+
+                connectionEnvt1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="connectionEnvt"
+                    FieldName: ="connectionEnvt"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =4
+                    ZIndex: =29
+
+                connectionEnvtDisplay1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="connectionEnvtDisplay"
+                    FieldName: ="connectionEnvtDisplay"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =5
+                    ZIndex: =30
+
+                connectionIdentifier1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="connectionIdentifier"
+                    FieldName: ="connectionIdentifier"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =6
+                    ZIndex: =31
+
+                connectorName1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="connectorName"
+                    FieldName: ="connectorName"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =7
+                    ZIndex: =32
+
+                noAccount1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="noAccount"
+                    FieldName: ="noAccount"
+                    FieldType: ="b"
+                    FieldVariantName: ="textualColumn"
+                    Order: =8
+                    ZIndex: =33
+
+                StatusIsError1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="StatusIsError"
+                    FieldName: ="StatusIsError"
+                    FieldType: ="b"
+                    FieldVariantName: ="textualColumn"
+                    Order: =9
+                    ZIndex: =34
+
+                StatusColorString1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="StatusColorString"
+                    FieldName: ="StatusColorString"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =10
+                    ZIndex: =35
+
+                StatusString1 As pcfDataField.textualColumn:
+                    FieldDisplayName: ="StatusString"
+                    FieldName: ="StatusString"
+                    FieldType: ="s"
+                    FieldVariantName: ="textualColumn"
+                    Order: =11
+                    ZIndex: =36
+
+        PaginationControlContainer As groupContainer.horizontalAutoLayoutContainer:
+            FillPortions: =0
+            Height: =40
+            LayoutMinHeight: =100
+            LayoutMinWidth: =100
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =32
+            PaddingRight: =32
+            PaddingTop: =4
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            ZIndex: =8
+
+            Pagination_NumRecords As Label:
+                Color: =
+                DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
+                Height: =32
+                LayoutMinHeight: =32
+                LayoutMinWidth: =100
+                OnChange: =false
+                Text: =$"{ctxTotalRows} record(s)"
+                Width: =320
+                X: =0
+                Y: =0
+                ZIndex: =1
+
+            "Pagination_FirstPage As 'Fluent Icon (1.0.22)'":
+                DisplayMode: =If(ctxPage>1, DisplayMode.View, DisplayMode.Disabled)
+                Height: =32
+                IconName: ="Previous"
+                IconType: ='PowerCAT.Icon.IconType'.ActionButton
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                OnChange: |-
+                    =UpdateContext({
+                        ctxGridEvent: "LoadFirstPage" & Text(Rand()),
+                        ctxPage: 1
+                    })
+                Theme: =AppThemeJson
+                Tooltip: =""
+                Width: =42
+                X: =0
+                Y: =0
+                ZIndex: =2
+
+            "Pagination_PrevPage As 'Fluent Icon (1.0.22)'":
+                DisplayMode: =If(ctxPage>1, DisplayMode.View, DisplayMode.Disabled)
+                Height: =32
+                IconName: ="Back"
+                IconType: ='PowerCAT.Icon.IconType'.ActionButton
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                OnChange: |-
+                    =UpdateContext({
+                        ctxGridEvent: "LoadPreviousPage" & Text(Rand()),
+                        ctxPage: ctxPage-1
+                    })
+                Theme: =AppThemeJson
+                Tooltip: =""
+                Width: =42
+                X: =0
+                Y: =0
+                ZIndex: =3
+
+            Pagination_CurrentPage As Label:
+                Alignment: =Align.Center
+                Color: =
+                DisplayMode: =DisplayMode.Edit
+                Height: =32
+                LayoutMinHeight: =32
+                LayoutMinWidth: =320
+                OnChange: =false
+                Text: =$"Page {ctxPage} of {ctxTotalPages}"
+                Width: =96
+                X: =0
+                Y: =0
+                ZIndex: =4
+
+            "Pagination_NextPage As 'Fluent Icon (1.0.22)'":
+                DisplayMode: =If(ctxPage < ctxTotalPages, DisplayMode.View, DisplayMode.Disabled)
+                Height: =32
+                IconName: ="Forward"
+                IconType: ='PowerCAT.Icon.IconType'.ActionButton
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                OnChange: |-
+                    =UpdateContext({
+                        ctxPage: ctxPage+1
+                    })
+                Theme: =AppThemeJson
+                Tooltip: =""
+                Width: =42
+                X: =0
+                Y: =0
+                ZIndex: =5
+
+    Paging_logic As group:
+        Height: =5
+        Width: =5
+        X: =80
+        Y: =80
+        ZIndex: =4
+
+        galPaging As gallery.BrowseLayout_Vertical_TwoTextOneImageVariant_pcfCore:
+            BorderColor: =RGBA(166, 166, 166, 1)
+            Default: =If(ctxPage*ctxPageSize > CountRows(Self.AllItems), Last(Self.AllItems))
+            DelayItemLoading: =true
+            Fill: =RGBA(238, 204, 204, 1)
+            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+            FocusedBorderThickness: =2
+            Height: =1
+            Items: |-
+                =Switch(ctxSortCol,
+                "connectorName",
+                Sort(Filter(ConnectorData, 
+                    SearchBox.SearchText in connectorName || SearchBox.SearchText in accountName || SearchBox.SearchText in connectionEnvtDisplay),
+                    connectorName, If(ctxSortAsc, SortOrder.Ascending,SortOrder.Descending)),
+                
+                "accountName",
+                Sort(Filter(ConnectorData, 
+                    SearchBox.SearchText in connectorName || SearchBox.SearchText in accountName || SearchBox.SearchText in connectionEnvtDisplay),
+                    accountName, If(ctxSortAsc, SortOrder.Ascending,SortOrder.Descending)),
+                
+                "connectionEnvtDisplay",
+                Sort(Filter(ConnectorData, 
+                    SearchBox.SearchText in connectorName || SearchBox.SearchText in accountName || SearchBox.SearchText in connectionEnvtDisplay),
+                    connectionEnvtDisplay, If(ctxSortAsc, SortOrder.Ascending,SortOrder.Descending)),
+                
+                "StatusString",
+                Sort(Filter(ConnectorData, 
+                    SearchBox.SearchText in connectorName || SearchBox.SearchText in accountName || SearchBox.SearchText in connectionEnvtDisplay),
+                    StatusString, If(ctxSortAsc, SortOrder.Ascending,SortOrder.Descending)),
+                
+                //default to accountName
+                Sort(Filter(ConnectorData, 
+                    SearchBox.SearchText in connectorName || SearchBox.SearchText in accountName || SearchBox.SearchText in connectionEnvtDisplay),
+                    accountName, If(ctxSortAsc, SortOrder.Ascending,SortOrder.Descending))
+                )
+            Layout: =Layout.Vertical
+            LoadingSpinner: =LoadingSpinner.Data
+            TemplatePadding: =0
+            TemplateSize: =48
+            Visible: =false
+            Width: =1
+            ZIndex: =2
+
+            Rectangle1 As rectangle:
+                BorderColor: =RGBA(166, 166, 166, 1)
+                DisabledFill: =RGBA(0,0,0,0)
+                Fill: =RGBA(0,0,0,0)
+                FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                Height: =Parent.TemplateHeight
+                HoverFill: =RGBA(0,0,0,0)
+                OnSelect: =Select(Parent)
+                PressedFill: =RGBA(0,0,0,0)
+                TabIndex: =0
+                Width: =Parent.TemplateWidth
+                ZIndex: =1
+
+            Label1 As Label:
+                Color: =
+                DisplayMode: =DisplayMode.Edit
+                Height: =32
+                OnChange: =false
+                OnSelect: =Select(Parent)
+                Text: =ThisItem.connectionIdentifier
+                Width: =320
+                X: =38
+                Y: =16
+                ZIndex: =2
+
+        RunFilterVars As Button:
+            BorderColor: =
+            DisabledBorderColor: =
+            DisabledFillColor: =
+            DisabledTextColor: =
+            DisplayMode: =DisplayMode.Edit
+            FillColor: =
+            Height: =1
+            HoverBorderColor: =
+            HoverFillColor: =
+            HoverTextColor: =
+            OnChange: =false
+            OnSelect: |
+                =UpdateContext(
+                    {
+                        ctxSortCol: "admin_securityrolename",
+                        ctxSortAsc: true,
+                        ctxTotalRows: CountRows(ConnectorData),
+                        ctxPageSize: 100,
+                        ctxPage: 1,
+                        ctxGridEvent: "LoadFirstPage" & Text(Rand())
+                    }
+                );
+                UpdateContext(
+                    {
+                        ctxTotalPages: RoundUp(
+                            ctxTotalRows / ctxPageSize,
+                            0
+                        ) + If(
+                            ctxTotalRows = 0,
+                            1
+                        )
+                    }
+                );
+            PressedBorderColor: =
+            PressedFillColor: =
+            PressedTextColor: =
+            TextColor: =
+            Visible: =false
+            Width: =1
+            X: =10
+            Y: =0
+            ZIndex: =3
+
+    "Spinner1 As 'Fluent Spinner (1.0.22) Preview'":
+        DisplayMode: =DisplayMode.Edit
+        Height: =If(Self.Visible, App.Height-ActionHeader.Height, 0)
+        Label: ="Fetching connections"
+        Theme: =AppThemeJson
+        Visible: =ShowSpinner
+        Width: =If(Self.Visible, App.Width, 0)
+        X: =0
+        Y: =If(Self.Visible, ActionHeader.Height, 0)
+        ZIndex: =5
+

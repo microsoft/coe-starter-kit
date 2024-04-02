@@ -19,13 +19,13 @@
           "name": "shared_powerappsforadmins"
         }
       },
-      "shared_office365groups": {
+      "shared_webcontents": {
         "runtimeSource": "embedded",
         "connection": {
-          "connectionReferenceLogicalName": "admin_CoECoreO365Groups"
+          "connectionReferenceLogicalName": "admin_CoECoreHTTPWithAzureAD"
         },
         "api": {
-          "name": "shared_office365groups"
+          "name": "shared_webcontents"
         }
       },
       "shared_office365users": {
@@ -374,45 +374,8 @@
                             "Group": {
                               "case": "Group",
                               "actions": {
-                                "List_group_members": {
-                                  "runAfter": {},
-                                  "metadata": {
-                                    "operationMetadataId": "42687843-79c6-4c0a-8a76-e7e339f96dd8"
-                                  },
-                                  "type": "OpenApiConnection",
-                                  "inputs": {
-                                    "host": {
-                                      "connectionName": "shared_office365groups",
-                                      "operationId": "ListGroupMembers",
-                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups"
-                                    },
-                                    "parameters": {
-                                      "groupId": "@items('Apply_to_each')?['properties']?['principal']?['id']"
-                                    },
-                                    "authentication": {
-                                      "type": "Raw",
-                                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                                    }
-                                  },
-                                  "runtimeConfiguration": {
-                                    "paginationPolicy": {
-                                      "minimumItemCount": 100000
-                                    }
-                                  }
-                                },
                                 "Group_Found": {
                                   "actions": {
-                                    "Set_Group_Size_for_Groups": {
-                                      "runAfter": {},
-                                      "metadata": {
-                                        "operationMetadataId": "dfa1bf07-4182-4a90-a855-e98af30c7c21"
-                                      },
-                                      "type": "SetVariable",
-                                      "inputs": {
-                                        "name": "sharedGroupSize",
-                                        "value": "@length(outputs('List_group_members')?['body/value'])"
-                                      }
-                                    },
                                     "Increment_totalGroups": {
                                       "runAfter": {
                                         "Set_Group_Size_for_Groups": [
@@ -426,6 +389,32 @@
                                       "inputs": {
                                         "name": "totalGroups",
                                         "value": 1
+                                      }
+                                    },
+                                    "Filter_to_just_type_users": {
+                                      "runAfter": {},
+                                      "metadata": {
+                                        "operationMetadataId": "448096dd-132d-4d24-ba9c-d7437a7c25dc"
+                                      },
+                                      "type": "Query",
+                                      "inputs": {
+                                        "from": "@outputs('ListGroupMembersTransitive')?['body/value']",
+                                        "where": "@equals(item()?['@odata.type'], '#microsoft.graph.user')"
+                                      }
+                                    },
+                                    "Set_Group_Size_for_Groups": {
+                                      "runAfter": {
+                                        "Filter_to_just_type_users": [
+                                          "Succeeded"
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "operationMetadataId": "dfa1bf07-4182-4a90-a855-e98af30c7c21"
+                                      },
+                                      "type": "SetVariable",
+                                      "inputs": {
+                                        "name": "sharedGroupSize",
+                                        "value": "@length(body('Filter_to_just_type_users'))"
                                       }
                                     }
                                   },
@@ -441,7 +430,7 @@
                                 },
                                 "Catch_group_does_not_exist": {
                                   "runAfter": {
-                                    "List_group_members": [
+                                    "ListGroupMembersTransitive": [
                                       "Failed"
                                     ]
                                   },
@@ -450,6 +439,28 @@
                                   },
                                   "type": "Compose",
                                   "inputs": "Catch group does not exist"
+                                },
+                                "ListGroupMembersTransitive": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "07a48faa-05fa-4e49-a0a4-834c41fb80d5"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_webcontents",
+                                      "operationId": "InvokeHttp",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+                                    },
+                                    "parameters": {
+                                      "request/method": "GET",
+                                      "request/url": "https://graph.microsoft.com/v1.0/groups/@{items('Apply_to_each')?['properties']?['principal']?['id']}/transitivemembers?$count=true"
+                                    },
+                                    "authentication": {
+                                      "type": "Raw",
+                                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                    }
+                                  }
                                 }
                               }
                             },
@@ -703,10 +714,8 @@
                                             "parameters": {
                                               "entityName": "admin_powerplatformusers",
                                               "recordId": "@coalesce(items('Apply_to_each')?['properties/principal/id'], items('Apply_to_each')?['properties/principal/tenantId'])",
-                                              "item/admin_displayname": "@coalesce(items('Apply_to_each')?['properties/principal/displayName'], 'Tenant')",
                                               "item/admin_groupsize": "@variables('sharedGroupSize')",
-                                              "item/admin_type": "@items('Apply_to_each')?['properties/principal/type']",
-                                              "item/admin_userprincipalname": "@coalesce(items('Apply_to_each')?['properties/principal/email'], '')"
+                                              "item/admin_type": "@items('Apply_to_each')?['properties/principal/type']"
                                             },
                                             "authentication": {
                                               "type": "Raw",
