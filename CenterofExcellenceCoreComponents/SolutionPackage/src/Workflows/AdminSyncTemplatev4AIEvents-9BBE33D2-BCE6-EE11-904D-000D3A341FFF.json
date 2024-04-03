@@ -1,0 +1,1019 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse2"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_commondataserviceforapps_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreDataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)": {
+          "defaultValue": "https://flow.microsoft.com/manage/environments/",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_PowerAutomateEnvironmentVariable",
+            "description": "Inventory - REQUIRED. Environment, including geographic location, for Power Automate - Ex for commercial: https://flow.microsoft.com/manage/environments/"
+          }
+        },
+        "DelayObjectInventory (admin_DelayObjectInventory)": {
+          "defaultValue": false,
+          "type": "Bool",
+          "metadata": {
+            "schemaName": "admin_DelayObjectInventory",
+            "description": "Inventory - If Yes, will run a delay step to assist with the Dataverse throttling. Things like solutions, apps, flows, will have delays in the individual envt runs. Default No."
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added_or_modified": {
+          "metadata": {
+            "operationMetadataId": "446c9ff9-2f36-4b14-ac8a-73911fbbacae"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps_1",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 4,
+              "subscriptionRequest/entityname": "admin_environment",
+              "subscriptionRequest/scope": 4
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Error_Handling": {
+          "actions": {
+            "Create_a_new_record_-_Sync_Flow_Errors": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "87961ff0-e261-4890-9ab9-a53f88fe0de5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_syncflowerrorses",
+                  "item/admin_name": "@workflow()?['tags']['flowDisplayName']",
+                  "item/admin_environmentname": "@triggerOutputs()?['body/admin_displayname']",
+                  "item/admin_flowinstanceurl": "@concat(parameters('Power Automate Environment Variable (admin_PowerAutomateEnvironmentVariable)'), workflow()?['tags']['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']['name'])"
+                },
+                "authentication": "@parameters('$authentication')",
+                "retryPolicy": {
+                  "type": "exponential",
+                  "count": 10,
+                  "interval": "PT10S"
+                }
+              }
+            },
+            "Terminate": {
+              "runAfter": {
+                "Update_Last_Run_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9e5a2a18-dba2-47a1-96d5-3356f4348e5a"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "500",
+                  "message": "Get Environments Failed"
+                }
+              }
+            },
+            "Get_ID_Fail": {
+              "runAfter": {
+                "Create_a_new_record_-_Sync_Flow_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "47329bf2-8aac-400d-9778-a793b4f1180f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Update_Last_Run_Fail": {
+              "runAfter": {
+                "Get_ID_Fail": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c63eb7cc-6101-4567-b520-a4a8881264e9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Fail')?['body/value'])?['admin_coesolutionmetadataid']"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Gather_AI_Events": [
+              "Failed"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "38ae684e-622d-42ea-abd2-ee571aee3a5f"
+          },
+          "type": "Scope"
+        },
+        "Update_last_run_as_pass": {
+          "actions": {
+            "Update_Last_Run_Successful": {
+              "runAfter": {
+                "Get_ID_Pass": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78ef70e5-7f67-4737-9a02-8533f12caa19"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "UpdateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "recordId": "@first(outputs('Get_ID_Pass')?['body/value'])?['admin_coesolutionmetadataid']"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Get_ID_Pass": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f4f314b6-89d3-4056-af1c-73115e7d6bd1"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "admin_coesolutionmetadatas",
+                  "$select": "admin_coesolutionmetadataid",
+                  "$filter": "admin_objectname eq '@{workflow()?['tags']['flowDisplayName']}'",
+                  "$top": 1
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Catch_-_not_ready_to_take_last_run_date": {
+              "runAfter": {
+                "Update_Last_Run_Successful": [
+                  "Failed"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f88cdefe-c402-49d7-8f4a-934475e6f741"
+              },
+              "type": "Compose",
+              "inputs": "Catch - not ready to take last run date"
+            }
+          },
+          "runAfter": {
+            "Error_Handling": [
+              "Skipped"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "5c140442-d939-4ca4-8ec8-d1ee2bed4a81"
+          },
+          "type": "Scope"
+        },
+        "Initialize_Total_Record_Count": {
+          "runAfter": {
+            "Initialize_AllRecords": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7e285522-06c4-420a-b699-25cf27ca8ce6"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "TotalRecordCount",
+                "type": "integer",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "Initialize_Page_Number": {
+          "runAfter": {
+            "Initialize_Total_Record_Count": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ba0e1152-c870-40c0-ada9-1896c930c618"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "Page Number",
+                "type": "integer",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "Initialize_Page_Cookie": {
+          "runAfter": {
+            "Delay_Object_Inventory": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "23b0f5c1-4ec5-44fd-8e38-d75c27003e03"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "PageCookie",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_TrimmedPageCookies": {
+          "runAfter": {
+            "Initialize_Page_Cookie": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "098bb14f-c74e-4e96-b976-085bbe37887c"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "TrimmedPageCookies",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_FinalPagingCookies": {
+          "runAfter": {
+            "Initialize_TrimmedPageCookies": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "23d1c4fd-e3d0-4d4e-9476-9b541aea2fe8"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "FinalPagingCookies",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_IncrementVariable": {
+          "runAfter": {
+            "Initialize_FinalPagingCookies": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "bde97b5c-621b-42f5-a8dd-1e613a6a5416"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "IncrementVariable",
+                "type": "boolean",
+                "value": "@true"
+              }
+            ]
+          }
+        },
+        "Initialize_AllRecords": {
+          "runAfter": {
+            "Initialize_IncrementVariable": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "fcf70f60-2352-4bfc-b135-49b2182ddda4"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "AllRecords",
+                "type": "integer"
+              }
+            ]
+          }
+        },
+        "Initialize_AIEventsArray": {
+          "runAfter": {
+            "Initialize_Page_Number": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "2af94695-1639-4f95-84f8-1a4fe6601b56"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "AIEventsArray",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Gather_AI_Events": {
+          "actions": {
+            "Do_until": {
+              "actions": {
+                "Scope": {
+                  "actions": {
+                    "List_AI_Events_from_the_Environment": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "7610e0ad-b1f1-4074-8ea8-91667f293115"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
+                          "entityName": "msdyn_aievents",
+                          "$select": "msdyn_creditconsumed,msdyn_processingdate,msdyn_aieventid",
+                          "$filter": "msdyn_creditconsumed gt 0 and (Microsoft.Dynamics.CRM.LastXDays(PropertyName='msdyn_processingdate',PropertyValue=1))",
+                          "$expand": "createdby($select=azureactivedirectoryobjectid)"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Table_Inaccessible": {
+                      "runAfter": {
+                        "List_AI_Events_from_the_Environment": [
+                          "Failed"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "ae0c6265-4304-43ba-bb6b-9059eb3da1d2"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "IncrementVariable",
+                        "value": "@false"
+                      }
+                    },
+                    "Table_Accessed": {
+                      "actions": {
+                        "Check_if_the_Paging_Cookie_is_not_null": {
+                          "actions": {
+                            "Increment_Page_Number": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "7b2bbeeb-cf56-4251-b0ec-19af191e3c5b"
+                              },
+                              "type": "IncrementVariable",
+                              "inputs": {
+                                "name": "Page Number",
+                                "value": 1
+                              }
+                            },
+                            "Set_PageCookie": {
+                              "runAfter": {
+                                "Increment_Page_Number": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "fcb95b47-b15f-465a-ad83-f996bfa8aca2"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "PageCookie",
+                                "value": "@{decodeUriComponent(body('List_AI_Events_from_the_Environment')['@Microsoft.Dynamics.CRM.fetchxmlpagingcookie'])}"
+                              }
+                            },
+                            "Set_TrimmedPageCookies": {
+                              "runAfter": {
+                                "Set_PageCookie": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "f2c56152-6290-487e-868a-593b5d8c6380"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "TrimmedPageCookies",
+                                "value": "@{decodeUriComponent(xpath(xml(variables('PageCookie')),'string(cookie/@pagingcookie)'))}"
+                              }
+                            },
+                            "Set_FinalPagingCookies": {
+                              "runAfter": {
+                                "Set_TrimmedPageCookies": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "a0c383eb-598d-4233-a46b-dda2e9b393ec"
+                              },
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "FinalPagingCookies",
+                                "value": "paging-cookie=\"@{replace(replace(replace(variables('TrimmedPageCookies'),'<', '&lt;'), '>', '&gt;'), '\"','&quot;')}\""
+                              }
+                            }
+                          },
+                          "runAfter": {},
+                          "else": {
+                            "actions": {
+                              "Set_IncrementVariable": {
+                                "runAfter": {},
+                                "metadata": {
+                                  "operationMetadataId": "2a34835e-ed7c-4cad-814f-d930581d37df"
+                                },
+                                "type": "SetVariable",
+                                "inputs": {
+                                  "name": "IncrementVariable",
+                                  "value": "@false"
+                                }
+                              }
+                            }
+                          },
+                          "expression": {
+                            "not": {
+                              "equals": [
+                                "@body('List_AI_Events_from_the_Environment')?['@Microsoft.Dynamics.CRM.fetchxmlpagingcookie']",
+                                "@null"
+                              ]
+                            }
+                          },
+                          "metadata": {
+                            "operationMetadataId": "c1d3999c-0f9f-435a-8a43-0e7c236e1e73"
+                          },
+                          "type": "If"
+                        },
+                        "Increment_AllRecords": {
+                          "runAfter": {
+                            "Check_if_the_Paging_Cookie_is_not_null": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "7b2ce967-4839-480d-b63a-a50e070d53d6"
+                          },
+                          "type": "IncrementVariable",
+                          "inputs": {
+                            "name": "AllRecords",
+                            "value": "@length(outputs('List_AI_Events_from_the_Environment')?['body/value'])"
+                          }
+                        },
+                        "eachAIEvent": {
+                          "foreach": "@outputs('List_AI_Events_from_the_Environment')?['body/value']",
+                          "actions": {
+                            "CurrentAIEvent": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "a0d025ff-d7a4-4520-b5ec-2c0a3fc3e7c7"
+                              },
+                              "type": "Compose",
+                              "inputs": "@items('eachAIEvent')"
+                            },
+                            "Append_to_AIEventsArray": {
+                              "runAfter": {
+                                "CurrentAIEvent": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "134c624b-7303-41c6-9dc1-bd9ebca5203a"
+                              },
+                              "type": "AppendToArrayVariable",
+                              "inputs": {
+                                "name": "AIEventsArray",
+                                "value": {
+                                  "CreditsConsumed": "@outputs('CurrentAIEvent')?['msdyn_creditconsumed']",
+                                  "UserId": "@items('eachAIEvent')?['createdby/azureactivedirectoryobjectid']",
+                                  "ProcessingDate": "@items('eachAIEvent')?['msdyn_processingdate']",
+                                  "AIEventId": "@items('eachAIEvent')?['msdyn_aieventid']"
+                                }
+                              }
+                            }
+                          },
+                          "runAfter": {
+                            "Increment_AllRecords": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "5f494adf-5f66-4e9a-9cf9-896b789efba4"
+                          },
+                          "type": "Foreach",
+                          "runtimeConfiguration": {
+                            "concurrency": {
+                              "repetitions": 50
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Table_Inaccessible": [
+                          "Skipped"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "5768eaef-9f2e-47ef-8317-a6c75b071490"
+                      },
+                      "type": "Scope"
+                    }
+                  },
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "bd0fecfa-ef59-4bfa-b974-2fa4b2232b98"
+                  },
+                  "type": "Scope"
+                }
+              },
+              "runAfter": {},
+              "expression": "@equals(variables('IncrementVariable'), false)",
+              "limit": {
+                "count": 5000,
+                "timeout": "PT48H"
+              },
+              "metadata": {
+                "operationMetadataId": "3ea1a2b0-e553-405b-bb1c-c388e33bfdfb"
+              },
+              "type": "Until"
+            },
+            "UserIDS": {
+              "runAfter": {
+                "Do_until": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "3e7f0476-8001-4eab-b73d-b53ca974eb3d"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@variables('AIEventsArray')",
+                "select": "@item()['UserId']"
+              }
+            },
+            "UniqueIDS": {
+              "runAfter": {
+                "UserIDS": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "0d4d6008-f8b6-4640-97b5-0131572ea93b"
+              },
+              "type": "Compose",
+              "inputs": "@union(body('UserIDS'),body('UserIDS'))"
+            },
+            "eachID": {
+              "foreach": "@outputs('UniqueIDS')",
+              "actions": {
+                "Current_UserID": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "c3689a44-50ab-440c-bf96-ab95db568f63"
+                  },
+                  "type": "Compose",
+                  "inputs": "@items('eachID')"
+                },
+                "filterIDs": {
+                  "runAfter": {
+                    "Current_UserID": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "b772e668-3250-4f00-80cc-9efce5eede41"
+                  },
+                  "type": "Query",
+                  "inputs": {
+                    "from": "@variables('AIEventsArray')",
+                    "where": "@equals(item()['UserId'], outputs('Current_UserID'))"
+                  }
+                },
+                "ProcessingDates": {
+                  "runAfter": {
+                    "filterIDs": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "22b2de8a-5491-4523-993b-950c82e4dfd2"
+                  },
+                  "type": "Select",
+                  "inputs": {
+                    "from": "@ body('filterIDs')",
+                    "select": "@item()?['ProcessingDate']"
+                  }
+                },
+                "UniqueProcessingDates": {
+                  "runAfter": {
+                    "ProcessingDates": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "8cec69bd-182a-446a-a771-7a12a136d097"
+                  },
+                  "type": "Compose",
+                  "inputs": "@union(body('ProcessingDates'),body('ProcessingDates'))"
+                },
+                "Apply_to_each": {
+                  "foreach": "@outputs('UniqueProcessingDates')",
+                  "actions": {
+                    "Filter_Processing_Dates": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "58cf74d2-7925-432d-bf15-98732901a074"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@variables('AIEventsArray')",
+                        "where": "@greaterOrEquals(item()?['ProcessingDate'], startOfDay(items('Apply_to_each')))"
+                      }
+                    },
+                    "Select": {
+                      "runAfter": {
+                        "Filter_UserID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "f64660a4-4929-4d0e-8123-0542935ebbb7"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@body('Filter_UserID')",
+                        "select": "@item()?['CreditsConsumed']"
+                      }
+                    },
+                    "Compose": {
+                      "runAfter": {
+                        "Select": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "39c395c2-8115-4ce3-9d69-0a72f3bde92c"
+                      },
+                      "type": "Compose",
+                      "inputs": {
+                        "root": {
+                          "TotalCredits": "@body('Select')"
+                        }
+                      }
+                    },
+                    "calculateCreditSum": {
+                      "runAfter": {
+                        "Compose": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "88729059-1df5-41b3-aae7-0b6276ec14c5"
+                      },
+                      "type": "Compose",
+                      "inputs": "@xpath(xml(outputs('Compose')), 'sum(/root/TotalCredits)')"
+                    },
+                    "Get_ID": {
+                      "actions": {
+                        "See_if_in_inventory": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "db3e5b77-c2eb-430b-a5a1-2b9fd96c1d71"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connectionName": "shared_commondataserviceforapps",
+                              "operationId": "ListRecords",
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                            },
+                            "parameters": {
+                              "entityName": "admin_aicreditsusages",
+                              "$select": "admin_aicreditsusageid",
+                              "$filter": "admin_name eq '-@{outputs('Current_UserID')}-@{formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd')}'"
+                            },
+                            "authentication": "@parameters('$authentication')",
+                            "retryPolicy": {
+                              "type": "exponential",
+                              "count": 20,
+                              "interval": "PT20S"
+                            }
+                          },
+                          "runtimeConfiguration": {
+                            "paginationPolicy": {
+                              "minimumItemCount": 100000
+                            }
+                          }
+                        },
+                        "GUID_to_use": {
+                          "runAfter": {
+                            "See_if_in_inventory": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "2aa06b3d-bba6-4ec1-a0df-be421c60ae9c"
+                          },
+                          "type": "Compose",
+                          "inputs": "@if(equals(length(outputs('See_if_in_inventory')?['body/value']), 0), guid(), first(outputs('See_if_in_inventory')?['body/value'])['admin_aicreditsusageid'])"
+                        }
+                      },
+                      "runAfter": {
+                        "calculateCreditSum": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "694822f7-b8a3-4e06-bbf3-e0a83ad872d3"
+                      },
+                      "type": "Scope"
+                    },
+                    "Upsert_AI_Credits_Usage_record": {
+                      "runAfter": {
+                        "Get_ID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "be2063dc-4325-4928-918f-2433b5966a6d"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps_1",
+                          "operationId": "UpdateRecord",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "admin_aicreditsusages",
+                          "recordId": "@outputs('GUID_to_use')",
+                          "item/admin_name": "-@{outputs('Current_UserID')}-@{formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd')}",
+                          "item/admin_creditsconsumption": "@outputs('calculateCreditSum')",
+                          "item/admin_CreditsUsedBy@odata.bind": "admin_makers(@{outputs('Current_UserID')})",
+                          "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
+                          "item/admin_processingdate": "@formatDateTime(items('Apply_to_each'),'yyyy-MM-dd')",
+                          "item/admin_userid": "@outputs('Current_UserID')"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Filter_UserID": {
+                      "runAfter": {
+                        "Filter_Processing_Dates_2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "3b013118-76aa-45d7-8ba9-44349cd637c7"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Filter_Processing_Dates_2')",
+                        "where": "@equals(item()?['UserId'], outputs('Current_UserID'))"
+                      }
+                    },
+                    "Filter_Processing_Dates_2": {
+                      "runAfter": {
+                        "Filter_Processing_Dates": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "58cf74d2-7925-432d-bf15-98732901a074"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Filter_Processing_Dates')",
+                        "where": "@less(item()?['ProcessingDate'], addDays(formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd'), 1))"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "UniqueProcessingDates": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "9be18a62-745f-4185-9b2b-27b0a1add9a5"
+                  },
+                  "type": "Foreach",
+                  "runtimeConfiguration": {
+                    "concurrency": {
+                      "repetitions": 50
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "UniqueIDS": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "ee6a05ee-cd7e-4981-93ec-880742bf4e44"
+              },
+              "type": "Foreach",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 50
+                }
+              }
+            },
+            "Total_Record_Count": {
+              "runAfter": {
+                "eachID": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "44b60011-a9e3-434d-bc57-b345ca9af2bc"
+              },
+              "type": "Compose",
+              "inputs": "@length(variables('AIEventsArray'))"
+            }
+          },
+          "runAfter": {
+            "Initialize_AIEventsArray": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "117aa299-f152-4812-9778-d3188305ba7d"
+          },
+          "type": "Scope"
+        },
+        "Check_if_Solution_can_be_retrieved_for_this_environment": {
+          "actions": {
+            "Terminate,_inquiry_not_supported": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "303cf191-ec29-40ed-b90b-d73833e269c0"
+              },
+              "type": "Terminate",
+              "inputs": {
+                "runStatus": "Succeeded"
+              }
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "or": [
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentdeleted']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_hascds']",
+                  "@false"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_excusefrominventory']",
+                  "@true"
+                ]
+              },
+              {
+                "equals": [
+                  "@triggerOutputs()?['body/admin_environmentruntimestate']",
+                  "Disabled"
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9b6688e4-c25b-4e40-9deb-fcf181094357"
+          },
+          "type": "If"
+        },
+        "Delay_Object_Inventory": {
+          "actions": {
+            "Delay_1_to_300_minutes": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f37a4a9d-c5b4-41ed-8484-636dca60ee81"
+              },
+              "type": "Wait",
+              "inputs": {
+                "interval": {
+                  "count": "@rand(1, 300)",
+                  "unit": "Minute"
+                }
+              },
+              "description": "To avoid throttling of the backend to the tenant user, we will randomize the start time of these flows for tenants within a 5 hour range"
+            }
+          },
+          "runAfter": {
+            "Check_if_Solution_can_be_retrieved_for_this_environment": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "equals": [
+              "@parameters('DelayObjectInventory (admin_DelayObjectInventory)')",
+              true
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "49b3d120-232d-4694-b373-a97ecde35cc4"
+          },
+          "type": "If"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

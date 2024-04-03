@@ -1,0 +1,2986 @@
+AppDetailsScreen As screen:
+    LoadingSpinnerColor: =RGBA(0, 120, 212, 1)
+    OnVisible: |
+        =UpdateContext(
+            {
+                ctx_ShowShimmer: true,
+                showAddUsers: false,
+                showEmailPanel: false,
+                ctxSortAsc: true,
+                ctxSortCol: "Name",
+                ctx_ShowSpinnerLoading: true
+            }
+        );
+        Clear(colRoleAssignments);
+        Select(Hidden_UpdateTable_AppPerm);
+        UpdateContext({ctx_ShowShimmer: false});
+        ClearCollect(
+            DefaultToLineUsers,
+            ForAll(
+                colRoleAssignments,
+                If(
+                    ThisRecord.Type <> "Group",
+                    {
+                        PersonaKey: ThisRecord.Email,
+                        PersonaName: ThisRecord.Name,
+                        PersonaRole: "Editor"
+                    }
+                )
+            )
+        );
+        UpdateContext({showEmailPanel: false});
+        UpdateContext({ctx_ShowSpinner: false});
+        Set(
+            var_ShowSpinner,
+            true
+        );
+        UpdateContext(
+            {
+                var_ShowEditors: true,
+                var_ShowViewers: false
+            }
+        );
+        //get app maker url
+        Set(
+            EnvVarDefnID,
+            LookUp(
+                'Environment Variable Definitions',
+                'Schema Name' = "admin_PowerAppEnvironmentVariable"
+            ).'Environment Variable Definition'
+        );
+        Set(
+            theAppMakerURL,
+            First(
+                Filter(
+                    'Environment Variable Values',
+                    'Environment Variable Definition'.'Environment Variable Definition' = GUID(EnvVarDefnID)
+                )
+            ).Value
+        );
+        If(
+            IsBlank(theAppMakerURL),
+            Set(
+                theAppMakerURL,
+                LookUp(
+                    'Environment Variable Definitions',
+                    'Environment Variable Definition' = GUID(EnvVarDefnID)
+                ).'Default Value'
+            )
+        );
+        Set(
+            SelectAppLink,
+            theAppMakerURL & "environments/" & SelectedApp.'App Environment'.Name & "/apps/" & SelectedApp.App & "/details"
+        );
+        //get permissions
+        //collect all the users with permissions to the app
+        If(
+            !false && !false,
+            ClearCollect(
+                temproleAssignmentsCollection,
+                PowerAppsforAdmins.GetAdminAppRoleAssignment(
+                    SelectedApp.'App Environment ID',
+                    SelectedApp.App
+                ).value
+            );
+            ClearCollect(
+                roleAssignmentsCollection,
+                AddColumns(
+                    temproleAssignmentsCollection,
+                    "RowKey",
+                    properties.principal.id,
+                    "Name",
+                    //tenant
+                    If(
+                        properties.principal.type = "Tenant",
+                        "Entire Org",
+                    //group
+                        If(
+                            properties.principal.type = "Group",
+                            If(
+                                IsError(Office365Groups.ListGroups({'$filter': "id eq " & "'" & properties.principal.id & "'"}).value),
+                                "Unknown Group",
+                                "Group: " & First(Office365Groups.ListGroups({'$filter': "id eq " & "'" & properties.principal.id & "'"}).value).displayName
+                            ),
+                    //service principal
+                            If(
+                                properties.principal.type = "ServicePrincipal",
+                                properties.principal.displayName,
+                    //user
+                                If(
+                                    !IsError(Office365Users.UserProfile(properties.principal.id).DisplayName),
+                                    Office365Users.UserProfile(properties.principal.id).DisplayName,
+                    //orphan
+                                    If(
+                                        CountRows(
+                                            Filter(
+                                                'Power Platform Users',
+                                                'Record GUID as String' = name
+                                            )
+                                        ) > 0,
+                                        LookUp(
+                                            'Power Platform Users',
+                                            'Record GUID as String' = name
+                                        ).'Display Name',
+                                        "Unknown user"
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    "Image",
+                    If(
+                        !IsBlank(properties.principal.id),
+                        If(
+                            properties.principal.type <> "User",
+                            Substitute(
+                                JSON(
+                                    PersonPlaceholder,
+                                    JSONFormat.IncludeBinaryData
+                                ),
+                                """",
+                                ""
+                            ),
+                            If(
+                                Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                                Substitute(
+                                    JSON(
+                                        Office365Users.UserPhotoV2(properties.principal.id),
+                                        JSONFormat.IncludeBinaryData
+                                    ),
+                                    """",
+                                    ""
+                                ),
+                                Substitute(
+                                    JSON(
+                                        LookUp(
+                                            'Power Platform Users',
+                                            'Record GUID as String' = properties.principal.id
+                                        ).admin_PhotoObjectId,
+                                        JSONFormat.IncludeBinaryData
+                                    ),
+                                    """",
+                                    ""
+                                )
+                            )
+                        )
+                    ),
+                    "Email",
+                    properties.principal.email,
+                    "Role",
+                    properties.roleName
+                )
+            )
+        );
+        //remove the users without email addresses
+        RemoveIf(
+            roleAssignmentsCollection,
+            IsBlank(Email)
+        );
+        Set(
+            var_ShowSpinner,
+            false
+        );
+        UpdateContext({ctx_ShowSpinnerLoading: false});
+
+    "SpinnerAppDetails As 'Fluent Spinner (1.1.29) Preview'":
+        AccessibilityLabel: ="Loading"
+        BackgroundColor: |-
+            ="#00000010"
+        DisplayMode: =DisplayMode.Edit
+        Height: =Parent.Height
+        Label: =var_Spinnerlabel
+        Theme: =AppThemeJson
+        Visible: |-
+            =//ctx_ShowSpinner
+            false
+        Width: =Parent.Width
+        X: =0   
+        Y: =0   
+        ZIndex: =1
+
+    btnRefreshRoles As Button:
+        AccessibleLabel: ="Refresh Roles"
+        BasePaletteColor: =
+        DisplayMode: =DisplayMode.Edit
+        FontColor: =
+        FontWeight: =FontWeight.Normal
+        Height: =32
+        OnSelect: |
+            =Refresh('Power Platform Users');
+            Refresh(Makers);
+            Refresh('PowerApps Apps');
+            ClearCollect(
+                appRoles,
+                PowerAppsforAdmins.GetAdminAppRoleAssignment(
+                    SelectedApp.'App Environment'.Name,
+                    SelectedApp.App
+                ).value
+            );
+            ClearCollect(
+                colAppRoles,
+                ForAll(
+                    ShowColumns(
+                        Filter(
+                            appRoles,
+                            properties.principal.type <> "Tenant"
+                        ),
+                        "properties",
+                        "id",
+                        "name",
+                        "type"
+                    ),
+                    {
+                        RoleName: ThisRecord.properties.roleName,
+                        UserName: If(
+                            ThisRecord.properties.principal.type = "Group",
+                            If(
+                                IsError(Office365Groups.ListGroups({'$filter': "id eq " & "'" & properties.principal.id & "'"}).value),
+                                "Unknown Group",
+                                "Group: " & First(Office365Groups.ListGroups({'$filter': "id eq " & "'" & properties.principal.id & "'"}).value).displayName
+                            ),
+                            First(
+                                Search(
+                                    'Power Platform Users',
+                                    ThisRecord.properties.principal.id,
+                                    "admin_recordguidasstring"
+                                )
+                            ).'Display Name'
+                        ),
+                        UserEmail: If(
+                            ThisRecord.properties.principal.type = "Group",
+                            Blank(),
+                            IfError(
+                                First(
+                                    Search(
+                                        'Power Platform Users',
+                                        ThisRecord.properties.principal.id,
+                                        "admin_recordguidasstring"
+                                    )
+                                ).'User Email',
+                                ""
+                            )
+                        ),
+                        UserId: GUID(properties.principal.id),
+                        UserIcon: If(
+                            !IsBlank(properties.principal.id),
+                            If(
+                                properties.principal.type <> "User",
+                                Substitute(
+                                    JSON(
+                                        PersonPlaceholder,
+                                        JSONFormat.IncludeBinaryData
+                                    ),
+                                    """",
+                                    ""
+                                ),
+                                If(
+                                    IfError(
+                                        Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                                        false
+                                    ),
+                                    Substitute(
+                                        JSON(
+                                            Office365Users.UserPhotoV2(properties.principal.id),
+                                            JSONFormat.IncludeBinaryData
+                                        ),
+                                        """",
+                                        ""
+                                    ),
+                                    If(
+                                        !IsBlankOrError(
+                                            First(
+                                                Search(
+                                                    'Power Platform Users',
+                                                    ThisRecord.properties.principal.id,
+                                                    "admin_recordguidasstring"
+                                                )
+                                            ).PhotoObject
+                                        ),
+                                        Substitute(
+                                            JSON(
+                                                First(
+                                                    Search(
+                                                        'Power Platform Users',
+                                                        ThisRecord.properties.principal.id,
+                                                        "admin_recordguidasstring"
+                                                    )
+                                                ).PhotoObject,
+                                                JSONFormat.IncludeBinaryData
+                                            ),
+                                            """",
+                                            ""
+                                        ),
+                                        Substitute(
+                                            JSON(
+                                                PersonPlaceholder,
+                                                JSONFormat.IncludeBinaryData
+                                            ),
+                                            """",
+                                            ""
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        PermissionsMsg: If(
+                            ThisRecord.properties.roleName = "Owner",
+                            "Type Owner: Cannot change permissions for owner until you assign a new owner"
+                        ),
+                        /* If(
+                            ThisRecord.properties.roleName <> "Owner" && ThisRecord.properties.principal.type <> "User",
+                            "Type " & ThisRecord.properties.principal.type & ": Cannot change permissions for this user type in the app, please go to App Setting and change there",
+                            If(
+                                ThisRecord.properties.roleName = "Owner",
+                                "Type Owner: Cannot change permissions for owner until you assign a new owner"
+                            )
+                        )*/
+                        PrincipalType: ThisRecord.properties.principal.type
+                    }
+                )
+            );
+        Text: ="Refresh Roles"
+        Visible: =false
+        Width: =96
+        X: =80
+        Y: =80
+        ZIndex: =2
+
+    Hidden_UpdateTable_AppPerm As Button:
+        BorderColor: =
+        ButtonType: ='Button.ButtonType'.Standard
+        DisabledBorderColor: =
+        DisabledFillColor: =
+        DisabledTextColor: =
+        DisplayMode: =DisplayMode.Edit
+        FillColor: =
+        Height: =0
+        HoverBorderColor: =
+        HoverFillColor: =
+        HoverTextColor: =
+        OnChange: =false
+        OnSelect: |
+            =If(
+                !false && !false,
+                UpdateContext({var_ShowShimmer: true});
+                Clear(colTempRoleAssignments);
+                ClearCollect(
+                    colTempRoleAssignments,
+                    PowerAppsforAdmins.GetAdminAppRoleAssignment(
+                        SelectedApp.'App Environment ID',
+                        SelectedApp.App
+                    ).value
+                );
+                ClearCollect(
+                    colRoleAssignments,
+                    AddColumns(
+                        colTempRoleAssignments,
+                        "RowKey",
+                        properties.principal.id,
+                        "Name",
+                        //tenant
+                        If(
+                            properties.principal.type = "Tenant",
+                            "Entire Org",
+                        //group
+                            If(
+                                properties.principal.type = "Group",
+                                If(
+                                    IsError(Office365Groups.ListGroups({'$filter': "id eq " & "'" & properties.principal.id & "'"}).value),
+                                    "Unknown Group",
+                                    "Group: " & First(Office365Groups.ListGroups({'$filter': "id eq " & "'" & properties.principal.id & "'"}).value).displayName
+                                ),
+                        //service principal
+                                If(
+                                    properties.principal.type = "ServicePrincipal",
+                                    properties.principal.displayName,
+                        //user
+                                    If(
+                                        !IsError(Office365Users.UserProfile(properties.principal.id).DisplayName),
+                                        Office365Users.UserProfile(properties.principal.id).DisplayName,
+                        //orphan
+                                        If(
+                                            CountRows(
+                                                Filter(
+                                                    'Power Platform Users',
+                                                    'Record GUID as String' = name
+                                                )
+                                            ) > 0,
+                                            LookUp(
+                                                'Power Platform Users',
+                                                'Record GUID as String' = name
+                                            ).'Display Name',
+                                            "Unknown user"
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        /*"Image",
+                        If(
+                            !IsBlank(properties.principal.id),
+                            If(
+                                properties.principal.type <> "User",
+                                Substitute(
+                                    JSON(
+                                        PersonPlaceholder,
+                                        JSONFormat.IncludeBinaryData
+                                    ),
+                                    """",
+                                    ""
+                                ),
+                                If(
+                                    IfError(
+                                        Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                                        false
+                                    ),
+                                    Substitute(
+                                        JSON(
+                                            Office365Users.UserPhotoV2(properties.principal.id),
+                                            JSONFormat.IncludeBinaryData
+                                        ),
+                                        """",
+                                        ""
+                                    ),
+                                    Substitute(
+                                        JSON(
+                                            LookUp(
+                                                'Power Platform Users',
+                                                'Record GUID as String' = properties.principal.id
+                                            ).admin_PhotoObjectId,
+                                            JSONFormat.IncludeBinaryData
+                                        ),
+                                        """",
+                                        ""
+                                    )
+                                )
+                            )
+                        ),*/
+                        "Image",
+                        If(
+                            !IsBlank(properties.principal.id),
+                            If(
+                                properties.principal.type <> "User",
+                                Substitute(
+                                    JSON(
+                                        PersonPlaceholder,
+                                        JSONFormat.IncludeBinaryData
+                                    ),
+                                    """",
+                                    ""
+                                ),
+                                If(
+                                    IfError(
+                                        Office365Users.UserPhotoMetadata(properties.principal.id).HasPhoto,
+                                        false
+                                    ),
+                                    Substitute(
+                                        JSON(
+                                            Office365Users.UserPhotoV2(properties.principal.id),
+                                            JSONFormat.IncludeBinaryData
+                                        ),
+                                        """",
+                                        ""
+                                    ),
+                                    If(
+                                        !IsBlankOrError(
+                                            First(
+                                                Search(
+                                                    'Power Platform Users',
+                                                    ThisRecord.properties.principal.id,
+                                                    "admin_recordguidasstring"
+                                                )
+                                            ).PhotoObject
+                                        ),
+                                        Substitute(
+                                            JSON(
+                                                First(
+                                                    Search(
+                                                        'Power Platform Users',
+                                                        ThisRecord.properties.principal.id,
+                                                        "admin_recordguidasstring"
+                                                    )
+                                                ).PhotoObject,
+                                                JSONFormat.IncludeBinaryData
+                                            ),
+                                            """",
+                                            ""
+                                        ),
+                                        Substitute(
+                                            JSON(
+                                                PersonPlaceholder,
+                                                JSONFormat.IncludeBinaryData
+                                            ),
+                                            """",
+                                            ""
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        "Email",
+                        properties.principal.email,
+                        "Role",
+                        properties.roleName,
+                        "Type",
+                        If(
+                            properties.principal.type = "Tenant",
+                            "Tenant",
+                            If(
+                                properties.principal.type = "Group",
+                                "Group",
+                                "User"
+                            )
+                        ),
+                        "UserType",
+                        If(
+                            properties.principal.type = "User",
+                            IfError(
+                                Office365Users.UserProfileV2(properties.principal.id).userType,
+                                Blank()
+                            );
+                            ,
+                            If(
+                                properties.principal.type = "Group",
+                                properties.principal.type,
+                                Blank()
+                            );
+                        ),
+                        "PermissionsMsg",
+                        If(
+                            ThisRecord.properties.roleName = "Owner",
+                            "Type Owner: Cannot change permissions for owner until you assign a new owner"
+                        )
+                    )
+                );
+                UpdateContext({var_ShowShimmer: false});
+                
+            );
+        PressedBorderColor: =
+        PressedFillColor: =
+        PressedTextColor: =
+        Text: ="load apps"
+        TextColor: =
+        Visible: =false
+        Width: =0
+        X: =20
+        Y: =20
+        ZIndex: =3
+
+    MainAppScreenContainer As groupContainer.horizontalAutoLayoutContainer:
+        DropShadow: =DropShadow.Light
+        Height: =Parent.Height
+        LayoutMode: =LayoutMode.Auto
+        RadiusBottomLeft: =4
+        RadiusBottomRight: =4
+        RadiusTopLeft: =4
+        RadiusTopRight: =4
+        Width: =Parent.Width
+        Y: =
+        ZIndex: =4
+
+        LeftAppScreenContainer As groupContainer.verticalAutoLayoutContainer:
+            Fill: =RGBA(122, 138, 143, 0.12)
+            FillPortions: =2
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingLeft: =App.ActiveScreen.Width * 0.01
+            PaddingRight: =App.ActiveScreen.Width * 0.01
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            ZIndex: =1
+
+            ActionAppContainer As groupContainer.horizontalAutoLayoutContainer:
+                DropShadow: =DropShadow.Light
+                FillPortions: =0
+                Height: =50
+                LayoutMinHeight: =100
+                LayoutMinWidth: =250
+                LayoutMode: =LayoutMode.Auto
+                RadiusBottomLeft: =4
+                RadiusBottomRight: =4
+                RadiusTopLeft: =4
+                RadiusTopRight: =4
+                ZIndex: =1
+
+                "commandBarApp As 'Fluent Command Bar (1.1.29)'.pcfdataset":
+                    AccessibilityLabel: ="App Details Command Bar"
+                    DisplayMode: =DisplayMode.Edit
+                    FillPortions: =1
+                    Height: =50
+                    ItemOverflow: =""
+                    Items: |-
+                        =Table(
+                            {
+                                ItemKey: "back",
+                                ItemDisplayName: "Back to dashboard",
+                                ItemIconName: "Back"
+                            },
+                            {
+                                ItemKey: "appsettings",
+                                ItemDisplayName: "App settings",
+                                ItemIconName: "Settings"
+                            },
+                            {
+                                ItemKey: "emailusers",
+                                ItemDisplayName: "Email users",
+                                ItemIconName: "Mail"
+                            },
+                            {
+                                ItemKey: "addnewusers",
+                                ItemDisplayName: "Add new users",
+                                ItemIconName: "PeopleAdd"
+                            },
+                            {
+                                ItemKey: "makeowner",
+                                ItemDisplayName: "Make owner",
+                                ItemIconName: "PermissionsSolid",
+                                ItemEnabled: If(
+                                    dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Role <> "CanView" && dlAppRoles.Selected.Type = "User",
+                                    true,
+                                    false
+                                ),
+                                ItemVisible: If(
+                                    dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Role <> "CanView" && dlAppRoles.Selected.Type = "User",
+                                    true,
+                                    false
+                                )
+                            },
+                            {
+                                ItemKey: "changetoeditor",
+                                ItemDisplayName: "Change to editor",
+                                ItemIconName: "EditContact",
+                                ItemEnabled: If(
+                                    (dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Type = "User" && dlAppRoles.Selected.Role = "CanView"),
+                                    true,
+                                    false
+                                ),
+                                ItemVisible: If(
+                                    (dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Type = "User" && dlAppRoles.Selected.Role = "CanView"),
+                                    true,
+                                    false
+                                )
+                            },
+                            {
+                                ItemKey: "changetoviewer",
+                                ItemDisplayName: "Change to viewer",
+                                ItemIconName: "View",
+                                ItemEnabled: If(
+                                    (dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Type = "User" && dlAppRoles.Selected.Role = "CanEdit"),
+                                    true,
+                                    false
+                                ),
+                                ItemVisible: If(
+                                    (dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Type = "User" && dlAppRoles.Selected.Role = "CanEdit"),
+                                    true,
+                                    false
+                                )
+                            },
+                            {
+                                ItemKey: "removepermission",
+                                ItemDisplayName: "Remove permission",
+                                ItemIconName: "UserRemove",
+                                ItemEnabled: If(
+                                    (dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Type = "User"),
+                                    true,
+                                    false
+                                ),
+                                ItemVisible: If(
+                                    (dlAppRoles.Selected.Role <> "Owner" && dlAppRoles.Selected.Type = "User"),
+                                    true,
+                                    false
+                                )
+                            },
+                            {
+                                ItemKey: "refresh",
+                                ItemDisplayName: "Refresh",
+                                ItemIconName: "refresh",
+                                ItemEnabled: true,
+                                ItemVisible: true
+                            }
+                        )
+                    LayoutMinHeight: =200
+                    LayoutMinWidth: =800
+                    OnSelect: |-
+                        =UpdateContext({TargetUserID: dlAppRoles.Selected.RowKey});
+                        Switch(
+                            Self.Selected.ItemKey,
+                            "back",
+                            Back(),
+                            "appsettings",
+                            If(
+                                LookUp(
+                                    vEnvironments,
+                                    Environment = SelectedApp.'App Environment'.Environment
+                                ).'Environment Sku' = "Teams",
+                                Notify(
+                                    "Cannot browse to apps for Teams environments",
+                                    NotificationType.Error
+                                ),
+                                Launch(theAppMakerURL & "environments/" & SelectedApp.'App Environment ID' & "/apps/" & SelectedApp.App & "/details")
+                            ),
+                            "emailusers",
+                            Clear(DefaultToLineUsers);
+                            ForAll(
+                                Filter(
+                                    colRoleAssignments,
+                                    Role <> "CanView" && Type <> "Group" && !IsBlank(Email)
+                                ),
+                                Collect(
+                                    DefaultToLineUsers,
+                                    {
+                                        PersonaKey: Email,
+                                        PersonaName: Name,
+                                        PersonaImgUrl: Image,
+                                        PersonaRole: "Editor"
+                                    }
+                                )
+                            );
+                            UpdateContext(
+                                {
+                                    showEmailPanel: true,
+                                    showAddUsers: false
+                                }
+                            );
+                            ,
+                            "addnewusers",
+                            If(
+                                LookUp(
+                                    Environments,
+                                    Environment = SelectedApp.'App Environment'.Environment
+                                ).'Environment Sku' = "Teams",
+                                Notify(
+                                    "Cannot assign ownership here for apps in Teams environments",
+                                    NotificationType.Error
+                                ),
+                                Select(Hidden_UpdateTable_AppPerm);
+                                UpdateContext(
+                                    {
+                                        var_pivotkey: "tabMembers",
+                                        showAddUsers: true,
+                                        showEmailPanel: false
+                                    }
+                                );
+                            );
+                            ,
+                            "makeowner",
+                            UpdateContext(
+                                {
+                                    var_Spinnerlabel: "Changing Owner...",
+                                    var_ShowSpinner: true
+                                }
+                            );
+                            //call helper to reassign
+                        UpdateContext(
+                                {
+                                    returnResult: 'HELPER-ObjectOperations'.Run(
+                                        TargetUserID,
+                                        SelectedApp.App,
+                                        SelectedApp.'App Environment'.Name,
+                                        "assign",
+                                        "app"
+                                    ).thereturnstring
+                                }
+                            );
+                            If(
+                                returnResult = "pass",
+                        //if success, refresh data in app
+                                UpdateContext({var_ShowSpinner: false});
+                                Notify(
+                                    "User has been changed to Owner successfully",
+                                    NotificationType.Success,
+                                    2000
+                                );
+                                //Select(btnRefreshRoles);
+                        Select(Hidden_UpdateTable_AppPerm);
+                                ,
+                                Notify(
+                                    returnResult,
+                                    NotificationType.Error,
+                                    2000
+                                );
+                            );
+                            UpdateContext({var_ShowSpinner: false});
+                            ,
+                            "removepermission",
+                            UpdateContext(
+                                {
+                                    var_Spinnerlabel: "Removing Permission...",
+                                    var_ShowSpinner: true
+                                }
+                            );
+                            PowerAppsforAdmins.EditAdminAppRoleAssignment(
+                                SelectedApp.'App Environment'.Name,
+                                SelectedApp.App,
+                                {
+                                    '$filter': "enviornment eq '" & SelectedApp.'App Environment'.Environment & "'",
+                                    delete: Table(
+                                        {
+                                            email: UserToUpdate,
+                                            id: TargetUserID,
+                                            type: "User",
+                                            tenantId: "null"
+                                        }
+                                    )
+                                }
+                            );
+                            Notify(
+                                "Permissions are removed for the user",
+                                NotificationType.Success,
+                                2000
+                            );
+                            //Select(btnRefreshRoles);
+                        Select(Hidden_UpdateTable_AppPerm);
+                            UpdateContext({var_ShowSpinner: false});
+                            ,
+                            "changetoeditor",
+                            UpdateContext(
+                                {
+                                    var_Spinnerlabel: "Changing to Editor...",
+                                    var_ShowSpinner: true
+                                }
+                            );
+                            UpdateContext(
+                                {
+                                    returnResult: 'HELPER-ObjectOperations'.Run(
+                                        TargetUserID,
+                                        SelectedApp.App,
+                                        SelectedApp.'App Environment'.Name,
+                                        "addeditor",
+                                        "app"
+                                    ).thereturnstring
+                                }
+                            );
+                            If(
+                                returnResult = "pass",
+                                //Select(btnRefreshRoles);
+                                Select(Hidden_UpdateTable_AppPerm);
+                                Notify(
+                                    "User has been changed to Editor successfully",
+                                    NotificationType.Success,
+                                    2000
+                                );
+                                ,
+                        //else show error message
+                                Notify(
+                                    returnResult,
+                                    NotificationType.Error,
+                                    2000
+                                );
+                            );
+                            UpdateContext({var_ShowSpinner: false});
+                            ,
+                            "changetoviewer",
+                            UpdateContext(
+                                {
+                                    var_Spinnerlabel: "Changing to Viewer...",
+                                    var_ShowSpinner: true
+                                }
+                            );
+                            UpdateContext(
+                                {
+                                    returnResult: 'HELPER-ObjectOperations'.Run(
+                                        TargetUserID,
+                                        SelectedApp.App,
+                                        SelectedApp.'App Environment'.Name,
+                                        "addviewer",
+                                        "app"
+                                    ).thereturnstring
+                                }
+                            );
+                            If(
+                                returnResult = "pass",
+                                UpdateContext({var_ShowSpinner: false});
+                                //Select(btnRefreshRoles);
+                        Select(Hidden_UpdateTable_AppPerm);
+                                Notify(
+                                    "User has been changed to Viewer successfully",
+                                    NotificationType.Success,
+                                    2000
+                                );
+                                ,
+                                Notify(
+                                    returnResult,
+                                    NotificationType.Error,
+                                    2000
+                                );
+                            );
+                            UpdateContext({var_ShowSpinner: false});
+                            ,
+                            "refresh",
+                            UpdateContext({ctx_ShowShimmer: true});
+                            //Select(btnRefreshRoles);
+                        Select(Hidden_UpdateTable_AppPerm);
+                            UpdateContext({ctx_ShowShimmer: false});
+                            
+                        )
+                    Theme: =AppThemeJson
+                    Width: =Parent.Width
+                    X: =0
+                    Y: =0
+                    ZIndex: =1
+
+            DetailsAppContainer As groupContainer.verticalAutoLayoutContainer:
+                DropShadow: =DropShadow.Light
+                Fill: =RGBA(255, 255, 255, 1)
+                LayoutDirection: =LayoutDirection.Vertical
+                LayoutMinHeight: =100
+                LayoutMinWidth: =250
+                LayoutMode: =LayoutMode.Auto
+                RadiusBottomLeft: =4
+                RadiusBottomRight: =4
+                RadiusTopLeft: =4
+                RadiusTopRight: =4
+                ZIndex: =2
+
+                conAppDetails As groupContainer.horizontalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.SetByContainer
+                    BorderStyle: =BorderStyle.None
+                    Height: =150
+                    LayoutMinHeight: =150
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    PaddingBottom: =10
+                    PaddingLeft: =10
+                    PaddingRight: =10
+                    PaddingTop: =10
+                    RadiusBottomLeft: =4
+                    RadiusBottomRight: =4
+                    RadiusTopLeft: =4
+                    RadiusTopRight: =4
+                    Width: =Parent.Width
+                    ZIndex: =1
+
+                    conAppIcon As groupContainer.manualLayoutContainer:
+                        AlignInContainer: =AlignInContainer.Start
+                        FillPortions: =0
+                        Height: =imgAppIcon.Height
+                        LayoutMinHeight: =100
+                        LayoutMinWidth: =250
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
+                        Width: =imgAppIcon.Width
+                        X: =54
+                        Y: =144
+                        ZIndex: =1
+
+                        lblAppBkgColor2 As htmlViewer:
+                            AutoHeight: =true
+                            Height: =60
+                            HoverBorderColor: =lblAppBkgColor2.BorderColor
+                            HtmlText: |
+                                ="<div style='width:" & Self.Width+imgAppIcon.Width & "px;height=10px;height:60px;background:" & SelectedApp.'Icon Background Color' & "'></div>"
+                            OnSelect: =
+                            PaddingBottom: =0
+                            PaddingLeft: =0
+                            PaddingRight: =0
+                            PaddingTop: =0
+                            PressedBorderColor: =lblAppBkgColor2.BorderColor
+                            Width: =64
+                            ZIndex: =1
+
+                        imgAppIcon As image:
+                            AccessibleLabel: ="App Icon"
+                            BorderColor: =RGBA(0, 0, 0, 0)
+                            BorderStyle: =BorderStyle.None
+                            BorderThickness: =2
+                            DisabledBorderColor: =RGBA(0, 0, 0, 0)
+                            DisabledFill: =RGBA(0, 0, 0, 0)
+                            Fill: =
+                            Height: =60
+                            HoverBorderColor: =RGBA(0, 0, 0, 0)
+                            HoverFill: =RGBA(0, 0, 0, 0)
+                            Image: =SelectedApp.'App Icon Uri'
+                            PressedBorderColor: =RGBA(0, 0, 0, 0)
+                            PressedFill: =RGBA(0, 0, 0, 0)
+                            Width: =64
+                            ZIndex: =2
+
+                    conApp As groupContainer.verticalAutoLayoutContainer:
+                        FillPortions: =0
+                        Height: =150
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutMinHeight: =100
+                        LayoutMinWidth: =250
+                        LayoutMode: =LayoutMode.Auto
+                        PaddingRight: =10
+                        Width: =Parent.Width*0.3
+                        ZIndex: =2
+
+                        lblAppDetails As Label:
+                            AlignInContainer: =AlignInContainer.Start
+                            Alignment: =Align.Left
+                            Color: =
+                            DisplayMode: =DisplayMode.Edit
+                            FontSize: =14
+                            FontWeight: =FontWeight.Semibold
+                            Height: =32
+                            LayoutMinHeight: =32
+                            LayoutMinWidth: =320
+                            OnChange: =false
+                            PaddingStart: =20
+                            Text: ="App overview"
+                            VerticalAlignment: =VerticalAlign.Middle
+                            Width: =Parent.Width
+                            Wrap: =false
+                            X: =0
+                            Y: =0
+                            ZIndex: =1
+
+                        Rectangle3_3 As rectangle:
+                            BorderColor: =RGBA(166, 166, 166, 1)
+                            BorderStyle: =BorderStyle.None
+                            DisabledFill: =RGBA(166, 166, 166, 1)
+                            Fill: =RGBA(230, 230, 230, 1)
+                            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                            Height: =1
+                            HoverFill: =RGBA(230, 230, 230, 1)
+                            PressedFill: =RGBA(230, 230, 230, 1)
+                            Width: =Parent.Width
+                            ZIndex: =2
+
+                        lblAppName As Label:
+                            AlignInContainer: =AlignInContainer.Start
+                            Alignment: =Align.Left
+                            AutoHeight: =true
+                            Color: =
+                            DisplayMode: =DisplayMode.Edit
+                            FontSize: =12
+                            FontWeight: =FontWeight.Semibold
+                            Height: =Parent.Height
+                            LayoutMinHeight: =32
+                            LayoutMinWidth: =200
+                            OnChange: =false
+                            PaddingStart: =20
+                            Text: =SelectedApp.'App Display Name'
+                            VerticalAlignment: =VerticalAlign.Middle
+                            Width: =Parent.Width
+                            Wrap: =true
+                            X: =0
+                            Y: =0
+                            ZIndex: =3
+
+                    conDetails As groupContainer.horizontalAutoLayoutContainer:
+                        BorderStyle: =BorderStyle.None
+                        Height: =150
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutMinHeight: =100
+                        LayoutMinWidth: =250
+                        LayoutMode: =LayoutMode.Auto
+                        PaddingLeft: =5
+                        ZIndex: =3
+
+                        lblDetails As Label:
+                            Alignment: =Align.Left
+                            Color: =
+                            DisplayMode: =DisplayMode.Edit
+                            FontSize: =12
+                            FontWeight: =FontWeight.Semibold
+                            Height: =32
+                            LayoutMinHeight: =32
+                            LayoutMinWidth: =320
+                            OnChange: =false
+                            Text: ="Details"
+                            Width: =320
+                            X: =0
+                            Y: =0
+                            ZIndex: =1
+
+                        Rectangle3_4 As rectangle:
+                            BorderColor: =RGBA(166, 166, 166, 1)
+                            BorderStyle: =BorderStyle.None
+                            DisabledFill: =RGBA(166, 166, 166, 1)
+                            Fill: =RGBA(230, 230, 230, 1)
+                            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                            Height: =1
+                            HoverFill: =RGBA(230, 230, 230, 1)
+                            PressedFill: =RGBA(230, 230, 230, 1)
+                            Width: =Parent.Width
+                            ZIndex: =2
+
+                        conAppDates As groupContainer.horizontalAutoLayoutContainer:
+                            BorderStyle: =BorderStyle.None
+                            LayoutMinHeight: =100
+                            LayoutMinWidth: =250
+                            LayoutMode: =LayoutMode.Auto
+                            RadiusBottomLeft: =4
+                            RadiusBottomRight: =4
+                            RadiusTopLeft: =4
+                            RadiusTopRight: =4
+                            Width: =700
+                            ZIndex: =3
+
+                            conCreatedOn As groupContainer.verticalAutoLayoutContainer:
+                                BorderStyle: =BorderStyle.None
+                                Fill: =RGBA(255, 255, 255, 1)
+                                FillPortions: =0
+                                Height: =150
+                                LayoutDirection: =LayoutDirection.Vertical
+                                LayoutMinHeight: =100
+                                LayoutMinWidth: =250
+                                LayoutMode: =LayoutMode.Auto
+                                Width: =150
+                                ZIndex: =1
+
+                                lblCreatedOn As Label:
+                                    Alignment: =Align.Justify
+                                    Color: =
+                                    DisplayMode: =DisplayMode.Edit
+                                    Height: =32
+                                    LayoutMinHeight: =32
+                                    LayoutMinWidth: =320
+                                    OnChange: =false
+                                    Text: ="Created on"
+                                    Width: =320
+                                    Wrap: =false
+                                    X: =0
+                                    Y: =0
+                                    ZIndex: =1
+
+                                lblCreatedOnValue As Label:
+                                    AutoHeight: =false
+                                    Color: =
+                                    DisplayMode: =DisplayMode.Edit
+                                    Height: =32
+                                    LayoutMinHeight: =32
+                                    LayoutMinWidth: =320
+                                    OnChange: =false
+                                    Text: =Text(SelectedApp.'App Created On' ,"[$-en-US]dd-mmm-yyyy")
+                                    Width: =Parent.Width
+                                    X: =0
+                                    Y: =0
+                                    ZIndex: =3
+
+                            conModifiedOn As groupContainer.verticalAutoLayoutContainer:
+                                BorderStyle: =BorderStyle.None
+                                Fill: =RGBA(255, 255, 255, 1)
+                                FillPortions: =0
+                                LayoutDirection: =LayoutDirection.Vertical
+                                LayoutMinHeight: =100
+                                LayoutMinWidth: =250
+                                LayoutMode: =LayoutMode.Auto
+                                Width: =150
+                                ZIndex: =2
+
+                                lblModifiedOn As Label:
+                                    Color: =
+                                    DisplayMode: =DisplayMode.Edit
+                                    Height: =32
+                                    LayoutMinHeight: =32
+                                    LayoutMinWidth: =320
+                                    OnChange: =false
+                                    Text: ="Modified on"
+                                    Width: =320
+                                    X: =0
+                                    Y: =0
+                                    ZIndex: =1
+
+                                lblModifiedOnValue As Label:
+                                    Color: =
+                                    DisplayMode: =DisplayMode.Edit
+                                    Height: =32
+                                    LayoutMinHeight: =32
+                                    LayoutMinWidth: =320
+                                    OnChange: =false
+                                    Text: =Text(SelectedApp.'App Modified On' ,"[$-en-US]dd-mmm-yyyy")
+                                    Width: =Parent.Width
+                                    Wrap: =false
+                                    X: =0
+                                    Y: =0
+                                    ZIndex: =3
+
+                            conDescription As groupContainer.verticalAutoLayoutContainer:
+                                BorderStyle: =BorderStyle.None
+                                Fill: =RGBA(255, 255, 255, 1)
+                                LayoutDirection: =LayoutDirection.Vertical
+                                LayoutMinHeight: =100
+                                LayoutMinWidth: =250
+                                LayoutMode: =LayoutMode.Auto
+                                ZIndex: =5
+
+                                lblDescription As Label:
+                                    AlignInContainer: =AlignInContainer.Stretch
+                                    Color: =
+                                    DisplayMode: =DisplayMode.Edit
+                                    Height: =32
+                                    LayoutMinHeight: =32
+                                    LayoutMinWidth: =320
+                                    OnChange: =false
+                                    Text: ="Description"
+                                    Width: =320
+                                    Wrap: =false
+                                    X: =0
+                                    Y: =0
+                                    ZIndex: =1
+
+                                lblDescriptionValue As Label:
+                                    AlignInContainer: =AlignInContainer.Stretch
+                                    Alignment: =Align.Left
+                                    AutoHeight: =true
+                                    Color: =
+                                    DisplayMode: =DisplayMode.Edit
+                                    FillPortions: =1
+                                    Height: =32
+                                    LayoutMinHeight: =32
+                                    LayoutMinWidth: =320
+                                    OnChange: =false
+                                    Text: =SelectedApp.'App Description'
+                                    VerticalAlignment: =VerticalAlign.Top
+                                    Width: =320
+                                    Wrap: =true
+                                    X: =0
+                                    Y: =0
+                                    ZIndex: =3
+
+                conAppRoles As groupContainer.horizontalAutoLayoutContainer:
+                    FillPortions: =2
+                    LayoutDirection: =LayoutDirection.Vertical
+                    LayoutMinHeight: =100
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    RadiusBottomLeft: =4
+                    RadiusBottomRight: =4
+                    RadiusTopLeft: =4
+                    RadiusTopRight: =4
+                    ZIndex: =2
+
+                    Rectangle1 As rectangle:
+                        AccessibleLabel: ="Separator"
+                        AlignInContainer: =AlignInContainer.Stretch
+                        BorderColor: =RGBA(166, 166, 166, 1)
+                        BorderStyle: =BorderStyle.None
+                        BorderThickness: =2
+                        DisabledFill: =RGBA(166, 166, 166, 1)
+                        Fill: |
+                            =RGBA(204, 204, 204, 1)
+                        FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                        Height: =1
+                        HoverFill: =RGBA(0, 120, 212, 1)
+                        PressedFill: =RGBA(0, 120, 212, 1)
+                        ZIndex: =2
+
+                    "dlAppRoles As 'Fluent Details List (1.1.29)'.pcfdataset":
+                        AccessibilityLabel: ="App Roles"
+                        AlignInContainer: =AlignInContainer.Stretch
+                        AlternateRowColor: =""
+                        columns_Items: |-
+                            =Table(
+                                {
+                                    ColName: "UserType",
+                                    ColDisplayName: "",
+                                    ColIsBold: true,
+                                    ColWidth: 50,
+                                    ColPaddingTop: 10,
+                                    ColResizable: true
+                                },
+                                {
+                                    ColName: "Image",
+                                    ColDisplayName: "",
+                                    ColCellType: "image",
+                                    ColResizable: true,
+                                    ColImageWidth: 37,
+                                    ColWidth: 40,
+                                    ColPaddingTop: 5
+                                },
+                                {
+                                    ColName: "Name",
+                                    ColDisplayName: "",
+                                    ColWidth: 200,
+                                    ColResizable: true,
+                                    ColRowHeader: true,
+                                    ColVerticalAlign: Align.Center
+                                },
+                                {
+                                    ColName: "Role",
+                                    ColDisplayName: "",
+                                    ColWidth: Parent.Width * 0.05,
+                                    ColResizable: true,
+                                    ColVerticalAlign: Align.Center
+                                },
+                                {
+                                    ColName: "PermissionsMsg",
+                                    ColDisplayName: "",
+                                    ColWidth: Self.Width - 400,
+                                    ColResizable: true,
+                                    ColVerticalAlign: Align.Center
+                                }
+                            )
+                        Compact: =true
+                        DisplayMode: =DisplayMode.Edit
+                        FillPortions: =1
+                        HeaderVisible: =true
+                        Height: =Parent.Height
+                        Items: |-
+                            =//colAppRoles
+                            Sort(colRoleAssignments,Name)
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        OnChange: |-
+                            =UpdateContext({TargetUserID: Self.Selected.id,UserToUpdate: Self.Selected.Email});
+                        OnSelect: =
+                        RaiseOnRowSelectionChangeEvent: =true
+                        SelectionAlwaysVisible: =false
+                        SelectRowsOnFocus: =true
+                        Theme: =AppThemeJson
+                        Visible: =!ShimmerAppRoles.Visible
+                        Width: =Parent.Width-70
+                        X: =0
+                        Y: =0
+                        ZIndex: =3
+
+                        RoleName As pcfDataField.textualColumn:
+                            FieldDisplayName: ="type"
+                            FieldName: ="RoleName"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =3
+                            ZIndex: =5
+
+                        UserName As pcfDataField.textualColumn:
+                            FieldDisplayName: ="id"
+                            FieldName: ="UserName"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =4
+                            ZIndex: =6
+
+                        UserId1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="UserId"
+                            FieldName: ="UserId"
+                            FieldType: ="g"
+                            FieldVariantName: ="textualColumn"
+                            Order: =3
+                            ZIndex: =8
+
+                        UserIcon1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="UserIcon"
+                            FieldName: ="UserIcon"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =4
+                            ZIndex: =9
+
+                        PermissionsMsg1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="PermissionsMsg"
+                            FieldName: ="PermissionsMsg"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =5
+                            ZIndex: =10
+
+                        PrincipalType1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="PrincipalType"
+                            FieldName: ="PrincipalType"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =6
+                            ZIndex: =11
+
+                        Image2 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Image"
+                            FieldName: ="Image"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =7
+                            ZIndex: =60
+
+                        Name2 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Name"
+                            FieldName: ="Name"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =8
+                            ZIndex: =61
+
+                        Role2 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Role"
+                            FieldName: ="Role"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =9
+                            ZIndex: =62
+
+                        RowKey1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="RowKey"
+                            FieldName: ="RowKey"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =10
+                            ZIndex: =63
+
+                        Type1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Type"
+                            FieldName: ="Type"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =11
+                            ZIndex: =64
+
+                        UserType3 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="UserType"
+                            FieldName: ="UserType"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =12
+                            ZIndex: =65
+
+                        type1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="type"
+                            FieldName: ="type"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =13
+                            ZIndex: =66
+
+                        name1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="name"
+                            FieldName: ="name"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =14
+                            ZIndex: =67
+
+                        Email3 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Email"
+                            FieldName: ="Email"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =15
+                            ZIndex: =68
+
+                        id2 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="id"
+                            FieldName: ="id"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =16
+                            ZIndex: =69
+
+                        properties1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="properties"
+                            FieldName: ="properties"
+                            FieldType: |-
+                                ="![notifyShareTargetOption:s, principal:![displayName:s, email:s, id:s, type:s], roleName:s, scope:s]"
+                            FieldVariantName: ="textualColumn"
+                            Order: =17
+                            ZIndex: =70
+
+                    "ShimmerAppRoles As 'Fluent Shimmer (1.1.29) Preview'.pcfdataset":
+                        AccessibilityLabel: ="Loading App Roles"
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =40
+                        Items: |-
+                            =Table(
+                                {
+                                    ItemKey: "1",
+                                    ItemWidth: "3.8",
+                                    ItemHeight: 25,
+                                    ItemRowKey: "1",
+                                    ItemType: "line"
+                                }
+                            )
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        RowCount: =2
+                        Visible: =ctx_ShowShimmer
+                        Width: =Parent.Width-Parent.PaddingLeft-Parent.PaddingRight-20
+                        X: =0
+                        Y: =0
+                        ZIndex: =4
+
+        MailAppScreenContainer As groupContainer.verticalAutoLayoutContainer:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingBottom: =20
+            PaddingLeft: =20
+            PaddingRight: =10
+            PaddingTop: =20
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            Visible: =showEmailPanel
+            ZIndex: =2
+
+            MailContentContainer As groupContainer.verticalAutoLayoutContainer:
+                LayoutDirection: =LayoutDirection.Vertical
+                LayoutMinHeight: =100
+                LayoutMinWidth: =250
+                LayoutMode: =LayoutMode.Auto
+                RadiusBottomLeft: =4
+                RadiusBottomRight: =4
+                RadiusTopLeft: =4
+                RadiusTopRight: =4
+                ZIndex: =9
+
+                spinnerSendEmail As Spinner:
+                    BasePaletteColor: =
+                    DisplayMode: =DisplayMode.Edit
+                    FontColor: =
+                    Height: =Parent.Height
+                    Label: =var_MailSpinnerLabel
+                    LayoutMinHeight: =200
+                    LayoutMinWidth: =200
+                    Visible: |
+                        =var_MailShowSpinner
+                    Width: =Parent.Width
+                    X: =0
+                    Y: =0
+                    ZIndex: =1
+
+                Container8_1 As groupContainer.horizontalAutoLayoutContainer:
+                    BorderStyle: =BorderStyle.None
+                    FillPortions: =0
+                    Height: =32
+                    LayoutMinHeight: =100
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    PaddingRight: =10
+                    RadiusBottomLeft: =4
+                    RadiusBottomRight: =4
+                    RadiusTopLeft: =4
+                    RadiusTopRight: =4
+                    ZIndex: =2
+
+                    TextCanvas1_1 As Text:
+                        DisplayMode: =DisplayMode.Edit
+                        FillPortions: =1
+                        FontColor: =
+                        Height: =32
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =96
+                        Size: =15
+                        Text: ="Send Email"
+                        Weight: ='TextCanvas.Weight'.Bold
+                        Width: =96
+                        X: =0
+                        Y: =0
+                        ZIndex: =1
+
+                    "Icon1_2 As 'Fluent Icon (1.1.29)'":
+                        AlignInContainer: =AlignInContainer.Start
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        IconName: ="Cancel"
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        OnChange: |
+                            =UpdateContext({showEmailPanel: false});
+                        Theme: =AppThemeJson
+                        Tooltip: ="Close"
+                        Width: =32
+                        X: =0
+                        Y: =0
+                        ZIndex: =2
+
+                ToLineLabelContainer As groupContainer.horizontalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.SetByContainer
+                    FillPortions: =0
+                    Height: =35
+                    LayoutAlignItems: =LayoutAlignItems.End
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    PaddingRight: =2
+                    Width: =Parent.Width
+                    ZIndex: =3
+
+                    Label_ToLine As Label:
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        FillPortions: =1
+                        Height: =32
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =100
+                        OnChange: =false
+                        Text: ="To"
+                        Width: =100
+                        X: =385
+                        Y: =124
+                        ZIndex: =7
+
+                    "Checkbox_Editors As 'Check box'":
+                        BoxSide: ='Checkbox.BoxSide'.End
+                        Checked: =var_ShowEditors
+                        CheckedCheckboxBackgroundFill: =//ColorValue(AppTheme.palette.themePrimary)
+                        CheckedCheckboxBorderColor: =
+                        CheckmarkFill: =
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        HoverCheckboxBackgroundFill: =
+                        HoverCheckboxBorderColor: =
+                        Label: ="Owners"
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =100
+                        OnCheck: |
+                            =ClearCollect(
+                                DefaultToLineUsers,
+                                ToLine.SelectedPeople
+                            );
+                            ForAll(
+                                Filter(
+                                    colRoleAssignments,
+                                    Role <> "CanView"
+                                ),
+                                Collect(
+                                    DefaultToLineUsers,
+                                    {
+                                        PersonaKey: Email,
+                                        PersonaName: Name,
+                                        PersonaImgUrl: Image,
+                                        PersonaRole: "Editor"
+                                    }
+                                )
+                            );
+                        OnUncheck: |-
+                            =ClearCollect(DefaultToLineUsers, ToLine.SelectedPeople);
+                            RemoveIf(DefaultToLineUsers, PersonaRole="Editor");
+                        UncheckedCheckboxBackgroundFill: =
+                        UncheckedCheckboxBorderColor: =
+                        Width: =100
+                        X: =0
+                        Y: =124
+                        ZIndex: =8
+
+                    "Checkbox_Viewers As 'Check box'":
+                        BoxSide: ='Checkbox.BoxSide'.End
+                        Checked: =var_ShowViewers
+                        CheckedCheckboxBackgroundFill: |-
+                            =ColorValue("#0078d4")
+                        CheckedCheckboxBorderColor: =
+                        CheckmarkFill: =
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        HoverCheckboxBackgroundFill: =
+                        HoverCheckboxBorderColor: =
+                        Label: ="Users"
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =100
+                        OnCheck: |
+                            =ClearCollect(
+                                DefaultToLineUsers,
+                                ToLine.SelectedPeople
+                            );
+                            ForAll(
+                                Filter(
+                                    colRoleAssignments,
+                                    Role = "CanView" && Type <> "Group"
+                                ),
+                                Collect(
+                                    DefaultToLineUsers,
+                                    {
+                                        PersonaKey: Email,
+                                        PersonaName: Name,
+                                        PersonaImgUrl: Image,
+                                        PersonaRole: "Viewer"
+                                    }
+                                )
+                            );
+                        OnUncheck: |-
+                            =ClearCollect(DefaultToLineUsers, ToLine.SelectedPeople);
+                            RemoveIf(DefaultToLineUsers, PersonaRole="Viewer");
+                        UncheckedCheckboxBackgroundFill: =
+                        UncheckedCheckboxBorderColor: =
+                        Width: =80
+                        X: =0
+                        Y: =124
+                        ZIndex: =9
+
+                "ToLine As 'Fluent PeoplePicker (1.1.29) Preview'.pcfdataset":
+                    AccessibilityLabel: ="Send To Line"
+                    DisplayMode: =DisplayMode.Edit
+                    Error: =false
+                    Height: |-
+                        =32 + If(
+                            RoundDown(
+                                CountRows(ToLine.SelectedPeople) / 2,
+                                0
+                            ) > 0,
+                            8,
+                            0
+                        ) + RoundDown(
+                            CountRows(ToLine.SelectedPeople) / 2,
+                            0
+                        ) * 32
+                    Items: =DefaultToLineUsers
+                    LayoutMinHeight: =200
+                    LayoutMinWidth: =200
+                    MaxPeople: =100
+                    OnChange: =false
+                    OnSearch: |-
+                        =ClearCollect(
+                            UserCollection,
+                            AddColumns(
+                                    Office365Users.SearchUser(
+                                        {
+                                            searchTerm: Self.SearchText,
+                                            top: 500
+                                        }
+                                    ),
+                                "SuggestionImgUrl",
+                                Substitute(
+                                    JSON(
+                                        Office365Users.UserPhotoV2(Id),
+                                        JSONFormat.IncludeBinaryData
+                                    ),
+                                    """",
+                                    ""
+                                ),
+                                "SuggestionKey",
+                                UserPrincipalName,
+                                "SuggestionName",
+                                DisplayName,
+                                "SuggestionRole",
+                                ""
+                            )
+                        )
+                    OnSelect: =false
+                    PeoplePickerType: ='PowerCAT.PeoplePicker.PeoplePickerType'.NormalPeoplePicker
+                    ShowSecondaryText: =false
+                    Suggestions_Items: =UserCollection
+                    Theme: =AppThemeJson
+                    Tooltip: ="Select mail recipients"
+                    Width: =Parent.Width-20
+                    X: =385
+                    Y: =156
+                    ZIndex: =4
+
+                Label_Subject As Label:
+                    Color: =
+                    DisplayMode: =DisplayMode.Edit
+                    Height: =45
+                    LayoutMinHeight: =32
+                    LayoutMinWidth: =250
+                    OnChange: =false
+                    Text: ="Subject"
+                    VerticalAlignment: =VerticalAlign.Bottom
+                    Width: =Parent.Width-20
+                    X: =385
+                    Y: |-
+                        =//220
+                        400
+                    ZIndex: =5
+
+                "SubjectLine As 'Text box'":
+                    ColorBackground: =
+                    ColorText: =
+                    DisplayMode: =DisplayMode.Edit
+                    Height: =32
+                    LayoutMinHeight: =32
+                    LayoutMinWidth: =250
+                    Value: |-
+                        ="Concerning app: " & SelectedApp.'App Display Name'
+                    Width: =Parent.Width-20
+                    X: =385
+                    Y: =252
+                    ZIndex: =6
+
+                Label_Message As Label:
+                    Color: =
+                    DisplayMode: =DisplayMode.Edit
+                    Height: =45
+                    LayoutMinHeight: =32
+                    LayoutMinWidth: =250
+                    OnChange: =false
+                    Text: ="Message"
+                    VerticalAlignment: =VerticalAlign.Bottom
+                    Width: =Parent.Width-20
+                    X: =385
+                    Y: =311
+                    ZIndex: =7
+
+                RichTextEditor1 As richTextEditor:
+                    BorderColor: =RGBA(166, 166, 166, 1)
+                    Default: |-
+                        ="<strong>Link to App: </strong> <a href=" & SelectAppLink & ">" & SelectedApp.'App Display Name' & "</a>"
+                    FillPortions: =1
+                    LayoutMinWidth: =250
+                    Width: =Parent.Width-20
+                    X: =385
+                    Y: =365
+                    ZIndex: =8
+
+                EmailCommandBarContainer As groupContainer.verticalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.Start
+                    FillPortions: =0
+                    Height: =40
+                    LayoutAlignItems: =LayoutAlignItems.End
+                    LayoutGap: =10
+                    LayoutJustifyContent: =LayoutJustifyContent.End
+                    LayoutMinHeight: =43
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    PaddingTop: =10
+                    Width: =Parent.Width-20 
+                    ZIndex: =9
+
+                    btnSendEmail As Button:
+                        BasePaletteColor: =
+                        DisplayMode: |-
+                            =IfError(
+                                (CountRows(ToLine.SelectedPeople) > 0),
+                                DisplayMode.Disabled,
+                                DisplayMode.Edit
+                            )
+                        FontColor: =
+                        Height: =32
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =96
+                        OnSelect: |
+                            =UpdateContext(
+                                {
+                                    var_MailShowSpinner: true,
+                                    var_MailSpinnerLabel: "Sending Email"
+                                }
+                            );
+                            ForAll(
+                                ToLine.SelectedPeople,
+                                Office365Outlook.SendEmailV2(
+                                    PersonaKey,
+                                    SubjectLine.Value,
+                                    RichTextEditor1.HtmlText,
+                                    {Importance: "Normal"}
+                                )
+                            );
+                            UpdateContext({var_MailShowSpinner: false});
+                            Notify(
+                                "The app users have been emailed successfully.",
+                                NotificationType.Success
+                            );
+                        Text: ="Send"
+                        Width: =96
+                        X: =0
+                        Y: =0
+                        ZIndex: =4
+
+        ManagePermissionContainer As groupContainer.verticalAutoLayoutContainer:
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutMinHeight: =100
+            LayoutMinWidth: =250
+            LayoutMode: =LayoutMode.Auto
+            PaddingBottom: =20
+            PaddingLeft: =20
+            PaddingRight: =20
+            PaddingTop: =20
+            RadiusBottomLeft: =4
+            RadiusBottomRight: =4
+            RadiusTopLeft: =4
+            RadiusTopRight: =4
+            Visible: =showAddUsers
+            Width: =If(App.ActiveScreen.Size > ScreenSize.Small, 420, Parent.Width)
+            ZIndex: =3
+
+            spinnerPerm_1 As Spinner:
+                BasePaletteColor: =
+                DisplayMode: =DisplayMode.Edit
+                FontColor: =
+                Height: =Parent.Height
+                Label: =var_Spinnerlabel
+                LayoutMinHeight: =200
+                LayoutMinWidth: =200
+                Visible: |
+                    =var_ShowSpinnerAddPerm
+                Width: =Parent.Width
+                X: =0
+                Y: =0
+                ZIndex: =1
+
+            conManageAppPermissions As groupContainer.verticalAutoLayoutContainer:
+                Height: =100
+                LayoutDirection: =LayoutDirection.Vertical
+                LayoutGap: =8
+                LayoutMinHeight: =100
+                LayoutMinWidth: =250
+                LayoutMode: =LayoutMode.Auto
+                Visible: =showAddUsers
+                Width: =Parent.Width
+                X: |
+                    =0
+                Y: |
+                    =0
+                ZIndex: =2
+
+                SubtitleContainer_1 As groupContainer.horizontalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.Start
+                    FillPortions: =0
+                    Height: =32
+                    LayoutGap: =5
+                    LayoutMinHeight: =100
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    Width: =Parent.Width
+                    X: |-
+                        =//40
+                        0
+                    Y: |-
+                        =//40
+                        0
+                    ZIndex: =2
+
+                    "icoBackPrev_1 As 'Fluent Icon (1.1.29)'":
+                        DisplayMode: =DisplayMode.Edit
+                        FontSize: =18
+                        Height: =32
+                        IconName: ="Back"
+                        IconSize: =18
+                        IconType: ='PowerCAT.Icon.IconType'.IconButon
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        OnChange: |+
+                            =UpdateContext({var_pivotkey: "tabMembers"});
+                            
+                        Theme: =AppThemeJson
+                        Tooltip: ="Back"
+                        Visible: =If(var_pivotkey = "tabAddUser" || var_pivotkey = "tabAddGroup",true,false)
+                        Width: =32
+                        X: =40
+                        Y: =40
+                        ZIndex: =1
+
+                    lblPanelSubtitle_1 As Label:
+                        Alignment: =Align.Justify
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        FillPortions: =1
+                        FontSize: =12
+                        FontWeight: =FontWeight.Semibold
+                        Height: =32
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =10
+                        OnChange: =false
+                        Text: |-
+                            =If(
+                                var_pivotkey = "tabAddUser",
+                                "Grant permission to a user",
+                                If(
+                                    var_pivotkey = "tabAddGroup",
+                                    "Grant permission to a group",
+                                    "List of members"
+                                )
+                            )
+                        Width: =Parent.Width - Parent.PaddingLeft
+                        X: =0
+                        Y: =0
+                        ZIndex: =2
+
+                    "Icon1_3 As 'Fluent Icon (1.1.29)'":
+                        AlignInContainer: =AlignInContainer.Start
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        IconName: ="Cancel"
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        OnChange: |-
+                            =UpdateContext({showAddUsers: false});
+                            
+                            Select(Hidden_UpdateTable_AppPerm);
+                        Theme: =AppThemeJson
+                        Tooltip: ="Close"
+                        Width: =32
+                        X: =0
+                        Y: =0
+                        ZIndex: =3
+
+                MainContainer As groupContainer.verticalAutoLayoutContainer:
+                    LayoutDirection: =LayoutDirection.Vertical
+                    LayoutMinHeight: =100
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    RadiusBottomLeft: =4
+                    RadiusBottomRight: =4
+                    RadiusTopLeft: =4
+                    RadiusTopRight: =4
+                    Visible: |+
+                        =If(
+                            var_pivotkey = "tabMembers" && !var_ShowShimmer,
+                            true,
+                            false
+                        )
+                        
+                    ZIndex: =3
+
+                    "AddEditUserCommandBar_1 As 'Fluent Command Bar (1.1.29)'.pcfdataset":
+                        AlignInContainer: =AlignInContainer.Stretch
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =40
+                        Items: |-
+                            =Table(
+                                {
+                                    ItemKey: "addedituser",
+                                    ItemDisplayName: If(
+                                        !IsBlank(SelectedUserID) && PermissionsDetailsList_1.Selected.Role <> "Owner",
+                                        "Change Permission",
+                                        "Add User"
+                                    ),
+                                    ItemIconName: "AddFriend",
+                                    ItemEnabled:PermissionsDetailsList_1.Selected.Role <> "Owner"
+                                },
+                                {
+                                    ItemKey: "addgroup",
+                                    ItemDisplayName: "Add Group",
+                                    ItemVisible: If(
+                                        IsBlank(SelectedUserID),
+                                        true,
+                                        false
+                                    ),
+                                    ItemIconName: "PeopleAdd"
+                                },
+                                {
+                                    ItemKey: "removeuser",
+                                    ItemDisplayName: "Remove",
+                                    ItemIconName: "UserRemove",
+                                    ItemEnabled: If(
+                                        (!IsBlank(SelectedUserID) && PermissionsDetailsList_1.Selected.Role <> "Owner"),
+                                        true,
+                                        false
+                                    )
+                                }
+                            )
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        OnSelect: |
+                            =Switch(
+                                Self.Selected.ItemKey,
+                                "addedituser",
+                                If(
+                                    !IsBlank(SelectedUserID) && PermissionsDetailsList_1.Selected.Type = "Group",
+                                    //if group
+                                    Reset(cmbGroup_1);
+                                    UpdateContext({var_pivotkey: "tabAddGroup"});
+                                    ,
+                                    //not group
+                                    If(
+                                        IsBlank(SelectedUserID) || PermissionsDetailsList_1.Selected.Role = "Owner",
+                                        ClearCollect(
+                                            DefaultUserCollection,
+                                            User()
+                                        );
+                                        ClearCollect(
+                                            DefaultUserCollection,
+                                            Blank()
+                                        ),
+                                        ClearCollect(
+                                            DefaultUserTempCollection,
+                                            Office365Users.UserProfile(SelectedUserID)
+                                        );
+                                        ClearCollect(
+                                            DefaultUserCollection,
+                                            AddColumns(
+                                                DefaultUserTempCollection,
+                                                "PersonaKey",
+                                                Mail,
+                                                "PersonaRole",
+                                                JobTitle,
+                                                "PersonaName",
+                                                DisplayName,
+                                                "PersonaImgUrl",
+                                    //Get base64 image data
+                                                Substitute(
+                                                    JSON(
+                                                        Office365Users.UserPhotoV2(SelectedUserID),
+                                                        JSONFormat.IncludeBinaryData
+                                                    ),
+                                                    """",
+                                                    ""
+                                                )
+                                            )
+                                        );
+                                    );
+                                    UpdateContext({var_pivotkey: "tabAddUser"});
+                                );
+                                ,
+                                "addgroup",
+                                UpdateContext({var_pivotkey: "tabAddGroup"});
+                                Reset(cmbGroup_1);
+                                ,
+                                "removeuser",
+                                UpdateContext(
+                                    {
+                                        var_Spinnerlabel: "Removing User...",
+                                        var_ShowSpinnerAddPerm: true
+                                    }
+                                );
+                                UpdateContext(
+                                    {
+                                        var_ResponseMessage: 'HELPER-ObjectOperations'.Run(
+                                            PermissionsDetailsList_1.Selected.RowKey,
+                                            SelectedApp.App,
+                                            SelectedApp.'App Environment'.Name,
+                                            "removeuser",
+                                            "app",
+                                            {
+                                                boolean: If(
+                                                    PermissionsDetailsList_1.Selected.Type = "Group",
+                                                    true,
+                                                    false
+                                                )
+                                            }
+                                        ).thereturnstring
+                                    }
+                                );
+                                If(
+                                    var_ResponseMessage <> "pass",
+                                    Notify(
+                                        var_ResponseMessage,
+                                        NotificationType.Error
+                                    ),
+                                    Notify(
+                                        "Permission removed",
+                                        NotificationType.Success
+                                    );
+                                );
+                                // Update Permission detail list
+                            UpdateContext(
+                                    {
+                                        var_ShowSpinnerAddPerm: false,
+                                        var_ShowShimmer: true
+                                    }
+                                );
+                                If(
+                                    var_ResponseMessage = "pass",
+                                    //update permissions table
+                                    Select(Hidden_UpdateTable_AppPerm);
+                                    Select(btnRefreshRoles);
+                                );
+                                UpdateContext({var_ShowShimmer: false});
+                                
+                            );
+                        Theme: =AppThemeJson
+                        Visible: |-
+                            =//PermissionsDetailsList.Visible
+                            If(
+                                var_pivotkey = "tabAddGroup" || var_pivotkey = "tabAddUser",
+                                false,
+                                true
+                            )
+                        Width: =Parent.Width
+                        X: =0
+                        Y: =Parent.Height - Self.Height
+                        ZIndex: =1
+
+                    Rectangle4 As rectangle:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        BorderColor: =RGBA(166, 166, 166, 1)
+                        BorderStyle: =BorderStyle.None
+                        BorderThickness: =2
+                        DisabledFill: =RGBA(166, 166, 166, 1)
+                        Fill: =RGBA(122, 138, 143, 0.12)
+                        FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                        Height: =1
+                        HoverFill: =RGBA(0, 120, 212, 1)
+                        PressedFill: =RGBA(0, 120, 212, 1)
+                        ZIndex: =2
+
+                    "PermissionsDetailsList_1 As 'Fluent Details List (1.1.29)'.pcfdataset":
+                        AlternateRowColor: =
+                        columns_Items: |-
+                            =Table(
+                                {
+                                    ColName: "UserType",
+                                    ColDisplayName: "UserType",
+                                    ColIsBold: true,
+                                    ColWidth: 50
+                                },
+                                {
+                                    ColName: "Image",
+                                    ColDisplayName: "",
+                                    ColImageWidth: 37,
+                                    ColWidth: 30,
+                                    ColPaddingTop: 5,
+                                    ColCellType: "image"
+                                },
+                                {
+                                    ColName: "Name",
+                                    ColDisplayName: "Name",
+                                    ColWidth: Parent.Width - 200,
+                                    //Self.Width - Parent.PaddingLeft - Parent.PaddingRight - 100,
+                                    ColIsBold: true,
+                                    ColSortable: true
+                                },
+                                {
+                                    ColName: "Role",
+                                    ColDisplayName: "Role",
+                                    ColIsBold: false,
+                                    ColSortable: true,
+                                    ColSubTextRow: true,
+                                    ColShowAsSubTextOf: "Name"
+                                },
+                                {
+                                    ColName: "Email",
+                                    ColDisplayName: "Email",
+                                    ColIsBold: false,
+                                    ColSortable: true,
+                                    ColSubTextRow: false,
+                                    ColShowAsSubTextOf: "Name"
+                                }
+                            )
+                        Compact: =true
+                        CurrentSortColumn: =ctxSortCol
+                        CurrentSortDirection: |-
+                            =If(ctxSortAsc,
+                                'PowerCAT.FluentDetailsList.CurrentSortDirection'.Ascending,
+                                'PowerCAT.FluentDetailsList.CurrentSortDirection'.Descending) 
+                        DisplayMode: =DisplayMode.Edit
+                        HeaderVisible: =false
+                        Height: |-
+                            =//Parent.Height -25 - pagingContainer.Height -AddEditUserCommandBar.Height
+                            Parent.Height - pagingContainer_1.Height - AddEditUserCommandBar_1.Height
+                        InputEvent: =varGridEvent
+                        Items: =SortByColumns(colRoleAssignments,ctxSortCol,If(ctxSortAsc,SortOrder.Ascending,SortOrder.Descending))
+                        LargeDatasetPaging: =false
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        OnChange: |
+                            =/* Runs when selected row changes and control property 'Raise OnRowSelection event' is true */
+                            If(
+                                Self.EventName = "OnRowSelectionChange",
+                                If(
+                                    !IsBlank(PermissionsDetailsList_1.Selected.RowKey),
+                                    UpdateContext({SelectedUserID: PermissionsDetailsList_1.Selected.RowKey});
+                                    ,
+                                    UpdateContext({SelectedUserID: Blank()})
+                                );
+                                
+                            );
+                            If(
+                                Self.EventName = "Sort",
+                                UpdateContext(
+                                    {
+                                        ctxSortCol: Self.SortEventColumn,
+                                        ctxSortAsc: If(
+                                            Self.SortEventDirection = 'PowerCAT.FluentDetailsList.SortEventDirection'.Ascending,
+                                            true,
+                                            false
+                                        )
+                                    }
+                                )
+                            );
+                        PageSize: =14
+                        RaiseOnRowSelectionChangeEvent: =true
+                        RecordKey: =""
+                        SelectionAlwaysVisible: =true
+                        SelectionType: ='PowerCAT.FluentDetailsList.SelectionType'.Single
+                        SelectRowsOnFocus: =false
+                        Theme: =AppThemeJson
+                        Visible: |-
+                            =If(
+                                var_pivotkey = "tabMembers" && !var_ShowShimmer,
+                                true,
+                                false
+                            )
+                        Width: =Parent.Width - Parent.PaddingLeft/1.4
+                        X: =0
+                        Y: =0
+                        ZIndex: =3
+
+                        Name1_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Name"
+                            FieldName: ="Name"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =3
+                            ZIndex: =7
+
+                        Role1_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Role"
+                            FieldName: ="Role"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =4
+                            ZIndex: =8
+
+                        Image1_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Image"
+                            FieldName: ="Image"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =3
+                            ZIndex: =9
+
+                        Email1_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Email"
+                            FieldName: ="Email"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =4
+                            ZIndex: =12
+
+                        UserType2 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="UserType"
+                            FieldName: ="UserType"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =5
+                            ZIndex: =57
+
+                    pagingContainer_1 As groupContainer.horizontalAutoLayoutContainer:
+                        AlignInContainer: =AlignInContainer.SetByContainer
+                        BorderColor: =RGBA(0, 0, 0, 0)
+                        BorderStyle: =BorderStyle.None
+                        DropShadow: =DropShadow.Light
+                        FillPortions: =0
+                        Height: =35
+                        LayoutMinHeight: =100
+                        LayoutMinWidth: =250
+                        LayoutMode: =LayoutMode.Auto
+                        RadiusBottomLeft: =4
+                        RadiusBottomRight: =4
+                        RadiusTopLeft: =4
+                        RadiusTopRight: =4
+                        Visible: =PermissionsDetailsList_1.Visible
+                        Width: =PermissionsDetailsList_1.Width
+                        X: |-
+                            =//4.285714285714278
+                            0
+                        Y: =PermissionsDetailsList_1.Y + PermissionsDetailsList_1.Height
+                        ZIndex: =4
+
+                        "icoFirst_1 As 'Fluent Icon (1.1.29)'":
+                            DisplayMode: =If(PermissionsDetailsList_1.HasPreviousPage,DisplayMode.Edit,DisplayMode.Disabled)
+                            Height: =35
+                            IconName: ="Previous"
+                            LayoutMinHeight: =200
+                            LayoutMinWidth: =200
+                            OnChange: =Set(varGridEvent,"LoadFirstPage" & Text(Rand()));
+                            Theme: =AppThemeJson
+                            Tooltip: ="First Page"
+                            Width: =35
+                            X: =0
+                            Y: =0
+                            ZIndex: =1
+
+                        "icoBack_1 As 'Fluent Icon (1.1.29)'":
+                            DisplayMode: |-
+                                =If(
+                                    PermissionsDetailsList_1.HasPreviousPage,
+                                    DisplayMode.Edit,
+                                    DisplayMode.Disabled
+                                )
+                            Height: =35
+                            IconName: ="Back"
+                            LayoutMinHeight: =200
+                            LayoutMinWidth: =200
+                            OnChange: =Set(varGridEvent,"LoadPreviousPage" & Text(Rand()));
+                            Theme: =AppThemeJson
+                            Tooltip: ="Previous"
+                            Width: =35
+                            X: =icoFirst_1.X+icoFirst_1.Width
+                            Y: =0
+                            ZIndex: =2
+
+                        lblPageCount_1 As label:
+                            Align: =Align.Center
+                            AlignInContainer: =AlignInContainer.Stretch
+                            BorderColor: =RGBA(0, 0,0,0)
+                            BorderStyle: =BorderStyle.None
+                            Color: =//ColorValue(AppTheme.palette.neutralPrimary)
+                            DisabledColor: =RGBA(166, 166, 166, 1)
+                            FillPortions: =1
+                            Font: =Font.'Segoe UI'
+                            Height: =24
+                            LayoutMinHeight: =24
+                            Size: =8
+                            Text: ="Page " & PermissionsDetailsList_1.PageNumber
+                            Visible: =PermissionsDetailsList_1.Visible
+                            Width: =35  
+                            X: =icoBack_1.X+icoBack_1.Width
+                            ZIndex: =3
+
+                        "icoNext_1 As 'Fluent Icon (1.1.29)'":
+                            DisplayMode: |-
+                                =If(
+                                    PermissionsDetailsList_1.HasNextPage,
+                                    DisplayMode.Edit,
+                                    DisplayMode.Disabled
+                                )
+                            Height: =35
+                            IconName: ="Forward"
+                            LayoutMinHeight: =200
+                            LayoutMinWidth: =200
+                            OnChange: =Set(varGridEvent,"LoadNextPage" & Text(Rand()));
+                            Theme: =AppThemeJson
+                            Tooltip: ="Next Page"
+                            Width: =35
+                            X: =lblPageCount_1.X + lblPageCount_1.Width
+                            Y: =0
+                            ZIndex: =4
+
+                        "icoNext_2 As 'Fluent Icon (1.1.29)'":
+                            DisplayMode: |-
+                                =If(
+                                    PermissionsDetailsList_1.HasNextPage,
+                                    DisplayMode.Edit,
+                                    DisplayMode.Disabled
+                                )
+                            Height: =35
+                            IconName: ="Next"
+                            LayoutMinHeight: =200
+                            LayoutMinWidth: =200
+                            OnChange: =Set(varGridEvent,"LoadNextPage" & Text(Rand()));
+                            Theme: =AppThemeJson
+                            Tooltip: ="Next Page"
+                            Width: =35
+                            X: =lblPageCount_1.X + lblPageCount_1.Width
+                            Y: =0
+                            ZIndex: =5
+
+                    "PermissionsDetailsListShimmer_1 As 'Fluent Shimmer (1.1.29) Preview'.pcfdataset":
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =PermissionsDetailsList_1.Height
+                        Items: |-
+                            =Table(
+                                {
+                                    ItemWidth: "14",
+                                    ItemHeight: 5,
+                                    ItemType: "line"
+                                },
+                                {
+                                    ItemWidth: "5",
+                                    ItemHeight: 10,
+                                    ItemType: "gap"
+                                },
+                                {
+                                    ItemWidth: "120",
+                                    ItemHeight: 5,
+                                    ItemType: "line"
+                                }
+                            )
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        RowCount: =3
+                        SpacebetweenShimmer: ='PowerCAT.Shimmer.SpacebetweenShimmer'.'0px'
+                        Theme: =AppThemeJson
+                        Visible: =If(var_pivotkey = "tabMembers" && var_ShowShimmer,true,false)   
+                        Width: =PermissionsDetailsList_1.Width
+                        X: =PermissionsDetailsList_1.X
+                        Y: =PermissionsDetailsList_1.Y
+                        ZIndex: =5
+
+                AddUsersContainer_1 As groupContainer.verticalAutoLayoutContainer:
+                    AlignInContainer: =AlignInContainer.SetByContainer
+                    Height: =Parent.Height
+                    LayoutDirection: =LayoutDirection.Vertical
+                    LayoutGap: =5
+                    LayoutMinHeight: =100
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    PaddingBottom: =20
+                    PaddingLeft: =10
+                    PaddingRight: =10
+                    PaddingTop: =20
+                    Visible: =If(var_pivotkey = "tabAddUser",true,false)
+                    Width: =Parent.Width
+                    ZIndex: =4
+
+                    lblAddUsers_1 As Label:
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        FontSize: =11
+                        FontWeight: =FontWeight.Semibold
+                        Height: =30
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        OnChange: =false
+                        Text: ="Select user"
+                        Width: =Parent.Width - Parent.PaddingLeft * 2
+                        X: =24
+                        Y: =102
+                        ZIndex: =1
+
+                    "PeoplePicker_1 As 'Fluent PeoplePicker (1.1.29) Preview'.pcfdataset":
+                        AlignInContainer: =AlignInContainer.Stretch
+                        DisplayMode: =DisplayMode.Edit
+                        Error: =false
+                        Height: =60
+                        Items: =DefaultUserCollection
+                        LayoutMinHeight: =200
+                        LayoutMinWidth: =200
+                        MaxPeople: =1
+                        OnBlur: =false
+                        OnChange: =false
+                        OnFocus: =false
+                        OnSearch: |
+                            =IfError(
+                                Office365Users.SearchUserV2(
+                                    {
+                                        searchTerm: Self.SearchText,
+                                        top: 500
+                                    }
+                                ),
+                                Error(FirstError)
+                            );
+                            ClearCollect(
+                                UserCollection,
+                                AddColumns(
+                                    Office365Users.SearchUserV2(
+                                        {
+                                            searchTerm: Self.SearchText,
+                                            top: 500
+                                        }
+                                    ).value,
+                                    "SuggestionImgUrl",
+                                    Substitute(
+                                        JSON(
+                                            Office365Users.UserPhotoV2(Id),
+                                            JSONFormat.IncludeBinaryData
+                                        ),
+                                        """",
+                                        ""
+                                    ),
+                                    "SuggestionKey",
+                                    Id,
+                                    "SuggestionName",
+                                    DisplayName,
+                                    "SuggestionRole",
+                                    JobTitle
+                                )
+                            );
+                        ShowSecondaryText: =true
+                        Suggestions_Items: =UserCollection
+                        Theme: =AppThemeJson
+                        Width: =320
+                        X: =20
+                        Y: =0
+                        ZIndex: =2
+
+                        DisplayName5_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="DisplayName"
+                            FieldName: ="DisplayName"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =3
+                            ZIndex: =55
+
+                        Email2_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="Email"
+                            FieldName: ="Email"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =2
+                            ZIndex: =56
+
+                    lblSelectedUserRole_2 As Label:
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        FontSize: =11
+                        FontWeight: =FontWeight.Semibold
+                        Height: =35
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        OnChange: =false
+                        Text: ="Select user role"
+                        Width: =Parent.Width - Parent.PaddingLeft * 2
+                        X: =24
+                        Y: =88
+                        ZIndex: =3
+
+                    ddUserRole_1 As Dropdown.pcfdataset:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        DefaultSelectedItems: =["Can View"]
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        Items: |-
+                            =[
+                                "Can View",
+                                "Can Edit",
+                                "Owner"
+                            ]
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        Width: =320
+                        X: =0
+                        Y: =0
+                        ZIndex: =4
+
+                    PanelFooterContainer_2 As groupContainer.manualLayoutContainer:
+                        AlignInContainer: =AlignInContainer.SetByContainer
+                        Height: =Parent.Height - Self.Y
+                        LayoutMinHeight: =100
+                        LayoutMinWidth: =250
+                        Width: =Parent.Width - Parent.PaddingLeft * 2
+                        ZIndex: =6
+
+                        icoFooterDivider_2 As rectangle:
+                            BorderColor: =//ColorValue(AppTheme.palette.neutralLight)
+                            BorderThickness: =0.1
+                            DisabledFill: =RGBA(166, 166, 166, 1)
+                            Fill: =RGBA(0, 120, 212, 1)
+                            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                            Height: =0.1
+                            HoverFill: =RGBA(0, 120, 212, 1)
+                            PressedFill: =RGBA(0, 120, 212, 1)
+                            Width: =Parent.Width
+                            Y: =btnAddUserAppDetails.Y - 10
+                            ZIndex: =2
+
+                        btnAddUserAppDetails As Button:
+                            BasePaletteColor: =
+                            DisplayMode: |-
+                                =If(
+                                    !IsBlankOrError(First(PeoplePicker_1.SelectedPeople)),
+                                    DisplayMode.Edit,
+                                    DisplayMode.Disabled
+                                )
+                            Font: ="'Segoe UI', 'Open Sans', sans-serif"
+                            FontColor: =
+                            FontSize: =12
+                            FontWeight: =FontWeight.Normal
+                            Height: =32  
+                            OnSelect: |
+                                =UpdateContext(
+                                    {
+                                        ctxUserSelected: Office365Users.UserProfileV2(First(PeoplePicker_1.SelectedPeople).PersonaKey).id,
+                                        ctxUserName: Office365Users.UserProfileV2(First(PeoplePicker_1.SelectedPeople).PersonaKey).displayName
+                                    }
+                                );
+                                UpdateContext(
+                                    {
+                                        var_Spinnerlabel: "Assigning Permission...",
+                                        var_ShowSpinnerAddPerm: true,
+                                        var_RoleAssignment: ddUserRole_1.Selected.Value
+                                    }
+                                );
+                                If(
+                                    var_RoleAssignment <> "Owner",
+                                    UpdateContext(
+                                        {
+                                            var_ResponseMessage: 'HELPER-ObjectOperations'.Run(
+                                                ctxUserSelected,
+                                                SelectedApp.App,
+                                                SelectedApp.'App Environment'.Name,
+                                                If(
+                                                    var_RoleAssignment = "Can View",
+                                                    "addviewer",
+                                                    "addeditor"
+                                                ),
+                                                "app"
+                                            ).thereturnstring
+                                        }
+                                    );
+                                    If(
+                                        var_ResponseMessage <> "pass",
+                                        Notify(
+                                            var_ResponseMessage,
+                                            NotificationType.Error
+                                        ),
+                                        Notify(
+                                            "Permission granted to " & ctxUserName,
+                                            NotificationType.Success
+                                        );
+                                        // Workaround for now to reset people picker
+                                ClearCollect(
+                                            DefaultUserCollection,
+                                            User()
+                                        );
+                                        ClearCollect(
+                                            DefaultUserCollection,
+                                            Blank()
+                                        );
+                                    ),
+                                    //else owner
+                                    UpdateContext(
+                                        {
+                                            var_ResponseMessage: 'HELPER-ObjectOperations'.Run(
+                                                ctxUserSelected,
+                                                SelectedApp.App,
+                                                SelectedApp.'App Environment'.Name,
+                                                "assign",
+                                                "app"
+                                            ).thereturnstring
+                                        }
+                                    );
+                                    If(
+                                        var_ResponseMessage <> "pass",
+                                        Notify(
+                                            var_ResponseMessage,
+                                            NotificationType.Error
+                                        ),
+                                        Notify(
+                                            "Permission granted to " & ctxUserName,
+                                            NotificationType.Success
+                                        );
+                                        If(
+                                            SelectedApp.'App is Orphaned' = "Yes",
+                                            Patch(
+                                                'PowerApps Apps',
+                                                LookUp(
+                                                    'PowerApps Apps',
+                                                    App = SelectedApp.App
+                                                ),
+                                                {'App is Orphaned': "No"}
+                                            )
+                                        );
+                                        ClearCollect(
+                                            DefaultUserCollection,
+                                            User()
+                                        );
+                                        ClearCollect(
+                                            DefaultUserCollection,
+                                            Blank()
+                                        );
+                                    )
+                                );
+                                If(
+                                    var_ResponseMessage = "pass",
+                                    //update permissions table
+                                    Select(Hidden_UpdateTable_AppPerm);
+                                    Select(btnRefreshRoles);
+                                    
+                                );
+                                UpdateContext(
+                                    {
+                                        var_ShowSpinnerAddPerm: false,
+                                        var_ShowShimmer: false
+                                    }
+                                );
+                            Text: =If(IsBlank(SelectedUserID),"Add User","Update Permission")
+                            Width: =If(Self.Text="Update Permission",127,96)
+                            X: =0
+                            Y: =Parent.Height - Self.Height -10
+                            ZIndex: =4
+
+                AddGroupsContainer_1 As groupContainer.verticalAutoLayoutContainer:
+                    Height: =Parent.Height
+                    LayoutDirection: =LayoutDirection.Vertical
+                    LayoutGap: =5
+                    LayoutMinHeight: =100
+                    LayoutMinWidth: =250
+                    LayoutMode: =LayoutMode.Auto
+                    PaddingBottom: =20
+                    PaddingLeft: =10
+                    PaddingRight: =10
+                    PaddingTop: =20
+                    Visible: |
+                        =If(var_pivotkey = "tabAddGroup",true,false)
+                    Width: =Parent.Width
+                    ZIndex: =5
+
+                    lblAddGroups_1 As Label:
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        FontSize: =11
+                        FontWeight: =FontWeight.Semibold
+                        Height: =30
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        OnChange: =false
+                        Text: ="Select group"
+                        Width: =Parent.Width - Parent.PaddingLeft * 2
+                        X: =24
+                        Y: =102
+                        ZIndex: =1
+
+                    cmbGroup_1 As Combobox.pcfdataset:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        DefaultSelectedItems: |-
+                            =If(
+                                IsBlank(SelectedUserID),
+                                [],
+                                [
+                                    First(
+                                        SortByColumns(
+                                            Filter(
+                                                Office365Groups.ListGroups().value,
+                                                id = PermissionsDetailsList_1.Selected.RowKey
+                                            ),
+                                            "displayName"
+                                        )
+                                    )
+                                ]
+                            )
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        InputTextPlaceholder: ="Enter group name to filter list"
+                        Items: |-
+                            =SortByColumns(
+                                Office365Groups.ListGroups().value,
+                                "displayName"
+                            )
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        OnChange: =
+                        Width: =320
+                        X: =0
+                        Y: =0
+                        ZIndex: =4
+
+                        displayName2_1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="displayName"
+                            FieldName: ="displayName"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =1
+                            ZIndex: =58
+
+                        id1 As pcfDataField.textualColumn:
+                            FieldDisplayName: ="id"
+                            FieldName: ="id"
+                            FieldType: ="s"
+                            FieldVariantName: ="textualColumn"
+                            Order: =2
+                            ZIndex: =59
+
+                    lblSelectedUserRole_3 As Label:
+                        Color: =
+                        DisplayMode: =DisplayMode.Edit
+                        FontSize: =11
+                        FontWeight: =FontWeight.Semibold
+                        Height: =35
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        OnChange: =false
+                        Text: ="Select user role"
+                        Width: =Parent.Width - Parent.PaddingLeft * 2
+                        X: =24
+                        Y: =88
+                        ZIndex: =5
+
+                    ddGroupRole_1 As Dropdown.pcfdataset:
+                        AlignInContainer: =AlignInContainer.Stretch
+                        DefaultSelectedItems: =["Can View"]
+                        DisplayMode: =DisplayMode.Edit
+                        Height: =32
+                        Items: |
+                            =["Can View","Can Edit"]
+                        LayoutMinHeight: =32
+                        LayoutMinWidth: =320
+                        Width: =320
+                        X: =0
+                        Y: =0
+                        ZIndex: =6
+
+                    PanelFooterContainer_3 As groupContainer.manualLayoutContainer:
+                        AlignInContainer: =AlignInContainer.SetByContainer
+                        Height: =Parent.Height - Self.Y
+                        LayoutMinHeight: =100
+                        LayoutMinWidth: =250
+                        Width: =Parent.Width - Parent.PaddingLeft * 2
+                        ZIndex: =8
+
+                        icoFooterDivider_3 As rectangle:
+                            BorderColor: =//ColorValue(AppTheme.palette.neutralLight)
+                            BorderThickness: =0.1
+                            DisabledFill: =RGBA(166, 166, 166, 1)
+                            Fill: =RGBA(0, 120, 212, 1)
+                            FocusedBorderColor: =RGBA(0, 120, 212, 1)
+                            Height: =0.1
+                            HoverFill: =RGBA(0, 120, 212, 1)
+                            PressedFill: =RGBA(0, 120, 212, 1)
+                            Width: =Parent.Width
+                            Y: =btnAddroup_2.Y - 10
+                            ZIndex: =2
+
+                        btnAddroup_2 As Button:
+                            BasePaletteColor: =
+                            DisplayMode: |-
+                                =If(
+                                    !IsBlank(ddGroupRole_1.Selected.Value) && !IsBlank(cmbGroup_1.Selected),
+                                    DisplayMode.Edit,
+                                    DisplayMode.Disabled
+                                )
+                            Font: ="'Segoe UI', 'Open Sans', sans-serif"
+                            FontColor: =RGBA(255, 255, 255, 1)
+                            FontSize: =12  
+                            FontWeight: ="normal"
+                            Height: =32
+                            OnSelect: |
+                                =Concurrent(
+                                    UpdateContext(
+                                        {
+                                            var_Spinnerlabel: "Assigning Permission...",
+                                            var_ShowSpinnerAddPerm: true,
+                                            var_RoleAssignment: ddGroupRole_1.Selected.Value
+                                        }
+                                    ),
+                                    Set(
+                                        var_selectedGroup,
+                                        First(cmbGroup_1.SelectedItems)
+                                    ),
+                                    Set(
+                                        var_selectedGroupID,
+                                        First(cmbGroup_1.SelectedItems).id
+                                    )
+                                );
+                                //add permissions for view or edit
+                                UpdateContext(
+                                    {
+                                        var_ResponseMessage: 'HELPER-ObjectOperations'.Run(
+                                            var_selectedGroupID,
+                                            SelectedApp.App,
+                                            SelectedApp.'App Environment'.Name,
+                                            If(
+                                                var_RoleAssignment = "Can View",
+                                                "addviewer",
+                                                "addeditor"
+                                            ),
+                                            "app",
+                                            {boolean: true}
+                                        ).thereturnstring
+                                    }
+                                );
+                                If(
+                                    var_ResponseMessage <> "pass",
+                                    Notify(
+                                        var_ResponseMessage,
+                                        NotificationType.Error
+                                    ),
+                                    Notify(
+                                        "Permission granted to " & var_selectedGroup.displayName,
+                                        NotificationType.Success
+                                    );
+                                    
+                                );
+                                // Update Permission detail list
+                                UpdateContext(
+                                    {
+                                        var_ShowSpinnerAddPerm: false,
+                                        var_ShowShimmer: true
+                                    }
+                                );
+                                If(
+                                    var_ResponseMessage = "pass",
+                                //update permissions table
+                                    Select(Hidden_UpdateTable_AppPerm);
+                                    Select(btnRefreshRoles);
+                                    
+                                );
+                                UpdateContext({var_ShowShimmer: false});
+                            Text: =If(IsBlank(SelectedUserID),"Add Group","Update Permission")
+                            Width: =If(Self.Text="Update Permission",127,96)
+                            X: =0   
+                            Y: =Parent.Height - Self.Height -10
+                            ZIndex: =3
+
+    appRolesSpinner As Spinner:
+        AccessibleLabel: ="Loading App Roles"
+        BasePaletteColor: =
+        DisplayMode: =DisplayMode.Edit
+        FontColor: =
+        Height: =Parent.Height
+        Label: =var_Spinnerlabel
+        Visible: |
+            =var_ShowSpinner
+        Width: =Parent.Width
+        X: =0
+        Y: =0
+        ZIndex: =5
+
+    SpinnerLeft As Spinner:
+        BasePaletteColor: =
+        DisplayMode: =DisplayMode.Edit
+        FontColor: =
+        Height: =Parent.Height
+        Visible: =ctx_ShowSpinnerLoading
+        Width: =Parent.Width
+        X: =0
+        Y: =0
+        ZIndex: =6
+

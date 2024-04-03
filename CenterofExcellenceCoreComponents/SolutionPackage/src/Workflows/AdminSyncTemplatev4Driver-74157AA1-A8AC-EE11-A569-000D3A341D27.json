@@ -54,6 +54,15 @@
         "api": {
           "name": "shared_office365groups"
         }
+      },
+      "shared_powerappsforadmins": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECorePowerAppsAdmin2"
+        },
+        "api": {
+          "name": "shared_powerappsforadmins"
+        }
       }
     },
     "definition": {
@@ -634,6 +643,84 @@
                     "operationMetadataId": "41f28676-ccb3-4f4a-927e-eb888de88ec5"
                   },
                   "type": "Scope"
+                },
+                "Get_Tenant_DLP_Information": {
+                  "actions": {
+                    "List_DLP_Policies_V2": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "a4281f98-60ca-41fc-ae61-3b9615550532"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_powerplatformforadmins",
+                          "operationId": "ListPoliciesV2",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerplatformforadmins"
+                        },
+                        "parameters": {},
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Select_Policy": {
+                      "runAfter": {
+                        "List_DLP_Policies_V2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "0c5774ed-ec00-45b3-bda2-af03fab1889a"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@outputs('List_DLP_Policies_V2')?['body/value']",
+                        "select": {
+                          "DLP_Name": "@item()?['displayName']",
+                          "DLP_Type": "@item()?['environmentType']",
+                          "DLP_Envts": "@join(item()?['environments'], ';')"
+                        }
+                      }
+                    },
+                    "Filter_to_All_Envt": {
+                      "runAfter": {
+                        "Select_Policy": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "994dbc06-168b-4320-9c3b-e32d6193c9b5"
+                      },
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Select_Policy')",
+                        "where": "@equals(item()?['DLP_Type'], 'AllEnvironments')"
+                      }
+                    },
+                    "Select_All_Envt_Names": {
+                      "runAfter": {
+                        "Filter_to_All_Envt": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "80de6ff2-55a7-4586-b19b-e748243ca936"
+                      },
+                      "type": "Select",
+                      "inputs": {
+                        "from": "@body('Filter_to_All_Envt')",
+                        "select": "@item()?['DLP_Name']"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Get_CoE_Specifics": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "5e9b6284-5d14-4df4-85fa-8f48985c57b5"
+                  },
+                  "type": "Scope"
                 }
               },
               "runAfter": {},
@@ -1030,7 +1117,7 @@
                                     "operationMetadataId": "56cfa7cf-65cb-4e51-b16a-430bc087d28c"
                                   },
                                   "type": "Compose",
-                                  "inputs": "@if(equals(items('Apply_to_each_Environment')?['properties/createdBy/id'], null), if(equals(items('Apply_to_each_Environment')?['properties/createdBy/type'], 'NotSpecified'), parameters('CoE System User ID (admin_CoESystemUserID)'), ''), items('Apply_to_each_Environment')?['properties/createdBy/id'])"
+                                  "inputs": "@if(equals(items('Apply_to_each_Environment')?['properties/createdBy/id'], null), if(equals(items('Apply_to_each_Environment')?['properties/createdBy/type'], 'NotSpecified'), parameters('CoE System User ID (admin_CoESystemUserID)'), ''), if(equals(items('Apply_to_each_Environment')?['properties/createdBy/id'], 'SYSTEM'), parameters('CoE System User ID (admin_CoESystemUserID)'), items('Apply_to_each_Environment')?['properties/createdBy/id']))"
                                 },
                                 "See_if_already_in_Maker_Table": {
                                   "runAfter": {
@@ -1289,7 +1376,10 @@
                                       "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
                                       "item/admin_administrationmode": "@coalesce(if(equals(items('Apply_to_each_Environment')?['properties/states/runtime/id'], 'AdminMode'), true, false), false)",
                                       "item/admin_backgroundoperationsenabled": "@coalesce(if(equals(items('Apply_to_each_Environment')?['properties/linkedEnvironmentMetadata/backgroundOperationsState'], 'Disabled'), false, true), true)",
+                                      "item/admin_connectionsinaccessible": "@outputs('connections_inaccessible')",
+                                      "item/admin_dlppolicies": "@outputs('Impacting_DLPs')",
                                       "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
+                                      "item/admin_environmentcdsmetadataname": "@outputs('CDS_Metadata_Name')",
                                       "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
                                       "item/admin_environmentdeleted": false,
                                       "item/admin_environmentdeletedon": "@null",
@@ -1301,7 +1391,9 @@
                                       "item/admin_environmentruntimestate": "@items('Apply_to_each_Environment')?['properties/states/runtime/id']",
                                       "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
                                       "item/admin_environmentstate": "@items('Apply_to_each_Environment')?['properties/states/management/id']",
+                                      "item/admin_excusefrominventory": "@outputs('Excused_From_Inventory')",
                                       "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                      "item/admin_hasdlppolicy": "@outputs('has_DLP')",
                                       "item/admin_hascds": "@outputs('hasCDS')",
                                       "item/admin_iscoe": "@outputs('isCoE')",
                                       "item/admin_makercopilotenabled": "@outputs('has_Maker_Copilot_State')",
@@ -1345,6 +1437,8 @@
                                         "item/admin_displayname": "@items('Apply_to_each_Environment')?['properties/displayName']",
                                         "item/admin_administrationmode": "@coalesce(if(equals(items('Apply_to_each_Environment')?['properties/states/runtime/id'], 'AdminMode'), true, false), false)",
                                         "item/admin_backgroundoperationsenabled": "@coalesce(if(equals(items('Apply_to_each_Environment')?['properties/linkedEnvironmentMetadata/backgroundOperationsState'], 'Disabled'), false, true), true)",
+                                        "item/admin_connectionsinaccessible": "@outputs('connections_inaccessible')",
+                                        "item/admin_dlppolicies": "@outputs('Impacting_DLPs')",
                                         "item/admin_environmentcdsinstanceurl": "@items('Apply_to_each_Environment')?['properties']?['linkedEnvironmentMetadata']?['instanceUrl']",
                                         "item/admin_environmentcdsmetadataname": "@outputs('CDS_Metadata_Name')",
                                         "item/admin_environmentcreatedon": "@items('Apply_to_each_Environment')?['properties']?['createdTime']",
@@ -1361,7 +1455,9 @@
                                         "item/admin_environmentruntimestate": "@items('Apply_to_each_Environment')?['properties/states/runtime/id']",
                                         "item/admin_environmentsku": "@items('Apply_to_each_Environment')?['properties']?['environmentSku']",
                                         "item/admin_environmentstate": "@items('Apply_to_each_Environment')?['properties/states/management/id']",
+                                        "item/admin_excusefrominventory": "@outputs('Excused_From_Inventory')",
                                         "item/admin_governanceprotectionlevel": "@items('Apply_to_each_Environment')?['properties/governanceConfiguration/protectionLevel']",
+                                        "item/admin_hasdlppolicy": "@outputs('has_DLP')",
                                         "item/admin_hascds": "@outputs('hasCDS')",
                                         "item/admin_iscoe": "@outputs('isCoE')",
                                         "item/admin_makercopilotenabled": "@outputs('has_Maker_Copilot_State')",
@@ -1398,7 +1494,7 @@
                             }
                           },
                           "runAfter": {
-                            "teams_information": [
+                            "Connection_accessibility": [
                               "Succeeded"
                             ]
                           },
@@ -1533,6 +1629,174 @@
                           },
                           "metadata": {
                             "operationMetadataId": "5ff09ca8-3375-4457-9e26-1d46278d4d2d"
+                          },
+                          "type": "Scope"
+                        },
+                        "Get_DLP_Information": {
+                          "actions": {
+                            "Filter_to_Only_Envt": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "994dbc06-168b-4320-9c3b-e32d6193c9b5"
+                              },
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@body('Select_Policy')",
+                                "where": "@and(contains(item()?['DLP_Envts'], items('Apply_to_each_Environment')?['name']), equals(item()?['DLP_Type'], 'OnlyEnvironments'))"
+                              }
+                            },
+                            "Select_Only_Envt_Names": {
+                              "runAfter": {
+                                "Filter_to_Only_Envt": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "343edeb2-11f3-48b4-a0c0-a8772af9f54a"
+                              },
+                              "type": "Select",
+                              "inputs": {
+                                "from": "@body('Filter_to_Only_Envt')",
+                                "select": "@item()?['DLP_Name']"
+                              }
+                            },
+                            "Filter_to_Except_Environments": {
+                              "runAfter": {
+                                "Select_Only_Envt_Names": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "994dbc06-168b-4320-9c3b-e32d6193c9b5"
+                              },
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@body('Select_Policy')",
+                                "where": "@and(not(contains(item()?['DLP_Envts'], items('Apply_to_each_Environment')?['name'])), equals(item()?['DLP_Type'], 'ExceptEnvironments'))"
+                              }
+                            },
+                            "Select_Except_Environments_Names": {
+                              "runAfter": {
+                                "Filter_to_Except_Environments": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "343edeb2-11f3-48b4-a0c0-a8772af9f54a"
+                              },
+                              "type": "Select",
+                              "inputs": {
+                                "from": "@body('Filter_to_Except_Environments')",
+                                "select": "@item()?['DLP_Name']"
+                              }
+                            },
+                            "Impacting_DLPs_Array": {
+                              "runAfter": {
+                                "Select_Except_Environments_Names": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "aa10a68d-82d6-426e-aea2-d9c3e6ad784d"
+                              },
+                              "type": "Compose",
+                              "inputs": "@union(body('Select_All_Envt_Names'), body('Select_Only_Envt_Names'), body('Select_Except_Environments_Names'))"
+                            },
+                            "has_DLP": {
+                              "runAfter": {
+                                "Impacting_DLPs_Array": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "458a2e70-2c21-429c-bfa5-025eae5ad2bb"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(length(outputs('Impacting_DLPs_Array')), 0), false, true)"
+                            },
+                            "Impacting_DLPs": {
+                              "runAfter": {
+                                "has_DLP": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "27d5e4b9-8610-4d11-a915-4bbeb819f08a"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(outputs('has_DLP'), true), join(outputs('Impacting_DLPs_Array'), '; '), '')"
+                            }
+                          },
+                          "runAfter": {
+                            "teams_information": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "bef9123d-a05a-4efa-837b-37b199e23526"
+                          },
+                          "type": "Scope"
+                        },
+                        "Connection_accessibility": {
+                          "actions": {
+                            "Get_Connections_as_Admin": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "be5cdaa3-de57-44ed-8a12-1c41df4e1a90"
+                              },
+                              "type": "OpenApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connectionName": "shared_powerappsforadmins",
+                                  "operationId": "Get-AdminConnections",
+                                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_powerappsforadmins"
+                                },
+                                "parameters": {
+                                  "environment": "@items('Apply_to_each_Environment')?['name']",
+                                  "api-version": "2016-11-01",
+                                  "$top": 1000
+                                },
+                                "authentication": "@parameters('$authentication')"
+                              },
+                              "runtimeConfiguration": {
+                                "paginationPolicy": {
+                                  "minimumItemCount": 100000
+                                }
+                              }
+                            },
+                            "Catch_-_are_connections_inaccessible": {
+                              "runAfter": {
+                                "Get_Connections_as_Admin": [
+                                  "Failed"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "4ed49115-a635-4b83-8707-575290ce43d7"
+                              },
+                              "type": "Compose",
+                              "inputs": "@true"
+                            },
+                            "connections_inaccessible": {
+                              "runAfter": {
+                                "Catch_-_are_connections_inaccessible": [
+                                  "Succeeded",
+                                  "Skipped"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "d7d3f4a5-1aca-4da8-b50b-5743ad547d48"
+                              },
+                              "type": "Compose",
+                              "inputs": "@if(equals(outputs('Catch_-_are_connections_inaccessible'), null), false, true)"
+                            }
+                          },
+                          "runAfter": {
+                            "Get_DLP_Information": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "6f18b188-6ca9-4944-a889-ca1b0178593e"
                           },
                           "type": "Scope"
                         }

@@ -125,7 +125,7 @@
                   "type": "Query",
                   "inputs": {
                     "from": "@outputs('List_Environments_as_Admin')?['body/value']",
-                    "where": "@not(equals(item()?['properties/linkedEnvironmentMetadata/instanceUrl'], null))"
+                    "where": "@and(not(equals(item()?['properties/states/runtime/id'], 'Disabled')), not(equals(item()?['properties/linkedEnvironmentMetadata/instanceUrl'], null)))"
                   }
                 },
                 "Get_SRs_already_tracked_in_inventory": {
@@ -237,26 +237,6 @@
             },
             "Get_SRs_from_CoE_Envt": {
               "actions": {
-                "List_CoE_Envt_SRs_with_Template_IDs": {
-                  "runAfter": {},
-                  "metadata": {
-                    "operationMetadataId": "86c69542-3778-4d57-b714-273c5256bc72"
-                  },
-                  "type": "OpenApiConnection",
-                  "inputs": {
-                    "host": {
-                      "connectionName": "shared_commondataserviceforapps",
-                      "operationId": "ListRecords",
-                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                    },
-                    "parameters": {
-                      "entityName": "roles",
-                      "$select": "name, _roletemplateid_value ",
-                      "$filter": "_roletemplateid_value  ne null"
-                    },
-                    "authentication": "@parameters('$authentication')"
-                  }
-                },
                 "Select_CoE_Envts_SRs_with_Template_IDs": {
                   "runAfter": {
                     "List_CoE_Envt_SRs_with_Template_IDs": [
@@ -309,7 +289,7 @@
                     "parameters": {
                       "entityName": "roles",
                       "$select": "name",
-                      "$filter": "_roletemplateid_value  eq null"
+                      "$filter": "_roletemplateid_value eq null and _businessunitid_value eq @{outputs('CoE_ParentBU')}"
                     },
                     "authentication": "@parameters('$authentication')"
                   }
@@ -346,6 +326,63 @@
                     "from": "@outputs('List_CoE_Envt_SRs')?['body/value']",
                     "select": "@item()?['name']"
                   }
+                },
+                "Get_CoE_Parent_BU_for_ID": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "43a3957a-9e3d-4545-9528-4af8897dce7f"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecordsWithOrganization",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "organization": "current",
+                      "entityName": "businessunits",
+                      "$select": "businessunitid, name",
+                      "$filter": "_parentbusinessunitid_value eq null"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "CoE_ParentBU": {
+                  "runAfter": {
+                    "Get_CoE_Parent_BU_for_ID": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "747a707a-6a42-4eaf-9b39-d3907200291c"
+                  },
+                  "type": "Compose",
+                  "inputs": "@first(outputs('Get_CoE_Parent_BU_for_ID')?['body/value'])?['businessunitid']"
+                },
+                "List_CoE_Envt_SRs_with_Template_IDs": {
+                  "runAfter": {
+                    "CoE_ParentBU": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "86c69542-3778-4d57-b714-273c5256bc72"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "roles",
+                      "$select": "name, _roletemplateid_value ",
+                      "$filter": "_roletemplateid_value ne null and _businessunitid_value eq @{outputs('CoE_ParentBU')}"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
                 }
               },
               "runAfter": {
@@ -364,28 +401,6 @@
                 "Apply_to_each_envt": {
                   "foreach": "@body('Filter_to_Envts_with_Linked_Environment_Metadata')",
                   "actions": {
-                    "Get_SRs_from_envt_with_TIDs": {
-                      "runAfter": {},
-                      "metadata": {
-                        "operationMetadataId": "4f7e5a27-de2a-46eb-b060-87e3f94ec05c"
-                      },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "connectionName": "shared_commondataserviceforapps",
-                          "operationId": "ListRecordsWithOrganization",
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
-                        },
-                        "parameters": {
-                          "organization": "@items('Apply_to_each_envt')?['properties/linkedEnvironmentMetadata/instanceUrl']",
-                          "entityName": "roles",
-                          "$select": "name, _roletemplateid_value ",
-                          "$filter": "_roletemplateid_value ne null"
-                        },
-                        "authentication": "@parameters('$authentication')"
-                      },
-                      "description": "first template ones"
-                    },
                     "Apply_to_each_new_SR_with_TID": {
                       "foreach": "@body('Find_new_SRs_with_TIDs')",
                       "actions": {
@@ -484,7 +499,7 @@
                           "organization": "@items('Apply_to_each_envt')?['properties/linkedEnvironmentMetadata/instanceUrl']",
                           "entityName": "roles",
                           "$select": "name",
-                          "$filter": "_roletemplateid_value eq null"
+                          "$filter": "_roletemplateid_value eq null and _businessunitid_value eq @{outputs('ParentBU')}"
                         },
                         "authentication": "@parameters('$authentication')"
                       },
@@ -551,6 +566,65 @@
                         "concurrency": {
                           "repetitions": 50
                         }
+                      }
+                    },
+                    "ParentBU": {
+                      "runAfter": {
+                        "Get_Parent_BU_for_ID": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "d49ff5f6-a182-4551-9e93-6b4eb856457a"
+                      },
+                      "type": "Compose",
+                      "inputs": "@first(outputs('Get_Parent_BU_for_ID')?['body/value'])?['businessunitid']"
+                    },
+                    "Get_SRs_from_envt_with_TIDs": {
+                      "runAfter": {
+                        "ParentBU": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "4f7e5a27-de2a-46eb-b060-87e3f94ec05c"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@items('Apply_to_each_envt')?['properties/linkedEnvironmentMetadata/instanceUrl']",
+                          "entityName": "roles",
+                          "$select": "name, _roletemplateid_value ",
+                          "$filter": "_roletemplateid_value ne null and _businessunitid_value eq @{outputs('ParentBU')}"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      },
+                      "description": "first template ones"
+                    },
+                    "Get_Parent_BU_for_ID": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "89da7d22-7327-4f70-8a71-1318c676266c"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "ListRecordsWithOrganization",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "organization": "@items('Apply_to_each_envt')?['properties/linkedEnvironmentMetadata/instanceUrl']",
+                          "entityName": "businessunits",
+                          "$select": "businessunitid, name",
+                          "$filter": "_parentbusinessunitid_value eq null"
+                        },
+                        "authentication": "@parameters('$authentication')"
                       }
                     }
                   },
