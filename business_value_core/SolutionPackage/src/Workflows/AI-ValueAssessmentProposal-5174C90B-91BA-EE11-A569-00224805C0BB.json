@@ -1,0 +1,201 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_Microsoftdataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "metadata": {
+            "operationMetadataId": "9e75f143-da0b-458b-8f9e-e3c54666ef34"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 1,
+              "subscriptionRequest/entityname": "cr5cd_valueassessmentstory",
+              "subscriptionRequest/scope": 2
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Check_story_type": {
+          "actions": {
+            "List_strategic_objectives": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "e36ec3c5-298e-47b0-bfb7-ad6e58c09df8"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "cr5cd_strategicobjectives"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Apply_to_each_objective": {
+              "foreach": "@outputs('List_strategic_objectives')?['body/value']",
+              "actions": {
+                "Create_text_with_GPT_using_a_prompt": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "92459703-2a8d-49d1-9bb7-8489192b6c70"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "aibuilderpredict_customprompt",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "recordId": "d5b44386-97e2-45bb-aa32-06a81308aa27",
+                      "item/requestv2/ObjectiveDescription": "@items('Apply_to_each_objective')?['cr5cd_description']",
+                      "item/requestv2/MeasurableComponent": "@items('Apply_to_each_objective')?['cr5cd_measurablecomponent']",
+                      "item/requestv2/ObjectiveTitle": "@items('Apply_to_each_objective')?['cr5cd_name']",
+                      "item/requestv2/OriginalStory": "@triggerOutputs()?['body/cr5cd_originalstory']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Parse_JSON": {
+                  "runAfter": {
+                    "Create_text_with_GPT_using_a_prompt": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "76351c6e-dbab-4502-94f4-cd4161249d65"
+                  },
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@outputs('Create_text_with_GPT_using_a_prompt')?['body/responsev2/predictionOutput/text']",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "Objective title": {
+                          "type": "string"
+                        },
+                        "Alignment to objective": {
+                          "type": "integer"
+                        },
+                        "Impact": {
+                          "type": "integer"
+                        },
+                        "Impact type": {
+                          "type": "string"
+                        },
+                        "Actual impact contribution": {
+                          "type": [
+                            "integer",
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "Actual impact contribution measure": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "Summary": {
+                          "type": "string"
+                        },
+                        "Confidence in assessment": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "Add_a_new_row": {
+                  "runAfter": {
+                    "Parse_JSON": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "a66a4e9a-4ae0-4ee7-b42a-0f1d90f2c3d0"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "CreateRecord",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "cr5cd_valueassessmentcollecteddatas",
+                      "item/cr5cd_name": "@triggerOutputs()?['body/cr5cd_name']",
+                      "item/cr5cd_alignmenttoobjective": "@body('Parse_JSON')?['Alignment to objective']",
+                      "item/cr5cd_confidence": "@body('Parse_JSON')?['Confidence in assessment']",
+                      "item/cr5cd_impact": "@body('Parse_JSON')?['Impact']",
+                      "item/cr5cd_impacttype": "@body('Parse_JSON')?['Impact type']",
+                      "item/cr5cd_objectivetitle": "@body('Parse_JSON')?['Objective title']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "List_strategic_objectives": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "5ece5bd3-6fd1-419c-b536-48fe9d27257a"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {},
+          "expression": {
+            "equals": [
+              "@triggerOutputs()?['body/cr5cd_storytype']",
+              236380001
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1e80f327-dfdb-4b88-97aa-105aaebed7ae"
+          },
+          "type": "If"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

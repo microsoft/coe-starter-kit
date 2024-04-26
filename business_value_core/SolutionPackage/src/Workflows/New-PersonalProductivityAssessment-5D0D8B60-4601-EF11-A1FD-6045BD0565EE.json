@@ -1,0 +1,274 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_flowmanagement": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_PowerAutomateManagement"
+        },
+        "api": {
+          "name": "shared_flowmanagement"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_Microsoftdataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_Office365Users"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      },
+      "shared_teams": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_sharedteams_c5357"
+        },
+        "api": {
+          "name": "shared_teams"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "83736ad2-0d59-4636-82fc-887ae0667393"
+          },
+          "type": "Request",
+          "kind": "Button",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "EnvironmentID",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Provide environment Id",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "number": {
+                  "title": "AssessmentFrequency",
+                  "type": "number",
+                  "x-ms-dynamically-added": true,
+                  "description": "Enter min number of days between assessments",
+                  "x-ms-content-hint": "NUMBER"
+                }
+              },
+              "required": [
+                "text",
+                "number"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "List_Flows_as_Admin_(V2)": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "ebb69b9b-a1da-49f4-a577-619d1aa3d185"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionName": "shared_flowmanagement",
+              "operationId": "ListFlowsInEnvironment_V2",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement"
+            },
+            "parameters": {
+              "environmentName": "@triggerBody()['text']"
+            },
+            "authentication": {
+              "type": "Raw",
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+            }
+          }
+        },
+        "Apply_to_each_flow": {
+          "foreach": "@outputs('List_Flows_as_Admin_(V2)')?['body/value']",
+          "actions": {
+            "Get_Flow_as_Admin": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "c31e1a8d-ecc7-477b-8b39-e1b172226a71"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_flowmanagement",
+                  "operationId": "AdminGetFlow",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_flowmanagement"
+                },
+                "parameters": {
+                  "environmentName": "@triggerBody()['text']",
+                  "flowName": "@items('Apply_to_each_flow')?['name']"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                }
+              }
+            },
+            "List_flow_assessments": {
+              "runAfter": {
+                "Get_Flow_as_Admin": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9c2d573a-8bb4-4a7e-842a-169e027a588c"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "cr5cd_personalproductivitycollecteddatas",
+                  "$filter": "cr5cd_name eq '@{outputs('Get_Flow_as_Admin')?['body/name']}'"
+                },
+                "authentication": {
+                  "type": "Raw",
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                }
+              }
+            },
+            "Condition": {
+              "actions": {
+                "Get_user_profile_(V2)": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "42533da3-6653-4421-8959-21b3b5e6bfe1"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_office365users",
+                      "operationId": "UserProfile_V2",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users"
+                    },
+                    "parameters": {
+                      "id": "@outputs('Get_Flow_as_Admin')?['body/properties/creator/userId']"
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  }
+                },
+                "Post_adaptive_card_and_wait_for_a_response": {
+                  "runAfter": {
+                    "Get_user_profile_(V2)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "6ebefa69-8074-4e2b-9e38-74c0e04504c8"
+                  },
+                  "type": "OpenApiConnectionWebhook",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_teams",
+                      "operationId": "PostCardAndWaitForResponse",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                    },
+                    "parameters": {
+                      "poster": "Flow bot",
+                      "location": "Chat with Flow bot",
+                      "body/body/messageBody": "{\n    \"type\": \"AdaptiveCard\",\n    \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n    \"version\": \"1.2\",\n    \"body\": [\n        {\n            \"type\": \"Container\",\n            \"items\": [\n                {\n                    \"type\": \"TextBlock\",\n                    \"text\": \"Value assessment\",\n                    \"wrap\": true,\n                    \"size\": \"Large\",\n                    \"weight\": \"Bolder\"\n                }\n            ]\n        },\n        {\n            \"type\": \"Container\",\n            \"items\": [\n                {\n                    \"type\": \"TextBlock\",\n                    \"text\": \"We are assessing the value of our automation processes to understand their impact and ensure they continue to serve your needs. Your insights are crucial to this process. Please take a moment to complete this brief value assessment to help us improve our services. Thank you for your time!\",\n                    \"wrap\": true\n                }\n            ]\n        },\n        {\n            \"type\": \"Container\"\n        },\n        {\n            \"type\": \"Container\",\n            \"items\": [\n                {\n                    \"type\": \"ColumnSet\",\n                    \"columns\": [\n                        {\n                            \"type\": \"Column\",\n                            \"width\": \"stretch\",\n                            \"items\": [\n                                {\n                                    \"type\": \"TextBlock\",\n                                    \"text\": \"Asset name:\",\n                                    \"wrap\": true,\n                                    \"color\": \"Accent\",\n                                    \"weight\": \"Bolder\"\n                                }\n                            ]\n                        },\n                        {\n                            \"type\": \"Column\",\n                            \"width\": \"stretch\",\n                            \"items\": [\n                                {\n                                    \"type\": \"TextBlock\",\n                                    \"text\": \"@{outputs('Get_Flow_as_Admin')?['body/properties/displayName']}\",\n                                    \"wrap\": true\n                                }\n                            ]\n                        }\n                    ]\n                }\n            ]\n        },\n        {\n            \"type\": \"Container\",\n            \"items\": [\n                {\n                    \"type\": \"TextBlock\",\n                    \"text\": \"Questions\",\n                    \"wrap\": true,\n                    \"weight\": \"Bolder\",\n                    \"color\": \"Accent\"\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"How much time does this asset save you per day?\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"width\": \"stretch\",\n                    \"items\": [\n                        {\n                            \"type\": \"Input.Number\",\n                            \"placeholder\": \"Indicate approximate minutes or hours\",\n                            \"id\": \"timeSavedUserValue\"\n                        }\n                    ]\n                },\n                {\n                    \"type\": \"Column\",\n                    \"width\": \"stretch\",\n                    \"items\": [\n                        {\n                            \"type\": \"Input.ChoiceSet\",\n                            \"choices\": [\n                                {\n                                    \"title\": \"Minutes\",\n                                    \"value\": \"1\"\n                                },\n                                {\n                                    \"title\": \"Hours\",\n                                    \"value\": \"2\"\n                                }\n                            ],\n                            \"placeholder\": \"Select minutes or hours\",\n                            \"id\": \"timeSavedMeasure\"\n                        }\n                    ]\n                }\n            ]\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"How critical is this flow to you or your team?\",\n            \"wrap\": true,\n            \"weight\": \"Bolder\"\n        },\n        {\n            \"type\": \"TextBlock\",\n            \"text\": \"Describe the potential impact if this asset stopped working. What would happen to your daily operations?\",\n            \"wrap\": true\n        },\n        {\n            \"type\": \"Input.ChoiceSet\",\n            \"choices\": [\n                {\n                    \"title\": \"No noticeable impact on operations\",\n                    \"value\": \"0\"\n                },\n                {\n                    \"title\": \"Minor disruptions, operations would continue with slight adjustments\",\n                    \"value\": \"1\"\n                },\n                {\n                    \"title\": \"Noticeable disruptions, requiring additional effort to maintain stability\",\n                    \"value\": \"2\"\n                },\n                {\n                    \"title\": \"Significant disruption, leading to delays, productivity loss or critical issues\",\n                    \"value\": \"3\"\n                }\n            ],\n            \"placeholder\": \"Select criticality level\",\n            \"id\": \"criticalityImpactSelection\"\n        },\n        {\n            \"type\": \"ColumnSet\",\n            \"columns\": [\n                {\n                    \"type\": \"Column\",\n                    \"width\": \"stretch\",\n                    \"id\": \"criticalityImpactContainer\"\n                }\n            ]\n        },\n        {\n            \"type\": \"ActionSet\",\n            \"actions\": [\n                {\n                    \"type\": \"Action.Submit\",\n                    \"title\": \"Submit\"\n                }\n            ]\n        }\n    ]\n}",
+                      "body/body/updateMessage": "Thanks for your response!",
+                      "body/body/recipient/to": "@{outputs('Get_user_profile_(V2)')?['body/mail']};"
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  }
+                },
+                "Add_a_new_row": {
+                  "runAfter": {
+                    "Post_adaptive_card_and_wait_for_a_response": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "bf14173e-f012-4b5f-801f-9376df2e4987"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "CreateRecord",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "cr5cd_personalproductivitycollecteddatas",
+                      "item/cr5cd_name": "@items('Apply_to_each_flow')?['name']",
+                      "item/cr5cd_assettype": "Flow"
+                    },
+                    "authentication": {
+                      "type": "Raw",
+                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "List_flow_assessments": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "equals": [
+                  "@length(outputs('List_flow_assessments')?['body/value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b5e153fc-c39a-4af1-bbc0-1ba2efa79933"
+              },
+              "type": "If",
+              "description": "Checks if flow has been previously assessed - you could add in additional checks for time since last assessment."
+            }
+          },
+          "runAfter": {
+            "List_Flows_as_Admin_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "48c28d01-e23f-45cb-8f4e-922c569749fd"
+          },
+          "type": "Foreach"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}
