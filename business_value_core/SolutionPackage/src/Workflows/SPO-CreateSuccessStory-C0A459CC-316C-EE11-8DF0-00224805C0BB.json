@@ -1,0 +1,438 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "impersonation": {},
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_Microsoftdataverse"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_sharepointonline": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_sharedsharepointonline_3c2d1"
+        },
+        "api": {
+          "name": "shared_sharepointonline"
+        }
+      },
+      "shared_office365users": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "cr5cd_Office365Users"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "CommunityHubUrl (cr5cd_CommunityHubUrl)": {
+          "defaultValue": "https://powercattools.sharepoint.com/sites/get-the-low-down",
+          "type": "String",
+          "metadata": {
+            "schemaName": "cr5cd_CommunityHubUrl",
+            "description": "This is the URL for you communication site (SharePoint Online)."
+          }
+        }
+      },
+      "triggers": {
+        "When_a_row_is_added,_modified_or_deleted": {
+          "metadata": {
+            "operationMetadataId": "d20959bd-6b73-4c5e-be0a-ee2d760af14f"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "SubscribeWebhookTrigger"
+            },
+            "parameters": {
+              "subscriptionRequest/message": 3,
+              "subscriptionRequest/entityname": "cr5cd_valueassessmentstory",
+              "subscriptionRequest/scope": 2,
+              "subscriptionRequest/name": "c0a459cc-316c-ee11-8df0-00224805c0bb"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Get_a_row_by_ID": {
+          "runAfter": {
+            "Init_var_-_strCommunityHubUrl": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c7ee4b08-5139-4770-a9cf-590fffc9d859"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "connectionName": "shared_commondataserviceforapps",
+              "operationId": "GetItem"
+            },
+            "parameters": {
+              "entityName": "cr5cd_valueassessmentstories",
+              "recordId": "@triggerOutputs()?['body/cr5cd_valueassessmentstoryid']"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Condition": {
+          "actions": {
+            "Compose_-_replace_linebreaks": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "064f31be-3a2f-45f1-81ed-f11add0677e5"
+              },
+              "type": "Compose",
+              "inputs": "@replace(variables('strEnhancedStory'), decodeUriComponent('%0A'), '')"
+            },
+            "ParagraphSplit": {
+              "runAfter": {
+                "Compose_-_replace_linebreaks": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "c5441a20-78ef-4e31-a298-0df0c17a4a85"
+              },
+              "type": "Compose",
+              "inputs": "@split(outputs('Compose_-_replace_linebreaks'), '<h2>')"
+            },
+            "Create_SPO_Page": {
+              "runAfter": {
+                "ParagraphSplit": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "babfdc91-af1a-4b8a-bf5d-e957ac166be0"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "connectionName": "shared_sharepointonline",
+                  "operationId": "HttpRequest"
+                },
+                "parameters": {
+                  "dataset": "@variables('strCommunityHubUrl')",
+                  "parameters/method": "POST",
+                  "parameters/uri": "_api/sitepages/pages",
+                  "parameters/headers": {
+                    "Content-Type": "application/json;odata=verbose"
+                  },
+                  "parameters/body": "{\n    \"__metadata\": {\n        \"type\": \"SP.Publishing.SitePage\"\n    },\n    \"PageLayoutType\": \"Article\",\n    \"SitePageFlags\": \";#PrivateAuthoring;#\"\n}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Parse_SPO_Page": {
+              "runAfter": {
+                "Create_SPO_Page": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "48753c68-d91b-475e-a3e5-6d4f30fd988c"
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('Create_SPO_Page')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "d": {
+                      "type": "object",
+                      "properties": {
+                        "__metadata": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "uri": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "CreatedBy": {
+                          "type": "object",
+                          "properties": {
+                            "__deferred": {
+                              "type": "object",
+                              "properties": {
+                                "uri": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "LastModifiedBy": {
+                          "type": "object",
+                          "properties": {
+                            "__deferred": {
+                              "type": "object",
+                              "properties": {
+                                "uri": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "Translations": {
+                          "type": "object",
+                          "properties": {
+                            "__deferred": {
+                              "type": "object",
+                              "properties": {
+                                "uri": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "AbsoluteUrl": {
+                          "type": "string"
+                        },
+                        "AuthorByline": {},
+                        "BannerImageUrl": {},
+                        "BannerThumbnailUrl": {},
+                        "CallToAction": {
+                          "type": "string"
+                        },
+                        "Categories": {},
+                        "ContentTypeId": {
+                          "type": "string"
+                        },
+                        "Description": {},
+                        "DoesUserHaveEditPermission": {
+                          "type": "boolean"
+                        },
+                        "FileName": {
+                          "type": "string"
+                        },
+                        "FirstPublished": {
+                          "type": "string"
+                        },
+                        "Id": {
+                          "type": "integer"
+                        },
+                        "IsPageCheckedOutToCurrentUser": {
+                          "type": "boolean"
+                        },
+                        "IsWebWelcomePage": {
+                          "type": "boolean"
+                        },
+                        "Modified": {
+                          "type": "string"
+                        },
+                        "PageLayoutType": {
+                          "type": "string"
+                        },
+                        "Path": {
+                          "type": "object",
+                          "properties": {
+                            "__metadata": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "DecodedUrl": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "PromotedState": {
+                          "type": "integer"
+                        },
+                        "Title": {},
+                        "TopicHeader": {},
+                        "UniqueId": {
+                          "type": "string"
+                        },
+                        "Url": {
+                          "type": "string"
+                        },
+                        "Version": {
+                          "type": "string"
+                        },
+                        "VersionInfo": {
+                          "type": "object",
+                          "properties": {
+                            "__metadata": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "LastVersionCreated": {
+                              "type": "string"
+                            },
+                            "LastVersionCreatedBy": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "AlternativeUrlMap": {
+                          "type": "string"
+                        },
+                        "CanvasContent1": {
+                          "type": "string"
+                        },
+                        "CoAuthState": {},
+                        "Language": {
+                          "type": "string"
+                        },
+                        "LayoutWebpartsContent": {},
+                        "SitePageFlags": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "UpdateSPOPage": {
+              "runAfter": {
+                "Parse_SPO_Page": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "8a5fada7-f271-430a-9248-24b885655ec5"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                  "connectionName": "shared_sharepointonline",
+                  "operationId": "HttpRequest"
+                },
+                "parameters": {
+                  "dataset": "@variables('strCommunityHubUrl')",
+                  "parameters/method": "POST",
+                  "parameters/uri": "_api/sitepages/pages(@{body('Parse_SPO_Page')?['d']?['Id']})/SavePage",
+                  "parameters/headers": {
+                    "Content-Type": "application/json;odata=verbose"
+                  },
+                  "parameters/body": "{\n    \"__metadata\": {\n        \"type\": \"SP.Publishing.SitePage\"\n    },\n \"CanvasContent1\": \"[{\\\"controlType\\\":4,\\\"id\\\":\\\"1226dce9-f46b-4539-b963-08a9713c341d\\\",\\\"position\\\":{\\\"layoutIndex\\\":1,\\\"zoneIndex\\\":0.5,\\\"sectionIndex\\\":1,\\\"controlIndex\\\":1,\\\"sectionFactor\\\":8,\\\"zoneId\\\":\\\"7af97207-4aa7-4760-b945-466069035649\\\"},\\\"addedFromPersistedData\\\":true,\\\"innerHTML\\\":\\\"<h2 style=\\\\\\\"margin-left:0px;\\\\\\\">@{outputs('ParagraphSplit')[1]}\\\"},{\\\"controlType\\\":4,\\\"id\\\":\\\"4fa6a421-67dc-41eb-b7bd-909b47feed51\\\",\\\"position\\\":{\\\"layoutIndex\\\":1,\\\"zoneIndex\\\":0.5,\\\"sectionIndex\\\":1,\\\"controlIndex\\\":2,\\\"sectionFactor\\\":8,\\\"zoneId\\\":\\\"7af97207-4aa7-4760-b945-466069035649\\\"},\\\"addedFromPersistedData\\\":true,\\\"innerHTML\\\":\\\"<h2 style=\\\\\\\"margin-left:0px;\\\\\\\">@{outputs('ParagraphSplit')[2]}\\\"},{\\\"position\\\":{\\\"layoutIndex\\\":1,\\\"zoneIndex\\\":0.5,\\\"sectionIndex\\\":2,\\\"controlIndex\\\":1,\\\"sectionFactor\\\":4,\\\"zoneId\\\":\\\"7af97207-4aa7-4760-b945-466069035649\\\"},\\\"webPartData\\\":{\\\"id\\\":\\\"d1d91016-032f-456d-98a4-721247c305e8\\\",\\\"instanceId\\\":\\\"4627dce7-a100-43dc-bac3-bcaa7c2c8c65\\\",\\\"title\\\":\\\"Image\\\",\\\"description\\\":\\\"Add an image, picture or photo to your page including text overlays and ability to crop and resize images.\\\",\\\"audiences\\\":[],\\\"serverProcessedContent\\\":{\\\"htmlStrings\\\":{},\\\"searchablePlainTexts\\\":{},\\\"imageSources\\\":{},\\\"links\\\":{}},\\\"dataVersion\\\":\\\"1.11\\\",\\\"properties\\\":{\\\"imageSourceType\\\":0,\\\"imageSource\\\":\\\"\\\",\\\"captionText\\\":\\\"\\\",\\\"altText\\\":\\\"\\\",\\\"linkUrl\\\":\\\"\\\",\\\"overlayText\\\":\\\"\\\",\\\"fileName\\\":\\\"\\\",\\\"siteId\\\":\\\"\\\",\\\"webId\\\":\\\"\\\",\\\"listId\\\":\\\"\\\",\\\"uniqueId\\\":\\\"\\\",\\\"imgWidth\\\":\\\"\\\",\\\"imgHeight\\\":\\\"\\\",\\\"overlayTextStyles\\\":{\\\"textColor\\\":\\\"light\\\",\\\"isBold\\\":false,\\\"isItalic\\\":false,\\\"textBoxColor\\\":\\\"dark\\\",\\\"textBoxOpacity\\\":0.54,\\\"overlayColor\\\":\\\"light\\\",\\\"overlayTransparency\\\":0},\\\"isOverlayTextVisible\\\":false},\\\"containsDynamicDataSource\\\":false},\\\"controlType\\\":3,\\\"id\\\":\\\"4627dce7-a100-43dc-bac3-bcaa7c2c8c65\\\",\\\"webPartId\\\":\\\"d1d91016-032f-456d-98a4-721247c305e8\\\",\\\"addedFromPersistedData\\\":true},{\\\"position\\\":{\\\"layoutIndex\\\":1,\\\"zoneIndex\\\":1,\\\"sectionIndex\\\":1,\\\"sectionFactor\\\":4,\\\"controlIndex\\\":1},\\\"controlType\\\":3,\\\"id\\\":\\\"562bb57c-e3d9-4919-9cf1-bb12c5be825f\\\",\\\"webPartId\\\":\\\"d1d91016-032f-456d-98a4-721247c305e8\\\",\\\"reservedHeight\\\":269,\\\"reservedWidth\\\":364,\\\"addedFromPersistedData\\\":true,\\\"webPartData\\\":{\\\"id\\\":\\\"d1d91016-032f-456d-98a4-721247c305e8\\\",\\\"instanceId\\\":\\\"562bb57c-e3d9-4919-9cf1-bb12c5be825f\\\",\\\"title\\\":\\\"Image\\\",\\\"description\\\":\\\"Add an image, picture or photo to your page including text overlays and ability to crop and resize images.\\\",\\\"audiences\\\":[],\\\"serverProcessedContent\\\":{\\\"htmlStrings\\\":{},\\\"searchablePlainTexts\\\":{},\\\"imageSources\\\":{},\\\"links\\\":{}},\\\"dataVersion\\\":\\\"1.11\\\",\\\"properties\\\":{\\\"imageSourceType\\\":2,\\\"captionText\\\":\\\"\\\",\\\"altText\\\":\\\"\\\",\\\"linkUrl\\\":\\\"\\\",\\\"overlayText\\\":\\\"\\\",\\\"fileName\\\":\\\"\\\",\\\"siteId\\\":\\\"\\\",\\\"webId\\\":\\\"\\\",\\\"listId\\\":\\\"\\\",\\\"uniqueId\\\":\\\"\\\",\\\"imgWidth\\\":2560,\\\"imgHeight\\\":1706,\\\"overlayTextStyles\\\":{\\\"textColor\\\":\\\"light\\\",\\\"isBold\\\":false,\\\"isItalic\\\":false,\\\"textBoxColor\\\":\\\"dark\\\",\\\"textBoxOpacity\\\":0.54,\\\"overlayColor\\\":\\\"light\\\",\\\"overlayTransparency\\\":0},\\\"isOverlayTextVisible\\\":true,\\\"alignment\\\":\\\"Center\\\",\\\"cropX\\\":800,\\\"cropY\\\":0,\\\"cropWidth\\\":2560,\\\"cropHeight\\\":1706,\\\"fixAspectRatio\\\":true,\\\"advancedImageEditorData\\\":{\\\"isAdvancedEdited\\\":false},\\\"isAspectRatioLockedOnLoad\\\":false},\\\"containsDynamicDataSource\\\":false}},{\\\"controlType\\\":4,\\\"id\\\":\\\"e51aa585-b4a3-4846-b93a-de1aeb0ded3a\\\",\\\"position\\\":{\\\"layoutIndex\\\":1,\\\"zoneIndex\\\":1,\\\"sectionIndex\\\":2,\\\"sectionFactor\\\":8,\\\"controlIndex\\\":1},\\\"addedFromPersistedData\\\":true,\\\"innerHTML\\\":\\\"<h2 style=\\\\\\\"margin-left:0px;\\\\\\\">@{outputs('ParagraphSplit')[3]}\\\"},{\\\"controlType\\\":4,\\\"id\\\":\\\"932bd92a-beb0-4549-a300-e952c2904156\\\",\\\"position\\\":{\\\"layoutIndex\\\":1,\\\"zoneIndex\\\":2,\\\"sectionIndex\\\":1,\\\"controlIndex\\\":1,\\\"sectionFactor\\\":12,\\\"zoneId\\\":\\\"22420746-31cf-4432-85cd-01a4b287f669\\\"},\\\"addedFromPersistedData\\\":true,\\\"innerHTML\\\":\\\"<h2 style=\\\\\\\"margin-left:0px;\\\\\\\">@{outputs('ParagraphSplit')[4]}<h2>@{outputs('ParagraphSplit')[5]}<h2>@{outputs('ParagraphSplit')[6]}\\\"},{\\\"controlType\\\":0,\\\"pageSettingsSlice\\\":{\\\"isDefaultDescription\\\":true,\\\"isDefaultThumbnail\\\":true,\\\"isSpellCheckEnabled\\\":true,\\\"globalRichTextStylingVersion\\\":0,\\\"rtePageSettings\\\":{\\\"contentVersion\\\":5},\\\"isEmailReady\\\":false}}]\",\n    \"PageRenderingState\": {\n        \"canvasState\": {\n            \"selection\": {\n                \"layoutIndex\": 1,\n                \"zoneIndex\": 2,\n                \"control\": {\n                    \"type\": 4,\n                    \"id\": \"932bd92a-beb0-4549-a300-e952c2904156\",\n                    \"selectionRange\": {\n                        \"start\": {\n                            \"root\": \"main\",\n                            \"path\": [\n                                1,\n                                3\n                            ],\n                            \"stickiness\": \"toNone\"\n                        },\n                        \"end\": {\n                            \"root\": \"main\",\n                            \"path\": [\n                                1,\n                                3\n                            ],\n                            \"stickiness\": \"toNone\"\n                        }\n                    }\n                }\n            }\n        }\n    },\n    \"AuthorByline\": [\n        \"@{outputs('Get_my_profile_(V2)')?['body/userPrincipalName']}\"\n    ],\n    \"TopicHeader\": \"\",\n    \"Title\": \"@{triggerBody()?['cr5cd_storytitle']}\"\n}"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Get_a_row_by_ID": [
+              "Succeeded"
+            ]
+          },
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@triggerBody()?['cr5cd_storystatus']",
+                  236380001
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "eb0d5a78-388a-4f02-9517-682ed56b3cad"
+          },
+          "type": "If"
+        },
+        "Init_var_-_strCommunityHubUrl": {
+          "runAfter": {
+            "Initialize_variable_-_enhancedStory": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d219b13e-3903-463d-b77c-81e88e67499f"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "strCommunityHubUrl",
+                "type": "string",
+                "value": "@parameters('CommunityHubUrl (cr5cd_CommunityHubUrl)')"
+              }
+            ]
+          }
+        },
+        "Initialize_variable_-_enhancedStory": {
+          "runAfter": {
+            "Get_my_profile_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "e4e0ff0a-4a4e-48a8-8fad-dd9b64831bc4"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "strEnhancedStory",
+                "type": "string",
+                "value": "@triggerBody()?['cr5cd_enhancedaistory']"
+              }
+            ]
+          }
+        },
+        "Get_my_profile_(V2)": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "83604e99-93e8-4c80-8cc2-b09ecf101054"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+              "connectionName": "shared_office365users",
+              "operationId": "MyProfile_V2"
+            },
+            "parameters": {},
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
