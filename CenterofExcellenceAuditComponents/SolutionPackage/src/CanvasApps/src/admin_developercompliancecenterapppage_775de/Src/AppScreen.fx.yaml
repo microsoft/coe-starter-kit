@@ -4,77 +4,38 @@ AppScreen As screen:
         =UpdateContext({selectedKey:"missingdetails"});
         UpdateContext({ varRootName:"My Apps", varRootIcon: "List", varRootKey: "MyApps" });
 
-    diagPublish As Dialog:
+    diagDelete As Dialog:
         Buttons: |-
-            =If(
-                DateValue(vSelectedAppN.'App Modified On') = DateValue(vSelectedAppN.'App Published'),
-                Table(
-                    {
-                        Label: "Cancel",
-                        ButtonType: 'Button.ButtonType'.Standard
-                    }
-                ),
-                Table(
-                    {
-                        Label: "Publish",
-                        ButtonType: 'Button.ButtonType'.Primary
-                    },
-                    {
-                        Label: "Cancel",
-                        ButtonType: 'Button.ButtonType'.Standard
-                    }
-                )
-            )
+            =Table({Label: "Delete", ButtonType:'Button.ButtonType'.Primary},{Label: "Cancel", ButtonType:'Button.ButtonType'.Standard } )
+        ContentWidth: =diagDelete.DialogWidth
+        ContentX: = diagDelete.Width/2-diagDelete.DialogWidth/2
+        ContentY: = diagDelete.Height/2-diagDelete.DialogHeight/2+DialogHeaderContainer.Height + Label3_1.Height
         DialogHeight: =220
         DialogWidth: =500
-        Fill: =diagPublish.OverlayColor
-        Height: =App.Height
+        Fill: =diagDelete.OverlayColor
+        Height: =If(Self.Visible, App.Height, 0)
         OnButtonSelect: |-
             =Switch(
                 Self.SelectedButton.Label,
-                "Cancel",
-                UpdateContext({showPopUp: false, showRepublish: false});
-                UpdateIf('PowerApps Apps', App = vSelectedAppN.App, 
-                    {InventoryMe: 'InventoryMe (PowerApps Apps)'.Yes, 'Admin Requirement - Republish State': 'Risk Assessment State Choice'.Submitted});
-                ,
-                "Publish",
-                //show spinner
-                Set(showLoader, true);
-                Set(showLoaderText, "Republishing ...");
+                "Delete",
+                PowerAppsforMakers.RemoveApp(vSelectedAppN.App); 
+                ClearCollect(
+                    appsFromConnector,
+                    PowerAppsforMakers.GetApps({'$top':1000}).value
+                );
                 
-                //republish the app
-                PowerAppsforMakers.PublishApp(vSelectedAppN.App);
-                
-                //update inventory
-                UpdateIf('PowerApps Apps', App=vSelectedAppN.App, {'App Published': Now(), 'Admin Requirement - Republish State':'Risk Assessment State Choice'.Complete});
-                
-                //update collection
-                UpdateIf(myApps, App=vSelectedAppN.App, {'App Published': Now(), 'Admin Requirement - Republish State':'Risk Assessment State Choice'.Complete});
-                
-                //update current selection
-                Set(vSelectedAppN, LookUp(myApps, App=vSelectedAppN.App));
-                
-                //close dialog
-                Set(showLoader, false);
-                Set(showLoaderText, "");
-                UpdateContext({showPopUp: false, showRepublish: false}),
+                Back();
             
-                UpdateContext({showPopUp: false, showRepublish: false})
+                UpdateContext({showPopUp: false, confirmDeletion: false}),
+            
+                UpdateContext({showPopUp: false, confirmDeletion: false})
             )
         OnCloseSelect: |-
-            =UpdateContext({showPopUp: false, showRepublish: false});
-            UpdateIf('PowerApps Apps', App = vSelectedAppN.App,
-                    {InventoryMe: 'InventoryMe (PowerApps Apps)'.Yes, 'Admin Requirement - Republish State': 'Risk Assessment State Choice'.Submitted});
-        OverlayColor: =RGBA(0, 0, 0, 0.2)
-        SubTitle: |-
-            =If(
-                DateValue(vSelectedAppN.'App Modified On') = DateValue(vSelectedAppN.'App Published'),
-                "The latest version of the app is already published. Re-publishing is not available. Marking as Submitted",
-            
-            "Have you tested the app in current builds of the Power Platform? If so, select Publish below to mark the task as complete. If not, please test the app first.")
-        Title: ="Publish"
-        Visible: =showPopUp && showRepublish
-        Width: =App.Width
+            =UpdateContext({showPopUp: false, confirmDeletion: false})
+        SubTitle: ="Are you sure you want to delete '" & vSelectedAppN.'App Display Name' & "'? This action cannot be undone."
+        Title: ="Warning"
+        Visible: =showPopUp && confirmDeletion
+        Width: =If(Self.Visible, App.Width, 0)
 
     c_MainContent As groupContainer.verticalAutoLayoutContainer:
         Fill: =ColorValue(AppTheme.palette.white)
@@ -484,7 +445,7 @@ AppScreen As screen:
                         vSelectedAppN,
                         LookUp(
                             'PowerApps Apps',
-                            App = ThisItem.admin_appid
+                            App = ThisItem.App
                         )
                     );
                     ClearCollect(
@@ -990,6 +951,7 @@ AppScreen As screen:
             "CommandBar1_1 As 'Fluent Command Bar (1.0.19)'.pcfdataset":
                 AlignInContainer: =AlignInContainer.Stretch
                 DisplayMode: =DisplayMode.Edit
+                FillPortions: =1
                 Height: =200
                 Items: |-
                     =Table(
@@ -1901,6 +1863,9 @@ AppScreen As screen:
                                         UpdateIf('PowerApps Apps', App=vSelectedAppN.App, {'App Description': NewDescription});
                                         Set(vSelectedAppN, LookUp(myApps, App=vSelectedAppN.App));
                                     )
+                                PaddingBottom: =3
+                                PaddingLeft: =3
+                                PaddingRight: =3
                                 PaddingTop: =5
                                 PressedBorderColor: =RGBA(0, 0, 0, 0)
                                 PressedColor: =ColorFade(RGBA(135, 100, 184, 1), -30%)
@@ -2294,6 +2259,7 @@ AppScreen As screen:
                     galProperties As gallery.variableTemplateHeightGallery:
                         '#CopilotOverlayLabel': ="Filtered"
                         BorderColor: =RGBA(166, 166, 166, 1)
+                        FocusedBorderThickness: =2
                         Items: |-
                             =Table(
                                 {Key: "App Environment" , Value: Text(vSelectedAppN.'App Environment'.'Display Name')},
@@ -2563,66 +2529,100 @@ AppScreen As screen:
                                 Order: =2
                                 ZIndex: =13
 
-    "Spinner1 As 'Fluent Spinner (1.0.19) Preview'":
-        DisplayMode: =DisplayMode.Edit
-        Height: =Parent.Height
-        Label: =showLoaderText
-        Theme: =AppThemeJson
-        Visible: =showLoader
-        Width: =Parent.Width
-        X: =0
-        Y: =0
-        ZIndex: =3
-
-    diagDelete As Dialog:
+    diagPublish As Dialog:
         Buttons: |-
-            =Table({Label: "Delete", ButtonType:'Button.ButtonType'.Primary},{Label: "Cancel", ButtonType:'Button.ButtonType'.Standard } )
+            =If(
+                DateValue(vSelectedAppN.'App Modified On') = DateValue(vSelectedAppN.'App Published'),
+                Table(
+                    {
+                        Label: "Cancel",
+                        ButtonType: 'Button.ButtonType'.Standard
+                    }
+                ),
+                Table(
+                    {
+                        Label: "Publish",
+                        ButtonType: 'Button.ButtonType'.Primary
+                    },
+                    {
+                        Label: "Cancel",
+                        ButtonType: 'Button.ButtonType'.Standard
+                    }
+                )
+            )
+        ContentWidth: =diagPublish.DialogWidth
+        ContentX: = diagPublish.Width/2-diagPublish.DialogWidth/2
+        ContentY: = diagPublish.Height/2-diagPublish.DialogHeight/2+DialogHeaderContainer.Height + Label3_1.Height
         DialogHeight: =220
         DialogWidth: =500
-        Fill: =diagDelete.OverlayColor
-        Height: =App.Height
+        Fill: =diagPublish.OverlayColor
+        Height: =If(Self.Visible, App.Height, 0)
         OnButtonSelect: |-
             =Switch(
                 Self.SelectedButton.Label,
-                "Delete",
-                PowerAppsforMakers.RemoveApp(vSelectedAppN.App); 
-                ClearCollect(
-                    appsFromConnector,
-                    PowerAppsforMakers.GetApps({'$top':1000}).value
-                );
+                "Cancel",
+                UpdateContext({showPopUp: false, showRepublish: false});
+                UpdateIf('PowerApps Apps', App = vSelectedAppN.App, 
+                    {InventoryMe: 'InventoryMe (PowerApps Apps)'.Yes, 'Admin Requirement - Republish State': 'Risk Assessment State Choice'.Submitted});
+                ,
+                "Publish",
+                //show spinner
+                Set(showLoader, true);
+                Set(showLoaderText, "Republishing ...");
                 
-                Back();
+                //republish the app
+                PowerAppsforMakers.PublishApp(vSelectedAppN.App);
+                
+                //update inventory
+                UpdateIf('PowerApps Apps', App=vSelectedAppN.App, {'App Published': Now(), 'Admin Requirement - Republish State':'Risk Assessment State Choice'.Complete});
+                
+                //update collection
+                UpdateIf(myApps, App=vSelectedAppN.App, {'App Published': Now(), 'Admin Requirement - Republish State':'Risk Assessment State Choice'.Complete});
+                
+                //update current selection
+                Set(vSelectedAppN, LookUp(myApps, App=vSelectedAppN.App));
+                
+                //close dialog
+                Set(showLoader, false);
+                Set(showLoaderText, "");
+                UpdateContext({showPopUp: false, showRepublish: false}),
             
-                UpdateContext({showPopUp: false, confirmDeletion: false}),
-            
-                UpdateContext({showPopUp: false, confirmDeletion: false})
+                UpdateContext({showPopUp: false, showRepublish: false})
             )
         OnCloseSelect: |-
-            =UpdateContext({showPopUp: false, confirmDeletion: false})
-        OverlayColor: =RGBA(0, 0, 0, 0.2)
-        SubTitle: ="Are you sure you want to delete '" & vSelectedAppN.'App Display Name' & "'? This action cannot be undone."
-        Title: ="Warning"
-        Visible: =showPopUp && confirmDeletion
-        Width: =App.Width
+            =UpdateContext({showPopUp: false, showRepublish: false});
+            UpdateIf('PowerApps Apps', App = vSelectedAppN.App,
+                    {InventoryMe: 'InventoryMe (PowerApps Apps)'.Yes, 'Admin Requirement - Republish State': 'Risk Assessment State Choice'.Submitted});
+        SubTitle: |-
+            =If(
+                DateValue(vSelectedAppN.'App Modified On') = DateValue(vSelectedAppN.'App Published'),
+                "The latest version of the app is already published. Re-publishing is not available. Marking as Submitted",
+            
+            "Have you tested the app in current builds of the Power Platform? If so, select Publish below to mark the task as complete. If not, please test the app first.")
+        Title: ="Publish"
+        Visible: =showPopUp && showRepublish
+        Width: =If(Self.Visible, App.Width, 0)
         ZIndex: =4
 
     diagCantDoThat As Dialog:
         Buttons: |-
             =Table({Label: "Close", ButtonType:'Button.ButtonType'.Standard } )
+        ContentWidth: =diagCantDoThat.DialogWidth
+        ContentX: = diagCantDoThat.Width/2-diagCantDoThat.DialogWidth/2
+        ContentY: = diagCantDoThat.Height/2-diagCantDoThat.DialogHeight/2+DialogHeaderContainer.Height + Label3_1.Height
         DialogHeight: =220
         DialogWidth: =500
         Fill: =diagCantDoThat.OverlayColor
-        Height: =App.Height
+        Height: =If(Self.Visible, App.Height, 0)
         OnButtonSelect: |-
             =UpdateContext({showCantShowThat: false})
         OnCloseSelect: |-
             =UpdateContext({showCantShowThat: false})
-        OverlayColor: =RGBA(0, 0, 0, 0.2)
         SubTitle: =CantShowThatText
         Title: ="Warning"
         Visible: =showCantShowThat
-        Width: =App.Width
-        ZIndex: =6
+        Width: =If(Self.Visible, App.Width, 0)
+        ZIndex: =5
 
     c_SupportDetails As groupContainer.manualLayoutContainer:
         Height: =Parent.Height
@@ -2630,13 +2630,14 @@ AppScreen As screen:
         Width: =Parent.Width
         X: =0+0
         Y: =0+0
-        ZIndex: =7
+        ZIndex: =6
 
         panSupportDetails As Panel:
             Buttons: |-
-                =Table({Label: "Cancel", ButtonType:'Button.ButtonType'.Standard } ,{Label: "Save", ButtonType:'Button.ButtonType'.Primary})
+                =Table({Label: "Cancel", ButtonType:'Button.ButtonType'.Standard, Visible:true, Enabled:true } ,{Label: "Save", ButtonType:'Button.ButtonType'.Primary, Visible:true, Enabled:true})
             DialogWidth: =Min(800,Self.Width-64)
             Fill: =panSupportDetails.OverlayColor
+            Height: =If(Self.Visible, App.Height, 0)
             OnButtonSelect: |-
                 =If(
                     Self.SelectedButton.Label = "Save",
@@ -2660,10 +2661,7 @@ AppScreen As screen:
                 =UpdateContext({showHidePanel:false})
             Subtitle: ="Please provide additional details about your app. This may be requested by your admin."
             Title: ="Support details"
-            Width: =App.Width
-            X: =0+0
-            Y: =0+0
-            ZIndex: =1
+            Width: =If(Self.Visible, App.Width, 0)
 
         formSupportDetails As form:
             AcceptsFocus: =false
@@ -2675,10 +2673,10 @@ AppScreen As screen:
             NumberOfColumns: =2
             OnSuccess: =Notify("Your Support Details Form has been saved successfully.", NotificationType.Success)
             Visible: =panSupportDetails.Visible
-            Width: =panSupportDetails.ContentWidth+40
-            X: =panSupportDetails.ContentX-40
+            Width: =panSupportDetails.ContentWidth
+            X: =panSupportDetails.ContentX
             Y: =panSupportDetails.ContentY+60
-            ZIndex: =2
+            ZIndex: =4
 
             "'Maker Requirement - Business Justification_DataCard1_1' As typedDataCard.textualEditCard":
                 BorderColor: =RGBA(230, 230, 230, 1)
@@ -3841,13 +3839,14 @@ AppScreen As screen:
         Width: =Parent.Width
         X: =0+0
         Y: =0+0
-        ZIndex: =8
+        ZIndex: =7
 
         panEmail As Panel:
             Buttons: |-
-                =Table({Label: "Cancel", ButtonType:'Button.ButtonType'.Standard } ,{Label: "Send", ButtonType:'Button.ButtonType'.Primary})
+                =Table({Label: "Cancel", ButtonType:'Button.ButtonType'.Standard, Visible:true, Enabled:true } ,{Label: "Send", ButtonType:'Button.ButtonType'.Primary, Visible:true, Enabled:true })
             DialogWidth: =Min(640,Self.Width-64)
             Fill: =panEmail.OverlayColor
+            Height: =If(Self.Visible, App.Height, 0)
             OnButtonSelect: |-
                 =If(
                     Self.SelectedButton.Label = "Send",
@@ -3871,10 +3870,7 @@ AppScreen As screen:
                 =UpdateContext({showPopUp:false, emailUsers:false})
             Subtitle: ="Complete this form to send an email to users."
             Title: ="Email users"
-            Width: =App.Width
-            X: =0+0
-            Y: =0+0
-            ZIndex: =1
+            Width: =If(Self.Visible, App.Width, 0)
 
         c_Email As groupContainer.verticalAutoLayoutContainer:
             Height: =panEmail.ContentHeight
@@ -3883,10 +3879,10 @@ AppScreen As screen:
             LayoutMode: =LayoutMode.Auto
             PaddingLeft: =24
             PaddingRight: =Self.PaddingLeft
-            Width: =panEmail.ContentWidth+40
-            X: =panEmail.ContentX-40
+            Width: =panEmail.ContentWidth
+            X: =panEmail.ContentX
             Y: =panEmail.ContentY+40
-            ZIndex: =2
+            ZIndex: =4
 
             c_EmailSendTo As groupContainer.verticalAutoLayoutContainer:
                 FillPortions: =0
@@ -4009,7 +4005,7 @@ AppScreen As screen:
         Width: =Parent.Width
         X: =0+0
         Y: =0+0
-        ZIndex: =9
+        ZIndex: =8
 
         diagReassign As Dialog:
             Buttons: |-
@@ -4017,7 +4013,7 @@ AppScreen As screen:
             DialogHeight: =220
             DialogWidth: =500
             Fill: =diagReassign.OverlayColor
-            Height: =App.Height
+            Height: =If(Self.Visible, App.Height, 0)
             OnButtonSelect: |-
                 =Switch(
                     Self.SelectedButton.Label,
@@ -4091,11 +4087,10 @@ AppScreen As screen:
                 )
             OnCloseSelect: |-
                 =UpdateContext({showPopUp:false, showNewOwner: false})
-            OverlayColor: =RGBA(0, 0, 0, 0.2)
             SubTitle: =If(NewOwnerError, "Assigning a new owner failed. Email be invalid.", "Enter the email address of a new owner.")
             Title: ="Assign new owner"
-            Width: =App.Width
-            ZIndex: =1
+            Width: =If(Self.Visible, App.Width, 0)
+            ZIndex: =2
 
         "txtReassign As 'Text box'":
             ColorBackground: =
@@ -4106,6 +4101,17 @@ AppScreen As screen:
             Value: =""
             Width: =diagReassign.ContentWidth-24*2
             X: =diagReassign.ContentX+24
-            Y: =diagReassign.ContentY+48
-            ZIndex: =2
+            Y: =diagReassign.ContentY+5
+            ZIndex: =3
+
+    "Spinner1 As 'Fluent Spinner (1.0.19) Preview'":
+        DisplayMode: =DisplayMode.Edit
+        Height: =Parent.Height
+        Label: =showLoaderText
+        Theme: =AppThemeJson
+        Visible: =showLoader
+        Width: =Parent.Width
+        X: =0
+        Y: =0
+        ZIndex: =9
 
