@@ -7,6 +7,10 @@ Screen1 As screen:
         UpdateContext({sortOrder: SortOrder.Ascending});
         UpdateContext({sortBySchemaName: true, sortByDisplayName: false, sortByResetValue: false, sortByCurrentValue: false});
         
+        //turn off spinner
+        Set(Loader, false);
+        Set(LoaderText, "");
+        
         Clear(AugmentedVariables);
         ForAll(Filter('Environment Variable Definitions', "admin_" in 'Schema Name'),
             Collect(AugmentedVariables, 
@@ -224,16 +228,12 @@ Screen1 As screen:
                 InputEvent: =""//ctxTableEvent
                 Items: |-
                     =SortByColumns(
-                        If(Pivot.SelectedKey = "all",
-                        Filter(AugmentedVariables, SearchBox.SearchText in SchemaName || SearchBox.SearchText in DisplayName || SearchBox.SearchText in DisplayValue), 
-                        
-                        If(Pivot.SelectedKey = "tbd",
-                        Filter(AugmentedVariables, hasValue = false && (SearchBox.SearchText in SchemaName || SearchBox.SearchText in DisplayName || SearchBox.SearchText in DisplayValue)),
-                        
-                        If(Pivot.SelectedKey = "customized",
-                        Filter(AugmentedVariables, hasCurrent = true && (SearchBox.SearchText in SchemaName || SearchBox.SearchText in DisplayName || SearchBox.SearchText in DisplayValue))
-                    
-                    ))), 
+                        Search(Filter(AugmentedVariables,
+                        Or(
+                        Pivot.SelectedKey = "all",
+                        And(Pivot.SelectedKey = "tbd", hasValue = false),
+                        And(Pivot.SelectedKey = "customized",hasCurrent = true))), 
+                        SearchBox.SearchText, SchemaName, DisplayName, DisplayValue), 
                     
                     If(sortBySchemaName, "SchemaName", If(sortByDisplayName, "DisplayName", If(sortByResetValue, "DefaultValue", If(sortByCurrentValue, "DisplayValue", "SchemaName")))),
                     If(sortOrder = "ascending", SortOrder.Ascending, SortOrder.Descending))
@@ -308,14 +308,18 @@ Screen1 As screen:
     SettingsPanel As Panel:
         Buttons: |-
             =Table(
-                {Label: "Revert", ButtonType:'Button.ButtonType'.Standard},
-                {Label: "Save", ButtonType:'Button.ButtonType'.Primary}
+                {Label: "Revert", ButtonType:'Button.ButtonType'.Standard, Visible:true, Enabled:true },
+                {Label: "Save", ButtonType:'Button.ButtonType'.Primary, Visible:true, Enabled:true }
             )
         Fill: =SettingsPanel.OverlayColor
         OnButtonSelect: |-
             =Switch(Self.SelectedButton.Label,
             
             "Save", 
+            //turn on spinner
+            Set(Loader, true);
+            Set(LoaderText, "Saving");
+            
             //if current value exists, update it in data source and collection
             If(EnvVarsList.Selected.hasCurrent = true,
                 UpdateIf('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition' = EnvVarsList.Selected.DefnID, 
@@ -334,11 +338,19 @@ Screen1 As screen:
                         });
                 UpdateContext({x: "y"})); //bug in powerfx?? need this here or error
             
+            //turn off spinner
+            Set(Loader, false);
+            Set(LoaderText, "");
             
             //close panel
             UpdateContext({showPanel: false});, //end save
             
             "Revert", 
+            //turn on spinner
+            Set(Loader, true);
+            Set(LoaderText, "Reverting to default");
+            
+            
             If(EnvVarsList.Selected.hasCurrent = false || EnvVarsList.Selected.hasDefault = false, Notify("Nothing to revert, no alternate reset value exists."));
             If(EnvVarsList.Selected.hasCurrent = true && EnvVarsList.Selected.hasDefault = true,
                 RemoveIf('Environment Variable Values', 'Environment Variable Definition'.'Environment Variable Definition' = EnvVarsList.Selected.DefnID);
@@ -346,56 +358,34 @@ Screen1 As screen:
                         {CurrentValue: "", DisplayValue: EnvVarsList.Selected.DefaultValue, hasCurrent: false, hasValue: true,
                         CurrentID: "", customizedColor: ColorNo, customizedIcon: ""}););
             
+            //turn off spinner
+            Set(Loader, false);
+            Set(LoaderText, "");
+            
             //close panel
             UpdateContext({showPanel: false}); //end revert
             )
         OnCloseSelect: |-
             =UpdateContext({showPanel: false})
         Subtitle: =""
-        Theme: |-
-            ={
-            	palette: {
-            		themePrimary: "#0078d4",
-            		themeLighterAlt: "#eff6fc",
-            		themeLighter: "#deecf9",
-            		themeLight: "#c7e0f4",
-            		themeTertiary: "#71afe5",
-            		themeSecondary: "#2b88d8",
-            		themeDarkAlt: "#106ebe",
-            		themeDark: "#005a9e",
-            		themeDarker: "#004578",
-            		neutralLighterAlt: "#faf9f8",
-            		neutralLighter: "#f3f2f1",
-            		neutralLight: "#edebe9",
-            		neutralQuaternaryAlt: "#e1dfdd",
-            		neutralQuaternary: "#d0d0d0",
-            		neutralTertiaryAlt: "#c8c6c4",
-            		neutralTertiary: "#a19f9d",
-            		neutralSecondary: "#605e5c",
-            		neutralPrimaryAlt: "#3b3a39",
-            		neutralPrimary: "#323130",
-            		neutralDark: "#201f1e",
-            		black: "#000000",
-            		white: "#ffffff"
-            	}
-            }
         Title: ="Configure Environment Variable"
         Visible: =showPanel
         Width: =App.Width
-        ZIndex: =11
+        ZIndex: =2
 
     SettingsPanelContentContainer As groupContainer.verticalAutoLayoutContainer:
         Height: =SettingsPanel.ContentHeight
         LayoutAlignItems: =LayoutAlignItems.Stretch
         LayoutDirection: =LayoutDirection.Vertical
         LayoutMode: =LayoutMode.Auto
+        PaddingLeft: =20
         PaddingRight: =20
         PaddingTop: =10
         Visible: =SettingsPanel.Visible
-        Width: =SettingsPanel.ContentWidth - 20
+        Width: =SettingsPanel.ContentWidth
         X: =SettingsPanel.ContentX
         Y: =SettingsPanel.ContentY
-        ZIndex: =12
+        ZIndex: =3
 
         EnvVarName As Label:
             AutoHeight: =false
@@ -482,4 +472,18 @@ Screen1 As screen:
             X: =0
             Y: =0
             ZIndex: =6
+
+    "Spinner As 'Fluent Spinner (1.1.34)'":
+        DisplayMode: =DisplayMode.Edit
+        Height: =Parent.Height
+        Label: =LoaderText
+        LabelPosition: ='PowerCAT.Spinner.LabelPosition'.Bottom
+        SpinnerAlignment: ='PowerCAT.Spinner.SpinnerAlignment'.Center
+        SpinnerSize: ='PowerCAT.Spinner.SpinnerSize'.Small
+        Theme: =AppThemeJson
+        Visible: =Loader
+        Width: =Parent.Width
+        X: =0
+        Y: =0
+        ZIndex: =4
 
