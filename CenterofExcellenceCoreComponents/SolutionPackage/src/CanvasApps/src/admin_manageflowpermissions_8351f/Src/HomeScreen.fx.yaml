@@ -92,23 +92,89 @@ HomeScreen As screen:
         );
         
 
-    SpinnerDeleteFlows As Spinner:
-        AccessibleLabel: ="Deleting Flows"
-        BasePaletteColor: =
-        DisplayMode: =DisplayMode.Edit
-        Font: =""
-        FontColor: =
-        FontItalic: =false
-        FontStrikethrough: =false
-        FontUnderline: =false
-        FontWeight: =""
-        Height: =Parent.Height
-        Label: =ctx_DeleteMsg
-        Visible: =ctxDeleteSpinner
-        Width: =Parent.Width
-        X: =0
-        Y: =0
-        ZIndex: =1
+    dialogDeleteFlows As Dialog:
+        Buttons: |-
+            =Table(
+                {
+                    Label: "Yes",
+                    ButtonType: 'Button.ButtonType'.Primary,
+                    HasBorder: true
+                },
+                {
+                    Label: "No",
+                    ButtonType: 'Button.ButtonType'.Standard,
+                    HasBorder: true
+                }
+            )
+        DialogHeight: =250
+        DialogWidth: =400
+        Fill: =dialogDeleteFlows.OverlayColor
+        Height: =If(Self.Visible, App.Height, 0)
+        OnButtonSelect: |
+            =Switch(
+                Self.SelectedButton.Label,
+                "Yes",
+                //delete apps
+                UpdateContext(
+                    {
+                        ctx_DeleteMsg: "Deleting Flow..",
+                        ctxDeleteSpinner: true
+                    }
+                );
+                ForAll(
+                    OrphanedCheckedFlows,
+                    If(
+                        'HELPER-ObjectOperations'.Run(
+                            "none",
+                            ThisRecord.FlowName,
+                            ThisRecord.Environment,
+                            "delete",
+                            "flow"
+                        ).thereturnstring <> "pass",
+                        Collect(
+                            failedToSet,
+                            ThisRecord.FlowName
+                        )
+                    )
+                );
+                
+            //see if all deletions worked
+            If(
+                    CountRows(failedToSet) > 0,
+                    Notify(
+                        "Deleting some flows failed, try to delete via product UX",
+                        NotificationType.Error,
+                        1000
+                    );
+                    ,
+                    Refresh(Flows);
+                );
+                UpdateContext(
+                    {
+                        showDeleteSelected: false,
+                        ctxDeleteSpinner: false
+                    }
+                );
+                //Select(btnOrphanedFlows);
+            Reset(chkSelectAllOrphanedFlows);
+                Clear(OrphanedCheckedFlows);
+                Clear(failedToSet);
+                ,
+                "No",
+                UpdateContext(
+                    {
+                        showDeleteSelected: false,
+                        ctxDeleteSpinner: false
+                    }
+                );
+                
+            );
+        OnCloseSelect: |-
+            =UpdateContext({showDeleteSelected: false});
+        SubTitle: ="Are you sure you want to delete the selected Flow(s)?"
+        Title: ="Delete"
+        Visible: =showDeleteSelected
+        Width: =If(Self.Visible, App.Width, 0)
 
     Hidden_UpdateTable_Flow As Button:
         BorderColor: =
@@ -308,7 +374,7 @@ HomeScreen As screen:
         Width: =0
         X: =40
         Y: =40
-        ZIndex: =2
+        ZIndex: =1
 
     MainHomeScreenContainer As groupContainer.horizontalAutoLayoutContainer:
         DropShadow: =DropShadow.Light
@@ -319,7 +385,7 @@ HomeScreen As screen:
         RadiusTopLeft: =4
         RadiusTopRight: =4
         Width: =Parent.Width
-        ZIndex: =3
+        ZIndex: =2
 
         LeftHomeScreenContainer As groupContainer.verticalAutoLayoutContainer:
             BorderStyle: =BorderStyle.None
@@ -500,16 +566,22 @@ HomeScreen As screen:
                 "txtSearchFlows As 'Text input'":
                     Align: ='TextInputCanvas.Align'.Start
                     AlignInContainer: =AlignInContainer.Center
+                    Appearance: ="FilledDarker"
                     BasePaletteColor: =RGBA(122,138,143,0.13)
+                    BorderColor: =""
+                    BorderStyle: =""
                     DelayOutput: =true
+                    DisabledBorderColor: =""
                     DisplayMode: |-
                         =If(
                             !ctxUpdatesInProgress,
                             DisplayMode.Edit,
                             DisplayMode.Disabled
                         )
+                    FocusedBorderColor: =""
                     FontColor: =
                     Height: =32
+                    HoverBorderColor: =""
                     LayoutMinHeight: =32
                     LayoutMinWidth: =206
                     OnChange: |
@@ -521,11 +593,12 @@ HomeScreen As screen:
                         Clear(MakerCheckedFlows);
                         Clear(OrphanedCheckedFlows);
                     Placeholder: ="Search flows.."
+                    PressedBorderColor: =""
                     Type: ='TextInputCanvas.Type'.Search
                     Width: =206
                     X: =1135
                     Y: =0
-                    ZIndex: =2
+                    ZIndex: =4
 
             DetailsHomeScreenContainer As groupContainer.verticalAutoLayoutContainer:
                 DropShadow: =DropShadow.Light
@@ -910,16 +983,22 @@ HomeScreen As screen:
 
                                     "txtSrchEnvironments As 'Text input'":
                                         AccessibleLabel: ="Search Environments"
+                                        Appearance: ="FilledDarker"
                                         BasePaletteColor: =
+                                        BorderColor: =""
+                                        BorderStyle: =""
                                         DelayOutput: =true
+                                        DisabledBorderColor: =""
                                         DisplayMode: |-
                                             =If(
                                                 !ctxUpdatesInProgress,
                                                 DisplayMode.Edit,
                                                 DisplayMode.Disabled
                                             )
+                                        FocusedBorderColor: =""
                                         FontColor: =
                                         Height: =Parent.Height
+                                        HoverBorderColor: =""
                                         LayoutMinHeight: =32
                                         LayoutMinWidth: =320
                                         OnChange: |+
@@ -928,11 +1007,12 @@ HomeScreen As screen:
                                             Clear(EnvCheckedFlows);
                                             
                                         Placeholder: ="Search environments"
+                                        PressedBorderColor: =""
                                         Type: ='TextInputCanvas.Type'.Search
                                         Width: =Parent.Width-iconSort.Width-5
                                         X: =0
                                         Y: =0
-                                        ZIndex: =2
+                                        ZIndex: =4
 
                                 galEnvironments As gallery.galleryVertical:
                                     '#CopilotOverlayLabel': ="Filtered"
@@ -948,16 +1028,14 @@ HomeScreen As screen:
                                     HoverFill: =galEnvironments.Fill
                                     Items: |-
                                         =SortByColumns(
-                                            Filter(
-                                                vEnvironments,
-                                                txtSrchEnvironments.Value in 'Display Name' && 'Number Of Flows' > 0
-                                            ),
-                                            "admin_displayname",
-                                            If(
-                                                ctxSortAsc,
-                                                SortOrder.Ascending,
-                                                SortOrder.Descending
-                                            )
+                                            Search(
+                                                Filter(
+                                                    vEnvironments,
+                                                    'Number Of Flows' > 0
+                                                ),
+                                            txtSrchEnvironments.Value, 'Display Name'),
+                                        "admin_displayname",
+                                        If(ctxSortAsc, SortOrder.Ascending, SortOrder.Descending)
                                         )
                                     Layout: =Layout.Vertical
                                     LayoutMinHeight: =287
@@ -1213,12 +1291,19 @@ HomeScreen As screen:
                                     HoverFill: =galEnvFlows.Fill
                                     Items: |-
                                         =SortByColumns(
-                                            Filter(
-                                                Filter(
+                                            Search(
+                                                If(IsBlank(galEnvironments.Selected), 
+                                                    Filter(
                                                     Flows,
-                                                    'Flow Environment'.'Record GUID as String' = Text(galEnvironments.Selected.'Record GUID as String') And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No
-                                                ),
-                                                txtSearchFlows.Value in 'Display Name' || txtSearchFlows.Value in 'Flow Maker Display Name' || txtSearchFlows.Value in FlowIDString
+                                                    'Flow Environment'.'Record GUID as String' = First(galEnvironments.AllItems).'Record GUID as String' 
+                                                    And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No),
+                                        
+                                                    Filter(
+                                                    Flows,
+                                                    'Flow Environment'.'Record GUID as String' = Text(galEnvironments.Selected.'Record GUID as String') 
+                                                    And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No)),
+                                        
+                                                txtSearchFlows.Value, 'Display Name', 'Flow Maker Display Name', 'Record GUID as String'
                                             ),
                                             "admin_displayname"
                                         )
@@ -1417,6 +1502,7 @@ HomeScreen As screen:
 
                                             LinkCanvas1 As Link:
                                                 Align: ='LinkCanvas.Align'.Start
+                                                Appearance: ="Default"
                                                 AutoHeight: =false
                                                 BasePaletteColor: |-
                                                     =If(
@@ -1434,6 +1520,8 @@ HomeScreen As screen:
                                                             1
                                                         )
                                                     )
+                                                BorderColor: =""
+                                                BorderStyle: =""
                                                 DisplayMode: =DisplayMode.Edit
                                                 Font: =Font.'Segoe UI'
                                                 FontSize: =14
@@ -1450,6 +1538,7 @@ HomeScreen As screen:
                                                 ZIndex: =1
 
                                             ButtonCanvas1_2 As Button:
+                                                Align: =""
                                                 Appearance: ='ButtonCanvas.Appearance'.Transparent
                                                 BasePaletteColor: |-
                                                     =//RGBA(66, 66, 66,1)
@@ -1459,7 +1548,11 @@ HomeScreen As screen:
                                                         116,
                                                         1
                                                     )
+                                                BorderColor: =""
+                                                BorderStyle: =""
+                                                DisabledBorderColor: =""
                                                 DisplayMode: =DisplayMode.Edit
+                                                FocusedBorderColor: =""
                                                 Font: =Font.'Segoe UI'
                                                 FontColor: |-
                                                     =If(
@@ -1481,8 +1574,15 @@ HomeScreen As screen:
                                                 FontUnderline: =true
                                                 FontWeight: =FontWeight.Normal
                                                 Height: =35
+                                                HoverBorderColor: =""
+                                                Icon: =""
+                                                IconRotation: =0
+                                                IconStyle: ="Outline"
+                                                Layout: ="Icon before"
                                                 OnSelect: =Select(galEnvFlows)
+                                                PressedBorderColor: =""
                                                 Text: =""
+                                                VerticalAlign: =""
                                                 Width: =Parent.Width
                                                 X: =0
                                                 Y: =0
@@ -1491,11 +1591,13 @@ HomeScreen As screen:
                                         lblOwner As label:
                                             BorderColor: =RGBA(218,218,218,1.00)
                                             BorderStyle: =BorderStyle.None
+                                            BorderThickness: =2
                                             Color: =RGBA(47,41,43,1)
                                             DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                             DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                             FillPortions: =1
                                             FocusedBorderColor: =lblOwner.BorderColor
+                                            FocusedBorderThickness: =2
                                             Font: =Font.'Segoe UI'
                                             Height: =35
                                             HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -1517,11 +1619,13 @@ HomeScreen As screen:
                                         lblFlowID As label:
                                             BorderColor: =RGBA(218,218,218,1.00)
                                             BorderStyle: =BorderStyle.None
+                                            BorderThickness: =2
                                             Color: =RGBA(47,41,43,1)
                                             DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                             DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                             FillPortions: =1.5
                                             FocusedBorderColor: =lblFlowID.BorderColor
+                                            FocusedBorderThickness: =2
                                             Font: =Font.'Segoe UI'
                                             Height: =35
                                             HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -1537,7 +1641,7 @@ HomeScreen As screen:
                                             PressedColor: =RGBA(4,45,81,1.00)
                                             PressedFill: =RGBA(0, 0, 0, 0)
                                             Size: =10
-                                            Text: =ThisItem.Flow
+                                            Text: =ThisItem.'Record GUID as String'
                                             Tooltip: =ThisItem.Flow
                                             Width: =314
                                             Wrap: =false
@@ -1609,16 +1713,22 @@ HomeScreen As screen:
                                     "txtSrchOwners As 'Text input'":
                                         AccessibleLabel: ="Search owners"
                                         AlignInContainer: =AlignInContainer.Center
+                                        Appearance: ="FilledDarker"
                                         BasePaletteColor: =
+                                        BorderColor: =""
+                                        BorderStyle: =""
                                         DelayOutput: =true
+                                        DisabledBorderColor: =""
                                         DisplayMode: |-
                                             =If(
                                                 !ctxUpdatesInProgress,
                                                 DisplayMode.Edit,
                                                 DisplayMode.Disabled
                                             )
+                                        FocusedBorderColor: =""
                                         FontColor: =
                                         Height: =32
+                                        HoverBorderColor: =""
                                         LayoutMinHeight: =32
                                         LayoutMinWidth: =320
                                         OnChange: |-
@@ -1626,6 +1736,7 @@ HomeScreen As screen:
                                             Reset(chkSelectAllFlow);
                                             Clear(MakerCheckedFlows);
                                         Placeholder: ="Search owners"
+                                        PressedBorderColor: =""
                                         Type: ='TextInputCanvas.Type'.Search
                                         Visible: =true
                                         Width: |-
@@ -1633,7 +1744,7 @@ HomeScreen As screen:
                                             Parent.Width-iconSortOwners.Width-10    
                                         X: =0
                                         Y: =0
-                                        ZIndex: =2
+                                        ZIndex: =4
 
                                 galMakers As gallery.galleryVertical:
                                     '#CopilotOverlayLabel': ="Filtered"
@@ -1649,9 +1760,9 @@ HomeScreen As screen:
                                     HoverFill: =galMakers.Fill
                                     Items: |-
                                         =SortByColumns(
-                                            Filter(
+                                            Search(
                                                 colMakersAddedCols,
-                                                txtSrchOwners.Value in admin_displayname
+                                                txtSrchOwners.Value, admin_displayname
                                             ),
                                             "admin_displayname",
                                             If(
@@ -1946,12 +2057,19 @@ HomeScreen As screen:
                                     HoverFill: =galFlowsMaker.Fill
                                     Items: |-
                                         =SortByColumns(
-                                            Filter(
-                                                Filter(
+                                            Search(
+                                                If(IsBlank(galMakers.Selected), 
+                                                    Filter(
                                                     Flows,
-                                                    ((Maker.Maker = galMakers.Selected.admin_makerid And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And (DerivedOwner.Maker) = GUID()) || ((DerivedOwner.Maker = galMakers.Selected.admin_makerid And 'Flow Deleted' = 'Flow Deleted (Flows)'.No)) And 'Flow is Published' <> 'Flow is Published (Flows)'.No)
-                                                ),
-                                                txtSearchFlows.Value in 'Display Name' || txtSearchFlows.Value in 'Flow Maker Display Name' || txtSearchFlows.Value in FlowIDString || txtSearchFlows.Value in 'Flow Environment Display Name'
+                                                    DerivedOwner.Maker = First(galMakers.AllItems).admin_makerid 
+                                                    And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No),
+                                         
+                                                    Filter(
+                                                    Flows,
+                                                    DerivedOwner.Maker = galMakers.Selected.admin_makerid 
+                                                    And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No)),
+                                         
+                                                txtSearchFlows.Value, 'Display Name', 'Flow Maker Display Name', 'Record GUID as String'
                                             ),
                                             "admin_displayname"
                                         )
@@ -2123,6 +2241,7 @@ HomeScreen As screen:
 
                                             LinkCanvas1_1 As Link:
                                                 Align: ='LinkCanvas.Align'.Start
+                                                Appearance: ="Default"
                                                 AutoHeight: =false
                                                 BasePaletteColor: |-
                                                     =If(
@@ -2140,6 +2259,8 @@ HomeScreen As screen:
                                                             1
                                                         )
                                                     )
+                                                BorderColor: =""
+                                                BorderStyle: =""
                                                 DisplayMode: =DisplayMode.Edit
                                                 Font: =Font.'Segoe UI'
                                                 FontSize: =14
@@ -2155,17 +2276,29 @@ HomeScreen As screen:
                                                 ZIndex: =1
 
                                             ButtonCanvas1_3 As Button:
+                                                Align: =""
                                                 Appearance: ='ButtonCanvas.Appearance'.Transparent
                                                 BasePaletteColor: =RGBA(66, 66, 66,1)
+                                                BorderColor: =""
+                                                BorderStyle: =""
+                                                DisabledBorderColor: =""
                                                 DisplayMode: =DisplayMode.Edit
+                                                FocusedBorderColor: =""
                                                 Font: =Font.'Segoe UI'
                                                 FontColor: =RGBA(66, 66, 66,1)
                                                 FontSize: =10
                                                 FontUnderline: =true
                                                 FontWeight: =FontWeight.Normal
                                                 Height: =35
+                                                HoverBorderColor: =""
+                                                Icon: =""
+                                                IconRotation: =0
+                                                IconStyle: ="Outline"
+                                                Layout: ="Icon before"
                                                 OnSelect: =Select(galFlowsMaker)
+                                                PressedBorderColor: =""
                                                 Text: =""
+                                                VerticalAlign: =""
                                                 Width: =Parent.Width
                                                 X: =0
                                                 Y: =0
@@ -2174,11 +2307,13 @@ HomeScreen As screen:
                                         lblEnvironment As label:
                                             BorderColor: =RGBA(218,218,218,1.00)
                                             BorderStyle: =BorderStyle.None
+                                            BorderThickness: =2
                                             Color: =RGBA(47,41,43,1)
                                             DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                             DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                             FillPortions: =1
                                             FocusedBorderColor: =lblEnvironment.BorderColor
+                                            FocusedBorderThickness: =2
                                             Font: =Font.'Segoe UI'
                                             Height: =35
                                             HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -2203,11 +2338,13 @@ HomeScreen As screen:
                                         lblFlowAppID As label:
                                             BorderColor: =RGBA(218,218,218,1.00)
                                             BorderStyle: =BorderStyle.None
+                                            BorderThickness: =2
                                             Color: =RGBA(47,41,43,1)
                                             DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                             DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                             FillPortions: =1
                                             FocusedBorderColor: =lblFlowAppID.BorderColor
+                                            FocusedBorderThickness: =2
                                             Font: =Font.'Segoe UI'
                                             Height: =35
                                             HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -2222,7 +2359,7 @@ HomeScreen As screen:
                                             PressedColor: =RGBA(4,45,81,1.00)
                                             PressedFill: =RGBA(0, 0, 0, 0)
                                             Size: =10
-                                            Text: =ThisItem.Flow
+                                            Text: =ThisItem.'Record GUID as String'
                                             Tooltip: =ThisItem.Flow
                                             Width: =261
                                             Wrap: =false
@@ -2382,6 +2519,9 @@ HomeScreen As screen:
                                     PressedFill: =lblAppTitle_8.Fill
                                     Size: =11
                                     Text: ="Number of editors"
+                                    Visible: |-
+                                        =//FIX UP WITIH SHARED WITH CODE
+                                        false
                                     Width: =151
                                     X: =617
                                     ZIndex: =8
@@ -2427,12 +2567,22 @@ HomeScreen As screen:
                                 HoverFill: =galOrphanedFlows.Fill
                                 Items: |-
                                     =SortByColumns(
-                                        Filter(
+                                        If(
+                                            !IsBlank(txtSearchFlows.Value),
+                                            Search(
+                                                Filter(
+                                                    Flows,
+                                                    'Flow is Orphaned' = "Yes" And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No
+                                                ),
+                                                txtSearchFlows.Value,
+                                                'Display Name',
+                                                FlowIDString,
+                                                'Flow Environment Display Name'
+                                            ),
                                             Filter(
                                                 Flows,
                                                 'Flow is Orphaned' = "Yes" And 'Flow Deleted' = 'Flow Deleted (Flows)'.No And 'Flow is Published' <> 'Flow is Published (Flows)'.No
-                                            ),
-                                            txtSearchFlows.Value in 'Display Name' || txtSearchFlows.Value in FlowIDString || txtSearchFlows.Value in 'Flow Environment Display Name'
+                                            )
                                         ),
                                         "admin_displayname"
                                     )
@@ -2600,6 +2750,7 @@ HomeScreen As screen:
                                         ZIndex: =2
 
                                         LinkCanvas1_2 As Link:
+                                            Appearance: ="Default"
                                             AutoHeight: =false
                                             BasePaletteColor: |-
                                                 =If(
@@ -2617,6 +2768,8 @@ HomeScreen As screen:
                                                         1
                                                     )
                                                 )
+                                            BorderColor: =""
+                                            BorderStyle: =""
                                             DisplayMode: =DisplayMode.View
                                             Font: =Font.'Segoe UI'
                                             FontSize: =14
@@ -2632,17 +2785,29 @@ HomeScreen As screen:
                                             ZIndex: =1
 
                                         ButtonCanvas1_4 As Button:
+                                            Align: =""
                                             Appearance: ='ButtonCanvas.Appearance'.Transparent
                                             BasePaletteColor: =RGBA(66, 66, 66,1)
+                                            BorderColor: =""
+                                            BorderStyle: =""
+                                            DisabledBorderColor: =""
                                             DisplayMode: =DisplayMode.Edit
+                                            FocusedBorderColor: =""
                                             Font: =Font.'Segoe UI'
                                             FontColor: =RGBA(66, 66, 66,1)
                                             FontSize: =10
                                             FontUnderline: =true
                                             FontWeight: =FontWeight.Normal
                                             Height: =35
+                                            HoverBorderColor: =""
+                                            Icon: =""
+                                            IconRotation: =0
+                                            IconStyle: ="Outline"
+                                            Layout: ="Icon before"
                                             OnSelect: =Select(galOrphanedFlows)
+                                            PressedBorderColor: =""
                                             Text: =""
+                                            VerticalAlign: =""
                                             Width: =Parent.Width
                                             X: =0
                                             Y: =0
@@ -2652,11 +2817,13 @@ HomeScreen As screen:
                                         AlignInContainer: =AlignInContainer.Start
                                         BorderColor: =RGBA(218,218,218,1.00)
                                         BorderStyle: =BorderStyle.None
+                                        BorderThickness: =2
                                         Color: =RGBA(47,41,43,1)
                                         DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                         DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                         FillPortions: =1
                                         FocusedBorderColor: =lblLastLaunched_1.BorderColor
+                                        FocusedBorderThickness: =2
                                         Font: =Font.'Segoe UI'
                                         Height: =35
                                         HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -2680,11 +2847,13 @@ HomeScreen As screen:
                                         AlignInContainer: =AlignInContainer.Stretch
                                         BorderColor: =RGBA(218,218,218,1.00)
                                         BorderStyle: =BorderStyle.None
+                                        BorderThickness: =2
                                         Color: =RGBA(47,41,43,1)
                                         DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                         DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                         FillPortions: =1
                                         FocusedBorderColor: =lblOwner_3.BorderColor
+                                        FocusedBorderThickness: =2
                                         Font: =Font.'Segoe UI'
                                         Height: =50
                                         HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -2719,6 +2888,9 @@ HomeScreen As screen:
                                                 ),
                                                 Blank()
                                             )
+                                        Visible: |-
+                                            =//FIX UP WITIH SHARED WITH CODE
+                                            false
                                         Width: =1
                                         ZIndex: =5
 
@@ -2726,11 +2898,13 @@ HomeScreen As screen:
                                         AlignInContainer: =AlignInContainer.Stretch
                                         BorderColor: =RGBA(218,218,218,1.00)
                                         BorderStyle: =BorderStyle.None
+                                        BorderThickness: =2
                                         Color: =RGBA(47,41,43,1)
                                         DisabledBorderColor: =RGBA(0, 0, 0, 0)
                                         DisabledColor: =ColorFade(RGBA(47, 41, 43, 1), 70)
                                         FillPortions: =1
                                         FocusedBorderColor: =lblFlowID_3.BorderColor
+                                        FocusedBorderThickness: =2
                                         Font: =Font.'Segoe UI'
                                         Height: =35
                                         HoverBorderColor: =RGBA(0, 0, 0, 0)
@@ -2753,10 +2927,20 @@ HomeScreen As screen:
 
                     btnOrphanedFlows As Button:
                         AccessibleLabel: ="Button to Refresh Orphaned Flows"
+                        Align: =""
                         BasePaletteColor: =
+                        BorderColor: =""
+                        BorderStyle: =""
+                        DisabledBorderColor: =""
                         DisplayMode: =DisplayMode.Edit
+                        FocusedBorderColor: =""
                         FontColor: =
                         Height: =32
+                        HoverBorderColor: =""
+                        Icon: =""
+                        IconRotation: =0
+                        IconStyle: ="Outline"
+                        Layout: ="Icon before"
                         LayoutMinHeight: =32
                         LayoutMinWidth: =96
                         OnSelect: |-
@@ -2804,6 +2988,8 @@ HomeScreen As screen:
                                     "admin_displayname"
                                 )
                             )
+                        PressedBorderColor: =""
+                        VerticalAlign: =""
                         Visible: =false
                         Width: =96
                         X: =0
@@ -3528,9 +3714,15 @@ HomeScreen As screen:
 
                     ddUserRole As Dropdown.pcfdataset:
                         AlignInContainer: =AlignInContainer.Stretch
+                        Appearance: ="FilledDarker"
+                        BorderColor: =""
+                        BorderStyle: =""
                         DefaultSelectedItems: =["Can View"]
+                        DisabledBorderColor: =""
                         DisplayMode: =DisplayMode.Edit
+                        FocusedBorderColor: =""
                         Height: =32
+                        HoverBorderColor: =""
                         Items: |-
                             =If(
                                 selectedTab = "Orphaned flows",
@@ -3546,6 +3738,7 @@ HomeScreen As screen:
                             )
                         LayoutMinHeight: =32
                         LayoutMinWidth: =320
+                        PressedBorderColor: =""
                         Width: =320
                         X: =0
                         Y: =0
@@ -3573,7 +3766,11 @@ HomeScreen As screen:
                             ZIndex: =2
 
                         btnAddUser As Button:
+                            Align: =""
                             BasePaletteColor: =
+                            BorderColor: =""
+                            BorderStyle: =""
+                            DisabledBorderColor: =""
                             DisplayMode: |-
                                 =//If(!false && !IsBlank(ddSelectedRole_2.Selected.Key),DisplayMode.Edit,DisplayMode.Disabled)
                                 /*IfError(
@@ -3586,11 +3783,17 @@ HomeScreen As screen:
                                     DisplayMode.Edit,
                                     DisplayMode.Disabled
                                 )
+                            FocusedBorderColor: =""
                             Font: ="'Segoe UI', 'Open Sans', sans-serif"
                             FontColor: =
                             FontSize: =12
                             FontWeight: =FontWeight.Normal
                             Height: =32
+                            HoverBorderColor: =""
+                            Icon: =""
+                            IconRotation: =0
+                            IconStyle: ="Outline"
+                            Layout: ="Icon before"
                             OnSelect: |
                                 =UpdateContext(
                                     {
@@ -3734,94 +3937,29 @@ HomeScreen As screen:
                                 UpdateContext({var_ShowSpinner: false});
                                 UpdateContext({ctxUpdatesInProgress: false});
                                 Clear(failedToSet);
+                            PressedBorderColor: =""
                             Text: =If(IsBlank(SelectedUserID),"Add User","Update permission")
+                            VerticalAlign: =""
                             Width: =If(Self.Text="Update permission",126,80)
                             X: =0
                             Y: =Parent.Height - Self.Height -10
                             ZIndex: =3
 
-    dialogDeleteApps As Dialog:
-        Buttons: |-
-            =Table(
-                {
-                    Label: "Yes",
-                    ButtonType: 'Button.ButtonType'.Primary,
-                    HasBorder: true
-                },
-                {
-                    Label: "No",
-                    ButtonType: 'Button.ButtonType'.Standard,
-                    HasBorder: true
-                }
-            )
-        DialogHeight: =250
-        DialogWidth: =400
-        Fill: =dialogDeleteApps.OverlayColor
-        Height: =App.Height
-        OnButtonSelect: |
-            =Switch(
-                Self.SelectedButton.Label,
-                "Yes",
-                //delete apps
-                UpdateContext(
-                    {
-                        ctx_DeleteMsg: "Deleting Flow..",
-                        ctxDeleteSpinner: true
-                    }
-                );
-                ForAll(
-                    OrphanedCheckedFlows,
-                    If(
-                        'HELPER-ObjectOperations'.Run(
-                            "none",
-                            ThisRecord.FlowName,
-                            ThisRecord.Environment,
-                            "delete",
-                            "flow"
-                        ).thereturnstring <> "pass",
-                        Collect(
-                            failedToSet,
-                            ThisRecord.FlowName
-                        )
-                    )
-                );
-                
-            //see if all deletions worked
-            If(
-                    CountRows(failedToSet) > 0,
-                    Notify(
-                        "Deleting some flows failed, try to delete via product UX",
-                        NotificationType.Error,
-                        1000
-                    );
-                    ,
-                    Refresh(Flows);
-                );
-                UpdateContext(
-                    {
-                        showDeleteSelected: false,
-                        ctxDeleteSpinner: false
-                    }
-                );
-                //Select(btnOrphanedFlows);
-            Reset(chkSelectAllOrphanedFlows);
-                Clear(OrphanedCheckedFlows);
-                Clear(failedToSet);
-                ,
-                "No",
-                UpdateContext(
-                    {
-                        showDeleteSelected: false,
-                        ctxDeleteSpinner: false
-                    }
-                );
-                
-            );
-        OnCloseSelect: |
-            =UpdateContext({showDeleteSelected: false});
-        SubTitle: ="    Are you sure you want to delete the selected Flow(s)?"
-        Title: =""
-        Visible: =showDeleteSelected
-        Width: =App.Width
+    SpinnerDeleteFlows As Spinner:
+        AccessibleLabel: ="Deleting Flows"
+        BasePaletteColor: =
+        DisplayMode: =DisplayMode.Edit
+        Font: =""
+        FontColor: =
+        FontItalic: =false
+        FontStrikethrough: =false
+        FontUnderline: =false
+        FontWeight: =""
+        Height: =Parent.Height
+        Label: =ctx_DeleteMsg
+        Visible: =ctxDeleteSpinner
+        Width: =Parent.Width
+        X: =0
+        Y: =0
         ZIndex: =4
 
