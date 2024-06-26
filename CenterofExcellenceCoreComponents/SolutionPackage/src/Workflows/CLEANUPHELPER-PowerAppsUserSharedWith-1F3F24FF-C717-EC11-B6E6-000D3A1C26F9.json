@@ -37,15 +37,6 @@
           "name": "shared_powerappsforadmins"
         }
       },
-      "shared_webcontents": {
-        "runtimeSource": "embedded",
-        "connection": {
-          "connectionReferenceLogicalName": "admin_CoECoreHTTPWithAzureAD"
-        },
-        "api": {
-          "name": "shared_webcontents"
-        }
-      },
       "shared_commondataserviceforapps_2": {
         "runtimeSource": "embedded",
         "connection": {
@@ -55,6 +46,15 @@
           "name": "shared_commondataserviceforapps"
         }
       },
+      "shared_office365groups": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreO365Groups"
+        },
+        "api": {
+          "name": "shared_office365groups"
+        }
+      },
       "shared_office365users_1": {
         "runtimeSource": "embedded",
         "connection": {
@@ -62,6 +62,15 @@
         },
         "api": {
           "name": "shared_office365users"
+        }
+      },
+      "shared_webcontents": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "admin_CoECoreHTTPWithAzureAD"
+        },
+        "api": {
+          "name": "shared_webcontents"
         }
       }
     },
@@ -664,17 +673,6 @@
                       "actions": {
                         "Ensure_all_Users_exist": {
                           "actions": {
-                            "Filter_out_Tenant_User": {
-                              "runAfter": {},
-                              "metadata": {
-                                "operationMetadataId": "b54bddce-ff6f-4a74-9f05-33e7327f8ab7"
-                              },
-                              "type": "Query",
-                              "inputs": {
-                                "from": "@outputs('Get_App_Role_Assignments_as_Admin')?['body/value']",
-                                "where": "@not(equals(item()?['properties/principal/type'], 'Tenant'))"
-                              }
-                            },
                             "Actual_Users": {
                               "runAfter": {
                                 "Filter_out_Tenant_User": [
@@ -718,31 +716,9 @@
                                     "Group": {
                                       "case": "Group",
                                       "actions": {
-                                        "ListGroupMembersTransitive": {
-                                          "runAfter": {},
-                                          "metadata": {
-                                            "operationMetadataId": "473a0b49-614a-4ab8-9e7f-fabfb92a68de"
-                                          },
-                                          "type": "OpenApiConnection",
-                                          "inputs": {
-                                            "host": {
-                                              "connectionName": "shared_webcontents",
-                                              "operationId": "InvokeHttp",
-                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
-                                            },
-                                            "parameters": {
-                                              "request/method": "GET",
-                                              "request/url": "@{parameters('Graph URL Environment Variable (admin_GraphURLEnvironmentVariable)')}v1.0/groups/@{items('Apply_to_each_new_User_to_Add')?['UserID']}/transitivemembers?$select=odata.type, id, userType"
-                                            },
-                                            "authentication": {
-                                              "type": "Raw",
-                                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
-                                            }
-                                          }
-                                        },
                                         "Upsert_Group_as_Orphan": {
                                           "runAfter": {
-                                            "ListGroupMembersTransitive": [
+                                            "List_group_members": [
                                               "Failed"
                                             ]
                                           },
@@ -775,35 +751,9 @@
                                         },
                                         "Enter_Group_Info": {
                                           "actions": {
-                                            "Filter_to_just_type_users": {
-                                              "runAfter": {},
-                                              "metadata": {
-                                                "operationMetadataId": "7812b59b-5565-42fc-90e1-32322f07e012"
-                                              },
-                                              "type": "Query",
-                                              "inputs": {
-                                                "from": "@outputs('ListGroupMembersTransitive')?['body/value']",
-                                                "where": "@equals(item()?['@odata.type'], '#microsoft.graph.user')"
-                                              }
-                                            },
-                                            "Filter_to_Guest_Users": {
-                                              "runAfter": {
-                                                "Filter_to_just_type_users": [
-                                                  "Succeeded"
-                                                ]
-                                              },
-                                              "metadata": {
-                                                "operationMetadataId": "b2edcec7-6e2f-4ea6-a16b-07637694007a"
-                                              },
-                                              "type": "Query",
-                                              "inputs": {
-                                                "from": "@body('Filter_to_just_type_users')",
-                                                "where": "@equals(item()?['userType'], 'Guest')"
-                                              }
-                                            },
                                             "Upsert_New_Group": {
                                               "runAfter": {
-                                                "Filter_to_Guest_Users": [
+                                                "flat_group_has_guests": [
                                                   "Succeeded"
                                                 ]
                                               },
@@ -821,8 +771,8 @@
                                                   "entityName": "admin_powerplatformusers",
                                                   "recordId": "@items('Apply_to_each_new_User_to_Add')?['UserID']",
                                                   "item/admin_displayname": "@items('Apply_to_each_new_User_to_Add')?['UserName']",
-                                                  "item/admin_groupsize": "@length(body('Filter_to_just_type_users'))",
-                                                  "item/admin_grouphasguestusers": "@if(equals(length(body('Filter_to_Guest_Users')), 0), false, true)",
+                                                  "item/admin_groupsize": "@outputs('flat_group_size')",
+                                                  "item/admin_grouphasguestusers": "@outputs('flat_group_has_guests')",
                                                   "item/admin_recordguidasstring": "@items('Apply_to_each_new_User_to_Add')?['UserID']",
                                                   "item/admin_type": "@items('Apply_to_each_new_User_to_Add')?['UserType']",
                                                   "item/admin_userisorphaned": false,
@@ -833,6 +783,27 @@
                                                   "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
                                                 }
                                               }
+                                            },
+                                            "flat_group_size": {
+                                              "runAfter": {},
+                                              "metadata": {
+                                                "operationMetadataId": "88ff6588-739e-4cd3-93ff-a540a6b12dd4"
+                                              },
+                                              "type": "Compose",
+                                              "inputs": "@length(outputs('List_group_members')?['body/value'])"
+                                            },
+                                            "flat_group_has_guests": {
+                                              "runAfter": {
+                                                "flat_group_size": [
+                                                  "Succeeded"
+                                                ]
+                                              },
+                                              "metadata": {
+                                                "operationMetadataId": "22810b04-1ade-4640-9596-72b639861fce"
+                                              },
+                                              "type": "Compose",
+                                              "inputs": "@false",
+                                              "description": "Cannot determine for flat so default to false"
                                             }
                                           },
                                           "runAfter": {
@@ -844,6 +815,32 @@
                                             "operationMetadataId": "9f98715f-4fb0-4d7c-bf5c-e87b9b69b4da"
                                           },
                                           "type": "Scope"
+                                        },
+                                        "List_group_members": {
+                                          "runAfter": {},
+                                          "metadata": {
+                                            "operationMetadataId": "b4f00fde-f0d9-4f9f-bbce-c8b6319215fc"
+                                          },
+                                          "type": "OpenApiConnection",
+                                          "inputs": {
+                                            "host": {
+                                              "connectionName": "shared_office365groups",
+                                              "operationId": "ListGroupMembers",
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365groups"
+                                            },
+                                            "parameters": {
+                                              "groupId": "@items('Apply_to_each_new_User_to_Add')?['UserID']"
+                                            },
+                                            "authentication": {
+                                              "type": "Raw",
+                                              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                            }
+                                          },
+                                          "runtimeConfiguration": {
+                                            "paginationPolicy": {
+                                              "minimumItemCount": 100000
+                                            }
+                                          }
                                         }
                                       }
                                     },
@@ -1052,6 +1049,32 @@
                                 "operationMetadataId": "02e8cffb-7cf4-4e39-8a2f-2d7a7bfc5194"
                               },
                               "type": "Foreach"
+                            },
+                            "Filter_out_Viral_User": {
+                              "runAfter": {},
+                              "metadata": {
+                                "operationMetadataId": "dd6bc1e0-e12b-47f2-841d-dab0d30688e9"
+                              },
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@outputs('Get_App_Role_Assignments_as_Admin')?['body/value']",
+                                "where": "@not(equals(substring(item()?['name'], 0, 6), 'viral-'))"
+                              }
+                            },
+                            "Filter_out_Tenant_User": {
+                              "runAfter": {
+                                "Filter_out_Viral_User": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "b54bddce-ff6f-4a74-9f05-33e7327f8ab7"
+                              },
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@body('Filter_out_Viral_User')",
+                                "where": "@not(equals(item()?['properties/principal/type'], 'Tenant'))"
+                              }
                             }
                           },
                           "runAfter": {},
@@ -1223,7 +1246,7 @@
                               },
                               "type": "Query",
                               "inputs": {
-                                "from": "@outputs('Get_App_Role_Assignments_as_Admin')?['body/value']",
+                                "from": "@body('Filter_out_Viral_User')",
                                 "where": "@not(equals(item()?['properties/principal/type'], 'Tenant'))"
                               }
                             }
@@ -1242,7 +1265,7 @@
                           "actions": {
                             "Update_app_sharing_counts": {
                               "runAfter": {
-                                "Editor_count": [
+                                "Owner_info": [
                                   "Succeeded"
                                 ]
                               },
@@ -1262,6 +1285,7 @@
                                   "item/admin_appsharededitors": "@outputs('Sum_total_users_Editors')",
                                   "item/admin_appsharedgroups": "@length(body('Filter_to_Groups'))",
                                   "item/admin_appsharedguesteditor": "@if(equals(length(body('Filter_to_Guests_Editors')), 0), false, true)",
+                                  "item/admin_appsharedguestowner": "@if(equals(length(body('Filter_to_Guests_Owner')), 0), false, true)",
                                   "item/admin_appsharedguestuser": "@if(equals(length(body('Filter_to_Guests')), 0), false, true)",
                                   "item/admin_appsharedusers": "@outputs('Sum_total_users')",
                                   "item/admin_appsharedwithtenant": "@outputs('Actual_shows_Shared_with_Tenant')"
@@ -1421,7 +1445,7 @@
                                     "parameters": {
                                       "entityName": "admin_powerplatformuserroles",
                                       "$select": "admin_powerplatformuserroleid, admin_rolename",
-                                      "$filter": "_admin_app_value eq @{outputs('Get_a_record')?['body/admin_appid']} and admin_rolename eq 'CanEdit'",
+                                      "$filter": "_admin_app_value eq @{outputs('Get_a_record')?['body/admin_appid']} and (admin_rolename eq 'CanEdit' or admin_rolename eq 'Owner')",
                                       "$expand": "admin_PowerPlatformUser($select=admin_grouphasguestusers, admin_userisguest, admin_groupsize, admin_type)"
                                     },
                                     "authentication": {
@@ -1527,6 +1551,58 @@
                               },
                               "runAfter": {
                                 "Total_user_count": [
+                                  "Succeeded"
+                                ]
+                              },
+                              "metadata": {
+                                "operationMetadataId": "a739c2f6-f207-4fbe-97d5-e133c390547b"
+                              },
+                              "type": "Scope"
+                            },
+                            "Owner_info": {
+                              "actions": {
+                                "List_updated_role_list_for_this_app_owner": {
+                                  "runAfter": {},
+                                  "metadata": {
+                                    "operationMetadataId": "d8da4fe0-175f-4c91-864d-17b5cd73878f"
+                                  },
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connectionName": "shared_commondataserviceforapps_2",
+                                      "operationId": "ListRecords",
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                                    },
+                                    "parameters": {
+                                      "entityName": "admin_powerplatformuserroles",
+                                      "$select": "admin_powerplatformuserroleid, admin_rolename",
+                                      "$filter": "_admin_app_value eq @{outputs('Get_a_record')?['body/admin_appid']} and admin_rolename eq 'Owner'",
+                                      "$expand": "admin_PowerPlatformUser($select=admin_grouphasguestusers, admin_userisguest, admin_groupsize, admin_type)"
+                                    },
+                                    "authentication": {
+                                      "type": "Raw",
+                                      "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']"
+                                    }
+                                  }
+                                },
+                                "Filter_to_Guests_Owner": {
+                                  "runAfter": {
+                                    "List_updated_role_list_for_this_app_owner": [
+                                      "Succeeded"
+                                    ]
+                                  },
+                                  "metadata": {
+                                    "operationMetadataId": "8ba06a41-6676-43fa-b981-e00bdc311580"
+                                  },
+                                  "type": "Query",
+                                  "inputs": {
+                                    "from": "@outputs('List_updated_role_list_for_this_app_owner')?['body/value']",
+                                    "where": "@equals(item()?['admin_powerplatformuser/admin_userisguest'], true)"
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Editor_count": [
                                   "Succeeded"
                                 ]
                               },
