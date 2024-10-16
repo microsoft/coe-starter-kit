@@ -1206,6 +1206,7 @@ class DevOpsCommand {
     }
 
     async getGitCommitChanges(args: DevOpsBranchArguments, gitApi: gitm.IGitApi, projectRepo: GitRepository, pipelineRepo: GitRepository, sourceBranch: string, destinationBranch: string, defaultBranch: string, names: string[]): Promise<GitChange[]> {
+        const personalAccessTokenRegexp = /^.{76}AZDO.{4}$/;
         let pipelineProject = args.pipelineProject?.length > 0 ? args.pipelineProject : args.projectName
         let results: GitChange[] = []
 
@@ -1215,7 +1216,7 @@ class DevOpsCommand {
                 'Authorization': `Bearer ${accessToken}`
             }
         }
-        if (accessToken.length === 52) {
+        if (accessToken.length === 52 || personalAccessTokenRegexp.test(accessToken)) {
             config = {
                 headers: {
                     'Authorization': `Basic ${Buffer.from(":" + accessToken).toString('base64')}`
