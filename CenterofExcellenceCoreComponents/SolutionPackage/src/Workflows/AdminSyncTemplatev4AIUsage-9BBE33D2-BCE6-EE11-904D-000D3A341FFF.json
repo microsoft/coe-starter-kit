@@ -47,6 +47,14 @@
             "schemaName": "admin_DelayObjectInventory",
             "description": "Inventory - If Yes, will run a delay step to assist with the Dataverse throttling. Things like solutions, apps, flows, will have delays in the individual envt runs. Default No."
           }
+        },
+        "CoE System User ID (admin_CoESystemUserID)": {
+          "defaultValue": "12c238e6-eea1-ef11-8a69-000d3a5c3575",
+          "type": "String",
+          "metadata": {
+            "schemaName": "admin_CoESystemUserID",
+            "description": "in the maker table we store a user for system with an id. Storing here so that it can be referenced without having to look it up all the time."
+          }
         }
       },
       "triggers": {
@@ -412,7 +420,7 @@
                             "parameters": {
                               "entityName": "admin_aicreditsusages",
                               "$select": "admin_aicreditsusageid",
-                              "$filter": "admin_name eq '-@{outputs('Current_UserID')}-@{formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd')}'"
+                              "$filter": "admin_name eq '-@{outputs('Current_UserID')}-@{triggerOutputs()?['body/admin_environmentid']}-@{formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd')}'"
                             },
                             "authentication": "@parameters('$authentication')",
                             "retryPolicy": {
@@ -469,7 +477,7 @@
                         "parameters": {
                           "entityName": "admin_aicreditsusages",
                           "recordId": "@outputs('GUID_to_use')",
-                          "item/admin_name": "-@{outputs('Current_UserID')}-@{formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd')}",
+                          "item/admin_name": "-@{outputs('Current_UserID')}-@{triggerOutputs()?['body/admin_environmentid']}-@{formatDateTime(items('Apply_to_each'), 'yyyy-MM-dd')}",
                           "item/admin_creditsconsumption": "@outputs('calculateCreditSum')",
                           "item/admin_CreditsUser@odata.bind": "admin_powerplatformusers(@{outputs('Current_UserID')})",
                           "item/admin_Environment@odata.bind": "admin_environments(@{triggerOutputs()?['body/admin_environmentid']})",
@@ -661,7 +669,7 @@
                       "organization": "@triggerOutputs()?['body/admin_environmentcdsinstanceurl']",
                       "entityName": "msdyn_aievents",
                       "$select": "msdyn_creditconsumed,msdyn_processingdate,msdyn_aieventid",
-                      "$filter": "msdyn_creditconsumed gt 0 and (Microsoft.Dynamics.CRM.LastXDays(PropertyName='msdyn_processingdate',PropertyValue=45))",
+                      "$filter": "msdyn_creditconsumed gt 0 and (Microsoft.Dynamics.CRM.LastXDays(PropertyName='msdyn_processingdate',PropertyValue=1))",
                       "$expand": "createdby($select=azureactivedirectoryobjectid)"
                     },
                     "authentication": "@parameters('$authentication')"
@@ -714,7 +722,7 @@
                             "name": "AIEventsArray",
                             "value": {
                               "CreditsConsumed": "@outputs('CurrentAIEvent')?['msdyn_creditconsumed']",
-                              "UserId": "@items('eachAIEvent')?['createdby/azureactivedirectoryobjectid']",
+                              "UserId": "@coalesce(items('eachAIEvent')?['createdby/azureactivedirectoryobjectid'], parameters('CoE System User ID (admin_CoESystemUserID)'))",
                               "ProcessingDate": "@items('eachAIEvent')?['msdyn_processingdate']",
                               "AIEventId": "@items('eachAIEvent')?['msdyn_aieventid']"
                             }
@@ -796,10 +804,12 @@
                 ]
               },
               {
-                "equals": [
-                  "@triggerOutputs()?['body/admin_environmentruntimestate']",
-                  "Disabled"
-                ]
+                "not": {
+                  "equals": [
+                    "@triggerOutputs()?['body/admin_environmentruntimestate']",
+                    "Enabled"
+                  ]
+                }
               }
             ]
           },
