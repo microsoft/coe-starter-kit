@@ -17,7 +17,7 @@
         "connection": {
           "connectionReferenceLogicalName": "admin_CoECoreO365Users"
         },
-        "runtimeSource": "embedded"
+        "runtimeSource": "invoker"
       },
       "shared_commondataserviceforapps_1": {
         "api": {
@@ -35,7 +35,7 @@
         "connection": {
           "connectionReferenceLogicalName": "admin_CoECorePowerAutomateAdmin"
         },
-        "runtimeSource": "embedded"
+        "runtimeSource": "invoker"
       }
     },
     "definition": {
@@ -483,7 +483,7 @@
                               },
                               "runAfter": {
                                 "Set_ReturnString_to_failed_-_after_OwnerUpdateFailure": [
-                                  "SUCCEEDED"
+                                  "Succeeded"
                                 ]
                               }
                             },
@@ -500,6 +500,93 @@
                               },
                               "metadata": {
                                 "operationMetadataId": "2696f063-32b1-435e-b6d8-346d5e81fe17"
+                              }
+                            },
+                            "If_flow_derived_owner_exists": {
+                              "type": "If",
+                              "expression": {
+                                "and": [
+                                  {
+                                    "not": {
+                                      "equals": [
+                                        "@outputs('Get_flow_from_CoE')?['body/_admin_derivedowner_value']",
+                                        "@null"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              },
+                              "actions": {
+                                "List_Role_for_old_owner": {
+                                  "type": "OpenApiConnection",
+                                  "inputs": {
+                                    "parameters": {
+                                      "entityName": "admin_powerplatformuserroles",
+                                      "$select": "admin_powerplatformuserroleid",
+                                      "$filter": "_admin_flow_value eq @{triggerBody()?['text_1']} and _admin_powerplatformuser_value eq @{outputs('Get_flow_from_CoE')?['body/_admin_derivedowner_value']}"
+                                    },
+                                    "host": {
+                                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                      "operationId": "ListRecords",
+                                      "connectionName": "shared_commondataserviceforapps"
+                                    }
+                                  }
+                                },
+                                "Update_or_Insert_Old_Owner_Role": {
+                                  "type": "If",
+                                  "expression": {
+                                    "and": [
+                                      {
+                                        "greater": [
+                                          "@length(outputs('List_Role_for_old_owner')?['body/value'])",
+                                          0
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "actions": {
+                                    "Mark_it_Editor": {
+                                      "type": "Foreach",
+                                      "foreach": "@outputs('List_Role_for_old_owner')?['body/value']",
+                                      "actions": {
+                                        "Mark_old_owner_as_Editor": {
+                                          "type": "OpenApiConnection",
+                                          "inputs": {
+                                            "parameters": {
+                                              "entityName": "admin_powerplatformuserroles",
+                                              "recordId": "@items('Mark_it_Editor')?['admin_powerplatformuserroleid']",
+                                              "item/admin_groupsize": 1,
+                                              "item/admin_Environment@odata.bind": "admin_environments(@{outputs('Get_flow_from_CoE')?['body/_admin_flowenvironment_value']})",
+                                              "item/admin_rolename": "CanEdit",
+                                              "item/admin_rolenamefriendly": "Co-Owner"
+                                            },
+                                            "host": {
+                                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                                              "operationId": "UpdateRecord",
+                                              "connectionName": "shared_commondataserviceforapps"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "else": {
+                                    "actions": {}
+                                  },
+                                  "runAfter": {
+                                    "List_Role_for_old_owner": [
+                                      "Succeeded"
+                                    ]
+                                  }
+                                }
+                              },
+                              "else": {
+                                "actions": {}
+                              },
+                              "runAfter": {
+                                "Mark_app_owner_in_CoE_Soln_Flow": [
+                                  "Succeeded"
+                                ]
                               }
                             }
                           },
