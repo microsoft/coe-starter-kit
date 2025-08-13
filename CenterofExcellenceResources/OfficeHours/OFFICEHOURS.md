@@ -1,5 +1,7 @@
 # CoE Starter Kit Office Hours
 
+> NOTE: The CoE Starter Kit Office hours is currently [paused](https://github.com/microsoft/coe-starter-kit/issues/10112). 
+
 Join the CoE Starter Kit Office hours held on the second Wednesday of each month between 7:00AM and 8:00AM Pacific time.
 
 [Download calendar file to add to Calendar](https://microsoft.github.io/coe-starter-kit/CenterofExcellenceResources/OfficeHours/Power%20Platform%20CoE%20Starter%20Kit%20Office%20Hours.ics)
