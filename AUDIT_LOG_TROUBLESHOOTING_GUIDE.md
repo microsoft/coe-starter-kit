@@ -118,9 +118,10 @@ Flow Schedule: Every 1 hour
   - ✅ Best for real-time monitoring
   
 - **Value: 2820** (48 hours ago)
-  - ✅ Gets complete data (all logs should be available)
-  - ❌ Data is always 48 hours old
+  - ✅ Gets complete data (all logs should be available by now)
+  - ❌ Data is always 48 hours old (new events won't appear for 48 hours)
   - ✅ Best for compliance and complete historical records
+  - ⚠️ Example: If today is Monday at 10am, setting this to 2820 means you'll process audit logs from Saturday at 10am
 
 **Recommendation**: 
 - Use 0 if you need near real-time visibility
