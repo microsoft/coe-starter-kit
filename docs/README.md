@@ -11,7 +11,13 @@ The primary documentation for the CoE Starter Kit is available at:
 
 ### FAQs and Troubleshooting
 
-- **[FAQ: Environment Access Configuration](FAQ-EnvironmentAccess.md)** - Guidance on configuring environment security groups and granting maker access to CoE apps
+- **[FAQ: Environment Access Configuration](FAQ-EnvironmentAccess.md)** - Comprehensive guide on configuring environment security groups and granting maker access to CoE apps
+- **[Quick Reference: Environment Access](QuickReference-EnvironmentAccess.md)** - Quick troubleshooting guide for common access issues
+
+### Issue Response Templates
+
+- **[Issue Response Template](IssueResponseTemplate-EnvironmentAccess.md)** - Template for responding to environment access questions
+- **[Detailed Issue Response](RESPONSE-Issue-EnvironmentAccess.md)** - Complete response with multiple solution options
 
 ## Getting Help
 
