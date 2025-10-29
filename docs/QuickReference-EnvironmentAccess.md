@@ -83,6 +83,5 @@ Required for Maker to Access CoE Apps:
 
 ---
 
-**Version**: 1.0  
 **Last Updated**: October 2025  
-**Applies To**: CoE Starter Kit 4.49.2+
+**Applies To**: CoE Starter Kit v4.49.2 and later
