@@ -1,4 +1,4 @@
-# Power BI Embedded Apps - Design Consideration
+# Power BI Embedded Apps - Design Considerations
 
 ## Current Implementation
 
