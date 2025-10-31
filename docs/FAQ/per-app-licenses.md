@@ -80,25 +80,32 @@ To identify your 2,000+ apps with per-app licenses:
 ### Code Example: Identifying Apps in Environments with Per-App Licenses
 
 ```powershell
+# Note: This is a conceptual example. Actual capacity/license data should be retrieved 
+# from Power Platform Admin Center or via Power Platform Admin APIs
+
 # List all environments
 $environments = Get-AdminPowerAppEnvironment
 
 foreach ($env in $environments) {
-    # Get capacity for environment
-    $capacity = Get-AdminPowerAppEnvironmentCapacity -EnvironmentName $env.EnvironmentName
+    Write-Host "Environment: $($env.DisplayName)"
     
-    # Check if per-app licenses are allocated
-    if ($capacity.PerAppLicenses -gt 0) {
-        Write-Host "Environment: $($env.DisplayName) has per-app licenses"
+    # List all apps in this environment
+    $apps = Get-AdminPowerApp -EnvironmentName $env.EnvironmentName
+    
+    foreach ($app in $apps) {
+        # Check if app uses premium connectors
+        $connections = Get-AdminPowerAppConnection -EnvironmentName $env.EnvironmentName -AppName $app.AppName
+        $usesPremium = $connections | Where-Object { $_.ConnectionParameters.IsPremium -eq $true }
         
-        # Get all apps in this environment
-        $apps = Get-AdminPowerApp -EnvironmentName $env.EnvironmentName
-        
-        foreach ($app in $apps) {
-            Write-Host "  - App: $($app.DisplayName)"
+        if ($usesPremium) {
+            Write-Host "  - App: $($app.DisplayName) (uses premium connectors)"
         }
     }
 }
+
+# For capacity information, use the Power Platform Admin Center:
+# Navigate to: Resources > Capacity > Add-ons
+# Or query capacity data via the Power Platform Admin API
 ```
 
 ### Important Notes
