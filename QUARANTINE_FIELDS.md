@@ -14,7 +14,7 @@ The quarantine functionality allows administrators to temporarily block access t
 - **Field Name:** `admin_quarantineapp`
 - **Display Name:** Quarantine App
 - **Type:** Boolean (Yes/No)
-- **Introduced Version:** 3.33.1
+- **Introduced Version:** 3.33.1 (from Entity.xml metadata)
 - **Default Value:** No (false)
 
 **Purpose:**
@@ -41,7 +41,7 @@ This field is an **action trigger field** used by administrators or automated pr
 - **Field Name:** `admin_appisquarantined`
 - **Display Name:** App Is Quarantined
 - **Type:** Boolean (Yes/No)
-- **Introduced Version:** 4.48.1
+- **Introduced Version:** 4.48.1 (from Entity.xml metadata)
 - **Default Value:** No (false)
 
 **Purpose:**
@@ -75,7 +75,7 @@ This field is automatically updated by:
 - **Field Name:** `admin_quarantineappdate`
 - **Display Name:** Quarantine App Date
 - **Type:** Date
-- **Introduced Version:** 3.39.1
+- **Introduced Version:** 3.39.1 (from Entity.xml metadata)
 
 **Purpose:**
 Stores the date when the app was quarantined. This field is:
@@ -220,7 +220,7 @@ To use the quarantine functionality:
 
 ## Additional Resources
 
-- [CoE Starter Kit Documentation](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit)
-- [Power Platform Admin Connector Documentation](https://docs.microsoft.com/connectors/powerplatformforadmins/)
-- [App Quarantine Overview](https://docs.microsoft.com/power-platform/admin/powerapps-powershell#quarantine-apps)
-- [CoE Governance Components](https://docs.microsoft.com/power-platform/guidance/coe/governance-components)
+- [CoE Starter Kit Documentation](https://learn.microsoft.com/power-platform/guidance/coe/starter-kit)
+- [Power Platform Admin Connector Documentation](https://learn.microsoft.com/connectors/powerplatformforadmins/)
+- [App Quarantine Overview](https://learn.microsoft.com/power-platform/admin/powerapps-powershell#quarantine-apps)
+- [CoE Governance Components](https://learn.microsoft.com/power-platform/guidance/coe/governance-components)
