@@ -210,9 +210,9 @@ To use the quarantine functionality:
    - `admin_QuarantineAppsafterxdaysofnoncompliance` - Set the compliance grace period (default: 7 days)
    - `admin_ProductionEnvironment` - Set to `true` for production, `false` for testing
 3. **Turn on** the required flows:
-   - Admin | Set app quarantine status (Core/Audit solution)
-   - Admin | Quarantine non-compliant apps (Audit solution) - if using automated compliance enforcement
-   - Inventory sync flows (Core solution) - to update status fields
+   - Admin | Set app quarantine status (Audit Components solution)
+   - Admin | Quarantine non-compliant apps (Audit Components solution) - if using automated compliance enforcement
+   - Inventory sync flows (Core Components solution) - to update status fields
 4. **Configure** connections:
    - Power Platform for Admins connector (to execute quarantine actions)
    - Dataverse connector (to read/update records)
