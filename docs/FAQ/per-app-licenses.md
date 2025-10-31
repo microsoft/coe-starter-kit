@@ -39,8 +39,9 @@ While the connector doesn't have a "per-app license enabled" field, you can:
 Extend the CoE Starter Kit to track licensing:
 
 ```powershell
-# Example PowerShell to check app details (replace placeholders with actual values)
-Get-AdminPowerApp -EnvironmentName "00000000-0000-0000-0000-000000000000" -AppName "your-app-guid-here"
+# Example PowerShell to check app details (replace GUIDs with actual values)
+# Note: -AppName parameter takes the App GUID/ID, not the display name
+Get-AdminPowerApp -EnvironmentName "environment-guid-here" -AppName "app-guid-here"
 ```
 
 Then cross-reference with license assignment data from:
