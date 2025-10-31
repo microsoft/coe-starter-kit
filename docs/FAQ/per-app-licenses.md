@@ -39,8 +39,8 @@ While the connector doesn't have a "per-app license enabled" field, you can:
 Extend the CoE Starter Kit to track licensing:
 
 ```powershell
-# Example PowerShell to check app details
-Get-AdminPowerApp -EnvironmentName <env-id> -AppName <app-id>
+# Example PowerShell to check app details (replace placeholders with actual values)
+Get-AdminPowerApp -EnvironmentName "00000000-0000-0000-0000-000000000000" -AppName "your-app-guid-here"
 ```
 
 Then cross-reference with license assignment data from:
@@ -75,13 +75,14 @@ To identify your 2,000+ apps with per-app licenses:
    - Use Power Automate to populate this field based on:
      - Environment has per-app capacity allocated
      - App uses premium connectors
-     - Users sharing data indicates per-app consumption
+     - App sharing patterns and assignments indicate per-app consumption
 
 ### Code Example: Identifying Apps in Environments
 
 ```powershell
 # This example shows how to list apps by environment
 # Capacity and license data should be retrieved from Power Platform Admin Center
+# Note: You must have admin permissions to access all environments
 
 # Connect to Power Platform
 Add-PowerAppsAccount
@@ -90,19 +91,24 @@ Add-PowerAppsAccount
 $environments = Get-AdminPowerAppEnvironment
 
 foreach ($env in $environments) {
-    Write-Host "Environment: $($env.DisplayName) ($($env.EnvironmentName))"
-    
-    # List all apps in this environment
-    $apps = Get-AdminPowerApp -EnvironmentName $env.EnvironmentName
-    
-    Write-Host "  Total Apps: $($apps.Count)"
-    
-    foreach ($app in $apps) {
-        Write-Host "  - App: $($app.DisplayName)"
-        Write-Host "    Owner: $($app.Owner.displayName)"
-        Write-Host "    Created: $($app.CreatedTime)"
+    try {
+        Write-Host "Environment: $($env.DisplayName) ($($env.EnvironmentName))"
+        
+        # List all apps in this environment
+        $apps = Get-AdminPowerApp -EnvironmentName $env.EnvironmentName
+        
+        Write-Host "  Total Apps: $($apps.Count)"
+        
+        foreach ($app in $apps) {
+            Write-Host "  - App: $($app.DisplayName)"
+            Write-Host "    Owner: $($app.Owner.displayName)"
+            Write-Host "    Created: $($app.CreatedTime)"
+        }
+        Write-Host ""
     }
-    Write-Host ""
+    catch {
+        Write-Warning "Could not access environment $($env.DisplayName): $($_.Exception.Message)"
+    }
 }
 ```
 
