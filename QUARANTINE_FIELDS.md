@@ -87,7 +87,8 @@ Stores the date when the app was quarantined. This field is:
 
 ### 1. Admin | Set app quarantine status
 
-**Flow Name:** AdminSetappquarantinestatus
+**Display Name:** Admin | Set app quarantine status
+**Flow Name (Technical):** AdminSetappquarantinestatus
 **Trigger:** When the `admin_appisquarantined` field is added, modified, or deleted on the admin_app entity
 
 **What It Does:**
@@ -117,7 +118,8 @@ This flow is reactive - it responds to changes in the `admin_appisquarantined` f
 
 ### 2. Admin | Quarantine non-compliant apps
 
-**Flow Name:** AdminQuarantinenon-compliantapps
+**Display Name:** Admin | Quarantine non-compliant apps
+**Flow Name (Technical):** AdminQuarantinenon-compliantapps
 **Trigger:** Scheduled (Daily recurrence at 10:00 AM UTC)
 
 **What It Does:**
@@ -162,7 +164,7 @@ Here's how the quarantine system works end-to-end:
 3. **Filter Applied**: It filters out apps that are already quarantined (using `admin_appisquarantined`)
 4. **Field Update**: For each non-compliant app, it sets `admin_quarantineapp` to `true`
 5. **Indirect Trigger**: This update causes a subsequent update to `admin_appisquarantined`
-6. **Steps 4-8** from Scenario 1 then execute automatically
+6. **Flow Execution**: Steps 4-8 from Scenario 1 (Flow Triggered through Email Sent) then execute automatically for each app
 
 ### Scenario 3: Unquarantine an App
 
