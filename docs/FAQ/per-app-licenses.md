@@ -77,36 +77,48 @@ To identify your 2,000+ apps with per-app licenses:
      - App uses premium connectors
      - Users sharing data indicates per-app consumption
 
-### Code Example: Identifying Apps in Environments with Per-App Licenses
+### Code Example: Identifying Apps in Environments
 
 ```powershell
-# Note: This is a conceptual example. Actual capacity/license data should be retrieved 
-# from Power Platform Admin Center or via Power Platform Admin APIs
+# This example shows how to list apps by environment
+# Capacity and license data should be retrieved from Power Platform Admin Center
+
+# Connect to Power Platform
+Add-PowerAppsAccount
 
 # List all environments
 $environments = Get-AdminPowerAppEnvironment
 
 foreach ($env in $environments) {
-    Write-Host "Environment: $($env.DisplayName)"
+    Write-Host "Environment: $($env.DisplayName) ($($env.EnvironmentName))"
     
     # List all apps in this environment
     $apps = Get-AdminPowerApp -EnvironmentName $env.EnvironmentName
     
+    Write-Host "  Total Apps: $($apps.Count)"
+    
     foreach ($app in $apps) {
-        # Check if app uses premium connectors
-        $connections = Get-AdminPowerAppConnection -EnvironmentName $env.EnvironmentName -AppName $app.AppName
-        $usesPremium = $connections | Where-Object { $_.ConnectionParameters.IsPremium -eq $true }
-        
-        if ($usesPremium) {
-            Write-Host "  - App: $($app.DisplayName) (uses premium connectors)"
-        }
+        Write-Host "  - App: $($app.DisplayName)"
+        Write-Host "    Owner: $($app.Owner.displayName)"
+        Write-Host "    Created: $($app.CreatedTime)"
     }
+    Write-Host ""
 }
-
-# For capacity information, use the Power Platform Admin Center:
-# Navigate to: Resources > Capacity > Add-ons
-# Or query capacity data via the Power Platform Admin API
 ```
+
+**To identify apps with per-app licenses:**
+
+1. **Check Environment Capacity** in Power Platform Admin Center:
+   - Navigate to: `Resources > Capacity > Add-ons`
+   - Identify environments with per-app license allocations
+   - Note the environment IDs
+
+2. **Filter apps** from step 1 to only those in environments with per-app licenses
+
+3. **Use CoE Starter Kit** for advanced tracking:
+   - The CoE Starter Kit inventories all apps and their connectors
+   - Apps using Dataverse or premium connectors require premium licenses
+   - Cross-reference this data with your license allocations
 
 ### Important Notes
 
