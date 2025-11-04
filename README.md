@@ -59,6 +59,15 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+
+Having issues with the CoE Starter Kit? Check these resources:
+
+- **[Audit Logs Troubleshooting Guide](TROUBLESHOOTING-AUDIT-LOGS.md)** - Specific guidance for "Sync Audit Logs (V2)" flow issues
+- **[Audit Logs Setup Guide](CenterofExcellenceCoreComponents/AUDIT-LOGS-SETUP.md)** - Complete setup instructions for audit log collection
+
+For other issues, please search [existing issues](https://github.com/microsoft/coe-starter-kit/issues) or create a new one using the appropriate template.
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
