@@ -221,7 +221,7 @@ The flow runs every hour by default and:
 
 ## Additional Resources
 
-- [CoE Starter Kit Documentation](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit)
+- [CoE Starter Kit Documentation](https://learn.microsoft.com/power-platform/guidance/coe/starter-kit)
 - [Troubleshooting Guide](../TROUBLESHOOTING-AUDIT-LOGS.md)
-- [Office 365 Management APIs](https://docs.microsoft.com/office/office-365-management-api/office-365-management-apis-overview)
-- [Microsoft Graph Audit Log API](https://docs.microsoft.com/graph/api/resources/azure-ad-auditlog-overview)
+- [Office 365 Management APIs](https://learn.microsoft.com/office/office-365-management-api/office-365-management-apis-overview)
+- [Microsoft Graph Audit Log API](https://learn.microsoft.com/graph/api/resources/azure-ad-auditlog-overview)

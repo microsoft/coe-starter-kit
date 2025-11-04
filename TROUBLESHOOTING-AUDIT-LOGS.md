@@ -198,10 +198,10 @@ Ensure your API permissions match your setting.
 
 ## Additional Resources
 
-- [CoE Starter Kit Documentation](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit)
-- [Office 365 Management APIs](https://docs.microsoft.com/office/office-365-management-api/office-365-management-apis-overview)
-- [Microsoft Graph Audit Log API](https://docs.microsoft.com/graph/api/resources/azure-ad-auditlog-overview)
-- [Azure AD App Registration](https://docs.microsoft.com/azure/active-directory/develop/quickstart-register-app)
+- [CoE Starter Kit Documentation](https://learn.microsoft.com/power-platform/guidance/coe/starter-kit)
+- [Office 365 Management APIs](https://learn.microsoft.com/office/office-365-management-api/office-365-management-apis-overview)
+- [Microsoft Graph Audit Log API](https://learn.microsoft.com/graph/api/resources/azure-ad-auditlog-overview)
+- [Azure AD App Registration](https://learn.microsoft.com/azure/active-directory/develop/quickstart-register-app)
 
 ## Still Having Issues?
 
