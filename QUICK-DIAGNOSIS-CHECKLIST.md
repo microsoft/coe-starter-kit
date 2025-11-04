@@ -100,7 +100,7 @@ In Power Automate → Connections
 
 ### Pattern 2: "Get_Azure_Secret" Failed + "ListAuditLogContent" Unauthorized
 **Status:** ❌ Permission Issue
-**Reason:** Missing or unganted API permissions for Office 365 Management APIs
+**Reason:** Missing or ungranted API permissions for Office 365 Management APIs
 **Action:** Add permissions and grant admin consent (see Step 4)
 
 ### Pattern 3: "Get_Azure_Secret" Failed + "AuditLogQuery" Unauthorized
