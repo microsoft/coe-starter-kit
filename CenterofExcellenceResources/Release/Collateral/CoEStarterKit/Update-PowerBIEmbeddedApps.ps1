@@ -12,7 +12,8 @@
     - Access to the CoE environment where the Core Components are installed
 
 .PARAMETER TemplatePath
-    Path to the Power BI template file (.pbit) to update. 
+    Path to the Power BI template file (.pbit) to update.
+    The default value is an example - use the template version that matches your CoE Starter Kit release.
     Default: Production_CoEDashboard_July2024.pbit
 
 .PARAMETER OutputPath
@@ -26,10 +27,12 @@
 
 .PARAMETER FlowAccessAppName
     Display name of the "Admin - Access this Flow" app.
+    This must exactly match the display name of the app in your environment.
     Default: "Admin - Access this Flow [works embedded in Power BI only]"
 
 .PARAMETER AppAccessAppName
     Display name of the "Admin - Access this App" app.
+    This must exactly match the display name of the app in your environment.
     Default: "Admin - Access this App [works embedded in Power BI only]"
 
 .EXAMPLE
@@ -298,7 +301,7 @@ if ([string]::IsNullOrEmpty($OutputPath)) {
         $templateDirectory = "."
     }
     
-    $OutputPath = Join-Path $templateDirectory "$templateFileName`_Updated$templateExtension"
+    $OutputPath = Join-Path $templateDirectory "${templateFileName}_Updated${templateExtension}"
     Write-Host "Output path not specified. Using: $OutputPath" -ForegroundColor Yellow
 }
 
