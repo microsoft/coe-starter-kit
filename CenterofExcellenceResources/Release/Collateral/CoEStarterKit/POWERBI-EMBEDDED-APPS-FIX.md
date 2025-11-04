@@ -59,7 +59,7 @@ Use the provided PowerShell script to automatically update the Power BI template
 
 4. **Wait for completion**
    - The script will extract the template, update the App IDs, and create a new file
-   - Default output: `Production_CoEDashboard_July2024_Updated.pbit` (or with the same date suffix as your input file with "_Updated" appended)
+   - The output filename will be your input filename with "_Updated" appended (e.g., `Production_CoEDashboard_July2024.pbit` → `Production_CoEDashboard_July2024_Updated.pbit`)
 
 5. **Open the updated template in Power BI Desktop**
    - Use the new `*_Updated.pbit` file instead of the original
@@ -69,7 +69,7 @@ Use the provided PowerShell script to automatically update the Power BI template
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `TemplatePath` | Path to the original .pbit file | `Production_CoEDashboard_July2024.pbit` |
-| `OutputPath` | Path for the updated .pbit file | `Production_CoEDashboard_July2024_Updated.pbit` |
+| `OutputPath` | Path for the updated .pbit file | Auto-generated: `{InputFileName}_Updated.pbit` |
 | `EnvironmentName` | Environment ID where CoE is installed | Interactive prompt if not provided |
 | `FlowAccessAppName` | Display name of the Flow Access app | `Admin - Access this Flow [works embedded in Power BI only]` |
 | `AppAccessAppName` | Display name of the App Access app | `Admin - Access this App [works embedded in Power BI only]` |

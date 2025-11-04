@@ -17,7 +17,8 @@
 
 .PARAMETER OutputPath
     Path where the updated Power BI template will be saved.
-    Default: Production_CoEDashboard_July2024_Updated.pbit
+    If not provided, the script will automatically generate a filename by appending "_Updated" to the input filename.
+    Example: Production_CoEDashboard_July2024.pbit → Production_CoEDashboard_July2024_Updated.pbit
 
 .PARAMETER EnvironmentName
     The name/ID of the Power Platform environment where CoE Core Components are installed.
@@ -56,7 +57,7 @@ param(
     [string]$TemplatePath = "Production_CoEDashboard_July2024.pbit",
     
     [Parameter(Mandatory = $false)]
-    [string]$OutputPath = "Production_CoEDashboard_July2024_Updated.pbit",
+    [string]$OutputPath = "",
     
     [Parameter(Mandatory = $false)]
     [string]$EnvironmentName,
@@ -285,6 +286,20 @@ Write-Host "  - App Access App: $appAccessAppId"
 if (-not (Test-Path $TemplatePath)) {
     Write-Error "Template file not found: $TemplatePath"
     exit 1
+}
+
+# Generate output filename if not provided
+if ([string]::IsNullOrEmpty($OutputPath)) {
+    $templateFileName = [System.IO.Path]::GetFileNameWithoutExtension($TemplatePath)
+    $templateExtension = [System.IO.Path]::GetExtension($TemplatePath)
+    $templateDirectory = [System.IO.Path]::GetDirectoryName($TemplatePath)
+    
+    if ([string]::IsNullOrEmpty($templateDirectory)) {
+        $templateDirectory = "."
+    }
+    
+    $OutputPath = Join-Path $templateDirectory "$templateFileName`_Updated$templateExtension"
+    Write-Host "Output path not specified. Using: $OutputPath" -ForegroundColor Yellow
 }
 
 # Extract template
