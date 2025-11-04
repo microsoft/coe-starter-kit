@@ -1,8 +1,10 @@
 # Power BI Embedded Power Apps Connection Fix
 
+> **Note**: This fix applies to all versions of the Production CoE Dashboard Power BI template files. The template filename includes a date (e.g., Production_CoEDashboard_July2024.pbit), which indicates the release date. Use the version that matches your CoE Starter Kit release.
+
 ## Issue Description
 
-When opening the CoE Dashboard Power BI report (Production_CoEDashboard_July2024.pbit), users may encounter a "Sorry, there's been a disconnect" error on the following pages:
+When opening the CoE Dashboard Power BI report (e.g., Production_CoEDashboard_July2024.pbit or similar versions), users may encounter a "Sorry, there's been a disconnect" error on the following pages:
 - **Manage Flow Access**
 - **Manage App Access**
 
@@ -57,7 +59,7 @@ Use the provided PowerShell script to automatically update the Power BI template
 
 4. **Wait for completion**
    - The script will extract the template, update the App IDs, and create a new file
-   - Default output: `Production_CoEDashboard_July2024_Updated.pbit`
+   - Default output: `Production_CoEDashboard_July2024_Updated.pbit` (or with the same date suffix as your input file with "_Updated" appended)
 
 5. **Open the updated template in Power BI Desktop**
    - Use the new `*_Updated.pbit` file instead of the original
@@ -239,4 +241,4 @@ When reporting, please include:
 ---
 
 **Last Updated**: November 2024  
-**Applies To**: CoE Starter Kit Core Components 4.49.2+, Production_CoEDashboard_July2024.pbit
+**Applies To**: CoE Starter Kit Core Components 4.49.2+, Production_CoEDashboard_*.pbit (all versions)

@@ -232,8 +232,21 @@ if (-not $EnvironmentName) {
         $i++
     }
     
-    $selection = Read-Host "`nSelect environment number"
-    $selectedEnv = $environments[$selection - 1]
+    $selection = Read-Host "`nSelect environment number (1-$($environments.Count))"
+    
+    # Validate input
+    $selectionNumber = 0
+    if (-not [int]::TryParse($selection, [ref]$selectionNumber)) {
+        Write-Error "Invalid input. Please enter a number."
+        exit 1
+    }
+    
+    if ($selectionNumber -lt 1 -or $selectionNumber -gt $environments.Count) {
+        Write-Error "Invalid selection. Please enter a number between 1 and $($environments.Count)."
+        exit 1
+    }
+    
+    $selectedEnv = $environments[$selectionNumber - 1]
     $EnvironmentName = $selectedEnv.EnvironmentName
     Write-Host "Selected: $($selectedEnv.DisplayName)" -ForegroundColor Green
 }
