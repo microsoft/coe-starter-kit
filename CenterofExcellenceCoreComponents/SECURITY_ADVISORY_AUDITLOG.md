@@ -21,7 +21,7 @@ The read permission for the `admin_auditlog` table has been **removed** from the
 ### Changes Made
 
 - **File**: `CenterofExcellenceCoreComponents/SolutionPackage/src/Roles/Power Platform Maker SR.xml`
-- **Change**: Removed `prvReadadmin_AuditLog` privilege (line 79)
+- **Change**: Removed `prvReadadmin_AuditLog` privilege (previously at line 79 in the original file)
 
 ## Security Best Practices
 
