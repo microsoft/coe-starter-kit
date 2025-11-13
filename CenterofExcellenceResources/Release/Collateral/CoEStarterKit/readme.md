@@ -11,6 +11,13 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
+## Troubleshooting
+Having issues with your CoE Starter Kit installation? Check the [Troubleshooting Guide](https://github.com/microsoft/coe-starter-kit/blob/main/TROUBLESHOOTING.md) for help with common problems such as:
+- Power BI Dashboard not refreshing
+- Connector reconnection issues (including Power Platform for Admins V2)
+- Flow failures and flows that stop running
+- Data collection problems
+
 ## Files in this download
 
 The content package contains various files that support different features of the CoE Starter Kit. The setup instructions will walk you through when to use each file, and below table will give you an overview of the purpose of each file:
