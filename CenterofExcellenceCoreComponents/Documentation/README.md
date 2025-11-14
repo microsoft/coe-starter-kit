@@ -2,11 +2,15 @@
 
 ## Quick Links
 
+### ⚡ Quick Start
+- **[Quick Reference Card](./QuickReference.md)** - One-page summary of the fix and impact
+
 ### For Users Experiencing Performance Issues
 - **[Performance Optimization](./SyncAuditLogsV2-PerformanceOptimization.md)** - Quick fix for 6-9 day execution times
 - **[Troubleshooting Guide](./SyncAuditLogsV2-TroubleshootingGuide.md)** - Comprehensive analysis and solutions
 
 ### For Developers and Administrators
+- **[Implementation Guide](./ImplementationGuide.md)** - Step-by-step deployment instructions
 - **[Architecture Analysis](./SyncAuditLogsV2-TroubleshootingGuide.md#root-cause-analysis)** - How the flow works
 - **[Configuration Guide](./SyncAuditLogsV2-TroubleshootingGuide.md#configuration-recommendations)** - Recommended settings by tenant size
 
