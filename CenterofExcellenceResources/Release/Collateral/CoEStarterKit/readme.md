@@ -11,6 +11,15 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
+## Known Issues
+
+### Power BI Embedded Power Apps Connection Error
+If you see a "Sorry, there's been a disconnect" error on the **Manage Flow Access** or **Manage App Access** pages in the Power BI dashboard, this is due to hardcoded App IDs in the template that don't match your environment.
+
+**Quick Fix**: Use the `Update-PowerBIEmbeddedApps.ps1` script to automatically update the template with your environment-specific App IDs.
+
+**For detailed instructions**, see: [POWERBI-EMBEDDED-APPS-FIX.md](POWERBI-EMBEDDED-APPS-FIX.md)
+
 ## Files in this download
 
 The content package contains various files that support different features of the CoE Starter Kit. The setup instructions will walk you through when to use each file, and below table will give you an overview of the purpose of each file:
@@ -26,8 +35,10 @@ The content package contains various files that support different features of th
 | CenterofExcellenceInnovationBacklog_x.xx_managed.zip  | [Innovation Backlog components](innovationbacklog-components.md) solution file. Required during [setup of the Innovation Backlog](setup-innovationbacklog.md) components. |
 | CenterofExcellenceNurtureComponents_x.xx_managed.zip  |  [Nurture components](nurture-components.md) solution file. Required during [setup of the Nurture](setup-nurture-components.md) components. Has a dependency on [Core components](core-components.md) being installed first. |
 | MakerAssessmentStarterData.xlsx | Provides a set of starter questions and answers for the [Maker assessment](nurture-components.md#maker-assessment-components) app. Required during [configuration of the Maker Assessment](setup-nurture-components.md#set-up-maker-assessment-components) app. |
-| Production_CoEDashboard_MMM2022.pbit  | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions are installed in a Production environment. Required during [configuration of the Power BI dashboard](setup-powerbi.md) |
+| Production_CoEDashboard_MMM2022.pbit  | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions are installed in a Production environment. Required during [configuration of the Power BI dashboard](setup-powerbi.md). **Note**: If you experience connection errors with embedded Power Apps, see [POWERBI-EMBEDDED-APPS-FIX.md](POWERBI-EMBEDDED-APPS-FIX.md) |
 | Pulse_CoEDashboard.pbit | [Pulse survey Power BI template file](nurture-components.md#pulse-survey-components). Required during [configuration of Pulse survey](setup-nurture-components.md#set-up-pulse-feedback-survey) components. |
+| Update-PowerBIEmbeddedApps.ps1 | PowerShell script to fix embedded Power Apps connection issues in the CoE Dashboard Power BI template. See [POWERBI-EMBEDDED-APPS-FIX.md](POWERBI-EMBEDDED-APPS-FIX.md) for usage instructions. |
+| POWERBI-EMBEDDED-APPS-FIX.md | Documentation for resolving the "disconnect" error on Manage Flow Access and Manage App Access pages in the Power BI dashboard. |
 | Teams_CoEDashboard_MMM2022.pbit | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions are installed in a Dataverse for Teams environment. Required during [configuration of the Power BI dashboard](setup-powerbi.md) |
 | Theming_x.xx_managed.zip | [Theming components](theming-components.md) solution file. Required during [setup of the Theming](setup-theming.md) components. | 
 | ToolIcons.zip | Provides a set of starter icons for the [Innovation Backlog](innovationbacklog-components.md). Required during [configuration of the Innovation Backlog](setup-innovationbacklog.md#turn-on-the-flows) |
