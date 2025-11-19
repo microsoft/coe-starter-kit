@@ -31,6 +31,19 @@ The content package contains various files that support different features of th
 | Teams_CoEDashboard_MMM2022.pbit | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions are installed in a Dataverse for Teams environment. Required during [configuration of the Power BI dashboard](setup-powerbi.md) |
 | Theming_x.xx_managed.zip | [Theming components](theming-components.md) solution file. Required during [setup of the Theming](setup-theming.md) components. | 
 | ToolIcons.zip | Provides a set of starter icons for the [Innovation Backlog](innovationbacklog-components.md). Required during [configuration of the Innovation Backlog](setup-innovationbacklog.md#turn-on-the-flows) |
+| Get-CoEEmbeddedAppIDs.ps1 | PowerShell script to retrieve App IDs for embedded Power Apps in the Power BI dashboard. Use after upgrading to update the Power BI dashboard configuration. |
+| PowerBI-Embedded-Apps-Troubleshooting.md | Troubleshooting guide for fixing issues with embedded Power Apps in the Power BI dashboard (e.g., "Manage App Access" and "Manage Flow Access" drill-through features). |
+
+## Troubleshooting
+
+### Power BI Dashboard - Embedded Apps Not Working After Upgrade
+
+If you experience issues with the "Manage App Access" or "Manage Flow Access" drill-through features in the Power BI dashboard after upgrading (showing errors like "can't reach this page" or URLs with literal "appid"), see [PowerBI-Embedded-Apps-Troubleshooting.md](PowerBI-Embedded-Apps-Troubleshooting.md) for detailed instructions on how to update the embedded app IDs in your Power BI report.
+
+Quick fix:
+1. Run `Get-CoEEmbeddedAppIDs.ps1` to get your environment's app IDs
+2. Update the App IDs in the Power BI embedded visuals
+3. Republish your Power BI report
 
 ## Disclaimer
 Although the underlying features and components used to build the Center of Excellence (CoE) Starter Kit (such as Common Data Service, admin APIs, and connectors) are fully supported, the kit itself represents sample implementations of these features. Our customers and community can use and customize these features to implement admin and governance capabilities in their organizations.
