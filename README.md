@@ -59,6 +59,15 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+
+Experiencing issues with the CoE Starter Kit? Check out our troubleshooting guides:
+
+- **[Quick Fix: Active Sync Flow Errors](docs/QUICK-FIX-SYNC-ERRORS.md)** - Fast solutions for common sync flow failures
+- **[Detailed Troubleshooting Guide](docs/TROUBLESHOOTING-SYNC-FLOW-ERRORS.md)** - Comprehensive guide for resolving sync flow errors in CoE Admin Command Center
+
+For other issues, please check our [existing issues](https://github.com/microsoft/coe-starter-kit/issues) or create a new one.
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
