@@ -34,7 +34,32 @@ The fix removes the explicit reset of deleted status fields from the SYNCHELPER 
 2. **SYNCHELPER-Apps-B677AA25-8DE4-ED11-A7C7-0022480813FF.json**
    - Removed: `"item/admin_appdeleted": false,`
    - Removed: `"item/admin_appdeletedon": "@null",`
-   - From two update actions: "Update_App_record" and "Update_App_record_(creator_not_found)"
+   - From two update actions: "Upsert_App_record" and "Upsert_App_record_(creator_not_found)"
+
+3. **AdminSyncTemplatev4Desktopflows-AF083528-7E73-EE11-9AE7-000D3A341FFF.json**
+   - Removed: `"item/admin_rpadeleted": false,`
+   - Removed: `"item/admin_rpadeletedon": "@null",`
+   - From two update actions for desktop flows (RPA)
+
+4. **AdminSyncTemplatev4ModelDrivenApps-7C7AC6E2-1B7C-EE11-8179-000D3A341FFF.json**
+   - Removed: `"item/admin_appdeleted": false,`
+   - Removed: `"item/admin_appdeletedon": "@null",`
+   - From two update actions for model-driven apps
+
+5. **AdminSyncTemplatev4CustomConnectors-AE1EF367-1B3E-EB11-A813-000D3A8F4AD6.json**
+   - Removed: `"item/admin_connectordeleted": false,`
+   - Removed: `"item/admin_connectordeletedon": "@null",`  
+   - From eight update actions for custom connectors
+
+6. **AdminSyncTemplatev4Portals-CEAD57C0-A080-EE11-8179-000D3A341FFF.json**
+   - Removed: `"item/admin_portaldeleted": false,`
+   - Removed: `"item/admin_portaldeletedon": "@null",`
+   - From two update actions for portals
+
+7. **AdminSyncTemplatev4Solutions-838B0BC0-8494-EE11-BE37-000D3A341B0E.json**
+   - Removed: `"item/admin_solutiondeleted": false,`
+   - Removed: `"item/admin_solutiondeletedon": "@null",`
+   - From two update actions for solutions
 
 ### How It Works Now
 After the fix:
