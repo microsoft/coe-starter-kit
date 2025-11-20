@@ -76,6 +76,11 @@ The fix removes the explicit reset of deleted status fields from the SYNCHELPER 
     - Removed: `"item/admin_businessprocessflowdeletedon": "@null",`
     - From two update actions for business process flows
 
+11. **AdminSyncTemplatev3FlowActionDetails-7EBB10A6-5041-EB11-A813-000D3A8F4AD6.json**
+    - Removed: `"item/admin_flowactiondetaildeleted": false,`
+    - Removed: `"item/admin_flowactiondetaildeletedon": "@null",`
+    - From one update action for flow action details
+
 ### How It Works Now
 After the fix:
 1. ✅ When a flow/app is **successfully retrieved** from the API → The SYNCHELPER updates metadata BUT preserves the existing deleted status
@@ -163,6 +168,7 @@ This fix addresses the issue for:
 - ✅ Environments - AdminSyncTemplatev4Driver
 - ✅ AI Models - AdminSyncTemplatev4AiModels
 - ✅ Business Process Flows - AdminSyncTemplatev4BusinessProcessFlows
+- ✅ Flow Action Details - AdminSyncTemplatev3FlowActionDetails
 - ℹ️ Power Virtual Agents (PVA) - Uses component state logic, not affected by this issue
 - ℹ️ Other entity types without deleted tracking are not affected
 
