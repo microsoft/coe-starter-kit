@@ -39,6 +39,23 @@ Specific response template for the "Missing Options in CoE Admin Environment Req
 - Security role comparison table
 - Ready-to-post GitHub response
 
+### [GITHUB-RESPONSE-Missing-Buttons.md](./GITHUB-RESPONSE-Missing-Buttons.md)
+User-friendly GitHub issue response for missing buttons:
+- Concise root cause explanation
+- 3-step quick fix
+- Verification checklist
+- Links to detailed documentation
+- Recommended labels and tags
+
+### [FLOWCHART-Missing-Buttons-Troubleshooting.md](./FLOWCHART-Missing-Buttons-Troubleshooting.md)
+Visual troubleshooting flowchart and decision trees:
+- Step-by-step decision tree (ASCII art)
+- Systematic checklist format
+- Decision matrix table
+- Time-based troubleshooting scenarios
+- Color-coded severity levels
+- Support escalation path
+
 ## How to Use
 
 1. When a new issue is created, review it to identify the category
