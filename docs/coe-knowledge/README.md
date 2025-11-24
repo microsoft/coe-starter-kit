@@ -15,6 +15,30 @@ Ready-to-use response templates for common GitHub issues, including:
 - DLP policy conflicts
 - Upgrade guidance
 
+### [FAQ-Environment-Request-App.md](./FAQ-Environment-Request-App.md)
+Comprehensive FAQ covering:
+- Missing buttons and functionality
+- Security role differences (Basic vs Global)
+- Troubleshooting permission issues
+- Installation and upgrade considerations
+- Advanced scenarios and customization
+- Getting help and support
+
+### [QUICK-REFERENCE-Missing-Buttons.md](./QUICK-REFERENCE-Missing-Buttons.md)
+Quick reference card for resolving missing buttons in the CoE Admin Environment Request app:
+- 5-minute quick fix steps
+- Verification checklist
+- Common mistakes to avoid
+- Advanced troubleshooting
+- Pro tips for admins
+
+### [issue-response-missing-environment-request-options.md](./issue-response-missing-environment-request-options.md)
+Specific response template for the "Missing Options in CoE Admin Environment Request App" issue:
+- Root cause analysis
+- Step-by-step solution
+- Security role comparison table
+- Ready-to-post GitHub response
+
 ## How to Use
 
 1. When a new issue is created, review it to identify the category
