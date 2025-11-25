@@ -18,22 +18,30 @@ The quarantine functionality allows administrators to temporarily block access t
 - **Default Value:** No (false)
 
 **Purpose:**
-This field is an **action trigger field** used by administrators or automated processes to initiate the quarantine or unquarantine action for an app. When this field is updated, it indirectly triggers the workflow that performs the actual quarantine operation.
+This field is a **record-keeping field** that indicates whether a quarantine action has been requested or applied to an app. It is updated in the following scenarios:
 
 **How It's Used:**
-1. **User Interface Actions**: The field is connected to two command bar buttons in the Power Platform Admin View:
-   - **"Quarantine App"** button (`admin__QuarantineApp`) - Updates this field to initiate quarantine
-   - **"Unquarantine App"** button (`admin__UnquarantineApp`) - Updates this field to initiate unquarantine
 
-2. **Compliance Automation**: The **"Admin | Quarantine non-compliant apps"** flow sets this field to `true` for apps that have been non-compliant for too long
+1. **User Interface Actions (Quarantine App button)**:
+   - When an admin clicks the "Quarantine App" button in Power Platform Admin View, the Canvas App dialog:
+     - First calls `PowerAppsforAdmins.SetAppQuarantineState()` to directly quarantine the app in Power Platform
+     - Then patches `admin_quarantineapp` to `true` and sets `admin_quarantineappdate` to today's date
+   - The field is updated AFTER the actual quarantine action completes
 
-3. **Trigger Mechanism**: When the `admin_quarantineapp` field is updated, it causes a change that eventually triggers the **"Admin | Set app quarantine status"** flow to execute the actual quarantine/unquarantine operation
+2. **User Interface Actions (Unquarantine App button)**:
+   - When an admin clicks the "Unquarantine App" button, the Canvas App dialog:
+     - First calls `PowerAppsforAdmins.SetAppQuarantineState()` to directly unquarantine the app
+     - Then patches `admin_quarantineapp` to `false`
+
+3. **Compliance Automation**: The **"Admin | Quarantine non-compliant apps"** flow sets this field to `true` for apps that have been non-compliant for too long
+   - This flow updates ONLY this field - it does NOT directly quarantine the app
+   - The actual quarantine happens via a separate mechanism (see flows section)
 
 **Important Notes:**
-- This is an **action trigger field**, not a status field
-- It does not reliably reflect the current quarantine state of the app
-- It's primarily used to initiate changes to the quarantine status
+- This field does NOT trigger any flow when updated
+- It is primarily used for record-keeping and tracking which apps have had quarantine actions applied
 - The field value itself doesn't prevent users from accessing the app - it's the actual quarantine state in Power Platform that does
+- The field may not always reflect the current quarantine state accurately
 
 ### 2. App Is Quarantined (admin_appisquarantined)
 
@@ -79,8 +87,9 @@ This field is automatically updated by:
 
 **Purpose:**
 Stores the date when the app was quarantined. This field is:
-- Set to the current date (UTC) when an app is quarantined by the "Admin | Set app quarantine status" flow
+- Set to the current date when an app is quarantined via the UI buttons or by the "Admin | Set app quarantine status" flow
 - Cleared (set to null) when an app is unquarantined
+- Also set/maintained by inventory sync flows based on the actual quarantine state in Power Platform
 - Used for tracking and reporting purposes
 
 ## Flows
@@ -92,7 +101,7 @@ Stores the date when the app was quarantined. This field is:
 **Trigger:** When the `admin_appisquarantined` field is added, modified, or deleted on the admin_app entity
 
 **What It Does:**
-1. **Triggered by**: Changes to the `admin_appisquarantined` field (typically caused by inventory sync detecting a change, or when the appaction buttons update the field)
+1. **Triggered by**: Changes to the `admin_appisquarantined` field (typically caused by inventory sync flows detecting a change in the actual quarantine state from Power Platform)
 2. **Validates**: Checks if the app still exists and is not deleted
 3. **Retrieves**: Gets the current app details from Dataverse including the current `admin_appisquarantined` status
 4. **Decides**: Based on the current value of `admin_appisquarantined`:
@@ -114,7 +123,7 @@ Stores the date when the app was quarantined. This field is:
 - Maintains audit trail through the quarantine date field
 
 **Important Note:**
-This flow is reactive - it responds to changes in the `admin_appisquarantined` field and then performs the corresponding action in Power Platform. The flow does NOT update `admin_appisquarantined` itself; that's done by the inventory sync flows.
+This flow is NOT directly triggered by the UI buttons. The UI buttons directly call the Power Platform API to quarantine/unquarantine. This flow acts as a safety mechanism that responds when the `admin_appisquarantined` field changes (typically updated by sync flows) to ensure the Power Platform state matches what's recorded in Dataverse.
 
 ### 2. Admin | Quarantine non-compliant apps
 
@@ -133,7 +142,7 @@ This flow is reactive - it responds to changes in the `admin_appisquarantined` f
    - App owner has a valid maker ID
 3. **Updates**: For each non-compliant app found:
    - Sets the app's `admin_quarantineapp` field to `true`
-   - This initiates the quarantine process (details below in workflow section)
+   - **Note**: This does NOT directly quarantine the app - it only sets this field as a marker
 
 **Environment Variable:**
 - **Quarantine Apps after x days of non-compliance** (`admin_QuarantineAppsafterxdaysofnoncompliance`)
@@ -144,18 +153,20 @@ This flow is reactive - it responds to changes in the `admin_appisquarantined` f
 
 Here's how the quarantine system works end-to-end:
 
-### Scenario 1: Manual Quarantine by Admin
+### Scenario 1: Manual Quarantine by Admin (via UI Button)
 
-1. **Admin Action**: Admin clicks "Quarantine App" button in Power Platform Admin View (appaction)
-2. **Field Update**: The button's JavaScript updates the `admin_quarantineapp` field to `true`
-3. **Appaction triggers**: The appaction may also directly update `admin_appisquarantined` field (implementation detail of the appaction)
-4. **Flow Triggered**: The change to `admin_appisquarantined` triggers the "Admin | Set app quarantine status" flow
-5. **Flow Reads**: The flow reads the current `admin_appisquarantined` value from the record
-6. **Flow Decides**: Since `admin_appisquarantined` indicates quarantine is needed, the flow:
-   - Calls Power Platform Admin connector to quarantine the app
-   - Sets `admin_quarantineappdate` to today's date
-7. **Email Sent**: The flow sends an email to the app maker notifying them of the quarantine
-8. **Sync Updates**: Later, when the inventory sync flows run, they read the actual quarantine state from Power Platform and confirm `admin_appisquarantined` is correctly set to `true`
+1. **Admin Action**: Admin clicks "Quarantine App" button in Power Platform Admin View
+2. **Canvas App Dialog**: Opens the quarantine confirmation Canvas App (`admin_ppadminviewquarantineapp`)
+3. **Direct API Call**: The Canvas App calls `PowerAppsforAdmins.SetAppQuarantineState()` to directly quarantine the app in Power Platform
+4. **Field Update**: After successful quarantine, the Canvas App patches:
+   - `admin_quarantineapp` to `true`
+   - `admin_quarantineappdate` to today's date
+5. **Sync Later**: When inventory sync flows run, they:
+   - Read the actual quarantine state from Power Platform
+   - Update `admin_appisquarantined` to `true` (matching the Power Platform state)
+6. **Flow Triggered (Optional)**: The change to `admin_appisquarantined` may trigger the "Admin | Set app quarantine status" flow, which will send email notifications
+
+**Key Point**: The UI button directly calls the Power Platform API - it does NOT rely on the flow to perform the quarantine.
 
 ### Scenario 2: Automated Quarantine for Non-Compliance
 
@@ -163,45 +174,49 @@ Here's how the quarantine system works end-to-end:
 2. **Query Execution**: The flow finds apps that have been non-compliant for more than X days
 3. **Filter Applied**: It filters out apps that are already quarantined (using `admin_appisquarantined`)
 4. **Field Update**: For each non-compliant app, it sets `admin_quarantineapp` to `true`
-5. **Indirect Trigger**: This update causes a subsequent update to `admin_appisquarantined`
-6. **Flow Execution**: Steps 4-8 from Scenario 1 (Flow Triggered through Email Sent) then execute automatically for each app
+5. **Important**: This flow only updates the `admin_quarantineapp` field - it does NOT directly quarantine the app
+6. **How Quarantine Happens**: The actual quarantine mechanism for compliance-flagged apps depends on subsequent inventory sync detection and the "Admin | Set app quarantine status" flow reacting to `admin_appisquarantined` changes
 
-### Scenario 3: Unquarantine an App
+**Note**: There appears to be a gap in the automated compliance workflow - setting `admin_quarantineapp` alone does not trigger the actual quarantine. The full compliance enforcement mechanism may involve additional flows or manual admin review.
+
+### Scenario 3: Unquarantine an App (via UI Button)
 
 1. **Admin Action**: Admin clicks "Unquarantine App" button in Power Platform Admin View
-2. **Field Update**: The button's JavaScript updates the `admin_quarantineapp` field (and possibly `admin_appisquarantined`)
-3. **Flow Triggered**: The change to `admin_appisquarantined` triggers the "Admin | Set app quarantine status" flow
-4. **Flow Reads**: The flow reads the current `admin_appisquarantined` value
-5. **Flow Decides**: Since `admin_appisquarantined` is `false`, the flow:
-   - Calls Power Platform Admin connector to unquarantine the app
-   - Clears `admin_quarantineappdate` (sets to null)
-6. **Email Sent**: The flow sends an email to the app maker notifying them of the release from quarantine
-7. **Sync Updates**: Later, inventory sync flows confirm the state matches reality
+2. **Canvas App Dialog**: Opens the unquarantine confirmation Canvas App (`admin_ppadminviewunquarantineapp`)
+3. **Direct API Call**: The Canvas App calls `PowerAppsforAdmins.SetAppQuarantineState()` to directly unquarantine the app in Power Platform
+4. **Field Update**: After successful unquarantine, the Canvas App patches `admin_quarantineapp` to `false`
+5. **Sync Later**: When inventory sync flows run, they update `admin_appisquarantined` to `false`
+6. **Flow Triggered (Optional)**: The change to `admin_appisquarantined` may trigger the "Admin | Set app quarantine status" flow for email notifications
 
 ## Key Takeaways
 
-1. **Quarantine App (admin_quarantineapp)** = **Action Trigger** 
-   - Used to initiate quarantine/unquarantine actions
-   - Updated by admin UI buttons or compliance flows
-   - Does NOT reflect current status reliably
+1. **Quarantine App (admin_quarantineapp)** = **Record-Keeping Field**
+   - Updated by UI buttons AFTER quarantine action is complete
+   - Updated by compliance flow to mark non-compliant apps
+   - Does NOT trigger any flow when updated
+   - Does NOT directly cause quarantine to happen
 
 2. **App Is Quarantined (admin_appisquarantined)** = **Status Indicator & Flow Trigger**
-   - Shows the current quarantine state
+   - Shows the current quarantine state from Power Platform
    - Changes to this field trigger the "Admin | Set app quarantine status" flow
    - Updated by inventory sync flows to match Power Platform reality
    - Should not be manually edited
 
-3. **The Flow Relationship**:
-   - `admin_quarantineapp` is updated → causes update to `admin_appisquarantined` → triggers flow
-   - The flow reads `admin_appisquarantined` and performs the corresponding action
-   - The actual quarantine is performed by calling Power Platform Admin connector
-   - Inventory sync flows later update `admin_appisquarantined` to reflect true state
+3. **The Actual Workflow**:
+   - **Manual Quarantine**: UI buttons directly call Power Platform API, then update `admin_quarantineapp` for record-keeping
+   - **Sync Updates**: Inventory sync flows read Power Platform state and update `admin_appisquarantined`
+   - **Flow Response**: Changes to `admin_appisquarantined` trigger the "Admin | Set app quarantine status" flow for email notifications and as a safety backup
+   
+4. **Where `admin_quarantineapp` is Updated**:
+   - **Quarantine App Canvas App** (`admin_ppadminviewquarantineapp`): Sets to `true` after quarantining
+   - **Unquarantine App Canvas App** (`admin_ppadminviewunquarantineapp`): Sets to `false` after unquarantining  
+   - **Admin | Quarantine non-compliant apps flow**: Sets to `true` for non-compliant apps
 
-4. **Email Notifications**: App makers are notified when their apps are quarantined or released
+5. **Email Notifications**: App makers are notified when their apps are quarantined or released (via the "Admin | Set app quarantine status" flow)
 
-5. **Automated Compliance**: Daily flows can automatically quarantine non-compliant apps after a grace period
+6. **Automated Compliance**: The daily compliance flow marks apps with `admin_quarantineapp = true`, but the full quarantine enforcement mechanism may require additional steps
 
-6. **Environment Control**: The `ProductionEnvironment` variable controls whether quarantine actions actually execute in Power Platform (for testing purposes)
+7. **Environment Control**: The `ProductionEnvironment` variable controls whether quarantine actions actually execute in Power Platform (for testing purposes)
 
 ## Configuration
 
