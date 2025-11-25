@@ -11,6 +11,26 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
+## Government Cloud (GCC/GCCH/DoD) Considerations
+
+When using the CoE Starter Kit in Government Cloud environments, some Power Platform features may have different availability compared to the commercial cloud. 
+
+### Removing Unmanaged Layers in GCCH
+
+The "Remove unmanaged layer" option in the solution layers UI may not be available in GCCH environments. This is a Power Platform feature limitation, not a CoE Starter Kit issue.
+
+**Workarounds:**
+
+1. **Use Power Platform CLI (PAC CLI)**: Use the `pac solution` command to manage solution layers programmatically.
+   - Documentation: https://learn.microsoft.com/power-platform/developer/cli/reference/solution
+
+2. **Use PowerShell**: Use the Microsoft.PowerApps.Administration.PowerShell module to manage solutions.
+   - Documentation: https://learn.microsoft.com/power-platform/admin/powershell-getting-started
+
+3. **Delete and Reimport**: If the above options are not available, consider deleting the customized components and reimporting the managed solution to restore the original configuration.
+
+For more information about Power Platform in US Government environments, see: https://learn.microsoft.com/power-platform/admin/powerapps-us-government
+
 ## Files in this download
 
 The content package contains various files that support different features of the CoE Starter Kit. The setup instructions will walk you through when to use each file, and below table will give you an overview of the purpose of each file:
