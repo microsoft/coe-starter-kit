@@ -48,6 +48,8 @@ Observe the inline guidelines of the Issue template.
 
 ## Asking and Answering Questions
 
+Before asking a question, check our [Licensing FAQ](docs/LICENSING-FAQ.md) for answers to common licensing and setup questions.
+
 Use the [question issue template](https://github.com/microsoft/coe-starter-kit/issues/new/choose) and ask your question or contribute by answering questions from others. This is a great way to contribute by helping the CoE Starter Kit community.
 
 If you have general questions about Power Platform Governance, unrelated to the CoE Starter Kit, please raise them in the [Power Apps Community forum](https://powerusers.microsoft.com/t5/Power-Apps-Governance-and/bd-p/Admin_PowerApps)
