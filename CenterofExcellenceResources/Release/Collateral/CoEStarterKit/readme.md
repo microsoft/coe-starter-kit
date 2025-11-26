@@ -32,6 +32,22 @@ The content package contains various files that support different features of th
 | Theming_x.xx_managed.zip | [Theming components](theming-components.md) solution file. Required during [setup of the Theming](setup-theming.md) components. | 
 | ToolIcons.zip | Provides a set of starter icons for the [Innovation Backlog](innovationbacklog-components.md). Required during [configuration of the Innovation Backlog](setup-innovationbacklog.md#turn-on-the-flows) |
 
+## Troubleshooting
+
+### Environment not appearing in Power Platform Admin View
+
+If an environment (including the CoE environment) is not appearing in the Power Platform Admin View application, check the following:
+
+1. **Verify the inventory sync has run**: The `Admin | Sync Template v4 (Driver)` flow must run successfully to populate environment data. Check the flow run history to ensure it completed without errors.
+
+2. **Check the "Excuse from Inventory" setting**: Open the Environments table in the CoE environment, find the missing environment record, and verify that `Excuse from Inventory` is set to `No`. If set to `Yes`, the environment will be excluded from views.
+
+3. **Review the "is All Environments Inventory" environment variable**: If this is set to `No`, new environments will have `Excuse from Inventory` set to `Yes` by default. You can opt-in individual environments by setting their `Excuse from Inventory` to `No`.
+
+4. **Run a full inventory sync**: Manually trigger the `Admin | Sync Template v4 (Driver)` flow to refresh environment data.
+
+For more troubleshooting guidance, see the [official documentation](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit).
+
 ## Disclaimer
 Although the underlying features and components used to build the Center of Excellence (CoE) Starter Kit (such as Common Data Service, admin APIs, and connectors) are fully supported, the kit itself represents sample implementations of these features. Our customers and community can use and customize these features to implement admin and governance capabilities in their organizations.
 
