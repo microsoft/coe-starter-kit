@@ -11,6 +11,9 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
+## Feature-Specific Setup Guides
+- [DLP Request Feature Setup](DLP-REQUEST-SETUP.md) - How to configure DLP policies for the Maker Command Center
+
 ## Files in this download
 
 The content package contains various files that support different features of the CoE Starter Kit. The setup instructions will walk you through when to use each file, and below table will give you an overview of the purpose of each file:
