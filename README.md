@@ -59,6 +59,19 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Prerequisites
+
+Before installing the CoE Starter Kit, review the [Installation Prerequisites](INSTALLATION-PREREQUISITES.md) to ensure all required components are in place.
+
+**Key requirement:** The Power Platform Creator Kit must be installed before the CoE Core Components.
+
+## Troubleshooting
+
+If you encounter issues during setup or usage of the CoE Starter Kit, check our troubleshooting guides:
+
+- **[Setup Wizard Not Loading](TROUBLESHOOTING-SETUP-WIZARD.md)** - Solutions for blank pages or missing content in the Setup Wizard
+- **[Installation Prerequisites](INSTALLATION-PREREQUISITES.md)** - Required components and installation order
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
