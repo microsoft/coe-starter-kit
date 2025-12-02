@@ -12,7 +12,7 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
 ## Customizing the CoE Starter Kit
-- Best practices on customizing and extending the CoE Starter Kit: https://docs.microsoft.com/en-us/power-platform/guidance/coe/modify-components
+- Best practices on customizing and extending the CoE Starter Kit: https://learn.microsoft.com/power-platform/guidance/coe/modify-components
 - See also: [Customization and Extension Guide](CUSTOMIZATION-AND-EXTENSION-GUIDE.md) for detailed guidance on environment strategy, flow customization, and extension patterns
 
 ## Files in this download

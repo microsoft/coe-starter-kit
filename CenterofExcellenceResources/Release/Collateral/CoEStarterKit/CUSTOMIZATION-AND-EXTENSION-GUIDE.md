@@ -2,7 +2,7 @@
 
 This guide provides best practices for customizing and extending the CoE Starter Kit based on the official Microsoft documentation and recommended patterns.
 
-> **Important**: The CoE Starter Kit is provided as-is and represents sample implementations. See [Modify components](https://docs.microsoft.com/en-us/power-platform/guidance/coe/modify-components) for official guidance.
+> **Important**: The CoE Starter Kit is provided as-is and represents sample implementations. See [Modify components](https://learn.microsoft.com/power-platform/guidance/coe/modify-components) for official guidance.
 
 ## Table of Contents
 
@@ -43,7 +43,7 @@ This guide provides best practices for customizing and extending the CoE Starter
 - Create a **separate custom solution** (unmanaged in development, then export as managed) for your customizations
 - Use a **test/sandbox environment** only for validating major CoE upgrades before applying to production
 
-> **Reference**: [Set up a Production Environment](https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup)
+> **Reference**: [Set up a Production Environment](https://learn.microsoft.com/power-platform/guidance/coe/setup)
 
 ---
 
@@ -292,7 +292,7 @@ The Setup Wizard will help identify unmanaged layers that
 need to be removed before the upgrade can proceed.
 ```
 
-Reference: [After Setup - Removing Unmanaged Layers](https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades)
+Reference: [After Setup - Removing Unmanaged Layers](https://learn.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades)
 
 ### Upgrade Steps with Customizations
 
@@ -320,12 +320,12 @@ Reference: [After Setup - Removing Unmanaged Layers](https://docs.microsoft.com/
 
 ## Additional Resources
 
-- [Modify CoE Components - Official Documentation](https://docs.microsoft.com/en-us/power-platform/guidance/coe/modify-components)
-- [CoE Setup Documentation](https://docs.microsoft.com/power-platform/guidance/coe/setup)
-- [After Setup & Upgrades](https://docs.microsoft.com/power-platform/guidance/coe/after-setup)
+- [Modify CoE Components - Official Documentation](https://learn.microsoft.com/power-platform/guidance/coe/modify-components)
+- [CoE Setup Documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup)
+- [After Setup & Upgrades](https://learn.microsoft.com/power-platform/guidance/coe/after-setup)
 - [GitHub Issues for CoE Starter Kit](https://github.com/microsoft/coe-starter-kit/issues)
 - [Power Platform Community Forums](https://powerusers.microsoft.com/t5/Power-Apps-Governance-and/bd-p/Admin_PowerApps)
 
 ---
 
-*Last updated: November 2025*
+*Last updated: December 2024*
