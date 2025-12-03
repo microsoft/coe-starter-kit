@@ -20,6 +20,10 @@ If you want to learn more about what's in the latest release of the CoE Starter 
 If you want to learn more about what the CoE Starter Kit team is planning, check out our **[open Milestones](https://github.com/microsoft/coe-starter-kit/milestones?state=open)**. We use CoE Starter Kit - _Month_ 2021 to plan our next release, and CoE Starter Kit - Backlog for our unprioritized feature requests. Please comment or upvote feature requests by using reactions.
 ![image](https://user-images.githubusercontent.com/55705669/121772577-070bff80-cb6e-11eb-94af-4573622ce073.png)
 
+## Frequently Asked Questions
+
+Questions about the roadmap, future, or support model of the CoE Starter Kit? Check out our **[FAQ](FAQ.md)** for answers to common questions including information about deprecation, customizations, and long-term support.
+
 ## Report a Bug or submit a Feature Request
 
 Have you found a bug in the CoE Starter Kit or do you want to suggest a new feature? Either way, please let us now by filing an issue while observing the following guidelines.
