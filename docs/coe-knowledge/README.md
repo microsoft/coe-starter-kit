@@ -4,6 +4,17 @@ This directory contains troubleshooting guides, common issue responses, and know
 
 ## Documents
 
+### [Quick-Reference.md](./Quick-Reference.md) ⭐ Start Here
+Quick lookup guide for the most common CoE Starter Kit issues and their immediate solutions. Perfect for rapid diagnosis.
+
+**Contents:**
+- Critical issues (blank screens, setup wizard)
+- Common issues (inventory, DLP, data collection)
+- Prerequisites checklist
+- Diagnostic commands
+- Issue reporting template
+- Success rates by issue type
+
 ### [COE-Kit-Common GitHub Responses.md](./COE-Kit-Common%20GitHub%20Responses.md)
 Ready-to-use explanations, limits, workarounds, and troubleshooting guidance for common CoE Starter Kit issues. This is the primary playbook for responding to GitHub issues.
 
@@ -30,6 +41,18 @@ Comprehensive guide for diagnosing and resolving blank screen issues in CoE Star
 - Preventive measures
 - How to gather diagnostic information
 - GitHub issue template for reporting
+
+### [Issue-Response-Blank-Screens.md](./Issue-Response-Blank-Screens.md)
+Template and guidance for responding to blank screen issues on GitHub, including follow-up actions based on user responses.
+
+**Contents:**
+- Standard issue response template
+- Follow-up actions for different scenarios
+- Resolution checklist
+- Related issue search queries
+
+### [ISSUE_COMMENT_TEMPLATE.md](./ISSUE_COMMENT_TEMPLATE.md)
+Copy-paste ready comment for responding to the current GitHub issue about blank screens. Can be customized for similar issues.
 
 ## Purpose
 
