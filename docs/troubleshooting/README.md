@@ -7,6 +7,7 @@ This directory contains troubleshooting guides for common issues encountered whe
 ### Setup and Installation
 
 - [AppForbidden Error with CoE Setup and Upgrade Wizard](AppForbidden-Setup-Wizard.md) - Resolves permission errors when accessing the Setup Wizard
+- [AppForbidden Error - Decision Tree](AppForbidden-Decision-Tree.md) - Quick diagnostic flowchart for permission issues
 
 ## Getting Help
 
