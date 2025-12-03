@@ -8,6 +8,11 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 - Get started with the CoE Starter Kit Setup: https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup
 - Get started with the ALM Accelerator for Power Platform Setup: https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup-almacceleratorpowerplatform-cli
 
+### Important: Creator Kit Prerequisite
+The CoE Core Components solution requires the **Power Platform Creator Kit** to be installed. If you experience blank or incomplete UI in apps like App Catalog or Command Center, you need to install the Creator Kit:
+- Download from: [Microsoft Creator Kit on AppSource](https://aka.ms/creatorkitdownload)
+- See detailed troubleshooting: [Core Components Troubleshooting Guide](https://github.com/microsoft/coe-starter-kit/blob/main/CenterofExcellenceCoreComponents/TROUBLESHOOTING.md)
+
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
