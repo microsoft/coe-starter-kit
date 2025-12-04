@@ -13,7 +13,7 @@ This exceeded the maximum page count '1000' allowed.
 
 This limitation can affect any CoE Starter Kit flow that retrieves large datasets, particularly:
 
-- **Admin | Sync Template v4 (Connection Identities)** - Fixed in v4.50.4+
+- **Admin | Sync Template v4 (Connection Identities)** - Fix included in this PR
 - Other inventory flows processing environments with extremely high volumes
 
 ## Root Cause
@@ -33,7 +33,7 @@ When using `paginationPolicy.minimumItemCount`, Power Automate will continue pag
 
 ## Solution Applied
 
-### Connection Identities Flow Fix (v4.50.4+)
+### Connection Identities Flow Fix
 
 **Before:**
 ```json
@@ -85,7 +85,7 @@ If your environment has more connections than can be processed in a single run:
 **Cause**: The environment has too many connections to process in a single flow run.
 
 **Solution**: 
-1. Upgrade to CoE Starter Kit v4.50.4 or later (includes the pagination fix)
+1. Apply this fix once it is included in a future CoE Starter Kit release
 2. Run the flow multiple times to incrementally process all connections
 3. Consider cleaning up unused connections
 
@@ -118,7 +118,7 @@ For most inventory scenarios in large tenants, **removing paginationPolicy** is 
 
 ## Version History
 
-- **v4.50.4**: Fixed Connection Identities pagination limit issue
+- **Pending Release**: Fix for Connection Identities pagination limit issue (this PR)
 - **v4.50.3**: Issue identified with environments having > 1,000,000 connections
 
 ## See Also
