@@ -32,6 +32,34 @@ The content package contains various files that support different features of th
 | Theming_x.xx_managed.zip | [Theming components](theming-components.md) solution file. Required during [setup of the Theming](setup-theming.md) components. | 
 | ToolIcons.zip | Provides a set of starter icons for the [Innovation Backlog](innovationbacklog-components.md). Required during [configuration of the Innovation Backlog](setup-innovationbacklog.md#turn-on-the-flows) |
 
+## Troubleshooting
+
+### Azure Key Vault Authorization Error During Import
+
+If you encounter an error similar to the following during solution import or upgrade:
+
+> Solution "Center of Excellence - Core Components" failed to import: ImportAsHolding failed with exception: User is not authorized to read secrets from '/subscriptions/.../resourceGroups/.../providers/Microsoft.KeyVault/vaults/.../secrets/...' resource.
+
+This error occurs when the solution contains environment variables that reference Azure Key Vault secrets (such as "Audit Logs - Client Azure Secret" or "Command Center - Client Azure Secret"), and the user performing the import does not have the required permissions in Azure Key Vault.
+
+**Resolution:**
+
+1. **Grant Key Vault Access**: Ensure the user or service principal importing the solution has the **Key Vault Secrets User** role assigned in Azure Key Vault. You can do this in the Azure Portal:
+   - Navigate to your Key Vault resource
+   - Go to **Access control (IAM)**
+   - Click **Add role assignment**
+   - Select the **Key Vault Secrets User** role
+   - Assign it to the user or service principal performing the import
+
+2. **Alternative - Clear Secret Value Before Upgrade**: If you no longer need the Key Vault secret reference, you can clear the environment variable value before importing the upgrade:
+   - In the CoE environment, go to **Solutions** > **Default Solution** > **Environment Variables**
+   - Find the environment variable referencing the Key Vault secret (e.g., "Audit Logs - Client Azure Secret")
+   - Clear the current value
+
+3. **Verify Azure AD App Registration**: If using the Office 365 Management API with Azure Key Vault, ensure your Azure AD app registration has the correct permissions and the secret is accessible.
+
+For more information on setting up Azure Key Vault with Power Platform, see the [official documentation](https://docs.microsoft.com/power-platform/guidance/coe/setup-auditlog).
+
 ## Disclaimer
 Although the underlying features and components used to build the Center of Excellence (CoE) Starter Kit (such as Common Data Service, admin APIs, and connectors) are fully supported, the kit itself represents sample implementations of these features. Our customers and community can use and customize these features to implement admin and governance capabilities in their organizations.
 
