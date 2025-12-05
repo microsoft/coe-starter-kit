@@ -17,6 +17,8 @@ This directory contains detailed troubleshooting guides for common issues encoun
 - PowerShell for ad-hoc queries
 - Plan for Microsoft Fabric integration
 
+**Quick Reference:** See the [Telemetry Data Availability Matrix](./telemetry-quick-reference.md) for a comparison of what data is available with each inventory method.
+
 ---
 
 ## How to Use These Guides
