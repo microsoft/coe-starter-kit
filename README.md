@@ -59,6 +59,15 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+
+If you experience issues with the CoE Starter Kit:
+
+- **App Catalog or other apps showing blank UI**: See the [Core Components Troubleshooting Guide](./CenterofExcellenceCoreComponents/TROUBLESHOOTING.md#app-catalog-ui-not-displaying-correctly) - this is often caused by missing Creator Kit dependency
+- **General issues**: Check the [official troubleshooting documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup-troubleshooting)
+- **Search existing issues**: [GitHub Issues](https://github.com/microsoft/coe-starter-kit/issues)
+- **Report new bugs**: Use the [issue templates](https://github.com/microsoft/coe-starter-kit/issues/new/choose)
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
