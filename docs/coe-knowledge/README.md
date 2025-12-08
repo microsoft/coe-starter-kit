@@ -4,6 +4,9 @@ This directory contains frequently asked questions, common issues, and detailed 
 
 ## Contents
 
+### Quick References
+- [Quick Ref: Orphaned Resources Discrepancy](QUICKREF-orphaned-resources-discrepancy.md) - TL;DR guide for orphaned resources count differences
+
 ### FAQs and Articles
 - [Orphaned Resources FAQ](orphaned-resources-faq.md) - Detailed explanation of differences between CoE Starter Kit and PPAC Advisor orphaned resource counts
 
