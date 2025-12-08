@@ -12,6 +12,15 @@ Issue response template for when CoE dataflows are not refreshing sequentially o
 - Subsequent dataflows show old timestamps
 - Dataflow chain is not working as expected
 
+### [Dataflow Chain Diagram](./dataflow-chain-diagram.md)
+Visual representation of the CoE dataflow chain architecture.
+
+**Includes:**
+- Step-by-step flow diagram
+- Dependencies and requirements
+- Expected timelines
+- Break point diagnostics
+
 ## Using These Guides
 
 ### For Users
