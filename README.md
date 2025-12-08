@@ -60,7 +60,9 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
 ### Identity Requirements and Security Guidance
-For detailed information about identity requirements, security considerations, and best practices for setting up the CoE Starter Kit securely, see [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md).
+For detailed information about identity requirements, security considerations, and best practices for setting up the CoE Starter Kit securely:
+- [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md) - Comprehensive documentation
+- [Identity Requirements FAQ](IdentityRequirementsFAQ.md) - Quick answers to common questions
 
 ## Microsoft Open Source Code of Conduct
 
