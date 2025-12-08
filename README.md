@@ -61,8 +61,9 @@ Please find all information on how to install and use the kit on https://docs.mi
 
 ### Identity Requirements and Security Guidance
 For detailed information about identity requirements, security considerations, and best practices for setting up the CoE Starter Kit securely:
-- [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md) - Comprehensive documentation
+- [Identity Requirements Quick Start](IdentityRequirementsQuickStart.md) - Get started in 5 minutes with essential security setup
 - [Identity Requirements FAQ](IdentityRequirementsFAQ.md) - Quick answers to common questions
+- [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md) - Comprehensive documentation
 
 ## Microsoft Open Source Code of Conduct
 

@@ -4,6 +4,10 @@
 
 This document provides detailed guidance on identity requirements for the CoE Starter Kit, explains the technical limitations that necessitate certain permissions, and offers best practices to mitigate security risks.
 
+**Related Documentation:**
+- [Identity Requirements Quick Start](IdentityRequirementsQuickStart.md) - Get started in 5 minutes
+- [Identity Requirements FAQ](IdentityRequirementsFAQ.md) - Quick answers to common questions
+
 ## Identity Requirements Summary
 
 The CoE Starter Kit requires a privileged account with specific characteristics for setup and ongoing operations:

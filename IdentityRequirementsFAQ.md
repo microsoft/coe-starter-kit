@@ -1,6 +1,10 @@
 # CoE Starter Kit - Identity Requirements FAQ
 
-This document provides quick answers to frequently asked questions about identity requirements for the CoE Starter Kit. For comprehensive guidance, see [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md).
+This document provides quick answers to frequently asked questions about identity requirements for the CoE Starter Kit.
+
+**Related Documentation:**
+- [Identity Requirements Quick Start](IdentityRequirementsQuickStart.md) - Get started quickly
+- [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md) - Comprehensive documentation
 
 ## Quick Reference
 
@@ -311,6 +315,7 @@ Use this checklist when discussing with your security team:
 
 ## Additional Resources
 
+- **Quick Start:** [Identity Requirements Quick Start](IdentityRequirementsQuickStart.md)
 - **Main Documentation:** [Identity Requirements and Security Guidance](IdentityRequirementsAndSecurity.md)
 - **Official Setup Guide:** [CoE Starter Kit Setup](https://learn.microsoft.com/power-platform/guidance/coe/setup)
 - **Conditional Access:** [Azure AD Conditional Access Documentation](https://learn.microsoft.com/azure/active-directory/conditional-access/)
