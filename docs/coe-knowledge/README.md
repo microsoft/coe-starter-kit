@@ -66,6 +66,40 @@ The CoE Knowledge Base provides:
 - Manual trigger instructions
 - Connection requirements
 
+### 4. [Issue-Response-Template.md](Issue-Response-Template.md)
+**Purpose**: Ready-to-use templates for responding to GitHub issues
+
+**Use this when**:
+- Responding to issues about flows/apps tables not populating
+- Addressing concerns about long-running flows
+- Helping with connection and permission issues
+- Needing consistent, comprehensive responses
+
+**Topics covered**:
+- Flows/Apps tables not populating template
+- Long-running flows template
+- Missing connection/permission issues template
+- Quick reference links for all scenarios
+
+### 5. [Diagnostic-Checklist.md](Diagnostic-Checklist.md)
+**Purpose**: Systematic checklist for diagnosing inventory flow issues
+
+**Use this when**:
+- Need to perform comprehensive diagnostics
+- Gathering information for GitHub issue
+- Troubleshooting complex multi-factor issues
+- Training team members on diagnostic process
+
+**Topics covered**:
+- Driver flow health check
+- Environments table validation
+- Child flow health checks (Apps, Flows)
+- Connection references validation
+- Permissions and licensing verification
+- Data quality assessment
+- Environment configuration check
+- Summary and next steps guidance
+
 ## Quick Navigation
 
 ### I need to troubleshoot why inventory isn't working
@@ -74,6 +108,7 @@ The CoE Knowledge Base provides:
 
 ### I need to respond to a GitHub issue
 → Check [COE-Kit-Common-GitHub-Responses.md](COE-Kit-Common-GitHub-Responses.md) for pre-written responses
+→ Use [Issue-Response-Template.md](Issue-Response-Template.md) for structured responses
 → Reference specific sections based on the issue topic
 
 ### I need to understand flow dependencies
@@ -82,6 +117,10 @@ The CoE Knowledge Base provides:
 ### I need to help someone after an upgrade
 → Check "Upgrade Issues" in [COE-Kit-Common-GitHub-Responses.md](COE-Kit-Common-GitHub-Responses.md)
 → Follow diagnostic steps in [Troubleshooting-Inventory-Flows.md](Troubleshooting-Inventory-Flows.md)
+
+### I need to perform systematic diagnostics
+→ Use [Diagnostic-Checklist.md](Diagnostic-Checklist.md) for step-by-step assessment
+→ Reference specific troubleshooting docs based on findings
 
 ## Common Issue Patterns
 
