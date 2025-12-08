@@ -5,31 +5,46 @@ Thank you for this excellent question! You've identified an important behavior i
 
 ## Direct Answer to Your Question
 
-**Yes, the CoE Starter Kit does have cleanup flows for orphaned users, BUT they do NOT delete User Role records automatically.** Instead, they mark users as orphaned, which you can then filter in your queries.
+**Yes, the CoE Starter Kit DOES delete User Role records through its cleanup flows**, but this happens in a two-stage process:
+1. First, users are marked as orphaned in the Users table
+2. Then, the App/Flow Shared With cleanup helper flows delete User Role records when sharing is removed
+
+However, there's a **time lag** between these stages, which is likely causing your false positives.
 
 ### Key Cleanup Flows
 
-The following flows are relevant to your scenario:
+The following flows work together to clean up User Role records:
 
 1. **CLEANUP - Admin | Sync Template v3 (Orphaned Users)** 
    - Checks each user in the Power Platform Users table against Azure AD
    - Marks users as orphaned when not found in Azure AD (`admin_userisorphaned = true`)
    - Sets `admin_userenabled = false` for disabled users
 
-2. **CLEANUP - Admin | Sync Template v3 (App Shared With)**
-   - Syncs the current sharing state of apps
-   - Creates/updates User Role records but does NOT delete old ones
+2. **CLEANUP - Admin | Sync Template v3 (App Shared With)** + **CLEANUPHELPER - Power Apps User Shared With**
+   - Parent flow walks through all environments
+   - Helper flow (Version 3.13+) syncs the current sharing state of apps PER environment
+   - **DELETES User Role records** when:
+     - Sharing is removed from the app in Power Platform
+     - Users no longer appear in the actual sharing list
+     - User lookup fields are null (bad data cleanup)
 
-3. **CLEANUP - Admin | Sync Template v3 (Flow Shared With)**
-   - Syncs the current sharing state of flows
-   - Creates/updates User Role records but does NOT delete old ones
+3. **CLEANUP - Admin | Sync Template v3 (Flow Shared With)** + **CLEANUPHELPER - Cloud Flow User Shared With**
+   - Parent flow walks through all environments
+   - Helper flow (Version 4.29.5+) syncs the current sharing state of flows PER environment
+   - **DELETES User Role records** when sharing is removed (same logic as apps)
 
 ## The Root Cause of Your False Positives
 
-The issue you're experiencing occurs because:
-- User Role records for orphaned users remain in the table
-- When you query User Roles directly without filtering orphaned users, you're counting users who may no longer exist
-- This leads to false positives in your sharing limit violations
+The issue you're experiencing occurs because of the **two-stage cleanup process and timing lag**:
+
+1. **Stage 1 - User Marked as Orphaned**: When a user leaves the organization, the Orphaned Users flow marks them as `admin_userisorphaned = true`
+2. **Stage 2 - User Role Deletion**: The App/Flow Shared With cleanup flows will delete the User Role records, but ONLY when they run and compare actual vs. inventoried sharing
+
+**Your false positives happen because:**
+- User Role records remain in the table until the App/Flow Shared With cleanup flows run
+- The "List Owners as Admin" Power Platform API still returns orphaned users if sharing wasn't explicitly removed
+- There's a time lag (potentially weeks/months) between marking users as orphaned and deletion of their User Role records
+- Orphaned users can still be "shared with" in Power Platform even though their accounts are disabled
 
 ## Solution for Your Custom Monitoring
 
@@ -57,26 +72,48 @@ CountIf(
 
 ## Recommended Actions
 
-1. **Ensure Cleanup Flows are Running**: Verify that the "CLEANUP - Admin | Sync Template v3 (Orphaned Users)" flow is scheduled to run at least weekly
+1. **Ensure Cleanup Flows are Running Regularly**: 
+   - **CLEANUP - Orphaned Users**: Schedule to run weekly
+   - **CLEANUP - App Shared With**: Schedule to run monthly (long-running, resource-intensive)
+   - **CLEANUP - Flow Shared With**: Schedule to run monthly (long-running, resource-intensive)
 
-2. **Update Your Custom Queries**: Modify your queries to join with the Power Platform Users table and filter where `admin_userisorphaned = false`
+2. **Update Your Custom Queries to Filter Orphaned Users**: 
+   Modify your queries to join with the Power Platform Users table and exclude orphaned users:
+   ```powerFx
+   Filter(
+       'Power Platform User Roles',
+       'App' = ThisItem.App &&
+       Not(IsBlank('User')) &&
+       'User'.'Is Orphaned User' <> true
+   )
+   ```
 
-3. **Test Your Logic**: After implementing the filter, verify that orphaned users are no longer causing false positives
+3. **Verify Your CoE Version**: 
+   Check that you're running at least:
+   - Version 3.13 for App cleanup with deletion
+   - Version 4.29.5 for Flow cleanup with deletion
 
-## Why User Role Records Aren't Deleted
+4. **Test Your Logic**: 
+   After implementing the filter, verify that orphaned users are no longer causing false positives in your sharing limit violations
 
-The CoE Starter Kit intentionally preserves User Role records for orphaned users to:
-- Maintain audit trails of historical access
-- Support compliance and security investigations
-- Allow for user record restoration if accounts are re-enabled
+## How the Deletion Process Works
 
-## Optional: Custom Cleanup Flow
+The cleanup helper flows use this logic:
 
-If you prefer to automatically delete User Role records for orphaned users after a retention period, you can create a custom flow that:
-1. Queries User Role records where the linked user is orphaned
-2. Filters records older than your retention period (e.g., 90 days)
-3. Deletes the records
-4. Logs deletions for audit purposes
+1. **Get Current Sharing State**: Call Power Platform admin APIs to get actual sharing for each app/flow
+2. **Get Inventoried State**: Query User Role records in CoE for that app/flow
+3. **Compare**: Identify roles that exist in the inventory but not in actual sharing
+4. **Delete Removed Roles**: Delete User Role records for sharing that no longer exists
+5. **Create New Roles**: Add User Role records for newly discovered sharing
+6. **Clean Bad Data**: Delete User Role records where user lookup is null
+
+## Important: Verify Your CoE Version
+
+The deletion functionality was introduced in:
+- **CLEANUPHELPER - Power Apps User Shared With**: Version 3.13
+- **CLEANUPHELPER - Cloud Flow User Shared With**: Version 4.29.5
+
+If you're on an older version, you may not have the automatic deletion capability. Check your CoE Starter Kit version and consider upgrading if needed.
 
 ## Documentation
 
