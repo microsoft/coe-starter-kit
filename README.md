@@ -59,6 +59,9 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Performance Optimization
+If you are experiencing performance issues with the Audit Logs flows, particularly the "Sync Audit Logs (V2)" flow taking multiple days to complete, please see the [Audit Logs Performance Guide](AUDIT_LOGS_PERFORMANCE.md) for detailed analysis and solutions.
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
