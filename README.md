@@ -59,6 +59,10 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Additional Documentation
+For supplementary guides and advanced topics, see the [Documentation](Documentation/) folder:
+- [Workload Identity Federation Migration Guide](Documentation/WorkloadIdentityFederationMigration.md) - Guidance for migrating app registrations to Workload Identity Federation
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
