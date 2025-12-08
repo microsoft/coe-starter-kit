@@ -61,7 +61,8 @@ Please find all information on how to install and use the kit on https://docs.mi
 
 ### Additional Documentation
 For supplementary guides and advanced topics, see the [Documentation](Documentation/) folder:
-- [Workload Identity Federation Migration Guide](Documentation/WorkloadIdentityFederationMigration.md) - Guidance for migrating app registrations to Workload Identity Federation
+- [Workload Identity Federation Quick Reference](Documentation/WIF-Quick-Reference.md) - Quick answers about WIF impact
+- [Workload Identity Federation Migration Guide](Documentation/WorkloadIdentityFederationMigration.md) - Comprehensive guidance for migrating app registrations to Workload Identity Federation
 
 ## Microsoft Open Source Code of Conduct
 
