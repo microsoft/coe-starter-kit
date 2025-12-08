@@ -4,7 +4,12 @@ This directory contains frequently asked questions, common issues, and detailed 
 
 ## Contents
 
-- [Orphaned Resources FAQ](orphaned-resources-faq.md) - Explains differences between CoE Starter Kit and PPAC Advisor orphaned resource counts
+### FAQs and Articles
+- [Orphaned Resources FAQ](orphaned-resources-faq.md) - Detailed explanation of differences between CoE Starter Kit and PPAC Advisor orphaned resource counts
+
+### Response Templates
+- [Issue Response: Orphaned Resources](issue-response-orphaned-resources.md) - Ready-to-use response for orphaned resources count discrepancy questions
+- [Common GitHub Responses](COE-Kit-Common%20GitHub%20Responses.md) - Quick reference guide for common questions and issues
 
 ## Purpose
 
