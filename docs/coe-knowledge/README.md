@@ -13,7 +13,11 @@ These documents provide:
 
 ## Documents
 
+- **[Quick Reference Guide](./Quick-Reference-Guide.md)**: Fast answers to the most common questions and issues. Start here for quick troubleshooting.
 - **[COE-Kit-Common GitHub Responses.md](./COE-Kit-Common%20GitHub%20Responses.md)**: Ready-to-use responses for common issues, including setup wizard problems, Power BI dashboard issues, licensing requirements, and more.
+- **[Setup Wizard Troubleshooting](./Setup-Wizard-Troubleshooting.md)**: Detailed troubleshooting guide for CoE Setup Wizard issues.
+- **[Power BI Dashboard Troubleshooting](./PowerBI-Dashboard-Troubleshooting.md)**: Comprehensive diagnostic guide for Power BI dashboard issues.
+- **[Sample Issue Responses](./Sample-Issue-Responses.md)**: Copy-paste templates for responding to common GitHub issues.
 
 ## For Support Team
 
