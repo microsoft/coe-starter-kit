@@ -2,6 +2,10 @@
 
 This directory contains internal knowledge base documentation for the CoE Starter Kit support team and contributors.
 
+## Quick Navigation
+
+👉 **[INDEX](./INDEX.md)** - Quickly find answers by issue type, question, or topic
+
 ## Purpose
 
 These documents provide:
