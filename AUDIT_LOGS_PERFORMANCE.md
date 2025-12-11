@@ -151,6 +151,26 @@ Edit the flow JSON to add concurrency to the sequential loops:
 - ⚠️ Not officially supported/recommended by Microsoft
 - ⚠️ May be overwritten during solution upgrades
 
+### Solution 3: Additional Office 365 Management API Optimizations
+
+**If you have already enabled concurrency and still experiencing performance issues**, see the comprehensive guide:
+
+📖 **[Office 365 Management API Performance Optimizations](O365_MANAGEMENT_API_OPTIMIZATIONS.md)**
+
+This guide covers:
+- Reducing retry delays (20-30% improvement)
+- Adjusting time windows (50% less data per run)
+- Optimizing Dataverse operations (10-20% improvement)
+- Filtering operations (10-20% improvement)
+- Advanced splitting strategies (2-4x throughput)
+
+**Quick wins without code changes:**
+- Change `admin_AuditLogsMinutestoLookBack` from 65 to 30 minutes
+- Change `admin_AuditLogsEndTimeMinutesAgo` from 0 to 60 minutes
+- Run flow every 30 minutes instead of hourly
+
+**Combined impact**: Can reduce runtime by 60-70% (e.g., 6 hours → 2 hours)
+
 ### Solution 3: Increase Sync Frequency (Workaround)
 
 If neither solution above is viable:
