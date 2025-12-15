@@ -5,7 +5,11 @@ This directory contains troubleshooting guides for common issues encountered whe
 ## Available Guides
 
 ### Core Components
-- [Environments Not Listed in Power Platform Admin App](./environments-not-listed.md) - Troubleshoot missing environments in the inventory
+- [Quick Reference - Environment Inventory Issues](./environment-inventory-quick-reference.md) - Fast diagnostics and fixes ⚡
+- [Environments Not Listed in Power Platform Admin App](./environments-not-listed.md) - Comprehensive troubleshooting guide
+
+### For Contributors
+- [Issue Response Templates](./RESPONSE_TEMPLATES.md) - Standardized responses for common issues
 
 ## Getting Help
 
