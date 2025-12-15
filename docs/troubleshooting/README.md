@@ -20,6 +20,9 @@ Comprehensive guide for troubleshooting CoE BYODL (Bring Your Own Data Lake) dat
 - Licensing requirements
 - Migration path away from BYODL to Dataverse
 
+### [BYODL Dataflow Quick Reference](byodl-dataflow-quick-reference.md)
+Quick diagnostic checklist and common fixes for BYODL dataflow refresh issues. Use this for rapid troubleshooting before diving into the comprehensive guide.
+
 ## Contributing
 
 If you've encountered and resolved issues not covered in these guides, please consider contributing:
