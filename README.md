@@ -59,6 +59,12 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Knowledge Base and Troubleshooting
+
+For common issues, troubleshooting guides, and additional documentation, see the [CoE Knowledge Base](docs/coe-knowledge/README.md) which includes:
+- [Common GitHub Response Templates](docs/coe-knowledge/COE-Kit-Common%20GitHub%20Responses.md) - Standard responses for frequently asked questions
+- [Data Export V2 Status](docs/coe-knowledge/Data-Export-V2-Status.md) - Information about the Data Export V2 feature and why it appears greyed out
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
