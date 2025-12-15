@@ -8,6 +8,9 @@ This directory contains supplementary documentation, guides, and resources for t
 
 Learn how to customize and filter maker notification emails in the Governance solution:
 
+- **[⚡ Quick Reference: Maker Notification Filtering](./QuickReference-MakerNotificationFiltering.md)** 👈 **Start Here!**  
+  Fast answers and quick solutions for the most common scenarios. Get up and running in minutes.
+
 - **[Overview: Filtering Maker Notifications](./FilteringMakerNotifications.md)**  
   Comprehensive guide covering all approaches to filtering notifications, including by environment, user, and other criteria.
 
