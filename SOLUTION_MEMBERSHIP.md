@@ -135,23 +135,89 @@ The following XML relationship definitions were added:
 
 ### Flow Updates Required
 
-The following flows need updates to populate solution membership (to be implemented):
+The solution membership relationships are populated by the **CLEANUPHELPER-SolutionObjects** flow, which runs after the solution inventory sync. This flow needs to be updated to handle Desktop Flows and PVA bots.
 
-1. **AdminSyncTemplate v4 Desktopflows** - Add logic to:
-   - Query `solutioncomponent` table for each Desktop Flow
-   - Associate/disassociate Desktop Flows with Solutions via the intersection table
+#### Current Implementation (Apps and Flows)
 
-2. **AdminSyncTemplate v4 PVA** - Add logic to:
-   - Query `solutioncomponent` table for each PVA bot
-   - Associate/disassociate PVA bots with Solutions via the intersection table
+The CLEANUPHELPER-SolutionObjects flow currently:
 
-### Example Dataverse Query for Solution Components
+1. Queries `solutioncomponents` table for each solution:
+   - `componenttype eq 300 or componenttype eq 80` for Canvas Apps
+   - `componenttype eq 29` for Cloud Flows (workflows)
 
+2. Associates/disassociates using:
+   - `AssociateEntities` operation with `admin_PPSolution_Apps` relationship
+   - `AssociateEntities` operation with `admin_PPSolution_Flow` relationship
+
+#### Required Updates
+
+The CLEANUPHELPER-SolutionObjects flow should be enhanced to:
+
+1. **Query Desktop Flow components:**
+   ```
+   GET [org]/api/data/v9.2/solutioncomponents?
+     $select=objectid,componenttype
+     &$filter=componenttype eq 29 and _solutionid_value eq [solution-guid]
+   ```
+   Then filter for Desktop Flows by checking if the workflow has `category eq 6` from the workflows table.
+
+2. **Query PVA Bot components:**
+   ```
+   GET [org]/api/data/v9.2/solutioncomponents?
+     $select=objectid,componenttype
+     &$filter=componenttype eq 380 and _solutionid_value eq [solution-guid]
+   ```
+
+3. **Associate/disassociate Desktop Flows:**
+   - Use `AssociateEntities` operation with `admin_PPSolution_DesktopFlow` relationship
+   - Use `DisassociateEntities` operation with `admin_PPSolution_DesktopFlow` relationship
+
+4. **Associate/disassociate PVA Bots:**
+   - Use `AssociateEntities` operation with `admin_PPSolution_PVA` relationship
+   - Use `DisassociateEntities` operation with `admin_PPSolution_PVA` relationship
+
+#### Implementation Approach
+
+The recommended approach is to add parallel processing scopes in CLEANUPHELPER-SolutionObjects:
+
+1. Add "List_Solutions_DesktopFlows" action to query solution components with componenttype 380
+2. Add "Select_Actual_DesktopFlows" to extract objectids
+3. Add "List_Solutions_PVA" action to query solution components with componenttype 380
+4. Add "Select_Actual_PVA" to extract objectids
+5. Add association/disassociation logic similar to existing Apps and Flows handling
+
+### Component Type Reference
+
+| Resource Type | Component Type Code | Additional Filter |
+|--------------|---------------------|-------------------|
+| Canvas App | 300 or 80 | - |
+| Cloud Flow | 29 | category ne 6 |
+| Desktop Flow | 29 | category eq 6 |
+| PVA Bot | 380 | - |
+
+### Example Dataverse Queries for Solution Components
+
+**Get all solution components for a solution:**
 ```
 GET [org]/api/data/v9.2/solutioncomponents?
   $select=objectid,componenttype
-  &$filter=objectid eq [workflow-or-bot-guid] and componenttype eq [29-or-380]
-  &$expand=solutionid($select=solutionid,uniquename)
+  &$filter=_solutionid_value eq [solution-guid]
+  &$orderby=componenttype
+```
+
+**Get Desktop Flow components in a solution:**
+```
+GET [org]/api/data/v9.2/solutioncomponents?
+  $select=objectid,componenttype
+  &$filter=componenttype eq 29 and _solutionid_value eq [solution-guid]
+```
+Note: Additional filtering needed to distinguish Desktop Flows (category 6) from Cloud Flows.
+
+**Get PVA Bot components in a solution:**
+```
+GET [org]/api/data/v9.2/solutioncomponents?
+  $select=objectid,componenttype
+  &$filter=componenttype eq 380 and _solutionid_value eq [solution-guid]
 ```
 
 ## Limitations and Known Issues
