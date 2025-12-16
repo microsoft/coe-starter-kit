@@ -12,6 +12,8 @@ This directory contains troubleshooting guides and documentation for the Microso
   - Data Policy Impact Analysis
   - Other Core Component apps
 
+- **[Quick Reference Card - Blank Screens](QUICK-REFERENCE-BLANK-SCREENS.md)** - Printable quick reference checklist for rapid troubleshooting
+
 - **[FAQ - Common Issues](FAQ-COMMON-ISSUES.md)** - Quick reference for frequently asked questions and common problems with the CoE Starter Kit
 
 ## Official Documentation
