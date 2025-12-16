@@ -59,6 +59,15 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+
+If you're experiencing issues with the CoE Starter Kit, please check our troubleshooting guides:
+
+- **[Troubleshooting Blank Screens](docs/TROUBLESHOOTING-BLANK-SCREENS.md)** - Comprehensive guide for resolving blank screen issues in CoE apps
+- **[FAQ - Common Issues](docs/FAQ-COMMON-ISSUES.md)** - Quick answers to frequently asked questions and common problems
+
+For additional help, see the [official troubleshooting documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup-troubleshooting) or search [existing issues](https://github.com/microsoft/coe-starter-kit/issues).
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
