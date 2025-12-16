@@ -16,6 +16,10 @@ This directory contains troubleshooting guides and documentation for the Microso
 
 - **[FAQ - Common Issues](FAQ-COMMON-ISSUES.md)** - Quick reference for frequently asked questions and common problems with the CoE Starter Kit
 
+### For Maintainers
+
+- **[GitHub Issue Response Templates](GITHUB-ISSUE-RESPONSE-TEMPLATES.md)** - Pre-written response templates for common GitHub issues to help maintainers provide consistent, helpful responses
+
 ## Official Documentation
 
 For complete setup instructions and detailed documentation, please visit:
