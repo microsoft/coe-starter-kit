@@ -247,6 +247,64 @@ This implements defense-in-depth security with multiple layers of protection.
 - Request priority for Service Principal support
 - Consider if your organization can wait for future capabilities
 
+### Q: What IP addresses and network connectivity does CoE need?
+
+**A:** The CoE Starter Kit requires outbound connectivity to Microsoft cloud services:
+
+**Essential Endpoints** (HTTPS/443):
+- `*.powerapps.com` - Power Apps
+- `*.flow.microsoft.com` - Power Automate  
+- `*.crm*.dynamics.com` - Dataverse (varies by region)
+- `login.microsoftonline.com` - Azure AD
+- `graph.microsoft.com` - Microsoft Graph
+- `*.vault.azure.net` - Azure Key Vault (if used)
+
+**For Conditional Access IP Restrictions:**
+- Configure your organization's trusted IP ranges (corporate network, VPN gateway, Azure VNet)
+- CoE flows run from Microsoft's Power Platform IP ranges (region-specific)
+- Download complete list: [Azure IP Ranges and Service Tags](https://www.microsoft.com/en-us/download/details.aspx?id=56519)
+
+**Network Requirements:**
+- **No inbound connectivity needed** - All communication is outbound
+- **Firewall rules** - Allow HTTPS (443) to endpoints above
+- **Proxy configuration** - Set up if your organization requires proxy
+
+**See Full Details**: [Network and Connectivity Requirements](IdentityRequirementsAndSecurity.md#network-and-connectivity-requirements) section in the comprehensive guide.
+
+### Q: How do I use Azure Key Vault to store the service account password?
+
+**A:** Azure Key Vault provides secure credential storage, though Power Platform doesn't retrieve credentials at runtime.
+
+**Setup Process:**
+
+1. **Create Key Vault and store credentials:**
+```powershell
+New-AzKeyVault -Name "kv-coe-credentials" -ResourceGroupName "rg-coe-security" -Location "eastus"
+Set-AzKeyVaultSecret -VaultName "kv-coe-credentials" -Name "CoE-ServiceAccount-Password" -SecretValue $password
+```
+
+2. **Control access (limit to 2-3 admins):**
+```powershell
+Set-AzKeyVaultAccessPolicy -VaultName "kv-coe-credentials" -UserPrincipalName "admin@domain.com" -PermissionsToSecrets Get,List
+```
+
+3. **When setting up CoE connections:**
+   - Retrieve credentials from Key Vault
+   - Enter them in Power Platform connection setup
+   - Power Platform securely stores them
+   - Clear credentials from your session
+
+**Key Vault Benefits:**
+- ✅ Secure credential storage (not in documents/emails)
+- ✅ Access audit trail (who accessed when)
+- ✅ Controlled access (only authorized admins)
+- ✅ Support for password rotation workflows
+- ✅ Integration with monitoring/alerting
+
+**Important Note**: Power Platform connections require credentials during setup and then securely store them. Key Vault is used for secure storage and controlled admin access to credentials, not for runtime authentication.
+
+**See Full Details**: [Azure Key Vault Integration](IdentityRequirementsAndSecurity.md#azure-key-vault-integration) section with complete PowerShell scripts and rotation workflows.
+
 ### Q: Where can I get more help?
 
 **A:** Resources for assistance:

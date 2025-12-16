@@ -287,6 +287,51 @@ Get-AdminPowerAppEnvironment
 - **Security guidance:** Your organization's security team
 - **Platform issues:** Microsoft Support
 
+## Quick Reference: Network and Key Vault
+
+### Required Network Connectivity
+
+**Essential Endpoints** (outbound HTTPS/443):
+- `*.powerapps.com` - Power Apps services
+- `*.flow.microsoft.com` - Power Automate services
+- `*.dynamics.com` - Dataverse (region-specific)
+- `login.microsoftonline.com` - Azure AD authentication
+- `graph.microsoft.com` - Microsoft Graph API
+- `*.vault.azure.net` - Azure Key Vault (if used)
+
+**IP Addresses for Conditional Access**:
+- Use your organization's trusted IP ranges (corporate network, VPN, Azure VNet)
+- Power Platform uses Microsoft IP ranges (see [Azure IP Ranges](https://www.microsoft.com/en-us/download/details.aspx?id=56519))
+
+### Azure Key Vault Setup (Optional but Recommended)
+
+**Quick Setup**:
+```powershell
+# Create Key Vault
+New-AzKeyVault -Name "kv-coe-credentials" -ResourceGroupName "rg-coe-security" -Location "eastus"
+
+# Store credentials
+$password = Read-Host -AsSecureString -Prompt "Enter password"
+Set-AzKeyVaultSecret -VaultName "kv-coe-credentials" -Name "CoE-ServiceAccount-Password" -SecretValue $password
+
+# Grant access to admins (limit to 2-3 people)
+Set-AzKeyVaultAccessPolicy -VaultName "kv-coe-credentials" -UserPrincipalName "admin@domain.com" -PermissionsToSecrets Get,List
+```
+
+**When Setting Up CoE**:
+1. Retrieve credentials from Key Vault
+2. Use them to create Power Platform connections
+3. Power Platform securely stores the credentials
+4. Clear credentials from your session
+
+**Key Vault maintains**:
+- Secure credential storage
+- Access audit trail
+- Controlled access (2-3 admins only)
+- Rotation workflow support
+
+**See Full Documentation**: [IdentityRequirementsAndSecurity.md](IdentityRequirementsAndSecurity.md) - Network and Key Vault sections
+
 ## Additional Resources
 
 - [Official CoE Setup Documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup)

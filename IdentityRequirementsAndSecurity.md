@@ -335,6 +335,333 @@ The recommended security controls align with common frameworks:
 - **CIS Controls**: Implements account management and monitoring controls
 - **Zero Trust**: Implements verify explicitly, least privilege, and assume breach principles
 
+## Network and Connectivity Requirements
+
+### Required IP Addresses and Endpoints
+
+The CoE Starter Kit requires connectivity to various Microsoft cloud services. The specific IP addresses depend on your Azure region and tenant location, but you'll need to allow outbound connectivity to the following service endpoints:
+
+#### Power Platform Services
+
+- **Power Platform API**: `https://api.powerplatform.com`
+- **Power Apps**: `https://*.powerapps.com`
+- **Power Automate**: `https://*.flow.microsoft.com`
+- **Dataverse**: `https://*.crm*.dynamics.com` (region-specific)
+- **Power Platform Admin Center**: `https://admin.powerplatform.microsoft.com`
+
+#### Microsoft 365 and Azure AD
+
+- **Azure AD Authentication**: `https://login.microsoftonline.com`
+- **Microsoft Graph API**: `https://graph.microsoft.com`
+- **Office 365**: `https://*.office.com` and `https://*.office365.com`
+
+#### Additional Services
+
+- **Microsoft Forms** (if using Pulse surveys): `https://forms.office.com`
+- **SharePoint Online** (if using SharePoint connectors): `https://*.sharepoint.com`
+- **Azure Key Vault** (if storing credentials): `https://*.vault.azure.net`
+
+### Determining Your Specific IP Ranges
+
+Microsoft publishes the complete list of IP addresses and FQDNs for Microsoft 365 and Azure services:
+
+1. **Power Platform IP Addresses**: Use the [Azure IP Ranges and Service Tags](https://www.microsoft.com/en-us/download/details.aspx?id=56519) download
+   - Look for service tags: `PowerPlatform`, `Dynamics365`, `AzureCloud`
+   
+2. **Office 365 URLs and IP Address Ranges**: [Microsoft 365 endpoints](https://learn.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges)
+
+3. **Dynamic Service Tags**: Consider using Azure Service Tags in your network security groups if deploying in Azure:
+   - `PowerPlatform`
+   - `AzureActiveDirectory`
+   - `AzureKeyVault` (if using)
+
+### Conditional Access IP Configuration
+
+For the service account Conditional Access policy, you'll need to specify your **organization's trusted IP addresses**:
+
+**Example Configuration:**
+```
+Trusted Locations:
+- Corporate Headquarters: 203.0.113.0/24
+- Regional Office 1: 198.51.100.0/24
+- VPN Gateway: 192.0.2.50/32
+- Azure Virtual Network (if CoE runs in cloud): 10.0.1.0/24
+```
+
+**Important Notes:**
+- The CoE service account should **only** be able to authenticate from these trusted locations
+- If you're running CoE flows from Power Platform (default), the IP addresses will be Microsoft's Power Platform IPs, which vary by region
+- Consider using Named Locations in Azure AD to define trusted IP ranges
+
+### Network Architecture Considerations
+
+**Cloud-Only Deployment (Recommended):**
+```
+Power Platform Tenant
+    ↓
+CoE Dataverse Environment (Microsoft-hosted)
+    ↓
+Power Platform APIs (outbound only)
+    ↓
+Azure AD / Graph API
+```
+
+- No inbound connectivity required
+- All communication is outbound to Microsoft services
+- Service account authenticates from Power Platform IP ranges
+
+**Hybrid Deployment (with on-premises components):**
+```
+Corporate Network
+    ↓
+Firewall/Proxy (allow outbound to Power Platform)
+    ↓
+Power Platform Services
+    ↓
+CoE Environment
+```
+
+- Requires outbound connectivity through corporate firewall
+- May need proxy configuration
+- Service account should authenticate from corporate IP ranges
+
+### Firewall Configuration Checklist
+
+For organizations with restrictive firewalls:
+
+- [ ] Allow HTTPS (443) outbound to `*.powerapps.com`
+- [ ] Allow HTTPS (443) outbound to `*.flow.microsoft.com`
+- [ ] Allow HTTPS (443) outbound to `*.dynamics.com`
+- [ ] Allow HTTPS (443) outbound to `login.microsoftonline.com`
+- [ ] Allow HTTPS (443) outbound to `graph.microsoft.com`
+- [ ] Allow HTTPS (443) outbound to `*.vault.azure.net` (if using Key Vault)
+- [ ] Configure proxy settings if required (in Power Automate gateway if used)
+- [ ] Test connectivity from the location where service account will authenticate
+
+## Azure Key Vault Integration
+
+### Overview
+
+Azure Key Vault provides a secure way to store the CoE service account credentials, avoiding storage in local password managers or documentation. While Power Platform doesn't natively retrieve credentials from Key Vault for connection authentication, you can implement a secure credential management approach.
+
+### Important Limitation
+
+**Key Consideration**: Power Platform connectors in cloud flows require interactive authentication during initial setup. The credentials must be entered when creating connections, and then Power Platform securely stores them. You cannot directly use Key Vault to authenticate Power Platform connections at runtime.
+
+However, Key Vault is valuable for:
+- Storing the service account password securely
+- Controlling access to credentials
+- Providing audit logs of credential access
+- Implementing credential rotation workflows
+
+### Setting Up Azure Key Vault
+
+#### Step 1: Create Azure Key Vault
+
+```powershell
+# Install Azure PowerShell if not already installed
+Install-Module -Name Az -AllowClobber -Scope CurrentUser
+
+# Connect to Azure
+Connect-AzAccount
+
+# Create a resource group (if needed)
+New-AzResourceGroup -Name "rg-coe-security" -Location "eastus"
+
+# Create Key Vault
+New-AzKeyVault -Name "kv-coe-credentials" -ResourceGroupName "rg-coe-security" -Location "eastus"
+```
+
+#### Step 2: Store Service Account Password
+
+```powershell
+# Store the password as a secret
+$SecretPassword = Read-Host -AsSecureString -Prompt "Enter CoE service account password"
+Set-AzKeyVaultSecret -VaultName "kv-coe-credentials" -Name "CoE-ServiceAccount-Password" -SecretValue $SecretPassword
+
+# Store the username for reference
+Set-AzKeyVaultSecret -VaultName "kv-coe-credentials" -Name "CoE-ServiceAccount-Username" -SecretValue (ConvertTo-SecureString "coe-service@yourdomain.com" -AsPlainText -Force)
+```
+
+#### Step 3: Configure Access Policies
+
+```powershell
+# Grant specific users access to retrieve secrets
+Set-AzKeyVaultAccessPolicy -VaultName "kv-coe-credentials" `
+    -UserPrincipalName "admin1@yourdomain.com" `
+    -PermissionsToSecrets Get,List
+
+Set-AzKeyVaultAccessPolicy -VaultName "kv-coe-credentials" `
+    -UserPrincipalName "admin2@yourdomain.com" `
+    -PermissionsToSecrets Get,List
+```
+
+#### Step 4: Enable Audit Logging
+
+```powershell
+# Enable diagnostic settings for audit logging
+$workspace = Get-AzOperationalInsightsWorkspace -ResourceGroupName "rg-coe-security" -Name "law-coe-security"
+
+Set-AzDiagnosticSetting -ResourceId (Get-AzKeyVault -VaultName "kv-coe-credentials").ResourceId `
+    -Name "AuditLogs" `
+    -WorkspaceId $workspace.ResourceId `
+    -Enabled $true
+```
+
+### Using Key Vault in CoE Setup
+
+**During Initial CoE Setup:**
+
+1. **Retrieve Credentials from Key Vault**:
+```powershell
+# When you need to set up CoE connections
+$vault = "kv-coe-credentials"
+$username = Get-AzKeyVaultSecret -VaultName $vault -Name "CoE-ServiceAccount-Username" -AsPlainText
+$password = Get-AzKeyVaultSecret -VaultName $vault -Name "CoE-ServiceAccount-Password" -AsPlainText
+
+Write-Host "Username: $username"
+Write-Host "Password: $password"
+```
+
+2. **Use Credentials in Power Platform**:
+   - Navigate to Power Platform and create connections
+   - Enter the credentials retrieved from Key Vault
+   - Power Platform will securely store them for the connections
+
+3. **Clear Credentials from Memory**:
+```powershell
+# After use, clear variables
+Clear-Variable username, password
+```
+
+### Advanced: Automated Credential Rotation
+
+For organizations requiring regular credential rotation:
+
+**Step 1: Create Rotation Flow**
+
+Create a Power Automate flow that:
+1. Generates a new strong password
+2. Updates the service account password in Azure AD
+3. Updates the password in Key Vault
+4. Sends notification to admins to update connections
+
+**Step 2: PowerShell Script for Rotation**:
+
+```powershell
+# Rotate CoE service account password
+$vault = "kv-coe-credentials"
+$username = Get-AzKeyVaultSecret -VaultName $vault -Name "CoE-ServiceAccount-Username" -AsPlainText
+
+# Generate new strong password
+Add-Type -AssemblyName System.Web
+$newPassword = [System.Web.Security.Membership]::GeneratePassword(24, 4)
+$securePassword = ConvertTo-SecureString $newPassword -AsPlainText -Force
+
+# Update in Azure AD
+Connect-AzureAD
+Set-AzureADUserPassword -ObjectId $username -Password $securePassword
+
+# Update in Key Vault
+Set-AzKeyVaultSecret -VaultName $vault -Name "CoE-ServiceAccount-Password" -SecretValue $securePassword
+
+# Send notification
+Send-MailMessage -To "coe-admins@yourdomain.com" `
+    -Subject "CoE Service Account Password Rotated" `
+    -Body "The password has been rotated. Please update Power Platform connections." `
+    -SmtpServer "smtp.office365.com"
+
+Write-Host "Password rotated successfully. Admins notified to update connections."
+```
+
+### Key Vault Security Best Practices
+
+1. **Network Security**:
+   - Enable Key Vault firewall
+   - Restrict access to specific virtual networks or IP addresses
+   - Use Private Endpoints if available
+
+2. **Access Control**:
+   - Use Azure RBAC with Key Vault
+   - Implement least privilege access
+   - Limit to maximum 2-3 administrators
+   - Use Azure AD PIM for Key Vault access (human admins)
+
+3. **Monitoring**:
+   - Enable diagnostic logging
+   - Set up alerts for:
+     - Secret access events
+     - Failed access attempts
+     - Secret modifications
+   - Regular review of access logs
+
+4. **Backup and Recovery**:
+   - Enable soft delete and purge protection
+   - Regular backup of secrets (in secure manner)
+   - Document recovery procedures
+
+### Key Vault Configuration Checklist
+
+- [ ] Azure Key Vault created in secure resource group
+- [ ] Service account password stored as secret
+- [ ] Access policies configured (limited to 2-3 admins)
+- [ ] Diagnostic logging enabled
+- [ ] Log Analytics workspace configured
+- [ ] Alerts set up for suspicious access
+- [ ] Network restrictions configured (if applicable)
+- [ ] Soft delete and purge protection enabled
+- [ ] Backup procedure documented
+- [ ] Access audit scheduled (monthly)
+- [ ] Password rotation procedure established
+
+### Alternative: Using Azure DevOps Secure Files (for ALM scenarios)
+
+If you're using the ALM Accelerator components, you can also leverage Azure DevOps:
+
+```yaml
+# Example: Store credentials in Azure DevOps Library
+# Navigate to: Pipelines > Library > Variable Groups
+# Create variable group: "CoE-Credentials"
+# Add variables:
+#   - ServiceAccountUsername (plain text)
+#   - ServiceAccountPassword (secret)
+```
+
+### Retrieving Credentials for Connection Updates
+
+**When you need to update CoE connections** (e.g., after password rotation):
+
+```powershell
+# Script to retrieve credentials for manual connection update
+$vault = "kv-coe-credentials"
+
+# Authenticate to Azure
+Connect-AzAccount
+
+# Retrieve credentials
+$username = Get-AzKeyVaultSecret -VaultName $vault -Name "CoE-ServiceAccount-Username" -AsPlainText
+$password = Get-AzKeyVaultSecret -VaultName $vault -Name "CoE-ServiceAccount-Password" -AsPlainText
+
+# Display for manual entry
+Write-Host "`nCoE Service Account Credentials:" -ForegroundColor Green
+Write-Host "Username: $username"
+Write-Host "Password: $password"
+Write-Host "`nUse these credentials to update Power Platform connections." -ForegroundColor Yellow
+Write-Host "Connections to update:" -ForegroundColor Yellow
+Write-Host "  - Power Platform for Admins"
+Write-Host "  - Office 365 Users"
+Write-Host "  - Office 365 Groups"
+Write-Host "  - Any other CoE connectors"
+
+# Wait for confirmation
+Read-Host "`nPress Enter after updating connections to clear credentials from screen"
+Clear-Host
+
+# Clear variables
+Clear-Variable username, password
+Write-Host "Credentials cleared from memory." -ForegroundColor Green
+```
+
 ## Support and Resources
 
 ### Official Documentation
