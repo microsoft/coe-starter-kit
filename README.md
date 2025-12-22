@@ -59,6 +59,13 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+
+If you encounter issues with the CoE Starter Kit, please refer to the following troubleshooting guides:
+
+- [Troubleshooting Power BI Reports Showing Incomplete Data](TROUBLESHOOTING-POWERBI-INCOMPLETE-DATA.md) - General guide for Power BI data issues
+- [Troubleshooting Environment Capacity Report](TROUBLESHOOTING-ENVIRONMENT-CAPACITY-POWERBI.md) - Specific guide for environment capacity reporting issues
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
