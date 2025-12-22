@@ -9,6 +9,8 @@ The CoE Starter Kit GitHub Repo contains the source, releases, issues and backlo
 
 The latest shipped version is available via **[Releases](https://github.com/microsoft/coe-starter-kit/releases)**. From there, you can download the latest version of all managed solutions that have been tested and are ready for use. 
 
+> **Note**: The recommended way to get the latest version is to download directly from the [Releases page](https://github.com/microsoft/coe-starter-kit/releases). You can also use the [aka.ms/CoeStarterKitDownload](https://aka.ms/CoeStarterKitDownload) link, which is referenced in Microsoft Learn documentation. If you encounter issues with outdated versions, see our [download troubleshooting guide](CenterofExcellenceResources/Release/TROUBLESHOOTING_DOWNLOAD_LINKS.md).
+
 Stay up to date with our releases by **subscribing** to them: 
 1. Select Watch <br>
       ![image](https://user-images.githubusercontent.com/55705669/121772447-4ede5700-cb6d-11eb-91a7-fe41715fc431.png)

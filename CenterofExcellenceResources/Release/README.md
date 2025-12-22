@@ -5,6 +5,7 @@ This directory contains resources and documentation for creating and managing Co
 ## Contents
 
 - **[RELEASE_PROCESS.md](RELEASE_PROCESS.md)** - Complete release process documentation including critical post-release steps
+- **[TROUBLESHOOTING_DOWNLOAD_LINKS.md](TROUBLESHOOTING_DOWNLOAD_LINKS.md)** - Troubleshooting guide for download link issues
 - **Collateral/** - Release collateral files (readme, icons, etc.)
 - **Notes/** - Release notes for each version
 - **Pipelines/** - Azure DevOps pipeline definitions for creating releases
