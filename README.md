@@ -59,6 +59,11 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Common Issues and Troubleshooting
+
+- **[CLEANUP Flow FAQ](CLEANUP-FLOW-FAQ.md)** - Frequently asked questions about the CLEANUP flow and data retention
+- **[Troubleshooting: Missing Flow Records](TROUBLESHOOTING-MISSING-FLOWS.md)** - Guide to resolving missing inventory data issues
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
