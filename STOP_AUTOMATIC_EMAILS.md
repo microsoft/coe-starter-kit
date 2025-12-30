@@ -43,12 +43,16 @@ Navigate to **Solutions** → **Center of Excellence - Core Components** and dis
 5. **Admin | Compliance Details Request eMail (Flows)**
 6. **Admin | Compliance detail request v3**
 
-### Step 4: Disable Orphaned Objects Flows (Audit Components)
+### Step 4: Disable Orphaned Objects and Microsoft Teams Governance Flows (Audit Components)
 
 Navigate to **Solutions** → **Center of Excellence - Audit Components** and disable these flows:
 
 1. **Request Orphaned Objects Reassigned (Parent)**
 2. **Request Orphaned Objects Reassigned (Child)**
+3. **Microsoft Teams Admin | Ask for Business Justification when Microsoft Teams environment is created**
+4. **Microsoft Teams Admin | Send Reminder Mail**
+5. **Microsoft Teams Admin | Weekly Clean Up of Microsoft Teams environments** (⚠️ This can delete environments!)
+6. **Admin | Quarantine non-compliant apps** (⚠️ This can quarantine apps!)
 
 ### Step 5: Verify Flows Are Disabled
 

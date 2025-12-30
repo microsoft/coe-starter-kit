@@ -57,6 +57,30 @@ These flows handle resources left by users who have left the organization:
 
 **Trigger:** Weekly recurrence
 
+### Microsoft Teams Environment Governance Flows (Audit Components)
+
+These flows manage Microsoft Teams environments and can send notifications or delete environments:
+
+1. **Microsoft Teams Admin | Ask for Business Justification when Microsoft Teams environment is created** - Requests business justification for new Teams environments
+2. **Microsoft Teams Admin | Send Reminder Mail** - Sends reminders to users who haven't provided justification
+3. **Microsoft Teams Admin | Weekly Clean Up of Microsoft Teams environments** - **Deletes environments** that don't meet criteria (no justification after 7 days, or no apps/flows after 90 days)
+
+**Email Subject Example:** "Business justification required for your Microsoft Teams environment"
+
+**Trigger:** Daily (justification request and reminder), Weekly (cleanup)
+
+**⚠️ Warning:** The cleanup flow can **delete entire environments**. Only enable after careful review.
+
+### App Quarantine Flow (Audit Components)
+
+This flow can quarantine non-compliant apps:
+
+1. **Admin | Quarantine non-compliant apps** - Quarantines apps that don't meet compliance requirements
+
+**Trigger:** On-demand or scheduled
+
+**⚠️ Warning:** This flow can make apps unavailable to users. Only enable after careful review.
+
 ## How to Enable Notification Flows
 
 If you want to use these notification flows, follow these steps:
