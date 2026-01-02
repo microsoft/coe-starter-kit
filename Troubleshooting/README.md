@@ -4,9 +4,15 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Understanding the CoE Starter Kit
+
+- **[Understanding the Data Flow](Understanding-Data-Flow.md)** - Visual guide explaining how data flows from Power Platform resources to Power BI dashboards
+
 ### Setup and Configuration Issues
 
 - **[Apps and Flows Not Appearing in Power BI Dashboards](PowerBI-Dashboard-No-Data.md)** - Comprehensive guide for troubleshooting when your Power BI dashboards don't show app and flow data after initial setup.
+  - **[Quick Reference](Quick-Reference-Dashboard-No-Data.md)** - One-page quick reference with immediate action items
+  - **[Issue Response Template](ISSUE-RESPONSE-Dashboard-No-Data.md)** - Detailed response for users reporting this issue
 
 ## Before You Start Troubleshooting
 
