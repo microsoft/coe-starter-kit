@@ -14,6 +14,14 @@ Explains how the CoE Starter Kit collects AI credit consumption data, including 
 - Troubleshooting tips
 - Frequently asked questions
 
+### [Common Issue Responses](common-responses.md)
+A collection of prepared responses for frequently asked questions and common issues.
+
+**Key Topics:**
+- AI credits and Copilot credit collection
+- Response templates for maintainers
+- Troubleshooting guides
+
 ## Official Documentation
 
 The primary documentation for the CoE Starter Kit is maintained on Microsoft Learn:
