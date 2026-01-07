@@ -52,6 +52,38 @@ A comprehensive troubleshooting guide focused on the most common issues users fa
 - Use the architecture section to understand how inventory works
 - Reference when creating GitHub issue responses
 
+### [Quick-Reference-Dashboard-Issues.md](./Quick-Reference-Dashboard-Issues.md)
+
+A quick reference card for the most common issue: apps and flows not appearing in Power BI dashboards. This is a simplified, fast-track version of the comprehensive troubleshooting guide.
+
+**Topics Covered:**
+- 5-step quick fix process
+- Expected timeframes for inventory collection
+- Common mistakes to avoid
+- Links to detailed guides
+
+**How to Use:**
+- Share this link for quick self-service resolution
+- Use when the issue is clearly first-time setup related
+- Escalate to comprehensive guide if quick fix doesn't work
+
+### [GitHub-Saved-Reply-Templates.md](./GitHub-Saved-Reply-Templates.md)
+
+Pre-written response templates that can be saved as GitHub Saved Replies for instant responses to common issues.
+
+**Templates Included:**
+- Apps and flows not appearing in dashboards
+- Inventory flows not running
+- Power BI connection issues
+- License and pagination issues
+- Request for more information
+
+**How to Use:**
+- Copy templates to GitHub Saved Replies feature
+- Select appropriate template when responding to issues
+- Customize with specific details from the user's issue
+- Saves time and ensures consistent, helpful responses
+
 ## Contributing
 
 If you have suggestions for improving these documents or want to add new troubleshooting guides:
