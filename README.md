@@ -60,7 +60,8 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
 ### Additional Resources
-- [Upgrade FAQ](CenterofExcellenceResources/Documentation/FAQ-Upgrade.md) - Common questions about upgrading the CoE Starter Kit, including how to remove unmanaged layers
+- [Troubleshooting Guide](CenterofExcellenceResources/Documentation/TROUBLESHOOTING.md) - Quick solutions to common setup and upgrade issues
+- [Upgrade FAQ](CenterofExcellenceResources/Documentation/FAQ-Upgrade.md) - Common questions about upgrading the CoE Starter Kit
 
 ## Microsoft Open Source Code of Conduct
 
