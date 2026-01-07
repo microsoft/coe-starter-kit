@@ -52,6 +52,10 @@ Use the [question issue template](https://github.com/microsoft/coe-starter-kit/i
 
 If you have general questions about Power Platform Governance, unrelated to the CoE Starter Kit, please raise them in the [Power Apps Community forum](https://powerusers.microsoft.com/t5/Power-Apps-Governance-and/bd-p/Admin_PowerApps)
 
+### Common Questions
+
+- **[AI Credits FAQ](AI_CREDITS_FAQ.md)** - Frequently asked questions about AI Builder and Copilot credits collection
+
 ## Contribute with Code
 
 If you are interested in contributing to the CoE Starter Kit by fixing issues or adding features please read the [How to Contribute](HOW_TO_CONTRIBUTE.md) guide.
