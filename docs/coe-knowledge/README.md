@@ -84,6 +84,25 @@ Pre-written response templates that can be saved as GitHub Saved Replies for ins
 - Customize with specific details from the user's issue
 - Saves time and ensures consistent, helpful responses
 
+### [Post-Installation-Checklist.md](./Post-Installation-Checklist.md)
+
+A comprehensive checklist to ensure proper setup of the CoE Starter Kit after solution import. This helps users avoid common mistakes and ensures all required steps are completed.
+
+**Sections Covered:**
+- Pre-installation prerequisites
+- Immediate post-installation steps (environment variables, connections, security roles)
+- Flow enablement and initial inventory run
+- Verification steps for data collection
+- Power BI configuration
+- Ongoing maintenance tasks
+- License verification procedures
+
+**How to Use:**
+- Share with users during initial setup to ensure nothing is missed
+- Reference when troubleshooting to verify all setup steps were completed
+- Use as a template for organization-specific setup procedures
+- Print and check off items during installation
+
 ## Contributing
 
 If you have suggestions for improving these documents or want to add new troubleshooting guides:
