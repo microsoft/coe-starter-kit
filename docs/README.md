@@ -13,6 +13,11 @@ The primary documentation for the CoE Starter Kit is hosted on Microsoft Learn:
 
 - **[FAQ: Licensing Display in CoE](FAQ-Licensing-Display.md)** - Information about tracking Power Platform licenses and capacity in the CoE Starter Kit
 
+### Issue Response Templates
+
+- **[GitHub Issue Comment: Licensing](GITHUB-ISSUE-COMMENT.md)** - Template response for licensing-related questions
+- **[Issue Response: Licensing](ISSUE-RESPONSE-Licensing.md)** - Detailed response document for licensing questions
+
 ## Contributing
 
 If you have suggestions for additional documentation or have found an issue, please:
