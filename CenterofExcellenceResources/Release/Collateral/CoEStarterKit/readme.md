@@ -11,6 +11,9 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
+### ⚠️ Important: December 2025 Release Notes
+After upgrading to Core Components 4.50.7 or Audit Components 3.27.6, some notification flows may be automatically enabled. This can result in automatic emails being sent to users. See [Upgrade Notes](../../../../docs/UPGRADE-NOTES-DECEMBER-2025.md) and [Troubleshooting Guide](../../../../docs/TROUBLESHOOTING-AUTOMATIC-NOTIFICATIONS.md) for details on how to manage these notifications.
+
 ## Files in this download
 
 The content package contains various files that support different features of the CoE Starter Kit. The setup instructions will walk you through when to use each file, and below table will give you an overview of the purpose of each file:
