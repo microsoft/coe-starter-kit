@@ -10,6 +10,7 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
+- Upgrade FAQ (including how to remove unmanaged layers): [FAQ-Upgrade.md](../../../Documentation/FAQ-Upgrade.md)
 
 ## Files in this download
 
