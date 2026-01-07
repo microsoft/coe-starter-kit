@@ -59,6 +59,12 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Troubleshooting and Knowledge Base
+For common issues and troubleshooting guidance, see our [CoE Knowledge Base](docs/coe-knowledge/):
+- [Quick Reference: Dashboard Issues](docs/coe-knowledge/Quick-Reference-Dashboard-Issues.md) - Fast solutions for inventory and dashboard problems
+- [Troubleshooting Guide: Inventory & Dashboards](docs/coe-knowledge/Troubleshooting-Inventory-and-Dashboards.md) - Comprehensive troubleshooting steps
+- [Common GitHub Responses](docs/coe-knowledge/COE-Kit-Common-GitHub-Responses.md) - Reference guide for maintainers and contributors
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
