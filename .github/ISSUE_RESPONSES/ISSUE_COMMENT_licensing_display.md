@@ -30,6 +30,8 @@ The CoE Starter Kit does **NOT** currently track:
 - ❌ Available vs. consumed license counts
 - ❌ License expiration dates or renewal information
 
+**Note**: The Setup Wizard flows do check license details via Microsoft Graph API for validation during installation, but this data is not stored in Dataverse tables or made available for reporting/visualization purposes.
+
 ## Why License Tracking is Not Included
 
 The CoE Starter Kit's primary focus is on **Power Platform governance and adoption** (managing apps, flows, connectors, environments, etc.) rather than license procurement and management.

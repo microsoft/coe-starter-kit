@@ -30,6 +30,8 @@ The CoE Starter Kit does **NOT** currently track or display:
 - Available vs. consumed license counts
 - License expiration dates
 
+**Note**: The Setup Wizard does retrieve license information via Microsoft Graph API (`/me/licenseDetails`) for validation purposes during installation, but this data is not stored or made available for reporting.
+
 ### Why Licensing Information is Not Included
 
 The CoE Starter Kit focuses on **governance and adoption** of Power Platform resources (apps, flows, connectors, etc.) rather than license management. License information requires:
