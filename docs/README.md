@@ -12,6 +12,9 @@ The primary documentation for the CoE Starter Kit is hosted on Microsoft Docs:
 
 ### Troubleshooting Guides
 
+- **[Quick Reference: Disabling CoE Notification Flows](QUICK-REFERENCE-DISABLE-NOTIFICATIONS.md)**  
+  A quick checklist for disabling automatic email notifications after upgrading.
+  
 - **[Troubleshooting: Automatic Email Notifications After Upgrade](TROUBLESHOOTING-AUTOMATIC-NOTIFICATIONS.md)**  
   Learn how to manage automatic email notifications that may be triggered after upgrading the CoE Starter Kit.
 
