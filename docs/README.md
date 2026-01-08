@@ -21,6 +21,14 @@ Detailed step-by-step guide for diagnosing and fixing inventory synchronization 
 - Full vs incremental inventory
 - Connection and permission issues
 
+### [Issue Response Templates](ISSUE-RESPONSE-TEMPLATES.md)
+For maintainers: Ready-to-use response templates for common issues including:
+- Inventory sync problems
+- Missing data in Admin View
+- "None" inventory method issues
+- Post-upgrade problems
+- How to customize responses
+
 ## Quick Links
 
 ### Most Common Issues
