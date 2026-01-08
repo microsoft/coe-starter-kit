@@ -59,6 +59,11 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting and FAQ
+Having issues with the CoE Starter Kit? Check our troubleshooting guides:
+- [Common Issues FAQ](docs/FAQ-COMMON-ISSUES.md) - Quick answers to frequently asked questions
+- [Inventory Sync Troubleshooting](docs/TROUBLESHOOTING-INVENTORY-SYNC.md) - Fix issues with Admin View not updating
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
