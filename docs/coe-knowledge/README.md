@@ -7,6 +7,8 @@ This directory contains troubleshooting guides, common responses, and issue anal
 ### Troubleshooting Guides
 
 - **[troubleshooting-admin-view-data-refresh.md](troubleshooting-admin-view-data-refresh.md)** - Comprehensive guide for resolving Power Platform Admin View data refresh issues, including missing environments and outdated inventory
+- **[QUICKFIX-admin-view-not-updating.md](QUICKFIX-admin-view-not-updating.md)** - Quick 5-10 minute diagnostic and fix guide
+- **[FLOWCHART-admin-view-troubleshooting.md](FLOWCHART-admin-view-troubleshooting.md)** - Visual troubleshooting flowchart with decision points
 
 ### Support Resources
 
@@ -138,6 +140,8 @@ This knowledge base should be reviewed and updated:
 
 ## Quick Links
 
-- 🔍 [Troubleshoot Admin View Data Issues](troubleshooting-admin-view-data-refresh.md)
-- 📝 [Common GitHub Responses](COE-Kit-Common%20GitHub%20Responses.md)
-- 🎯 [Admin View Not Updating Response](ISSUE-RESPONSE-admin-view-not-updating.md)
+- ⚡ [Quick Fix - Admin View Not Updating](QUICKFIX-admin-view-not-updating.md) - Start here for fast resolution
+- 🔍 [Full Troubleshooting Guide](troubleshooting-admin-view-data-refresh.md) - Complete step-by-step guide
+- 📊 [Troubleshooting Flowchart](FLOWCHART-admin-view-troubleshooting.md) - Visual decision tree
+- 📝 [Common GitHub Responses](COE-Kit-Common%20GitHub%20Responses.md) - Response templates
+- 🎯 [Issue Response Template](ISSUE-RESPONSE-admin-view-not-updating.md) - For support agents
