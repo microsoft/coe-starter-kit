@@ -47,7 +47,7 @@ While the CoE Starter Kit itself doesn't require changes, we recommend the follo
 
 ### 1. Ensure Power Platform Service Health
 - Monitor Microsoft 365 Service Health dashboard for any Power Platform updates related to certificate changes
-- Review the Microsoft announcement: MC1193408 - Trust DigiCert Global Root G2 Certificate Authority in the Microsoft 365 Admin Center Message Center
+- Review the Microsoft announcement MC1193408 in the [Microsoft 365 Admin Center Message Center](https://admin.microsoft.com/adminportal/home#/MessageCenter)
 
 ### 2. Client Device Preparation
 While not specific to CoE Starter Kit, ensure that:
@@ -118,7 +118,7 @@ Users should focus on ensuring their client devices and any custom integrations 
 
 ## Document Information
 
-- **Last Updated**: January 2026
+- **Last Updated**: January 12, 2026
 - **Applies To**: All versions of CoE Starter Kit
 - **Category**: Security, Infrastructure
 - **Related Announcements**: MC1193408
