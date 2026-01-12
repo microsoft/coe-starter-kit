@@ -47,7 +47,7 @@ While the CoE Starter Kit itself doesn't require changes, we recommend the follo
 
 ### 1. Ensure Power Platform Service Health
 - Monitor Microsoft 365 Service Health dashboard for any Power Platform updates related to certificate changes
-- Review the Microsoft announcement: [MC1193408 - Trust DigiCert Global Root G2 Certificate Authority](https://jpazureid.github.io/blog/azure-active-directory/mc1193408-action-required-trust-digicert-global-root-g2-certificate-authority/)
+- Review the Microsoft announcement: MC1193408 - Trust DigiCert Global Root G2 Certificate Authority in the Microsoft 365 Admin Center Message Center
 
 ### 2. Client Device Preparation
 While not specific to CoE Starter Kit, ensure that:
@@ -67,7 +67,7 @@ Then you should review those components separately for certificate migration imp
 If you use on-premises data gateways with the CoE Starter Kit:
 - Ensure the gateway machines have updated Windows certificate stores
 - Verify the gateway can establish secure connections after the migration date
-- Review: [On-premises data gateway documentation](https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup#on-premises-data-gateway)
+- Review: [On-premises data gateway documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup#on-premises-data-gateway)
 
 ## Testing Recommendations
 
@@ -85,7 +85,7 @@ To proactively verify your environment's readiness:
 
 ## Support and Resources
 
-- **CoE Starter Kit Documentation**: https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
+- **CoE Starter Kit Documentation**: https://learn.microsoft.com/power-platform/guidance/coe/starter-kit
 - **Power Platform Service Status**: https://admin.powerplatform.microsoft.com/servicehealth
 - **Report Issues**: [GitHub Issues](https://github.com/microsoft/coe-starter-kit/issues)
 
