@@ -2,6 +2,8 @@
 
 This guide provides information on data retention policies, storage management, and maintenance procedures for the CoE Starter Kit tables, helping you manage database growth and optimize storage usage.
 
+> **🚀 Quick Start**: If you need to quickly reduce storage usage for the `admin_EnvironmentSecurityRolePermission` table, see the [Quick Start: Data Cleanup](QuickStart-DataCleanup.md) guide for step-by-step instructions (5 minutes).
+
 ## Overview
 
 The CoE Starter Kit collects and stores various types of data to provide insights into your Power Platform environment. Over time, some tables can grow significantly as they accumulate historical data. This guide helps you understand which tables grow over time, why they grow, and how to manage their size.
