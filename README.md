@@ -59,6 +59,9 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+Additional documentation and guides can be found in the [docs](docs/) folder, including:
+- [AI Credits Collection](docs/ai-credits-collection.md) - Information about how AI Builder and Copilot credits are collected
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
