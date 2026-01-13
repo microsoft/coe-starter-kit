@@ -2,8 +2,25 @@
 
 This document provides troubleshooting guidance for common issues encountered when upgrading the Center of Excellence (CoE) Starter Kit solutions.
 
+## Quick Fix: TooManyRequests Error
+
+If you're experiencing a **"TooManyRequests"** error during upgrade:
+
+1. ✅ **Remove all unmanaged layers** (use CoE Admin Command Center)
+2. ✅ **Use incremental upgrades** (e.g., 4.43 → 4.45 → 4.47 → 4.49 → 4.50.6)
+3. ✅ **Wait 60-90 minutes** before retrying after an error
+4. ✅ **Import during off-peak hours** (early morning or late evening)
+5. ✅ **Import one solution at a time** with 30-60 minute gaps between each
+
+📖 See [detailed resolution steps below](#resolution-steps) for complete guidance.
+
 ## Table of Contents
 - [TooManyRequests Error During Upgrade](#toomanyreqs-error-during-upgrade)
+  - [Quick Fix](#quick-fix-toomanyrequest-error)
+  - [Issue Description](#issue-description)
+  - [Root Cause](#root-cause)
+  - [Resolution Steps](#resolution-steps)
+  - [Advanced Troubleshooting](#advanced-troubleshooting)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
 
@@ -293,6 +310,38 @@ If the system doesn't recognize an upgrade is available:
 - Fewer changes
 - Lower rate limiting risk
 - Still remove unmanaged layers first
+
+---
+
+## Frequently Asked Questions (FAQ)
+
+### Q: How long should I wait between retry attempts?
+**A:** Wait at least 60-90 minutes. For best results, wait 2-4 hours or perform the retry during off-peak hours.
+
+### Q: Can I skip intermediate versions when upgrading?
+**A:** While technically possible, it's **not recommended** for large version gaps (e.g., 4.43 to 4.50.6). Incremental upgrades reduce the number of Canvas App changes per import, lowering the risk of hitting rate limits.
+
+### Q: Will I lose data if I upgrade incrementally?
+**A:** No. Using the **Upgrade** option (default) preserves all data and customizations. Each intermediate upgrade builds on the previous version.
+
+### Q: What if I already have unmanaged customizations?
+**A:** Document your customizations first, then remove unmanaged layers before upgrading. After the upgrade, re-apply your customizations in a way that doesn't create unmanaged layers (e.g., use separate solutions or properly managed customizations).
+
+### Q: Can I import multiple CoE solutions at the same time?
+**A:** No, import them **one at a time** with 30-60 minute gaps between each. Import Core Components first (it's required for others), then Governance, then Nurture, etc.
+
+### Q: What if the error persists after following all steps?
+**A:** 
+1. Check if there are ongoing platform issues at [Microsoft Service Health Dashboard](https://admin.microsoft.com/AdminPortal/Home#/servicehealth)
+2. Try importing in a different time window (middle of the night, weekend)
+3. Contact Microsoft Support for platform-level rate limiting investigation
+4. Report the issue on [GitHub Issues](https://aka.ms/coe-starter-kit-issues) with full details
+
+### Q: Is this a bug in the CoE Starter Kit?
+**A:** No, this is a **platform service protection limit**, not a bug. It's a safeguard to ensure system stability. The CoE Starter Kit contains many Canvas Apps, which can trigger these limits during bulk imports, especially for large version jumps.
+
+### Q: How often should I upgrade the CoE Starter Kit?
+**A:** Upgrade every **1-3 months** to avoid large version gaps. This makes upgrades smoother and reduces the risk of rate limiting issues.
 
 ---
 
