@@ -59,6 +59,12 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+Experiencing issues with the CoE Starter Kit? Check out our [Troubleshooting Guides](Troubleshooting/README.md) for help with common problems including:
+- [Apps and Flows Not Appearing in Power BI Dashboards](Troubleshooting/PowerBI-Dashboard-No-Data.md)
+
+For issues not covered in the troubleshooting guides, please search [existing issues](https://github.com/microsoft/coe-starter-kit/issues) or [create a new issue](https://aka.ms/coe-starter-kit-issues).
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
