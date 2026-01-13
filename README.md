@@ -59,6 +59,9 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Additional Resources
+- **[Data Retention and Maintenance Guide](CenterofExcellenceResources/DataRetentionAndMaintenance.md)** - Learn how to manage database storage growth, implement retention policies, and maintain CoE Starter Kit tables
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
