@@ -10,6 +10,7 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
+- **Having upgrade issues?** See the [Upgrade Troubleshooting Guide](../../../../TROUBLESHOOTING-UPGRADES.md) for help with common problems including TooManyRequests errors
 
 ## Files in this download
 

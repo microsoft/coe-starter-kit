@@ -59,6 +59,12 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+## Troubleshooting
+If you encounter issues during upgrade or installation, see the [Upgrade Troubleshooting Guide](TROUBLESHOOTING-UPGRADES.md) for common issues and solutions, including:
+- TooManyRequests errors during solution import
+- Version-by-version upgrade strategies
+- Unmanaged layer removal guidance
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
