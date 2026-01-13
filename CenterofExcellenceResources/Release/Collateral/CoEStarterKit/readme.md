@@ -32,6 +32,11 @@ The content package contains various files that support different features of th
 | Theming_x.xx_managed.zip | [Theming components](theming-components.md) solution file. Required during [setup of the Theming](setup-theming.md) components. | 
 | ToolIcons.zip | Provides a set of starter icons for the [Innovation Backlog](innovationbacklog-components.md). Required during [configuration of the Innovation Backlog](setup-innovationbacklog.md#turn-on-the-flows) |
 
+## Frequently Asked Questions
+
+For common questions about the CoE Starter Kit, please refer to:
+- **[AI Credits FAQ](../../../../AI_CREDITS_FAQ.md)** - Information about AI Builder and Copilot credits collection
+
 ## Disclaimer
 Although the underlying features and components used to build the Center of Excellence (CoE) Starter Kit (such as Common Data Service, admin APIs, and connectors) are fully supported, the kit itself represents sample implementations of these features. Our customers and community can use and customize these features to implement admin and governance capabilities in their organizations.
 
