@@ -5,6 +5,12 @@ The Center of Excellence (CoE) Starter Kit is a set of templates that are design
 
 The CoE Starter Kit GitHub Repo contains the source, releases, issues and backlog items of [all components](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit-explained) that are part of the CoE Starter Kit.
 
+## ⚠️ Important Notice for December 2025 Update
+
+**If you upgraded to version 4.50.7 (Core) or 3.27.6 (Audit) and are experiencing unexpected automatic emails**, see [STOP_AUTOMATIC_EMAILS.md](STOP_AUTOMATIC_EMAILS.md) for immediate resolution steps.
+
+**What changed:** Notification flows (for inactivity alerts, compliance requests, and orphaned objects) are now **disabled by default**. You must explicitly enable them when ready to use. See [NOTIFICATION_FLOWS_GUIDE.md](NOTIFICATION_FLOWS_GUIDE.md) for details.
+
 ## Latest Release
 
 The latest shipped version is available via **[Releases](https://github.com/microsoft/coe-starter-kit/releases)**. From there, you can download the latest version of all managed solutions that have been tested and are ready for use. 
