@@ -59,6 +59,12 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Troubleshooting and Upgrade Notes
+For troubleshooting guides and upgrade-specific information, see the [docs](docs/) directory:
+- [Quick Reference: Disabling Notification Flows](docs/QUICK-REFERENCE-DISABLE-NOTIFICATIONS.md) - Fast checklist for stopping automatic emails
+- [Troubleshooting: Automatic Email Notifications After Upgrade](docs/TROUBLESHOOTING-AUTOMATIC-NOTIFICATIONS.md)
+- [Upgrade Notes - December 2025 Release](docs/UPGRADE-NOTES-DECEMBER-2025.md)
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
