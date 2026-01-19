@@ -71,7 +71,7 @@ If role assignment fails:
 
 ## Version
 
-**Current Version:** 4.50.8  
+**Current Version:** See [releases](https://github.com/microsoft/coe-starter-kit/releases) for the latest version  
 **Release Notes:** [View releases](https://github.com/microsoft/coe-starter-kit/releases)
 
 ---
