@@ -8,6 +8,15 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 - Get started with the CoE Starter Kit Setup: https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup
 - Get started with the ALM Accelerator for Power Platform Setup: https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup-almacceleratorpowerplatform-cli
 
+### ⚠️ Important Prerequisites
+Before installing the Core Components, ensure:
+1. **Creator Kit** is installed (required for Setup Wizard PCF controls)
+2. Service account has **Power Apps Per User** or **Premium** license
+3. Service account has **System Administrator** role in the environment
+4. **English (1033)** language pack is enabled
+
+**Having issues?** See [TROUBLESHOOTING-SETUP-WIZARD.md](../../../../TROUBLESHOOTING-SETUP-WIZARD.md) for common setup issues and solutions.
+
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
 
