@@ -59,6 +59,9 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Frequently Asked Questions (FAQ)
+- **[Power Platform Administrator Role Requirements](CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)** - Common questions about admin role requirements, security best practices, and alternatives
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
