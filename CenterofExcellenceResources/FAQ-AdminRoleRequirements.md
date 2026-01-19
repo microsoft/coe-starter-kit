@@ -158,7 +158,7 @@ For organizations with strict security requirements, implement these compensatin
 - Restrict device compliance requirements
 
 ### 3. **Enable Azure AD Privileged Identity Management (PIM)**
-- While the service account needs standing admin access, use PIM for human admins
+- While the service account needs the standing admin access, use PIM for human admins
 - Audit all admin role assignments regularly
 - Set up alerts for suspicious activity
 
@@ -227,17 +227,19 @@ If granting Power Platform Administrator role is not possible, consider these al
 
 ### Admin Connectors Used by CoE Kit
 
-1. **Power Platform for Admins** (`shared_powerplatformforadmins`)
+1. **Power Platform for Admins**
    - Used in 40 out of 114 flows (35%)
    - Required for environment, app, flow, and connector inventory
 
-2. **Power Apps for Admins** (`shared_powerappsforadmins`)
+2. **Power Apps for Admins**
    - Used for app-specific admin operations
    - Required for app sharing, permissions, and usage data
 
-3. **Power Platform for Admins V2** (`shared_powerplatformadminv2`)
+3. **Power Platform for Admins V2**
    - Newer version with enhanced capabilities
    - Used in critical driver flows
+
+_Note: Connector internal identifiers may vary by version. The above information is based on analysis of the Core Components solution structure._
 
 ### Connection References Requiring Admin Permissions
 
@@ -300,5 +302,4 @@ If you have questions or concerns about admin role requirements:
 
 ---
 
-**Last Updated:** January 2026  
 **Applies to:** CoE Starter Kit Core Components (All versions)
