@@ -59,6 +59,11 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Sovereign Cloud / GCC High Guidance
+For organizations using GCC High, DoD, or other sovereign cloud environments, please see:
+- [Sovereign Cloud Support Guide](docs/sovereign-cloud-support.md) - Comprehensive guide for sovereign cloud deployments
+- [GCC High Upgrade Quick Start](docs/gcc-high-upgrade-quickstart.md) - Fast-track guide for GCC High upgrades
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
