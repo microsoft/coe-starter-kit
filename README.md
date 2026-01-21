@@ -59,8 +59,7 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
-## Troubleshooting
-For common issues and their solutions, see the [Troubleshooting Documentation](docs/README.md)
+
 
 ## Microsoft Open Source Code of Conduct
 
