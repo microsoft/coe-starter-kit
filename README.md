@@ -59,10 +59,6 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
-### Additional Documentation
-- [Service Principal Support Guide](docs/ServicePrincipalSupport.md) - Guidance on using Service Principals with CoE Starter Kit
-- [Documentation Index](docs/README.md) - Additional guides and documentation
-
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
