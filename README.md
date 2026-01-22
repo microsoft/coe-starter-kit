@@ -60,7 +60,6 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
 ## Troubleshooting
-If you encounter issues during setup or usage, check our [Troubleshooting Guides](docs/troubleshooting/README.md) for common problems and solutions.
 
 ## Microsoft Open Source Code of Conduct
 
