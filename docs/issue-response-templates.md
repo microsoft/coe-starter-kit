@@ -1,4 +1,71 @@
-# GitHub Issue Response Template - Sovereign Cloud / GCC High Questions
+# GitHub Issue Response Templates
+
+This document contains reusable response templates for common GitHub issues in the CoE Starter Kit repository.
+
+---
+
+## Template: Solution Checker Warnings After Import
+
+**Use when:** Users report high numbers of solution checker warnings (typically 1000-1200 medium severity) after importing CoE solutions
+
+**Response:**
+
+Thank you for reporting this! The solution checker warnings you're seeing are **expected behavior** for the CoE Starter Kit.
+
+### What You're Seeing is Normal
+
+The CoE Core Components solution is a large, enterprise-scale solution containing:
+- **60+ Canvas Apps** (Setup Wizards, Command Center, Admin tools)
+- **110+ Flows** (Inventory, sync, cleanup flows)
+- **Extensive Dataverse customizations**
+
+With this scale, Solution Checker reports approximately **1100-1200 medium-severity warnings**, primarily:
+- **Accessibility suggestions** (missing labels, tab order, focus indicators)
+- **Code quality recommendations** (formula complexity, screen controls)
+- **Best practice suggestions** (JavaScript patterns, navigation)
+
+### These Warnings Are Safe to Ignore
+
+✅ **The solution works correctly** despite these warnings  
+✅ **No functionality is impacted**  
+✅ **Upgrades are not blocked**  
+✅ **No data loss or security issues**  
+
+These are **informational suggestions** from the Solution Checker, not errors or blocking issues.
+
+### What to Focus On Instead
+
+During setup, focus on:
+1. **Configuring environment variables** correctly
+2. **Setting up connections** to Power Platform for Admins V2
+3. **Running the Setup Wizard** to configure core components
+4. **Validating inventory sync** is working
+5. **Testing user access** to Command Center and other apps
+
+### When to Pay Attention
+
+Consider addressing warnings only if:
+- Your organization has strict **accessibility compliance requirements**
+- You're **heavily customizing** the solution
+- Users report **specific accessibility issues**
+
+### Documentation
+
+For detailed information about solution checker warnings in the CoE Starter Kit, see:
+- [Solution Checker Warnings Documentation](../Documentation/SolutionCheckerWarnings.md)
+
+### Next Steps
+
+Proceed with your CoE Starter Kit setup! The warnings do not need to be addressed for the solution to function properly.
+
+If you encounter **actual import errors** (not warnings), or **flows/apps not working**, please report those as separate issues with:
+- Error messages
+- Flow run history
+- Steps to reproduce
+
+---
+
+## Template: Sovereign Cloud / GCC High Questions
 
 This template can be used when responding to issues related to sovereign cloud deployments, GCC High upgrades, or connector availability.
 
@@ -207,6 +274,12 @@ When gathering more information:
 - How long has it been since your last upgrade?
 - Do you have extensive customizations?
 
+For solution checker questions:
+- Are these warnings or actual errors?
+- Did the solution import successfully despite the warnings?
+- Are the apps and flows functioning correctly?
+- What is the severity level of the issues (high/medium/low)?
+
 ### Escalation Criteria
 
 Create or reference separate issues for:
@@ -214,9 +287,22 @@ Create or reference separate issues for:
 - Feature requests for sovereign cloud support
 - Documentation gaps or errors
 - Confirmed connector availability problems
+- Actual import failures or errors (not solution checker warnings)
+
+### Quick Reference: Common Topics
+
+| Topic | Template to Use | Documentation Link |
+|-------|----------------|-------------------|
+| Solution checker warnings | [Solution Checker Warnings](#template-solution-checker-warnings-after-import) | [SolutionCheckerWarnings.md](../Documentation/SolutionCheckerWarnings.md) |
+| GCC High upgrades | [GCC High Upgrade Availability](#template-gcc-high-upgrade-availability) | [sovereign-cloud-support.md](sovereign-cloud-support.md) |
+| Missing connectors | [Cannot Upgrade / Missing Connector](#template-cannot-upgrade--missing-connector) | [sovereign-cloud-support.md](sovereign-cloud-support.md) |
+| Azure Log Analytics costs | (Create custom response) | [ReducingAzureLogAnalyticsCosts.md](../Documentation/ReducingAzureLogAnalyticsCosts.md) |
 
 ---
 
-**Template Version**: 1.0  
+**Template Version**: 2.0  
 **Last Updated**: January 2026  
-**Maintained by**: CoE Starter Kit Community
+**Maintained by**: CoE Starter Kit Community  
+**Changelog**:
+- v2.0: Added Solution Checker Warnings template and quick reference table
+- v1.0: Initial sovereign cloud templates
