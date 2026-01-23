@@ -4,6 +4,19 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
+### [Security Roles Quick Reference](./SECURITY-ROLES-QUICK-REFERENCE.md)
+
+Quick reference guide for understanding and assigning CoE Starter Kit security roles. This document covers:
+
+- The three security roles included with Core Components
+- Quick setup steps to grant users access to CoE apps
+- Common issue: "CoE Viewer" role not found (explains correct role names)
+- Links to detailed FAQ
+
+**Relevant for**: CoE administrators setting up user access, users unable to find or assign security roles
+
+For detailed information, see: [FAQ: Security Roles](../CenterofExcellenceResources/FAQ-SecurityRoles.md)
+
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:

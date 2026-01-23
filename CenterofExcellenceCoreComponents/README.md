@@ -8,6 +8,10 @@ This solution contains the core components for the CoE Starter Kit, including in
 
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
 
+### Security and Access
+
+- **[Security Roles FAQ](../CenterofExcellenceResources/FAQ-SecurityRoles.md)** - Guide for understanding and assigning CoE security roles to grant users access to CoE apps
+
 ### Common Questions
 
 **Q: Why aren't all my resources showing up in the inventory?**
