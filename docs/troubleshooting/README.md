@@ -4,6 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Flow Execution Errors
+
+- **[Error 0x80040217: Entity 'admin_PowerPlatformUser' Does Not Exist](error-0x80040217-powerplatformuser.md)** - Fix for the "Entity does not exist" error in CLEANUP HELPER flows when processing user roles and shared resources.
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
