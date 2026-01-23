@@ -15,6 +15,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
 📖 See [detailed resolution steps below](#resolution-steps) for complete guidance.
 
 ## Table of Contents
+- [Teams Connection Required](#teams-connection-required-new)
 - [TooManyRequests Error During Upgrade](#toomanyreqs-error-during-upgrade)
   - [Quick Fix](#quick-fix-toomanyrequest-error)
   - [Issue Description](#issue-description)
@@ -23,6 +24,57 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Advanced Troubleshooting](#advanced-troubleshooting)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
+
+---
+
+## Teams Connection Required (NEW)
+
+### Issue Description
+
+When upgrading or importing the **Center of Excellence - Core Components** solution (versions mid-2024 and later), you'll see a new required connection:
+
+- **Connection Name**: CoE Core - Teams
+- **Connection Reference**: `admin_CoECoreTeams`
+- **Connector**: Microsoft Teams
+
+During import, this connection will show a red warning icon if not yet created.
+
+### What You Need
+
+**Good News:** Only standard Teams user permissions are required - no admin or elevated permissions needed!
+
+✅ **Requirements:**
+- Microsoft Teams user access
+- M365 license that includes Teams
+- Ability to send/receive Teams messages
+
+### Quick Setup Steps
+
+1. During solution import, click on "CoE Core - Teams" connection
+2. Click "+ New connection"
+3. Sign in with your CoE flow account
+4. Click "Allow" when prompted
+5. Select the connection from dropdown
+6. Continue with import
+
+### Complete Documentation
+
+For detailed setup instructions, troubleshooting DLP issues, and FAQs, see:
+- **[Teams Connection Setup Guide](docs/TEAMS-CONNECTION-SETUP.md)** - Complete guide with troubleshooting
+
+### Common Questions
+
+**Q: Why is this connection required?**  
+A: Enables Teams notifications for sync errors, App Catalog approvals, and DLP impact alerts.
+
+**Q: Do I need admin permissions?**  
+A: No, standard Teams user access is sufficient.
+
+**Q: Can I skip this?**  
+A: No, it's required for import, but you can leave it unused if you don't want Teams notifications.
+
+**Q: What if Teams is blocked by DLP?**  
+A: Add Teams connector to the same data group as Power Platform connectors. See the [full guide](docs/TEAMS-CONNECTION-SETUP.md#what-if-teams-connector-is-blocked-by-dlp-policy) for details.
 
 ---
 

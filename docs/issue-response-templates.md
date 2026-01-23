@@ -158,6 +158,92 @@ This will help us provide more specific guidance.
 
 ---
 
+## Template: Teams Connection Required During Upgrade
+
+**Use when:** Users ask about the new Teams connection requirement or encounter errors during CoE Core import
+
+**Response:**
+
+Thank you for your question about the Microsoft Teams connection requirement!
+
+### What's Happening
+
+Starting with recent versions of the CoE Starter Kit (mid-2024 and later), the **Core Components** solution requires a **Microsoft Teams connection** (`CoE Core - Teams`) during import and upgrade.
+
+### Why This Connection is Required
+
+The Teams connection enables:
+- Real-time escalation notifications when inventory sync encounters critical errors
+- Teams-based approval workflows for App Catalog access requests
+- DLP policy impact notifications
+
+The connection is required during solution import, but you can choose not to use Teams-based features if you prefer.
+
+### What Permissions Do You Need?
+
+**Good news:** No special or admin permissions are required! 
+
+✅ **You only need:**
+- Standard Microsoft Teams user access
+- An M365 license that includes Teams
+- Ability to send/receive Teams messages
+
+❌ **You do NOT need:**
+- Teams admin permissions
+- Elevated API permissions
+- Azure AD admin consent
+
+### How to Set Up the Connection
+
+**During Solution Import:**
+
+1. When you see the **Connections** screen during import:
+   - Look for "CoE Core - Teams" in the list (it will show a red warning icon)
+   - Click on the connection row
+   - Click **"+ New connection"** or the "+" button
+
+2. **Authorize the connection:**
+   - Sign in with the account that will run the CoE flows
+   - Click **Allow** when prompted for Teams permissions
+   - Wait for the green checkmark to appear
+
+3. **Continue import:**
+   - Select the newly created connection from the dropdown
+   - Ensure all connections show green checkmarks
+   - Click **Next** to proceed
+
+### Detailed Documentation
+
+For comprehensive setup instructions, troubleshooting, and FAQs, see:
+- **[Teams Connection Setup Guide](./TEAMS-CONNECTION-SETUP.md)** - Complete guide with troubleshooting
+
+### Common Issues and Solutions
+
+**"Teams connector is blocked by our DLP policy"**
+- Add Microsoft Teams connector to the same data group as Power Platform connectors
+- Contact your Power Platform admin to update the DLP policy
+- See [DLP troubleshooting section](./TEAMS-CONNECTION-SETUP.md#what-if-teams-connector-is-blocked-by-dlp-policy)
+
+**"I don't have Teams in my organization"**
+- Verify with your M365 admin if Teams is available
+- Check if your license includes Teams
+- See [troubleshooting section](./TEAMS-CONNECTION-SETUP.md#troubleshooting)
+
+**"Which account should create this connection?"**
+- Use the same service account that runs your CoE flows
+- Ensure it has a Teams license
+- Messages will be sent from this account's identity
+
+### Quick Links
+
+- [Full Teams Connection Setup Guide](./TEAMS-CONNECTION-SETUP.md)
+- [CoE Setup Documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup-core-components)
+- [Upgrade Troubleshooting](../TROUBLESHOOTING-UPGRADES.md)
+
+Let us know if you have any questions or encounter issues during setup!
+
+---
+
 ## Template: Closing Issue - Question Answered
 
 **Use when:** Closing an issue after providing guidance

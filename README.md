@@ -59,11 +59,16 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
+### Common Setup Questions
+- **[Teams Connection Setup](docs/TEAMS-CONNECTION-SETUP.md)** - Guide for the Microsoft Teams connection required during Core Components import/upgrade
+- **[Sovereign Cloud / GCC High Support](docs/sovereign-cloud-support.md)** - Guidance for deploying in GCC, GCC High, and DoD environments
+
 ## Troubleshooting
 If you encounter issues during upgrade or installation, see the [Upgrade Troubleshooting Guide](TROUBLESHOOTING-UPGRADES.md) for common issues and solutions, including:
 - TooManyRequests errors during solution import
 - Version-by-version upgrade strategies
 - Unmanaged layer removal guidance
+- New connection requirements (e.g., Teams connector)
 
 ## Microsoft Open Source Code of Conduct
 
