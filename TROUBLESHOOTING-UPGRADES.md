@@ -2,6 +2,13 @@
 
 This document provides troubleshooting guidance for common issues encountered when upgrading the Center of Excellence (CoE) Starter Kit solutions.
 
+## Quick Error Reference
+
+| Error | Quick Fix |
+|-------|-----------|
+| **TooManyRequests** | Remove unmanaged layers, use incremental upgrades (4.43 → 4.45 → 4.47...), wait 60-90 minutes between retries |
+| **80040216 (Resumable Index Rebuild)** | Wait 1-4 hours and retry, or import during off-peak hours. Contact Microsoft Support if persists after 24 hours |
+
 ## Quick Fix: TooManyRequests Error
 
 If you're experiencing a **"TooManyRequests"** error during upgrade:
@@ -21,6 +28,10 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Root Cause](#root-cause)
   - [Resolution Steps](#resolution-steps)
   - [Advanced Troubleshooting](#advanced-troubleshooting)
+- [Error 80040216 - Resumable Index Rebuild State](#error-80040216---resumable-index-rebuild-state)
+  - [Issue Description](#issue-description-1)
+  - [Root Cause](#root-cause-1)
+  - [Resolution Steps](#resolution-steps-1)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
 
@@ -212,6 +223,165 @@ If the system doesn't recognize an upgrade is available:
 
 ---
 
+## Error 80040216 - Resumable Index Rebuild State
+
+### Issue Description
+
+When importing or upgrading CoE Starter Kit solutions (particularly Core Components), the import process may fail with error code **80040216** and a message similar to:
+
+```
+Error occurred while updating the ImportJob table at the end of import.
+Solution import originally failed with Message: Cannot perform this operation on 'object' 
+with ID 1577629259 as one or more indexes are currently in resumable index rebuild state.
+Please refer to sys.index_resumable_operations for more details.
+
+System.Data.SqlClient.SqlException: Cannot perform this operation on 'object' with 
+ID 1577629259 as one or more indexes are currently in resumable index rebuild state.
+Please refer to sys.index_resumable_operations for more details.
+```
+
+This error typically appears:
+- During solution import operations
+- When upgrading between versions
+- In the final stages of import (updating ImportJob table)
+- After database maintenance or backup operations
+
+### Root Cause
+
+This is a **Dataverse platform/database-level issue**, not a bug in the CoE Starter Kit itself. The error indicates that:
+
+1. **Database indexes are in maintenance state**: The underlying SQL Server database for Dataverse has one or more indexes that are currently in a "resumable index rebuild" state.
+
+2. **Incomplete index operations**: This typically occurs when:
+   - Database maintenance operations are in progress or were interrupted
+   - A previous solution import failed and left indexes in an incomplete state
+   - Background database optimization tasks are running
+   - The database is recovering from a backup or restore operation
+
+3. **Platform limitation**: The Dataverse platform cannot perform certain operations (like updating the ImportJob system table) while indexes are being rebuilt.
+
+**Important**: This is a **platform service issue**, not a problem with the CoE Starter Kit solution. The error occurs at the SQL Server/Dataverse infrastructure level.
+
+### Resolution Steps
+
+#### Option 1: Wait and Retry (Recommended First Step)
+
+The simplest solution is to wait for the index rebuild operation to complete naturally:
+
+1. **Wait 1-4 hours** before retrying
+   - Index rebuild operations typically complete within this timeframe
+   - Longer waits (overnight) may be needed for large databases
+
+2. **Check for ongoing maintenance**
+   - Verify no database maintenance windows are scheduled
+   - Check the [Microsoft Service Health Dashboard](https://admin.microsoft.com/AdminPortal/Home#/servicehealth) for any ongoing platform maintenance
+
+3. **Retry the import**
+   - Navigate to Power Platform Admin Center → Solutions
+   - Attempt the solution import/upgrade again
+   - The error should resolve if the index rebuild has completed
+
+#### Option 2: Import During Off-Peak Hours
+
+Database maintenance operations are often scheduled during specific times:
+
+1. **Schedule import during low-activity periods:**
+   - Early morning (2 AM - 6 AM local time)
+   - Late evening (10 PM - 12 AM local time)  
+   - Weekends when tenant activity is minimal
+
+2. **Avoid known maintenance windows:**
+   - Check your organization's database maintenance schedule
+   - Coordinate with your database administrators
+   - Verify Microsoft doesn't have scheduled maintenance for your region
+
+#### Option 3: Contact Microsoft Support (If Issue Persists)
+
+If the error continues after 24 hours or multiple retry attempts:
+
+1. **Open a support ticket with Microsoft**
+   - This is a **platform-level issue** that requires Microsoft intervention
+   - Even though the CoE Starter Kit is unsupported, the underlying Dataverse platform issue can be investigated by Microsoft Support
+   - Title: "Dataverse database index in resumable rebuild state blocking solution import"
+
+2. **Provide the following information:**
+   - Environment ID where the import is failing
+   - Full error message including the object ID (e.g., "1577629259")
+   - Solution name and version being imported
+   - Timestamp of when the error occurred
+   - Client Request ID from the error details
+   - Screenshot of the error
+
+3. **What Microsoft Support can do:**
+   - Check the database index status
+   - Complete or abort stuck index rebuild operations
+   - Verify database health and integrity
+   - Clear any locks or incomplete transactions
+   - Provide guidance on database-specific issues
+
+4. **Support ticket details:**
+   - **Product**: Power Platform / Dataverse
+   - **Issue type**: Solution import failure
+   - **Error code**: 80040216
+   - **Severity**: Business impact (choose based on your needs)
+
+#### Option 4: Try in a Different Environment (Testing/Validation)
+
+If you need to validate the solution works and this is not a solution-specific issue:
+
+1. **Create a trial or sandbox environment**
+   - This helps determine if the issue is environment-specific
+   - Use a fresh environment without ongoing maintenance
+
+2. **Attempt the import in the new environment**
+   - If successful, confirms the issue is with the original environment's database
+   - If it fails, may indicate a broader platform issue
+
+3. **Use the working environment temporarily**
+   - For testing or validation purposes only
+   - Plan to resolve the original environment issue with Microsoft Support
+   - Do not use as a permanent workaround
+
+### Prevention and Best Practices
+
+1. **Coordinate with database teams:**
+   - Be aware of scheduled database maintenance windows
+   - Avoid solution imports during these times
+   - Schedule imports during known stable periods
+
+2. **Monitor environment health:**
+   - Regularly check environment status in Power Platform Admin Center
+   - Review any notifications about ongoing maintenance
+   - Subscribe to Microsoft Service Health notifications
+
+3. **Plan imports appropriately:**
+   - Don't rush imports; plan for adequate time
+   - Have a rollback strategy in case of failures
+   - Test in non-production environments first
+
+### Additional Information
+
+**This error is NOT:**
+- ❌ A bug in the CoE Starter Kit
+- ❌ Caused by the solution file being corrupted
+- ❌ Related to permissions or licensing
+- ❌ Something that can be fixed by modifying the solution
+
+**This error IS:**
+- ✅ A Dataverse platform/database infrastructure issue
+- ✅ Temporary and typically resolves itself
+- ✅ Resolvable by Microsoft Support if it persists
+- ✅ Unrelated to the specific solution being imported
+
+### Related Resources
+
+- [Microsoft Service Health Dashboard](https://admin.microsoft.com/AdminPortal/Home#/servicehealth)
+- [Power Platform Admin Center](https://admin.powerplatform.microsoft.com)
+- [Contact Microsoft Support](https://learn.microsoft.com/en-us/power-platform/admin/get-help-support)
+- [Dataverse system tables documentation](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/about-entity-reference)
+
+---
+
 ## General Upgrade Best Practices
 
 ### Before Starting Any Upgrade
@@ -342,6 +512,9 @@ If the system doesn't recognize an upgrade is available:
 
 ### Q: How often should I upgrade the CoE Starter Kit?
 **A:** Upgrade every **1-3 months** to avoid large version gaps. This makes upgrades smoother and reduces the risk of rate limiting issues.
+
+### Q: What does error 80040216 mean, and how do I fix it?
+**A:** Error 80040216 ("resumable index rebuild state") is a Dataverse platform/database issue, not a CoE Starter Kit bug. The underlying SQL Server database has indexes in maintenance mode. **Resolution**: Wait 1-4 hours and retry the import, or schedule the import during off-peak hours (early morning/late evening). If the error persists after 24 hours, contact Microsoft Support with the error details—this is a platform-level issue they can investigate and resolve.
 
 ---
 
