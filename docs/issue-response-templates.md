@@ -1,4 +1,15 @@
-# GitHub Issue Response Template - Sovereign Cloud / GCC High Questions
+# GitHub Issue Response Templates
+
+This document contains reusable templates for responding to common GitHub issues related to the CoE Starter Kit.
+
+## Available Templates
+
+- [Sovereign Cloud / GCC High Questions](#sovereign-cloud--gcc-high-questions)
+- [Error 80040216 - Resumable Index Rebuild State](./ISSUE-RESPONSE-80040216.md)
+
+---
+
+## Sovereign Cloud / GCC High Questions
 
 This template can be used when responding to issues related to sovereign cloud deployments, GCC High upgrades, or connector availability.
 
