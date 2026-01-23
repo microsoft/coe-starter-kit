@@ -60,10 +60,15 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
 ## Troubleshooting
-If you encounter issues during upgrade or installation, see the [Upgrade Troubleshooting Guide](TROUBLESHOOTING-UPGRADES.md) for common issues and solutions, including:
-- TooManyRequests errors during solution import
-- Version-by-version upgrade strategies
-- Unmanaged layer removal guidance
+If you encounter issues during upgrade or installation:
+
+- **[Upgrade Troubleshooting Guide](TROUBLESHOOTING-UPGRADES.md)** - Common issues and solutions, including:
+  - TooManyRequests errors during solution import
+  - Unexpected Azure DevOps email notifications after upgrades
+  - Version-by-version upgrade strategies
+  - Unmanaged layer removal guidance
+- **[Azure DevOps Email Notifications](docs/TROUBLESHOOTING-AZURE-DEVOPS-EMAILS.md)** - Resolving unexpected flow failure notifications
+- **[Additional Documentation](Documentation/)** - Azure Log Analytics costs, best practices, and more
 
 ## Microsoft Open Source Code of Conduct
 
