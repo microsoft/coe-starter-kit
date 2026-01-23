@@ -2,6 +2,8 @@
 
 This template can be used when responding to issues related to sovereign cloud deployments, GCC High upgrades, or connector availability.
 
+**Note**: For DLP policy scope issues, see [DLP Policy Response Templates](./ISSUE-RESPONSE-DLP-POLICY-SCOPE.md).
+
 ---
 
 ## Template: GCC High Upgrade Availability
