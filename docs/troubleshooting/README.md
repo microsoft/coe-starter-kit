@@ -4,9 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
-### Power BI Connection Issues
+### Power BI Dashboard Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
+- **[Database Size Showing Incorrect in Power BI](power-bi-storage-double-reporting.md)** - Resolve issues where the Power BI dashboard shows approximately double the database storage size compared to Power Platform Admin Center.
 
 ## General Troubleshooting Resources
 

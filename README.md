@@ -61,6 +61,13 @@ Please find all information on how to install and use the kit on https://docs.mi
 
 ## Troubleshooting
 
+Common issues and solutions are documented in the [troubleshooting guides](docs/troubleshooting/). For specific issues:
+
+- [Power BI Database Size Showing Incorrect Values](docs/troubleshooting/power-bi-storage-double-reporting.md)
+- [Power BI Connection Timeout Errors](docs/troubleshooting/power-bi-connection-timeout.md)
+
+For more troubleshooting resources, see the [complete troubleshooting directory](docs/troubleshooting/).
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
