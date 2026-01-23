@@ -4,6 +4,18 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
+### [Solution Checker Warnings](./SolutionCheckerWarnings.md)
+
+Explains the 1100-1200+ medium-severity Solution Checker warnings that appear after importing the CoE Core Components solution. This document covers:
+
+- What solution checker warnings to expect
+- Why these warnings exist (scale, accessibility, code quality)
+- Whether warnings can be safely ignored
+- Best practices during setup and customization
+- FAQ about warnings and their impact
+
+**Relevant for**: Anyone installing or upgrading the CoE Starter Kit, administrators concerned about solution quality warnings
+
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:
