@@ -6,7 +6,8 @@ This directory contains supplementary documentation for the CoE Starter Kit, inc
 
 Comprehensive technical analyses of feature requests, including feasibility assessments and implementation approaches:
 
-- **[ROI Computation for Flows and Apps](./ENHANCEMENT-ANALYSIS-ROI-Flow-App-Usage.md)** - Analysis of request for comprehensive ROI tracking and business value computation across Power Automate flows and Power Apps
+- **[ROI Computation for Flows and Apps](./ENHANCEMENT-ANALYSIS-ROI-Flow-App-Usage.md)** - Detailed 26-page analysis of request for comprehensive ROI tracking and business value computation across Power Automate flows and Power Apps
+  - **[Quick Summary](./SUMMARY-ROI-Enhancement.md)** - Executive summary of ROI enhancement analysis
 - **[Power Pages Session Tracking](./ENHANCEMENT-ANALYSIS-PowerPages-Sessions.md)** - Analysis of request to include unique session counts for Power Pages sites in inventory reports
 
 ## Issue Response Documents
