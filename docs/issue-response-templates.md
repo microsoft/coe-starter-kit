@@ -217,6 +217,91 @@ Create or reference separate issues for:
 
 ---
 
+---
+
+## Template: Inactivity Notification Questions
+
+**Use when:** Users ask about how inactivity notification flows work, environment scope, or the admin_ProductionEnvironment variable
+
+**Response:**
+
+Thank you for your questions about the CoE Starter Kit Inactivity Notification flows!
+
+### Question 1: Environment Scope
+
+**The inactivity notification flows scan ALL environments in your tenant**, not just the ones you see selected in the Environment table.
+
+#### How It Works:
+- The flows query the entire `admin_apps` and `admin_flows` Dataverse tables
+- These tables contain inventory from across your entire tenant
+- The flows **only exclude** environments where:
+  - `admin_excusefromarchivalflows` is set to **Yes**
+  - The environment has been deleted
+
+#### The Environment Table
+The Environment table stores metadata about your environments. While you may only see a few environments initially, the Core Components inventory flows populate all environments over time.
+
+#### To Exclude Specific Environments:
+1. Open the **Admin - Add Environment Properties** app (Core Components)
+2. Find the environment you want to exclude
+3. Set **"Excuse from archival flows"** to **Yes**
+4. Save the record
+
+Apps and flows in that environment will no longer be scanned for inactivity.
+
+### Question 2: Changing the Test Approval Recipient
+
+When `admin_ProductionEnvironment` is set to **No**, approvals are sent to the admin account for testing. 
+
+**To send to your account instead of the default admin:**
+
+1. Go to your CoE environment and find the environment variables
+2. Locate **Admin eMail (admin_AdminMail)**
+3. Change the value to your email address
+4. Save the change
+
+Now when `admin_ProductionEnvironment = No`, all test approvals will go to your email address.
+
+**How It Works:**
+- `admin_ProductionEnvironment = Yes` → Approvals go to actual resource owners
+- `admin_ProductionEnvironment = No` → Approvals go to the email in `admin_AdminMail`
+
+This prevents accidentally sending test notifications to real makers during testing.
+
+### Additional Resources
+
+We've created a comprehensive FAQ document that covers these and many other questions:
+- [FAQ: Inactivity Notifications](../../CenterofExcellenceResources/FAQ-InactivityNotifications.md)
+
+This FAQ includes:
+- Detailed explanation of environment filtering
+- How to configure test mode
+- Managing orphaned apps and flows
+- Customizing notification emails
+- Troubleshooting common issues
+- Best practices for governance rollout
+
+### Next Steps
+
+Before deploying to production:
+1. ✅ Set `admin_ProductionEnvironment` to **No** for testing
+2. ✅ Set `admin_AdminMail` to your test email
+3. ✅ Review and adjust `admin_ArchivalPastTimeInterval` (default: 6 months)
+4. ✅ Exclude any environments that shouldn't be scanned
+5. ✅ Test the approval flow with a test app/flow
+6. ✅ Communicate the governance program to your maker community
+7. ✅ Set `admin_ProductionEnvironment` to **Yes** when ready for production
+
+### Official Documentation
+
+- [CoE Starter Kit Overview](https://learn.microsoft.com/power-platform/guidance/coe/starter-kit)
+- [Governance Components](https://learn.microsoft.com/power-platform/guidance/coe/governance-components)
+- [Setup Instructions](https://learn.microsoft.com/power-platform/guidance/coe/setup)
+
+Please let us know if you have any other questions!
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community

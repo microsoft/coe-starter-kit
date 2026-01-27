@@ -4,6 +4,13 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
+### Frequently Asked Questions (FAQs)
+
+See the **[CenterofExcellenceResources](../CenterofExcellenceResources/README.md)** directory for comprehensive FAQ documents including:
+
+- **[Power Platform Administrator Role Requirements](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)** - Why admin roles are needed, security best practices, and alternatives
+- **[Inactivity Notifications for Governance](../CenterofExcellenceResources/FAQ-InactivityNotifications.md)** - How inactivity flows work, configuration, testing, and troubleshooting
+
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:
