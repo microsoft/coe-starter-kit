@@ -1,4 +1,22 @@
-# GitHub Issue Response Template - Sovereign Cloud / GCC High Questions
+# GitHub Issue Response Templates
+
+This directory contains templates and detailed responses for common CoE Starter Kit issues.
+
+## Available Response Templates
+
+### 1. [App Usage Data Missing](ISSUE-RESPONSE-App-Usage-Data-Missing.md)
+**Use when:** Users report that "App Last Launched On" field is not updating or shows old dates
+
+**Common indicators:**
+- User answered "None" to telemetry/inventory method question
+- Usage data stops after a specific date
+- App inventory works but usage tracking doesn't
+
+**Quick diagnosis:** Check if CoE Audit Log Components are installed and configured
+
+---
+
+### 2. [Sovereign Cloud / GCC High Questions](issue-response-templates.md#template-gcc-high-upgrade-availability)
 
 This template can be used when responding to issues related to sovereign cloud deployments, GCC High upgrades, or connector availability.
 
