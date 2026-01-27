@@ -61,6 +61,12 @@ Please find all information on how to install and use the kit on https://docs.mi
 
 ## Troubleshooting
 
+For troubleshooting guides, see:
+- [Troubleshooting Guides Directory](docs/troubleshooting/README.md)
+- [Long-Running Sync Template Flows](CenterofExcellenceCoreComponents/TROUBLESHOOTING-SYNC-PERFORMANCE.md)
+- [Upgrade Troubleshooting Guide](TROUBLESHOOTING-UPGRADES.md)
+- [Official CoE Starter Kit Documentation](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit)
+
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
