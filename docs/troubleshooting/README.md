@@ -4,6 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Inventory and Sync Issues
+
+- **[Power Platform Admin View Not Showing Updated Apps or Missing Environments](admin-view-missing-data.md)** - Troubleshoot issues where the Power Platform Admin View app is not displaying all apps or environments after an upgrade, including how to run full inventory and trigger the Driver flow.
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
