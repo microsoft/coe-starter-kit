@@ -59,10 +59,6 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
-### Troubleshooting
-If you encounter issues during setup or upgrade, please refer to:
-- **[Setup Wizard Troubleshooting Guide](CenterofExcellenceResources/TROUBLESHOOTING-SETUP-WIZARD.md)** - Comprehensive guide for resolving "Error loading control" and service account role assignment issues
-- **[CoE Starter Kit FAQ](https://learn.microsoft.com/power-platform/guidance/coe/faq)** - General frequently asked questions
 
 ## Microsoft Open Source Code of Conduct
 
