@@ -4,6 +4,11 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Core Components - Inventory and Sync
+
+- **[Long-Running Sync Template Flows](../../CenterofExcellenceCoreComponents/TROUBLESHOOTING-SYNC-PERFORMANCE.md)** - Troubleshoot Admin | Sync Template flows that run for extended periods (>1 hour) or appear stuck in "Running" state
+- **[PVA/Copilot Studio Sync Issues](../../CenterofExcellenceCoreComponents/TROUBLESHOOTING-PVA-SYNC.md)** - Troubleshoot issues where not all Copilot Studio agents appear in the inventory
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
