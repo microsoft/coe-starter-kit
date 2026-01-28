@@ -4,6 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Solution Import and Upgrade Issues
+
+- **[BadGateway Error During Solution Import](solution-import-badgateway.md)** - Resolve BadGateway (HTTP 502) errors that occur when importing or upgrading CoE Starter Kit solutions, particularly when importing flows.
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
@@ -14,6 +18,7 @@ For comprehensive setup and troubleshooting information, please refer to:
 
 - [CoE Starter Kit Documentation](https://learn.microsoft.com/en-us/power-platform/guidance/coe/starter-kit)
 - [CoE Starter Kit Setup](https://learn.microsoft.com/en-us/power-platform/guidance/coe/setup)
+- [Troubleshooting Upgrades](../../TROUBLESHOOTING-UPGRADES.md) - General upgrade troubleshooting guide
 - [GitHub Issues](https://github.com/microsoft/coe-starter-kit/issues) - Search existing issues or report new ones
 
 ## Contributing

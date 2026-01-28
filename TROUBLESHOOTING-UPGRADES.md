@@ -2,8 +2,19 @@
 
 This document provides troubleshooting guidance for common issues encountered when upgrading the Center of Excellence (CoE) Starter Kit solutions.
 
-## Quick Fix: TooManyRequests Error
+## Quick Fixes
 
+### BadGateway Error
+If you're experiencing a **"BadGateway"** error during upgrade:
+
+1. ✅ **Wait 30-60 minutes** and retry the import
+2. ✅ **Import during off-peak hours** (early morning or late evening)
+3. ✅ **Check [Microsoft Service Health](https://admin.microsoft.com/AdminPortal/Home#/servicehealth)** for Power Platform incidents
+4. ✅ This is a transient service issue - retrying usually resolves it
+
+📖 See **[complete BadGateway troubleshooting guide](docs/troubleshooting/solution-import-badgateway.md)** for detailed steps.
+
+### TooManyRequests Error
 If you're experiencing a **"TooManyRequests"** error during upgrade:
 
 1. ✅ **Remove all unmanaged layers** (use CoE Admin Command Center)
@@ -15,6 +26,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
 📖 See [detailed resolution steps below](#resolution-steps) for complete guidance.
 
 ## Table of Contents
+- [BadGateway Error During Upgrade](#badgateway-error-during-upgrade)
 - [TooManyRequests Error During Upgrade](#toomanyreqs-error-during-upgrade)
   - [Quick Fix](#quick-fix-toomanyrequest-error)
   - [Issue Description](#issue-description)
@@ -23,6 +35,37 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Advanced Troubleshooting](#advanced-troubleshooting)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
+
+---
+
+## BadGateway Error During Upgrade
+
+### Issue Description
+
+When upgrading CoE Starter Kit solutions, the import process may fail with a **BadGateway (HTTP 502)** error:
+
+```
+Solution "Center of Excellence - Core Components" failed to import: 
+ImportAsHolding failed with exception: Error while importing workflow 
+{workflow-id} type ModernFlow name [Flow Name]. 
+Flow server error returned with status code 'BadGateway' and details.
+```
+
+### Root Cause
+
+BadGateway is a **transient Power Platform service error** indicating temporary backend service unavailability, not a bug in the CoE Starter Kit or your configuration.
+
+### Quick Resolution
+
+1. **Wait 30-60 minutes** and retry the import
+2. **Import during off-peak hours** (2 AM - 6 AM or 10 PM - 12 AM local time)
+3. **Check service health** at [Microsoft Service Health Dashboard](https://admin.microsoft.com/AdminPortal/Home#/servicehealth)
+4. **Retry using the same solution file** - it's safe to retry upgrades
+
+### Complete Troubleshooting Guide
+
+For detailed troubleshooting steps, advanced options, and FAQs, see:
+**[BadGateway Error Troubleshooting Guide](docs/troubleshooting/solution-import-badgateway.md)**
 
 ---
 
