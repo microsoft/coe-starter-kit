@@ -217,6 +217,77 @@ Create or reference separate issues for:
 
 ---
 
+## Template: Unexpected Azure DevOps Email Notifications After Upgrade
+
+**Use when:** Users report receiving unexpected email notifications about "Sync Issues to Azure DevOps" or similar after upgrading Core Components, despite not using Azure DevOps, ALM Accelerator, or Innovation Backlog
+
+**Response:**
+
+Thank you for reporting this! This is a known and expected behavior after upgrading Core Components, and it can be safely resolved.
+
+### What's Happening
+
+After upgrading Core Components (especially to January 2026 or later versions), the **"Admin | Sync Template v3 Configure Emails"** flow runs automatically to configure email templates. This flow:
+
+1. Checks which CoE solutions are installed in your environment
+2. Attempts to configure email templates for all detected solutions
+3. May trigger flows that check for dependencies on other components
+
+If you have previously installed (or have remnants of) the Innovation Backlog, ALM Accelerator, or Pipeline Accelerator solutions, flows may attempt to configure features for these components and fail if they're not properly set up. Power Platform then sends automatic failure notifications.
+
+### This is Normal and Expected ✅
+
+These email notifications are **not errors in the Core Components** themselves, but rather:
+- Power Platform's automatic notification system alerting you to flows that cannot complete
+- Usually related to optional CoE components (Innovation Backlog, ALM Accelerator, Pipeline Accelerator) that aren't fully configured
+
+### Resolution Steps
+
+You have several options depending on your needs:
+
+**Option 1: Turn Off the Specific Flow** (if you don't use the feature)
+1. Go to Power Automate in your CoE environment
+2. Find the flow mentioned in the email notification
+3. Turn it off if you don't need that feature
+
+**Option 2: Remove Unused Solutions** (recommended if not using them)
+1. Go to Power Apps → Solutions
+2. Remove any of these if you're not using them:
+   - Center of Excellence - Innovation Backlog
+   - Center of Excellence - ALM Accelerator for Makers  
+   - Center of Excellence - Pipeline Accelerator
+
+**Option 3: Complete the Setup** (if you want to use the feature)
+- Follow the setup guide for the specific component causing the notification
+- Configure all required connections and environment variables
+
+### Detailed Troubleshooting Guide
+
+For comprehensive step-by-step instructions, see:
+
+📖 **[Troubleshooting Azure DevOps Email Notifications](../docs/TROUBLESHOOTING-AZURE-DEVOPS-EMAILS.md)**
+
+This guide includes:
+- Detailed explanations of why this occurs
+- Multiple resolution strategies
+- Prevention tips for future upgrades  
+- When to seek additional help
+
+### Prevention for Next Upgrade
+
+1. Only install CoE components you actively need
+2. Remove unused solutions before upgrading Core Components
+3. Complete setup for all installed components (connections + environment variables)
+4. Review the [Upgrade Troubleshooting Guide](../TROUBLESHOOTING-UPGRADES.md) before upgrades
+
+### Summary
+
+**Key Takeaway**: These emails are normal after Core Components upgrades and indicate flows trying to configure optional features you may not be using. Simply turn off those flows or remove the unused solutions.
+
+Let us know if the notifications continue after trying these steps!
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community

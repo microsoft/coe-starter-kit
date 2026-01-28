@@ -4,6 +4,18 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
+### [Troubleshooting: Unexpected Azure DevOps Email Notifications](../docs/TROUBLESHOOTING-AZURE-DEVOPS-EMAILS.md)
+
+Complete troubleshooting guide for unexpected email notifications about "Sync Issues to Azure DevOps" after upgrading Core Components. This document covers:
+
+- Why these notifications occur after Core Components upgrades
+- Root causes (Innovation Backlog, ALM Accelerator, Pipeline Accelerator dependencies)
+- Five resolution options (turn off flows, remove unused solutions, complete setup, etc.)
+- Prevention strategies for future upgrades
+- When to seek additional help
+
+**Relevant for**: CoE administrators experiencing unexpected flow failure emails after upgrades, especially for features not being used
+
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:
