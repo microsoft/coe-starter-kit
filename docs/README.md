@@ -9,6 +9,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 - **[Troubleshooting: Entity 'admin_flow' Does Not Exist Error](troubleshooting-sync-helper-cloud-flows-entity-not-exist.md)**  
   Comprehensive guide for resolving the "Entity 'admin_flow' With Id = [GUID] Does Not Exist" error in SYNC HELPER - Cloud Flows
 
+- **[Fix: GUID Formatting Issue in SYNC HELPER - Cloud Flows](fix-sync-helper-cloud-flows-guid-formatting.md)**  
+  Documentation for the GUID formatting fix that resolves OData filter parsing errors when flow IDs lack hyphens
+
 ### Issue Response Templates
 
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  
