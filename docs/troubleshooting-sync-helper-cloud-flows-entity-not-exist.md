@@ -10,6 +10,8 @@ Users may encounter the following error when running the **SYNC HELPER - Cloud F
 
 This error typically occurs during the `Get_Flow_from_Inventory` action within the flow's execution.
 
+> **Note**: If you're seeing an error like `')' or ',' expected at position 2 in '(1a13663fde2d4a0fa1159b4b8c7c4d69)'`, this is a **GUID formatting issue**. See the [GUID Formatting Fix Documentation](./fix-sync-helper-cloud-flows-guid-formatting.md) for details. This issue has been fixed in CoE Starter Kit v4.50.6+.
+
 ## Root Cause Analysis
 
 The error occurs due to a timing or data inconsistency issue in the flow synchronization process:
