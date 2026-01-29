@@ -8,8 +8,18 @@ Learn more about the CoE Starter Kit: https://docs.microsoft.com/power-platform/
 - Get started with the CoE Starter Kit Setup: https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup
 - Get started with the ALM Accelerator for Power Platform Setup: https://docs.microsoft.com/en-us/power-platform/guidance/coe/setup-almacceleratorpowerplatform-cli
 
+### ⚠️ Important Prerequisites
+Before installing the Core Components, ensure:
+1. **Creator Kit** is installed (required for Setup Wizard PCF controls)
+2. Service account has **Power Apps Per User** or **Premium** license
+3. Service account has **System Administrator** role in the environment
+4. **English (1033)** language pack is enabled
+
+**Having issues?** See [TROUBLESHOOTING-SETUP-WIZARD.md](../../../../TROUBLESHOOTING-SETUP-WIZARD.md) for common setup issues and solutions.
+
 ## Upgrade Instructions
 - Upgrading from the latest version of the CoE Starter Kit: https://docs.microsoft.com/power-platform/guidance/coe/after-setup#installing-upgrades
+- **Having upgrade issues?** See the [Upgrade Troubleshooting Guide](../../../../TROUBLESHOOTING-UPGRADES.md) for help with common problems including TooManyRequests errors
 
 ## Files in this download
 
@@ -26,6 +36,9 @@ The content package contains various files that support different features of th
 | CenterofExcellenceInnovationBacklog_x.xx_managed.zip  | [Innovation Backlog components](innovationbacklog-components.md) solution file. Required during [setup of the Innovation Backlog](setup-innovationbacklog.md) components. |
 | CenterofExcellenceNurtureComponents_x.xx_managed.zip  |  [Nurture components](nurture-components.md) solution file. Required during [setup of the Nurture](setup-nurture-components.md) components. Has a dependency on [Core components](core-components.md) being installed first. |
 | MakerAssessmentStarterData.xlsx | Provides a set of starter questions and answers for the [Maker assessment](nurture-components.md#maker-assessment-components) app. Required during [configuration of the Maker Assessment](setup-nurture-components.md#set-up-maker-assessment-components) app. |
+| Power Platform Administration Planning.pbit | Power BI template file for the Admin Planning component. Required during [setup of the Admin Tasks component](setup-admin-tasks-component.md). See [troubleshooting guide](../../../../docs/troubleshooting/power-bi-connection-timeout.md) if you encounter connection timeout errors. |
+| BYODL_CoEDashboard_July2024.pbit | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions use Bring Your Own Data Lake (BYODL). Required during [configuration of the Power BI dashboard](setup-powerbi.md) |
+| PowerPlatformGovernance_CoEDashboard_July2024.pbit | Power BI template file for Power Platform Governance dashboard. Required during [configuration of Governance dashboards](setup-powerbi.md) |
 | Production_CoEDashboard_MMM2022.pbit  | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions are installed in a Production environment. Required during [configuration of the Power BI dashboard](setup-powerbi.md) |
 | Pulse_CoEDashboard.pbit | [Pulse survey Power BI template file](nurture-components.md#pulse-survey-components). Required during [configuration of Pulse survey](setup-nurture-components.md#set-up-pulse-feedback-survey) components. |
 | Teams_CoEDashboard_MMM2022.pbit | [CoE Dashboard Power BI template file](power-bi.md) used when the CoE solutions are installed in a Dataverse for Teams environment. Required during [configuration of the Power BI dashboard](setup-powerbi.md) |
