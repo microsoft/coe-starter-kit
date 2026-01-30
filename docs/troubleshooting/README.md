@@ -4,6 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### CoE Admin Command Center Issues
+
+- **[AppForbidden Error with DLP Policies](app-forbidden-dlp-error.md)** - Resolve "App forbidden" errors when opening the CoE Flows section or other custom pages in the CoE Admin Command Center due to Data Loss Prevention policies.
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.

@@ -4,6 +4,17 @@ This template can be used when responding to issues related to sovereign cloud d
 
 ---
 
+## Available Templates
+
+This directory contains response templates for common issue types:
+
+- **[Sovereign Cloud / GCC High Questions](issue-response-templates.md)** - For sovereign cloud and GCC High deployment questions
+- **[AppForbidden/DLP Error](ISSUE-RESPONSE-AppForbidden-DLP.md)** - For "App forbidden" errors related to DLP policies in CoE Admin Command Center
+- **[Power Pages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)** - For Power Pages session-related issues
+- **[Entity/Flow Not Exist](ISSUE-RESPONSE-entity-admin-flow-not-exist.md)** - For entity or flow not found errors
+
+---
+
 ## Template: GCC High Upgrade Availability
 
 **Use when:** Users ask about upgrading CoE Starter Kit in GCC High or sovereign clouds
