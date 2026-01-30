@@ -78,6 +78,11 @@ For comprehensive setup instructions, feature documentation, and best practices,
 
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
 
+### Frequently Asked Questions (FAQ)
+
+- **[FAQ: How CoE Collects App Connections and Flow Actions](FAQ-ConnectionsAndActionsCollection.md)**  
+  Detailed explanation of how the CoE Starter Kit collects app connection references and flow action details
+
 ## Getting Help
 
 ### Before Creating an Issue
