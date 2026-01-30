@@ -77,6 +77,7 @@ For comprehensive setup instructions, feature documentation, and best practices,
 ### Administration
 
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
+- [Granting View-Only Access to CoE Apps FAQ](../CenterofExcellenceResources/FAQ-GrantingAccessToCoEApps.md)
 
 ## Getting Help
 

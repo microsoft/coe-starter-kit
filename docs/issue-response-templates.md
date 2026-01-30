@@ -288,6 +288,94 @@ Let us know if the notifications continue after trying these steps!
 
 ---
 
+## Template: Granting View-Only Access to CoE Model-Driven Apps
+
+**Use when:** Users ask how to share CoE apps or grant view-only access, especially when they report that read-only security roles don't appear in the Share dialog
+
+**Response:**
+
+Thank you for your question about granting view-only access to the CoE Starter Kit apps!
+
+### The Issue You're Experiencing
+
+This is **expected behavior by design** in Dataverse. When you click **Share** on a model-driven app, the dialog only displays security roles that have **"Customize" or "Admin-level" privileges**. 
+
+This is why you see:
+- ✅ Power Platform Admin SR
+- ✅ System Administrator  
+- ✅ System Customizer
+- ❌ Power Platform User SR (doesn't appear)
+- ❌ Power Platform Maker SR (doesn't appear)
+- ❌ Custom read-only roles (don't appear)
+
+This is a platform limitation affecting all Dataverse model-driven apps, not specific to the CoE Starter Kit.
+
+### ✅ Correct Solution: Direct Security Role Assignment
+
+To grant view-only access to the **Power Platform Admin View** (or other CoE apps), follow these steps:
+
+#### Step 1: Assign the Security Role Directly
+
+1. Go to [Power Platform Admin Center](https://admin.powerplatform.microsoft.com)
+2. Navigate to your CoE environment
+3. Go to **Settings** → **Users + permissions** → **Users**
+4. Select the user(s) you want to grant access to
+5. Click **Manage security roles**
+6. Check the **Power Platform User SR** role
+7. Click **Save**
+
+#### Step 2: Verify Access (Optional)
+
+While not always required, you can also ensure users can find the app:
+
+1. Go to [Power Apps](https://make.powerapps.com)
+2. Select your CoE environment
+3. Open the app (e.g., **Power Platform Admin View**)
+4. Click **Share**
+5. Add the users (even though their role won't show in the dropdown)
+
+**Important:** The Share dialog is for app visibility, but actual data access is controlled by security roles. Users MUST have the appropriate security role assigned via the Admin Center.
+
+### About the Power Platform User SR Role
+
+The **Power Platform User SR** security role is included in the Core Components solution and provides:
+
+✅ Read-only access to CoE data  
+✅ View dashboards and reports  
+✅ No ability to create, edit, or delete records  
+
+This is the recommended role for stakeholders who need to **view** CoE data without modifying it.
+
+### Comprehensive Guide
+
+For detailed instructions, troubleshooting, and best practices, please see our comprehensive FAQ:
+
+📖 **[FAQ: Granting View-Only Access to CoE Apps](../CenterofExcellenceResources/FAQ-GrantingAccessToCoEApps.md)**
+
+This guide covers:
+- Why the Share dialog only shows admin roles
+- Step-by-step instructions for all scenarios
+- How to create custom read-only security roles
+- Troubleshooting common access issues
+- Best practices for small, medium, and large organizations
+- Security considerations
+
+### Quick Summary
+
+**What to do:**
+1. ✅ Assign **Power Platform User SR** role via Admin Center
+2. ✅ Wait 5-10 minutes for changes to propagate
+3. ✅ Ask users to log out and log back in
+
+**What NOT to do:**
+1. ❌ Don't try to assign read-only roles through the Share dialog
+2. ❌ Don't grant System Administrator just for viewing
+3. ❌ Don't expect custom read-only roles to appear in Share dialog
+
+Let us know if you have any questions after reviewing the FAQ!
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community
