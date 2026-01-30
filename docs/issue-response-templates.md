@@ -329,7 +329,7 @@ If these connectors are in different DLP groups (Business vs. Non-Business) or i
 
 For complete step-by-step instructions, connector requirements, and best practices, please see:
 
-📖 **[Troubleshooting AppForbidden / DLP Errors](../docs/TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**
+📖 **[Troubleshooting AppForbidden / DLP Errors](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**
 
 This comprehensive guide includes:
 - Complete list of all connectors required by CoE components
