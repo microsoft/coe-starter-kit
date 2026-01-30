@@ -127,6 +127,17 @@ Service principals with admin permissions (via `New-PowerAppManagementApp` Power
 
 **Important:** Service principals would still need **Power Platform admin-level permissions**, so this doesn't eliminate the need for admin access—it just changes the authentication method.
 
+**For comprehensive guidance on Service Principal support, migration strategies, and best practices, see:**
+
+📖 **[Service Principal Support Documentation](../docs/ServicePrincipalSupport.md)**
+
+This detailed guide includes:
+- Comparison of Service Principals vs Service Accounts
+- Component-by-component support matrix (Core, Governance, Nurture, ALM Accelerator)
+- Step-by-step migration guide for ALM Accelerator
+- Detailed FAQ and troubleshooting
+- Security best practices for both authentication methods
+
 ---
 
 ## Why Admin Permissions Cannot Be Avoided

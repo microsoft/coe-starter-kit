@@ -11,6 +11,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Issue Response Templates
 
+- **[Issue Response: Service Principal Support](ISSUE-RESPONSE-ServicePrincipal.md)**  
+  Template for responding to questions about using Service Principals vs Service Accounts
+
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  
   Template for responding to PowerPages sessions-related issues
 
@@ -76,6 +79,8 @@ For comprehensive setup instructions, feature documentation, and best practices,
 
 ### Administration
 
+- **[Service Principal Support](ServicePrincipalSupport.md)**  
+  Comprehensive guide on using Service Principals vs Service Accounts, including migration strategies
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
 
 ## Getting Help

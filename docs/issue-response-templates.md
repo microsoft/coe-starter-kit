@@ -288,6 +288,31 @@ Let us know if the notifications continue after trying these steps!
 
 ---
 
+## Template: Service Principal Support Questions
+
+**Use when:** Users ask about installing or managing CoE Starter Kit with Service Principals instead of Service Accounts
+
+**Quick Reference:**
+
+For comprehensive guidance on Service Principal support, see:
+
+📖 **[Service Principal Support Issue Response Template](ISSUE-RESPONSE-ServicePrincipal.md)**
+
+**Key Points:**
+- ❌ CoE Core, Governance, Nurture, Audit: Service Account required (cloud flows need user context)
+- ✅ ALM Accelerator: Service Principal fully supported and recommended
+- ❌ Migration from Service Account to Service Principal: Not currently supported for cloud flows
+- ✅ Best Practice: Use dedicated Service Account with security controls (MFA, Conditional Access, Key Vault)
+
+**Common Questions:**
+1. Can CoE Toolkit be installed using Service Principal? → No (except ALM Accelerator)
+2. Can CoE Toolkit be managed/updated using Service Principal? → No (except ALM Accelerator)
+3. How to migrate from Service Account to Service Principal? → Not supported for Core components; fully supported for ALM Accelerator
+
+For detailed response template, migration guides, and best practices, see the [full template](ISSUE-RESPONSE-ServicePrincipal.md).
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community
