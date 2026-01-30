@@ -163,7 +163,7 @@ Key environment variables that control PVA sync behavior:
 |--------------|---------------|-------------|
 | `admin_FullInventory` | `false` (No) | When `true`, scans ALL bots regardless of modification date |
 | `admin_InventoryFilter_DaysToLookBack` | `7` | Number of days to look back for modified bots in incremental mode |
-| `admin_DelayObjectInventory` | `false` (No) | When `true`, adds a random delay (1-300 minutes) before syncing to avoid throttling |
+| `admin_DelayObjectInventory` | `true` (Yes) as of v4.51+ | When `true`, adds a random delay (1-300 minutes) before syncing to avoid throttling |
 | `admin_PowerAutomateEnvironmentVariable` | Environment-specific | Base URL for Power Automate (e.g., `https://flow.microsoft.com/manage/environments/`) |
 
 ## Additional Resources
