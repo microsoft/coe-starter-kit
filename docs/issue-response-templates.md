@@ -288,6 +288,66 @@ Let us know if the notifications continue after trying these steps!
 
 ---
 
+## Template: Sync Flows Taking 7+ Hours to Complete
+
+**Use when:** Users report that inventory sync flows (v3 Flow Action Details, v4 Flows, etc.) are running for extended periods (7+ hours) instead of completing within expected timeframes
+
+**Response:**
+
+Thank you for reporting this issue! The extended runtime (7+ hours) is caused by **API throttling from concurrent flow executions**, not a bug in the flows themselves.
+
+### 🎯 Immediate Solution
+
+1. **Enable throttling prevention settings**:
+   - Navigate to **Power Apps** → **Solutions** → **Center of Excellence - Core Components** → **Environment Variables**
+   - Find `admin_DelayObjectInventory` and set **Current Value** = `Yes`
+   - Find `admin_DelayInventory` and verify **Current Value** = `Yes` (should already be Yes)
+
+2. **Verify inventory mode**:
+   - Find `admin_FullInventory` and verify **Current Value** = `No` (for regular scheduled runs)
+
+3. **Allow settings to take effect**:
+   - Changes apply on the next **Admin | Sync Template v4 (Driver)** run
+   - No need to restart flows or Power Automate
+
+### 📊 Expected Results
+
+With delays enabled and incremental mode:
+- **v4 Flows**: 30-90 minutes (depending on tenant size)
+- **v3 Flow Action Details**: 1-2 hours (processes more detailed data)
+
+### 🔍 Why This Happens
+
+When the Driver flow updates environment records, it triggers 20+ child flows simultaneously. Without delay settings, this creates thousands of concurrent API calls that exceed Dataverse throttling limits (6,000 requests per 5 minutes). The flows then retry with exponential backoff, extending runtime from minutes to hours.
+
+**Paradox**: Adding delays actually makes flows **complete faster** by preventing throttling retries.
+
+### 📖 Detailed Troubleshooting Guide
+
+For comprehensive information including:
+- Root cause analysis
+- Advanced troubleshooting steps
+- Expected runtimes by tenant size
+- Prevention best practices
+
+See the **[Flow Performance Troubleshooting Guide](../CenterofExcellenceCoreComponents/TROUBLESHOOTING-FLOW-PERFORMANCE.md)**
+
+### ✅ Default Settings Updated
+
+**Good news**: Starting with version 4.51+, `admin_DelayObjectInventory` defaults to `Yes` to prevent this issue in new installations. If you're on an older version or the setting was changed, you'll need to update it manually.
+
+### 🔄 If Still Experiencing Issues
+
+If flows are still slow after enabling delays:
+1. Verify the service account has **Power Apps Per User** or **Power Apps Premium** license
+2. Check for **429 (TooManyRequests)** errors in flow run history
+3. Review API limits in **Power Automate** → **Monitor** → **API Limits**
+4. See the troubleshooting guide for advanced scenarios
+
+Let us know if the performance improves after enabling the delay settings!
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community

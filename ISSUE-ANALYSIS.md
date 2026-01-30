@@ -81,7 +81,7 @@ After thorough code analysis, the flow is working as designed. No code changes r
 |----------|---------|--------|
 | `admin_FullInventory` | No | Controls full vs incremental mode |
 | `admin_InventoryFilter_DaysToLookBack` | 7 | Days to look back for modified bots |
-| `admin_DelayObjectInventory` | No | Adds delay to avoid throttling |
+| `admin_DelayObjectInventory` | Yes (v4.51+) | Adds delay to avoid throttling |
 
 ## Recommendations 💭
 
