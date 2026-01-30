@@ -26,7 +26,8 @@ The service account used for CoE administration requires:
 ### Environment Configuration
 - ✅ Environment has a Dataverse database provisioned
 - ✅ **English (1033)** language pack is enabled
-- ✅ DLP policies allow required connectors (HTTP with Azure AD, Dataverse, Office 365 Outlook)
+- ✅ DLP policies allow required connectors (HTTP with Azure AD, Dataverse, Office 365 Outlook, Power Automate Management)
+- ✅ DLP policies allow Dataverse domain (*.dynamics.com) for custom page script loading
 
 ## Installation
 
@@ -37,6 +38,13 @@ The service account used for CoE administration requires:
 5. Follow the guided setup process
 
 ## Common Issues
+
+### AppForbidden error in CoE Admin Command Center
+If you see "App forbidden" error when opening the CoE Flows section or other custom pages:
+- This is typically caused by DLP policies blocking Dataverse domain scripts
+- Configure DLP policy to allow *.dynamics.com domain
+- Ensure connectors are in the same DLP group
+- See detailed steps in [AppForbidden/DLP Error Guide](../docs/troubleshooting/app-forbidden-dlp-error.md)
 
 ### Error loading control
 If you see "Error loading control" in the Setup Wizard:

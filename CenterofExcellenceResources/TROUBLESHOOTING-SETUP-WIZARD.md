@@ -267,6 +267,7 @@ Contact Microsoft Support when:
 - **Creator Kit:** https://learn.microsoft.com/power-platform/guidance/creator-kit/overview
 - **Power Platform Admin Center:** https://admin.powerplatform.microsoft.com
 - **Power Platform Service Health:** https://admin.powerplatform.microsoft.com/servicehealth
+- **AppForbidden/DLP Error Guide:** [../docs/troubleshooting/app-forbidden-dlp-error.md](../docs/troubleshooting/app-forbidden-dlp-error.md)
 
 ---
 
