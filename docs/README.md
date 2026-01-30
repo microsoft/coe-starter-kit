@@ -4,12 +4,20 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ## Documentation Index
 
+### Frequently Asked Questions (FAQs)
+
+- **[FAQ: How CoE Collects App Connection References and Flow Action Details](FAQ-AppConnectionsAndFlowActions.md)**  
+  Detailed explanation of how the CoE Starter Kit inventories app connections and flow actions, which flows are responsible, data sources, and refresh schedules
+
 ### Troubleshooting Guides
 
 - **[Troubleshooting: Entity 'admin_flow' Does Not Exist Error](troubleshooting-sync-helper-cloud-flows-entity-not-exist.md)**  
   Comprehensive guide for resolving the "Entity 'admin_flow' With Id = [GUID] Does Not Exist" error in SYNC HELPER - Cloud Flows
 
 ### Issue Response Templates
+
+- **[Issue Response: App Connections and Flow Actions Inventory](ISSUE-RESPONSE-AppConnectionsFlowActionsInventory.md)**  
+  Template for responding to questions about how app connections and flow actions are collected
 
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  
   Template for responding to PowerPages sessions-related issues
