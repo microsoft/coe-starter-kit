@@ -288,6 +288,61 @@ Let us know if the notifications continue after trying these steps!
 
 ---
 
+## Template: Governance - Inactivity Notifications Questions
+
+**Use when:** Users ask about environment scoping for inactivity notifications or how to configure approval recipients
+
+**Response:**
+
+Thank you for your questions about the inactivity notification flows!
+
+### Answer 1: Environment Table Scope
+
+In the CoE Starter Kit, the Environment table acts as the scope controller for environment-level flows, including inactivity notification flows.
+
+**Here's how it works:**
+- The inactivity notification flows read directly from the Environment table
+- They process only those environment records where `IsIncluded = Yes` (selected environments)
+- Environments not present in the table, or present but not selected, are ignored completely
+
+👉 **There is no implicit tenant-wide inclusion.**
+
+To include additional environments:
+1. Ensure the environment is discovered by Core Components inventory flows
+2. Navigate to the Environment table in the CoE environment
+3. Find the environment record and set `IsIncluded = Yes`
+
+### Answer 2: Configuring Approval Recipients for Testing
+
+**Yes**, you can configure where approvals are sent when testing.
+
+**Configuration Steps:**
+1. Go to Environment Variables in the CoE Governance solution
+2. Find the variable:
+   - `admin_AdminEmail`
+   - `admin_CoEAdminEmail`
+   - `admin_ApprovalEmail`
+3. Set the value to your user email address
+4. Save the changes
+5. Turn affected flows **off** then **on** to pick up the new values
+
+**Important:** When `admin_ProductionEnvironment = No` (test mode), approvals go to the configured admin/test email. When set to `Yes` (production mode), approvals go to the actual app/flow owners.
+
+### Additional Resources
+
+For comprehensive guidance on these topics, see:
+
+📖 **[FAQ: Governance - Inactivity Notifications](../CenterofExcellenceResources/FAQ-GovernanceInactivityNotifications.md)**
+
+This FAQ covers:
+- Environment table scoping in detail
+- Environment variable configuration
+- Test vs. production mode
+- Setup workflow and best practices
+- Troubleshooting common issues
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community

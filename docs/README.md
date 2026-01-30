@@ -41,6 +41,14 @@ This directory contains additional documentation, troubleshooting guides, and re
 - **[Solution Summary](SOLUTION_SUMMARY.md)**  
   High-level summary of CoE Starter Kit solutions and components
 
+### Frequently Asked Questions (FAQs)
+
+- **[FAQ: Power Platform Administrator Role Requirements](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)**  
+  Common questions about admin role requirements for CoE Starter Kit
+
+- **[FAQ: Governance - Inactivity Notifications](../CenterofExcellenceResources/FAQ-GovernanceInactivityNotifications.md)**  
+  Common questions about inactivity notification flows, environment scoping, and approval configuration
+
 ## Additional Resources
 
 ### Official Documentation
