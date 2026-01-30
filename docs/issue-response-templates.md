@@ -288,6 +288,89 @@ Let us know if the notifications continue after trying these steps!
 
 ---
 
+## Template: Connection Timeout During Solution Import
+
+**Use when:** Users report connection timeout errors during solution import wizard
+
+**Response:**
+
+Thank you for reporting this issue! Connection timeouts during solution import are typically caused by temporary platform service load, network issues, or browser-related problems.
+
+### Quick Troubleshooting Steps
+
+Please try the following steps in order:
+
+#### 1. Retry the Import
+- Click the **"Try again"** button in the error dialog
+- If unavailable, cancel and wait 2-5 minutes before retrying
+- Sometimes a simple retry after a brief wait resolves the issue
+
+#### 2. Clear Browser Cache and Use Incognito Mode
+- Clear your browser cache completely (all time)
+- Try the import in an Incognito/Private browsing window
+- Disable any browser extensions that might interfere
+
+#### 3. Try a Different Browser
+- Use **Microsoft Edge (Chromium-based)** - Recommended
+- Ensure your browser is fully up-to-date
+- Avoid using Internet Explorer
+
+#### 4. Check Network Connection
+- Ensure you have a stable internet connection
+- Try disabling VPN if you're using one
+- Use a wired connection instead of WiFi if possible
+
+#### 5. Import During Off-Peak Hours
+- Try importing during non-peak hours (6:00 AM - 9:00 AM local time)
+- Avoid peak business hours (9:00 AM - 5:00 PM)
+- Check [Power Platform Service Health](https://admin.powerplatform.microsoft.com/servicehealth) for any known issues
+
+### Comprehensive Troubleshooting Guide
+
+For detailed step-by-step instructions and advanced troubleshooting, please refer to our comprehensive guide:
+
+📖 **[Solution Import Connection Timeout Troubleshooting Guide](troubleshooting/solution-import-connection-timeout.md)**
+
+This guide includes:
+- All troubleshooting steps in detail
+- Alternative import methods (Power Platform CLI)
+- Prevention tips and best practices
+- Expected import times by environment size
+- When to seek additional help
+
+### Additional Context
+
+**What's happening**: The Power Platform solution import wizard is timing out while trying to enumerate and load the connection references in the solution. This is typically a temporary service or network issue, not a problem with the CoE Starter Kit solution itself.
+
+**Expected behavior**: The connections page should load within 30-60 seconds under normal conditions, displaying all connections that need to be configured or updated.
+
+### If Issues Persist
+
+If you've tried all the troubleshooting steps and the issue continues:
+
+1. Provide the following information:
+   - Browser type and version
+   - CoE Starter Kit version you're importing
+   - Screenshot of the error (if available)
+   - Steps you've already tried
+   - Any error messages from browser console (F12 > Console tab)
+
+2. Check if others are experiencing similar issues:
+   - Search [existing issues](https://github.com/microsoft/coe-starter-kit/issues)
+   - Check [Power Platform Service Health](https://admin.powerplatform.microsoft.com/servicehealth)
+
+### Alternative Import Method
+
+If browser-based import continues to fail, you can try using the Power Platform CLI:
+
+```powershell
+pac solution import --path "path/to/CenterOfExcellenceCoreComponents_4_50_6_managed.zip" --activate-plugins
+```
+
+See the [full troubleshooting guide](troubleshooting/solution-import-connection-timeout.md#step-9-use-power-platform-cli-alternative-method) for CLI setup instructions.
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community

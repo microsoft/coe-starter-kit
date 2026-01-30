@@ -4,6 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Solution Import Issues
+
+- **[Solution Import Connection Timeout](solution-import-connection-timeout.md)** - Troubleshoot connection timeout errors when importing CoE Starter Kit solutions, specifically when the connections page fails to load during the import wizard.
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
