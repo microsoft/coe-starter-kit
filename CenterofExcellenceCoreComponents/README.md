@@ -83,9 +83,19 @@ This solution contains the core components for the CoE Starter Kit, including in
 
 ### Inventory and Sync Issues
 
+- **[Flow Performance and Long Runtimes](./TROUBLESHOOTING-FLOW-PERFORMANCE.md)** - Guide for resolving issues where sync flows take 7+ hours to complete
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
 
 ### Common Questions
+
+**Q: Why are my sync flows taking 7+ hours to complete?**
+
+A: This is typically caused by API throttling when multiple flows run concurrently. To resolve:
+1. Set `admin_DelayObjectInventory` to `Yes`
+2. Verify `admin_DelayInventory` is set to `Yes`
+3. Ensure `admin_FullInventory` is set to `No` (for regular runs)
+
+The delay settings spread API calls over time, preventing throttling and reducing runtime to 30-120 minutes. See the **[Flow Performance Troubleshooting Guide](./TROUBLESHOOTING-FLOW-PERFORMANCE.md)** for detailed resolution steps.
 
 **Q: Why aren't all my resources showing up in the inventory?**
 
@@ -105,7 +115,10 @@ Key environment variables that control inventory behavior:
 
 - `admin_FullInventory` - Run full inventory (Yes/No, default: No)
 - `admin_InventoryFilter_DaysToLookBack` - Days to look back for modified resources (default: 7)
-- `admin_DelayObjectInventory` - Add random delay to avoid throttling (Yes/No, default: No)
+- `admin_DelayObjectInventory` - Add delay to prevent API throttling (Yes/No, default: Yes) - **Recommended: Keep enabled**
+- `admin_DelayInventory` - Add delay for Dataverse health (Yes/No, default: Yes) - **Recommended: Keep enabled**
+
+**⚠️ Important**: Keep delay variables enabled to prevent flow performance issues. See the **[Flow Performance Troubleshooting Guide](./TROUBLESHOOTING-FLOW-PERFORMANCE.md)** for details.
 
 ## Additional Documentation
 
