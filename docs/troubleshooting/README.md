@@ -8,6 +8,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
 
+### Sync Flow Errors
+
+- **[Sync Flows XRM API Errors](sync-flows-xrm-api-errors.md)** - Troubleshoot "Unexpected error occurred when calling the XRM api" errors in inventory sync flows (Admin | Sync Template v4)
+
 ## General Troubleshooting Resources
 
 For comprehensive setup and troubleshooting information, please refer to:
