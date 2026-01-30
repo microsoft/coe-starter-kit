@@ -6,10 +6,16 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Troubleshooting Guides
 
+- **[Troubleshooting: XRM API Error in Admin | Sync Template v4 (Flows)](troubleshooting/admin-sync-flows-xrm-api-error.md)**  
+  Comprehensive guide for resolving "Request to XRM API failed with error: 'Unexpected error occurred when calling the XRM api'" in Admin | Sync Template v4 (Flows)
+
 - **[Troubleshooting: Entity 'admin_flow' Does Not Exist Error](troubleshooting-sync-helper-cloud-flows-entity-not-exist.md)**  
   Comprehensive guide for resolving the "Entity 'admin_flow' With Id = [GUID] Does Not Exist" error in SYNC HELPER - Cloud Flows
 
 ### Issue Response Templates
+
+- **[Issue Response: XRM API Error in Admin | Sync Template v4 (Flows)](ISSUE-RESPONSE-xrm-api-error.md)**  
+  Template for responding to XRM API error issues in Admin | Sync Template v4 (Flows)
 
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  
   Template for responding to PowerPages sessions-related issues
