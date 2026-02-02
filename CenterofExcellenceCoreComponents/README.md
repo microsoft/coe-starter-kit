@@ -84,6 +84,7 @@ This solution contains the core components for the CoE Starter Kit, including in
 ### Inventory and Sync Issues
 
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
+- **[Desktop Flows Sync Issues](./TROUBLESHOOTING-DESKTOP-FLOW-SYNC.md)** - Guide for resolving issues where desktop flows are missing from the inventory
 
 ### Common Questions
 
