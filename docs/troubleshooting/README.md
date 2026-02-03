@@ -4,6 +4,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### DLP Impact Analysis
+
+- **[DLP Impact Analysis Export Timeout](dlp-impact-analysis-export-timeout.md)** - Troubleshoot export timeouts when attempting to export large DLP Impact Analysis datasets from the Canvas app or model-driven app. Includes workarounds using Power Automate, FetchXML, PowerShell, and Power BI.
+
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
