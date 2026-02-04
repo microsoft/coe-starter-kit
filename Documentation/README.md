@@ -30,6 +30,18 @@ Complete troubleshooting guide for unexpected email notifications about "Sync Is
 
 **Relevant for**: CoE administrators experiencing unexpected flow failure emails after upgrades, especially for features not being used
 
+### [Troubleshooting: Duplicate Flows in Setup Wizard](./TROUBLESHOOTING-DUPLICATE-FLOWS-SETUP-WIZARD.md)
+
+Complete troubleshooting guide for when duplicate flow entries appear in the CoE Setup and Upgrade Wizard. This document covers:
+
+- Root cause of duplicate entries (duplicate metadata records)
+- Step-by-step cleanup instructions
+- Multiple resolution options (manual cleanup, re-run metadata sync)
+- Prevention strategies
+- Technical details about how the wizard populates flow lists
+
+**Relevant for**: CoE administrators setting up or upgrading the kit who see duplicate flows in the "Run setup flows" step
+
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:

@@ -21,6 +21,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Root Cause](#root-cause)
   - [Resolution Steps](#resolution-steps)
   - [Advanced Troubleshooting](#advanced-troubleshooting)
+- [Duplicate Flows in Setup Wizard](#duplicate-flows-in-setup-wizard)
 - [Unexpected Azure DevOps Email Notifications](#unexpected-azure-devops-email-notifications)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
@@ -210,6 +211,49 @@ If the system doesn't recognize an upgrade is available:
    - Watch the GitHub repository
    - Enable notifications for new releases
    - Review release notes before upgrading
+
+---
+
+## Duplicate Flows in Setup Wizard
+
+### Issue Description
+
+When running the CoE Setup and Upgrade Wizard, you may see duplicate entries for the same flow in the "Run setup flows" step. For example, "Admin | Sync Template v3 Configure Emails" appears twice.
+
+### Root Cause
+
+The Setup Wizard displays flows based on records in the **CoE Solution Metadata** Dataverse table. If duplicate records exist for the same flow (same `admin_objectname`), each record creates a separate entry in the wizard.
+
+Duplicates can occur due to:
+- Failed upgrades or imports
+- Running the metadata sync flow multiple times during error conditions
+- Database conflicts or timing issues
+- Manual record creation
+
+### Quick Fix
+
+**Option 1: Clean Up Duplicate Records** (Recommended)
+
+1. Go to [Power Apps](https://make.powerapps.com)
+2. Navigate to your CoE environment
+3. Select **Tables** → **CoE Solution Metadata**
+4. Find duplicate records (same Object Name, different IDs)
+5. Keep the most recent record
+6. Delete older duplicates
+7. Refresh the Setup Wizard
+
+**Option 2: Re-run Metadata Sync**
+
+1. Open Power Automate in your CoE environment
+2. Find "Admin | Sync Template v3 CoE Solution Metadata"
+3. Run it manually
+4. Wait for successful completion
+5. Refresh the Setup Wizard
+
+### Detailed Guide
+
+For comprehensive troubleshooting steps, see:  
+📖 [**Troubleshooting: Duplicate Flows in Setup Wizard**](./Documentation/TROUBLESHOOTING-DUPLICATE-FLOWS-SETUP-WIZARD.md)
 
 ---
 

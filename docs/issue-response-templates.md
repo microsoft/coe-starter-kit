@@ -7,6 +7,7 @@ This document contains standardized templates for responding to common issues an
 1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
 2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
 3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+4. **[Duplicate Flows in Setup Wizard](ISSUE-RESPONSE-duplicate-flows-setup-wizard.md)** - For issues with duplicate flow entries appearing in the Setup and Upgrade Wizard
 
 ---
 
