@@ -12,6 +12,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 - **[Troubleshooting: Entity 'admin_flow' Does Not Exist Error](troubleshooting-sync-helper-cloud-flows-entity-not-exist.md)**  
   Comprehensive guide for resolving the "Entity 'admin_flow' With Id = [GUID] Does Not Exist" error in SYNC HELPER - Cloud Flows
 
+- **[Troubleshooting: DLP Impact Analysis Authentication Error](ISSUE-RESPONSE-DLP-Impact-Analysis-Authentication.md)**  
+  Guide for resolving "UserNotLoggedIn" and "untrusted authority" errors when opening the Data Policy Impact Analysis app
+
 ### Issue Response Templates
 
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  

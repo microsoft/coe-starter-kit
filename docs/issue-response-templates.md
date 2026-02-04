@@ -1,4 +1,16 @@
-# GitHub Issue Response Template - Sovereign Cloud / GCC High Questions
+# GitHub Issue Response Templates
+
+This document contains standardized templates for responding to common issues and questions about the CoE Starter Kit.
+
+## Available Templates
+
+1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
+2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
+3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+
+---
+
+# Sovereign Cloud / GCC High Questions
 
 This template can be used when responding to issues related to sovereign cloud deployments, GCC High upgrades, or connector availability.
 
