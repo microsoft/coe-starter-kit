@@ -4,9 +4,6 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
-### Solution Import and Upgrade Issues
-
-- **[BadGateway Error During Solution Import](solution-import-badgateway.md)** - Resolve BadGateway (HTTP 502) errors that occur when importing or upgrading CoE Starter Kit solutions, particularly when importing flows.
 
 ### Power BI Connection Issues
 

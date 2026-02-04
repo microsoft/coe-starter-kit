@@ -4,6 +4,32 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
+### [Inactivity Notification Flows - Complete Guide](./InactivityNotificationFlowsGuide.md)
+
+Comprehensive guide for understanding and managing the Governance Solution's inactivity notification flows. This document covers:
+
+- How inactivity notifications work (weekly scans, approval requests, daily checks)
+- Complete lifecycle of the Archive Approval table
+- Detailed explanation of all five flows involved in the process
+- Common scenarios (first run, user approves/rejects, ignored requests, manager notifications)
+- Troubleshooting repeated emails and timing issues
+- Best practices for configuration and rollout
+- FAQ addressing common questions
+
+**Relevant for**: CoE administrators implementing or troubleshooting the Governance Solution, particularly when users report receiving repeated inactivity emails after responding to approval requests
+
+### [Troubleshooting: Unexpected Azure DevOps Email Notifications](../docs/TROUBLESHOOTING-AZURE-DEVOPS-EMAILS.md)
+
+Complete troubleshooting guide for unexpected email notifications about "Sync Issues to Azure DevOps" after upgrading Core Components. This document covers:
+
+- Why these notifications occur after Core Components upgrades
+- Root causes (Innovation Backlog, ALM Accelerator, Pipeline Accelerator dependencies)
+- Five resolution options (turn off flows, remove unused solutions, complete setup, etc.)
+- Prevention strategies for future upgrades
+- When to seek additional help
+
+**Relevant for**: CoE administrators experiencing unexpected flow failure emails after upgrades, especially for features not being used
+
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:
