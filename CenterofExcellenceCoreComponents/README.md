@@ -84,6 +84,7 @@ This solution contains the core components for the CoE Starter Kit, including in
 ### Inventory and Sync Issues
 
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
+- **[XRM API Errors in Sync Flows](../docs/troubleshooting/sync-flows-xrm-api-errors.md)** - "Unexpected error occurred when calling the XRM api" troubleshooting
 
 ### Common Questions
 

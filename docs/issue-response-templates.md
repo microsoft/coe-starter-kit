@@ -300,6 +300,100 @@ Let us know if the notifications continue after trying these steps!
 
 ---
 
+## Template: Sync Flow Failures - "Unexpected error occurred when calling the XRM api"
+
+**Use when:** Users report sync flows (Admin | Sync Template v4) failing with XRM API errors
+
+**Response:**
+
+Thank you for reporting this issue!
+
+### What's Happening
+
+The error "Unexpected error occurred when calling the XRM api" is a **generic error message** from the Power Platform Admin connectors that typically indicates one of these conditions:
+
+- 🔄 **API throttling / Service protection limits** (most common)
+- 🌐 **Transient network or service issues**
+- 🔑 **Authentication token expiration**
+- 📊 **Dataverse service limits**
+
+### Quick Resolution Steps ✅
+
+#### Step 1: Resubmit the Flow (Success Rate: ~70%)
+
+The error is often transient and resolves on retry:
+
+1. Go to Power Automate in your CoE environment
+2. Find the failed flow run
+3. Click **Resubmit** (top-right)
+4. Monitor the resubmitted run
+
+#### Step 2: If Resubmit Fails - Enable Inventory Delays
+
+This reduces the rate of API calls to avoid throttling:
+
+1. Go to Power Apps → CoE environment → **Solutions**
+2. Open **Center of Excellence - Core Components**
+3. Navigate to **Environment Variables**
+4. Find `admin_DelayObjectInventory`
+5. Set **Current Value** = `Yes`
+
+**Impact**: Significantly reduces throttling errors (but inventory takes longer)
+
+#### Step 3: Verify Full Inventory Mode is Off
+
+Full inventory mode processes ALL objects and can trigger throttling:
+
+1. In Environment Variables, find `admin_FullInventory`
+2. Ensure **Current Value** = `No` (unless you're doing initial setup)
+
+**Note**: Only use full inventory mode for:
+- ✅ Initial CoE setup
+- ✅ After long periods without sync
+- ✅ Troubleshooting missing data
+- ❌ NOT for regular daily/weekly operations
+
+### Comprehensive Troubleshooting Guide
+
+For detailed information about this error, including:
+- Root cause analysis
+- All configuration options
+- Advanced troubleshooting steps
+- Preventive measures
+
+📖 See: **[Sync Flows XRM API Errors Troubleshooting Guide](./troubleshooting/sync-flows-xrm-api-errors.md)**
+
+### When to Report Back
+
+If the error persists after trying the above:
+
+Please provide:
+1. CoE Starter Kit version
+2. Which sync flow is failing (Flows, Apps, Connectors, etc.)
+3. Approximate number of environments in your tenant
+4. Current environment variable settings:
+   - `admin_DelayObjectInventory`
+   - `admin_FullInventory`
+   - `admin_InventoryFilter_DaysToLookBack`
+5. Screenshot of the flow run error
+6. Frequency (every run, occasional, specific times)
+
+### Resources
+
+- [Service Protection API Limits](https://learn.microsoft.com/en-us/power-platform/admin/api-request-limits-allocations)
+- [Detailed XRM API Error Guide](./troubleshooting/sync-flows-xrm-api-errors.md)
+- [Dataverse API Limits](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/api-limits)
+
+### Summary
+
+**Most Common Fix**: Simply resubmit the flow. The error is usually transient.
+
+**If It Persists**: Enable `admin_DelayObjectInventory = Yes` to reduce API call rate.
+
+Let us know if the issue continues after trying these steps!
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community
