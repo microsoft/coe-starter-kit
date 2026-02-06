@@ -338,3 +338,62 @@ Let me know if you need guidance on which approach would work best for your situ
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community
+
+---
+
+## Template: AppForbidden / DLP Policy Error
+
+**Use when:** Users report "AppForbidden" errors in CoE apps, particularly in the Admin Command Center
+
+**Response:**
+
+Thank you for reporting this issue!
+
+### Issue Summary
+
+The "AppForbidden" error occurs when **Data Loss Prevention (DLP) policies** in your environment prevent the app from using required connectors. This is a configuration issue, not a bug in the CoE Starter Kit.
+
+### Root Cause
+
+The CoE Admin Command Center (specifically the Flows section) requires the following connectors to be in the **same DLP policy group**:
+
+- ✅ **Microsoft Dataverse**
+- ✅ **Power Automate Management**
+- ✅ **Logic flows**
+
+If these connectors are in different DLP groups (Business vs. Non-Business) or if any are Blocked, the app will show the "AppForbidden" error.
+
+### Quick Resolution Steps
+
+1. **Navigate to [Power Platform Admin Center](https://admin.powerplatform.microsoft.com)** > **Policies** > **Data policies**
+2. **Identify which DLP policies apply** to your CoE environment
+3. **For each applicable policy**, verify that the three connectors above are in the **same group** (all Business or all Non-Business)
+4. **Update the DLP policy** to move connectors to the same group
+5. **Wait 5-10 minutes** for the policy to sync
+6. **Test the app again**
+
+### Detailed Troubleshooting Guide
+
+For complete step-by-step instructions, connector requirements, and best practices, please see:
+
+📖 **[Troubleshooting AppForbidden / DLP Errors](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**
+
+This comprehensive guide includes:
+- Complete list of all connectors required by CoE components
+- How to update DLP policies
+- How to exclude the CoE environment from restrictive policies
+- Best practices for CoE DLP configuration
+- Working with your security team on exemptions
+
+### Additional Resources
+
+- [DLP Policies Overview](https://learn.microsoft.com/power-platform/admin/wp-data-loss-prevention)
+- [CoE Starter Kit Prerequisites](https://learn.microsoft.com/power-platform/guidance/coe/setup#prerequisites)
+- [Connector Classification](https://learn.microsoft.com/power-platform/admin/dlp-connector-classification)
+
+### Next Steps
+
+Please review the troubleshooting guide and update your DLP policies accordingly. If you encounter any issues or need clarification, feel free to ask!
+
+---
+
