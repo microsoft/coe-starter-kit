@@ -6,6 +6,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Troubleshooting Guides
 
+- **[Troubleshooting AppForbidden / DLP Error in CoE Admin Command Center](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**  
+  Comprehensive guide for resolving "AppForbidden" errors caused by Data Loss Prevention (DLP) policies
+
 - **[Troubleshooting: Entity 'admin_flow' Does Not Exist Error](troubleshooting-sync-helper-cloud-flows-entity-not-exist.md)**  
   Comprehensive guide for resolving the "Entity 'admin_flow' With Id = [GUID] Does Not Exist" error in SYNC HELPER - Cloud Flows
 

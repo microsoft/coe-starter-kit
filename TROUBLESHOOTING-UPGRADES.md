@@ -22,6 +22,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Resolution Steps](#resolution-steps)
   - [Advanced Troubleshooting](#advanced-troubleshooting)
 - [Unexpected Azure DevOps Email Notifications](#unexpected-azure-devops-email-notifications)
+- [AppForbidden DLP Errors](#appforbidden-dlp-errors)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
 
@@ -243,6 +244,40 @@ This guide covers:
 - Step-by-step resolution options
 - How to prevent this in future upgrades
 - When to seek further help
+
+---
+
+## AppForbidden DLP Errors
+
+### Issue Description
+
+After upgrading or when opening certain sections of the **CoE Admin Command Center** (particularly the **Flows** section), you may encounter an "AppForbidden" error:
+
+```
+Error Code: AppForbidden
+It looks like this app isn't compliant with the latest data loss prevention policies.
+```
+
+### Quick Fix
+
+**This is a Data Loss Prevention (DLP) policy configuration issue.**
+
+1. **Identify required connectors**: Power Automate Management, Logic flows, Microsoft Dataverse
+2. **Verify DLP policies** in Power Platform Admin Center
+3. **Ensure all required connectors are in the same DLP group** (Business or Non-Business)
+4. **Update DLP policy** or exclude CoE environment from restrictive policies
+
+### Detailed Resolution
+
+For comprehensive troubleshooting steps, connector requirements, and DLP policy configuration guidance, see:
+
+📖 **[Troubleshooting AppForbidden / DLP Errors](docs/TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**
+
+This guide covers:
+- Complete list of connectors required by CoE apps
+- Step-by-step DLP policy configuration
+- Best practices for CoE environment DLP setup
+- How to work with your security team on exemptions
 
 ---
 

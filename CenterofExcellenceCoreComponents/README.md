@@ -86,6 +86,10 @@ This solution contains the core components for the CoE Starter Kit, including in
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
 - **[Long-Running Sync Template Flows](./TROUBLESHOOTING-SYNC-PERFORMANCE.md)** - Guide for resolving performance issues with Admin | Sync Template flows that run for extended periods or appear stuck
 
+### App Issues
+
+- **[AppForbidden Error in CoE Admin Command Center](../docs/TROUBLESHOOTING-DLP-APPFORBIDDEN.md)** - Resolve DLP policy errors when opening the Flows section in the Admin Command Center
+
 ### Common Questions
 
 **Q: Why aren't all my resources showing up in the inventory?**
