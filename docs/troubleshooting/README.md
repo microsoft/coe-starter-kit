@@ -4,9 +4,6 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
-### Authentication Issues
-
-- **[DLP Impact Analysis Authentication Error](../ISSUE-RESPONSE-DLP-Impact-Analysis-Authentication.md)** - Resolve "UserNotLoggedIn" and "untrusted authority" errors when opening custom pages in model-driven apps, specifically the Data Policy Impact Analysis app.
 
 ### Power BI Connection Issues
 
