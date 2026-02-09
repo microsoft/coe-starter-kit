@@ -4,10 +4,15 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Power BI Issues
 
-### Power BI Connection Issues
+- **[Power BI Dashboard Showing Stale or No Data](power-bi-dashboard-stale-data.md)** - Troubleshoot when the Power BI Dashboard displays outdated data or no data at all, including issues with inventory flows and data collection methods.
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
+
+### Data Collection and Inventory
+
+- **[Power BI Dashboard Showing Stale or No Data](power-bi-dashboard-stale-data.md)** - Also covers inventory flow troubleshooting, understanding full vs. incremental inventory, and verifying data collection is working properly.
 
 ## General Troubleshooting Resources
 
