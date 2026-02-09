@@ -21,6 +21,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Root Cause](#root-cause)
   - [Resolution Steps](#resolution-steps)
   - [Advanced Troubleshooting](#advanced-troubleshooting)
+- [Setup Wizard Authentication Error After Upgrade](#setup-wizard-authentication-error-after-upgrade)
 - [Unexpected Azure DevOps Email Notifications](#unexpected-azure-devops-email-notifications)
 - [AppForbidden DLP Errors](#appforbidden-dlp-errors)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
@@ -211,6 +212,61 @@ If the system doesn't recognize an upgrade is available:
    - Watch the GitHub repository
    - Enable notifications for new releases
    - Review release notes before upgrading
+
+---
+
+## Setup Wizard Authentication Error After Upgrade
+
+### Issue Description
+
+After upgrading to **CoE Core 4.50.8 or later**, the **CoE Setup and Upgrade Wizard** fails to open with authentication errors:
+
+```
+Error: Can't Sign In
+Error Code: UserNotLoggedIn
+Details: [AdalError] endpoints_resolution_error
+ClientConfigurationError: untrusted_authority: The provided authority is not a trusted authority
+AADSTS500113 (invalid redirect URI)
+```
+
+### Quick Fix
+
+**This is a browser cache issue that affects most users after upgrade.**
+
+1. **Close all Power Apps browser tabs**
+2. **Clear browser cache and cookies completely**:
+   - Clear cache for: `*.powerapps.com`, `*.dynamics.com`, `*.microsoft.com`, `login.microsoftonline.com`
+   - Set time range to **All time**
+   - Ensure "Cookies" and "Cached images and files" are both selected
+3. **Close and fully restart your browser** (quit the application, not just close tabs)
+4. **Reopen browser and test the Setup Wizard again**
+
+**Alternative Quick Test:**
+- Try opening the Setup Wizard in **InPrivate/Incognito mode**
+- If it works there, your normal browser cache needs to be cleared
+
+### Official Documentation
+
+This is a known authentication issue with Canvas apps after solution upgrades. The issue is at the **Power Apps platform level** (MSAL authentication), not a CoE Starter Kit defect.
+
+📖 **Complete troubleshooting guide with 10 detailed solutions:**  
+[Troubleshooting Setup Wizard Authentication Error](docs/TROUBLESHOOTING-SETUP-WIZARD-AUTHENTICATION.md)
+
+The comprehensive guide includes:
+- Step-by-step browser cache clearing for Edge, Chrome, Firefox
+- How to republish the app to refresh authentication
+- Connection reference verification
+- DLP policy checks
+- Advanced solutions for persistent issues
+- When to escalate to Microsoft Support
+
+### Prevention
+
+Add this to your **standard upgrade checklist**:
+- ✅ Clear browser cache **immediately after** every CoE upgrade
+- ✅ Test apps in InPrivate/Incognito mode first
+- ✅ Document which users experience this and their browser/environment details
+- ✅ Train your CoE admin team on this known post-upgrade step
 
 ---
 

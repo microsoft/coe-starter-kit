@@ -38,6 +38,15 @@ The service account used for CoE administration requires:
 
 ## Common Issues
 
+### Authentication error after upgrade (AADSTS500113 / UserNotLoggedIn / Can't Sign In)
+If you see authentication errors when opening the Setup Wizard after upgrading to 4.50.8+:
+- Clear your browser cache completely (all time)
+- Close and fully restart your browser
+- Try opening in InPrivate/Incognito mode
+- This is a known browser caching issue with MSAL authentication
+
+**Full troubleshooting steps:** [TROUBLESHOOTING-SETUP-WIZARD-AUTHENTICATION.md](../docs/TROUBLESHOOTING-SETUP-WIZARD-AUTHENTICATION.md)
+
 ### Error loading control
 If you see "Error loading control" in the Setup Wizard:
 - Verify Creator Kit is installed

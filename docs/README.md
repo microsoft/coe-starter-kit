@@ -6,6 +6,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Troubleshooting Guides
 
+- **[Troubleshooting: CoE Setup Wizard Authentication Error](TROUBLESHOOTING-SETUP-WIZARD-AUTHENTICATION.md)**  
+  Complete guide for resolving "Can't Sign In", "UserNotLoggedIn", AADSTS500113, and "untrusted_authority" errors when opening the CoE Setup and Upgrade Wizard after upgrading to 4.50.8+
+
 - **[Troubleshooting AppForbidden / DLP Error in CoE Admin Command Center](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**  
   Comprehensive guide for resolving "AppForbidden" errors caused by Data Loss Prevention (DLP) policies
 

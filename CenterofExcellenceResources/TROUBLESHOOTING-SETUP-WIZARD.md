@@ -3,10 +3,54 @@
 This guide helps troubleshoot common issues encountered during the CoE Starter Kit setup and upgrade process, particularly with the Setup Wizard.
 
 ## Table of Contents
+- [Authentication Error - Can't Sign In (UserNotLoggedIn / AADSTS500113)](#authentication-error---cant-sign-in-usernotloggedin--aadsts500113)
 - [Error Loading Control](#error-loading-control)
 - [Service Account Cannot Be Added as System Administrator](#service-account-cannot-be-added-as-system-administrator)
 - [Prerequisites Checklist](#prerequisites-checklist)
 - [Common Resolution Steps](#common-resolution-steps)
+
+---
+
+## Authentication Error - Can't Sign In (UserNotLoggedIn / AADSTS500113)
+
+### Symptom
+After upgrading CoE Core Components to version **4.50.8 or later**, the CoE Setup and Upgrade Wizard fails to open with authentication errors:
+- **Error Code**: `UserNotLoggedIn`
+- **Error Message**: "Can't Sign In"
+- **Additional Details**: `[AdalError] endpoints_resolution_error` or `ClientConfigurationError: untrusted_authority: The provided authority is not a trusted authority`
+- **AADSTS Error**: `AADSTS500113` (invalid redirect URI)
+
+### Root Cause
+This is a known authentication issue where MSAL (Microsoft Authentication Library) tokens become stale after solution upgrades. The app's authentication configuration is not properly refreshed, and browsers cache old authentication tokens.
+
+### Quick Fix (Resolves 90% of Cases)
+
+**Clear your browser cache completely:**
+
+1. Close all Power Apps browser tabs
+2. Clear browser cache and cookies for:
+   - `*.powerapps.com`
+   - `*.dynamics.com`  
+   - `*.microsoft.com`
+   - `login.microsoftonline.com`
+3. Set time range to **All time**
+4. Close and fully restart your browser (quit the application)
+5. Reopen browser and try the Setup Wizard again
+
+**Alternative Quick Test:**
+- Open the Setup Wizard in **InPrivate/Incognito mode**
+- If it works there, return to clearing cache in normal browser
+
+### Comprehensive Troubleshooting Guide
+
+For detailed step-by-step solutions, including:
+- Browser-specific cache clearing instructions
+- How to republish the app to refresh authentication
+- Connection reference verification
+- DLP policy checks
+- Advanced troubleshooting for persistent issues
+
+**📖 See the complete guide:** [Troubleshooting Setup Wizard Authentication Error](../docs/TROUBLESHOOTING-SETUP-WIZARD-AUTHENTICATION.md)
 
 ---
 
