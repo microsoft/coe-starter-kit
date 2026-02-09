@@ -2,6 +2,21 @@
 
 This document provides troubleshooting guidance for common issues encountered when upgrading the Center of Excellence (CoE) Starter Kit solutions.
 
+## 🔍 Quick Diagnostic Guide
+
+**What error are you seeing?**
+
+| Error Message | Solution Section | Quick Fix |
+|--------------|------------------|-----------|
+| `ERR_NETWORK`, `ERR_CONNECTION_RESET`, `timeout` | [Network Errors](#network-errors-and-timeout-issues-during-import) | Use wired connection + PAC CLI |
+| `connection forcibly closed`, `certificate not configured` | [Network Errors](#network-errors-and-timeout-issues-during-import) | Disable VPN, enable TLS 1.2 |
+| `TooManyRequests` | [TooManyRequests Error](#toomanyreqs-error-during-upgrade) | Remove unmanaged layers + wait 60-90 min |
+| Azure DevOps emails (when not using Azure DevOps) | [Azure DevOps Notifications](#unexpected-azure-devops-email-notifications) | Turn off related flows |
+| `AppForbidden` in CoE apps | [DLP Errors](#appforbidden-dlp-errors) | Fix DLP policy configuration |
+| Import hangs with no error | [Network Errors](#network-errors-and-timeout-issues-during-import) | Check Solution History, wait 30-60 min |
+
+---
+
 ## Quick Fixes
 
 ### Network Error (ERR_NETWORK) or Timeout During Import
