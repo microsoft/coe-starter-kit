@@ -23,6 +23,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 - **[Issue Response: Entity admin_flow Does Not Exist](ISSUE-RESPONSE-entity-admin-flow-not-exist.md)**  
   Template for responding to admin_flow entity not exist errors
 
+- **[Issue Response: Environment Access Control](ISSUE-RESPONSE-EnvironmentAccessControl.md)**  
+  Template for responding to questions about environment visibility and access control
+
 - **[General Issue Response Templates](issue-response-templates.md)**  
   Collection of templates for common issue responses
 
@@ -83,6 +86,7 @@ For comprehensive setup instructions, feature documentation, and best practices,
 ### Administration
 
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
+- [Environment Access Control and Visibility FAQ](../CenterofExcellenceResources/FAQ-EnvironmentAccessControl.md)
 
 ## Getting Help
 
