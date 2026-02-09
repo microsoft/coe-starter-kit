@@ -2,7 +2,21 @@
 
 This document provides troubleshooting guidance for common issues encountered when upgrading the Center of Excellence (CoE) Starter Kit solutions.
 
-## Quick Fix: TooManyRequests Error
+## Quick Fixes
+
+### Network Error (ERR_NETWORK) or Timeout During Import
+
+If you're experiencing **network errors**, **timeout errors**, or **certificate/SSL errors** during import:
+
+1. ✅ **Use a wired (Ethernet) connection** instead of WiFi
+2. ✅ **Disable VPN** during import (if permitted)
+3. ✅ **Import via Power Platform Admin Center** (not Maker Portal)
+4. ✅ **Use PAC CLI** with timeout: `pac solution import --async --max-async-wait-time 20`
+5. ✅ **Import during off-peak hours** (2 AM - 6 AM or late evening)
+
+📖 See [detailed resolution steps below](#network-errors-and-timeout-issues-during-import) for complete guidance.
+
+### TooManyRequests Error During Upgrade
 
 If you're experiencing a **"TooManyRequests"** error during upgrade:
 
@@ -15,6 +29,11 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
 📖 See [detailed resolution steps below](#resolution-steps) for complete guidance.
 
 ## Table of Contents
+- [Network Errors and Timeout Issues During Import](#network-errors-and-timeout-issues-during-import)
+  - [Quick Fix](#quick-fix-network-errors)
+  - [Issue Description](#network-issue-description)
+  - [Root Cause](#network-root-cause)
+  - [Resolution Steps](#network-resolution-steps)
 - [TooManyRequests Error During Upgrade](#toomanyreqs-error-during-upgrade)
   - [Quick Fix](#quick-fix-toomanyrequest-error)
   - [Issue Description](#issue-description)
@@ -25,6 +44,305 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
 - [AppForbidden DLP Errors](#appforbidden-dlp-errors)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
+
+---
+
+## Network Errors and Timeout Issues During Import
+
+### Quick Fix: Network Errors
+
+If you're experiencing **network errors (ERR_NETWORK)**, **timeout errors**, or **certificate/SSL errors** during import:
+
+1. ✅ **Use a stable, wired network connection** (not WiFi or VPN)
+2. ✅ **Import via Power Platform Admin Center** (not Maker Portal)
+3. ✅ **Use PAC CLI with increased timeout** (see below)
+4. ✅ **Check your network/firewall** isn't blocking *.crm.dynamics.com
+5. ✅ **Try during off-peak hours** when network load is lower
+6. ✅ **Use incremental upgrades** (smaller version jumps = smaller imports)
+
+📖 See [detailed resolution steps below](#network-resolution-steps) for complete guidance.
+
+### Network Issue Description
+
+When importing large CoE Starter Kit solutions (particularly Core Components v4.50+), the import process may fail with one or more of the following errors:
+
+**Browser Import Errors:**
+```
+Network Error (ERR_NETWORK)
+ERR_CONNECTION_RESET
+ERR_CONNECTION_TIMED_OUT
+The connection was reset
+```
+
+**PAC CLI Errors:**
+```
+Error: An error occurred while making the HTTP request to https://org[guid].crm[X].dynamics.com/XRMServices/2011/Organization.svc/web
+This could be due to the fact that the server certificate is not configured properly with HTTP.SYS in the HTTPS case.
+This could also be caused by a mismatch of the security binding between the client and the server.
+The underlying connection was closed: An unexpected error occurred on a send.
+Unable to write data to the transport connection: An existing connection was forcibly closed by the remote host.
+An existing connection was forcibly closed by the remote host
+```
+
+**Power Platform Admin Center:**
+- Import shows no error but hangs indefinitely
+- Import fails silently with no history entry
+- Progress bar freezes at various percentages
+
+### Network Root Cause
+
+These errors occur due to **network timeouts and transfer interruptions** when:
+
+1. **Large solution size**: CoE Core Components v4.50+ contains:
+   - 269 Canvas Apps (~29MB unpacked)
+   - 240 Cloud Flows (~6MB)
+   - Total solution package can exceed 35-50MB
+   - Browser and network timeouts occur during large file transfers
+
+2. **Network instability**: 
+   - Unstable WiFi connections
+   - VPN disconnections or latency
+   - Corporate firewalls blocking or throttling *.dynamics.com traffic
+   - ISP throttling of large uploads
+   - Intermittent network interruptions
+
+3. **Client-side timeouts**:
+   - Browser default timeout (typically 2-5 minutes)
+   - PAC CLI default timeout (60 seconds)
+   - Network keep-alive settings too aggressive
+
+4. **SSL/TLS handshake failures**:
+   - Corporate SSL inspection/MITM proxies
+   - Outdated TLS versions on client
+   - Certificate trust chain issues
+
+### Network Resolution Steps
+
+#### Step 1: Use a Stable Network Connection (Critical)
+
+1. **Switch to wired (Ethernet) connection** if possible
+   - WiFi can have intermittent packet loss
+   - Wired connections are more stable for large transfers
+
+2. **Disable VPN temporarily** during import
+   - VPNs can add latency and cause disconnections
+   - Only disable if permitted by your organization's policies
+   - Ensure you can still reach *.crm.dynamics.com without VPN
+
+3. **Check firewall/proxy settings**:
+   - Verify *.dynamics.com and *.crm.dynamics.com are allowed
+   - Disable SSL inspection for *.dynamics.com if possible
+   - Whitelist Power Platform endpoints in your firewall
+
+4. **Close bandwidth-heavy applications**:
+   - Stop video conferencing, streaming, or large downloads
+   - Ensure sufficient bandwidth for the import
+
+#### Step 2: Use Power Platform Admin Center (Recommended Method)
+
+The **modern Power Platform Admin Center** has better timeout handling than the Maker Portal:
+
+1. Navigate to [https://admin.powerplatform.microsoft.com](https://admin.powerplatform.microsoft.com)
+2. Select **Environments** → Your CoE environment
+3. Go to **Solutions**
+4. Click **Import solution**
+5. Upload the .zip file
+6. Select **Upgrade** option (default)
+7. **Do NOT close the browser window** until import completes
+8. **Do NOT navigate away** or switch tabs during import
+
+**Important**: Keep your computer active during import:
+- Disable sleep/hibernation temporarily
+- Keep the browser tab active and visible
+- Don't lock your screen during import
+
+#### Step 3: Use PAC CLI with Increased Timeout (For Advanced Users)
+
+The PAC CLI can be configured with longer timeouts for large imports:
+
+```powershell
+# Install/Update PAC CLI
+dotnet tool install --global Microsoft.PowerApps.CLI.Tool
+# or
+dotnet tool update --global Microsoft.PowerApps.CLI.Tool
+
+# Authenticate to your environment
+pac auth create --environment https://yourorg.crm.dynamics.com
+
+# Import with increased timeout (20 minutes)
+pac solution import --path "CenterofExcellenceCoreComponents_managed.zip" --async --max-async-wait-time 20
+
+# Monitor import status
+pac solution list
+```
+
+**Alternative: Use PowerShell with Custom Timeout**
+
+```powershell
+# Install required modules
+Install-Module -Name Microsoft.Xrm.Data.PowerShell -Force
+
+# Connect with extended timeout (30 minutes = 1800 seconds)
+$conn = Get-CrmConnection -ServerUrl "https://yourorg.crm.dynamics.com" -InteractiveMode -Timeout 1800
+
+# Import solution
+Import-CrmSolution -conn $conn -SolutionFilePath "CenterofExcellenceCoreComponents_managed.zip" -ActivateWorkflows -OverwriteUnmanagedCustomizations -PublishWorkflows
+```
+
+#### Step 4: Try During Off-Peak Hours
+
+Network congestion and server load can affect import success:
+
+1. **Best times to import** (your local timezone):
+   - Early morning: 2 AM - 6 AM
+   - Late evening: 10 PM - 12 AM
+   - Weekends (Saturday early morning)
+
+2. **Avoid these times**:
+   - Business hours (9 AM - 5 PM)
+   - Monday mornings
+   - End of month/quarter (high tenant activity)
+
+#### Step 5: Use Incremental Upgrades (Smaller Imports)
+
+Instead of jumping from 4.50.2 to 4.50.8 (if this is a large gap in terms of changes), consider:
+
+**Check release notes to see if there are intermediate patch versions:**
+1. Visit [CoE Starter Kit Releases](https://github.com/microsoft/coe-starter-kit/releases)
+2. Check if versions between 4.50.2 and 4.50.8 exist
+3. If significant changes occurred, upgrade incrementally:
+   - 4.50.2 → 4.50.4 → 4.50.6 → 4.50.8 (if these versions exist)
+
+**Benefits**:
+- Smaller differential imports
+- Lower file transfer sizes
+- Less chance of network timeout
+
+#### Step 6: Verify Environment Health
+
+Before attempting import:
+
+1. **Check environment status**:
+   - Navigate to Power Platform Admin Center
+   - Verify environment shows as **Ready** (not in admin mode or maintenance)
+   - Check **Capacity** is sufficient (>1GB storage available)
+
+2. **Check for platform issues**:
+   - Visit [Microsoft Service Health Dashboard](https://admin.microsoft.com/AdminPortal/Home#/servicehealth)
+   - Check for Power Platform service disruptions
+   - Check [Power Platform Status](https://status.powerplatform.microsoft.com/)
+
+3. **Verify your permissions**:
+   - Ensure you have **System Administrator** role in the target environment
+   - Confirm you're not being blocked by conditional access policies
+
+#### Step 7: Alternative Import Methods
+
+If standard import continues to fail:
+
+**Option A: Request Import via Support (Enterprise Customers)**
+
+If you have Premier/Unified support:
+1. Open a support ticket with Microsoft
+2. Provide the solution .zip file
+3. Request server-side import assistance
+4. Reference the network timeout errors
+
+**Option B: Import to a Copy Environment First**
+
+1. Create a **copy of your CoE environment**
+2. Import the upgrade to the copy environment
+3. Test functionality in the copy
+4. Delete original environment and rename copy (only if desperate - not recommended)
+
+**Option C: Manual Component Import (Last Resort - Not Recommended)**
+
+⚠️ **Warning**: This approach is complex and error-prone. Only use if all other methods fail.
+
+1. Export your current solution as backup
+2. Import Creator Kit dependency separately
+3. Try importing just the Core Components
+4. If that fails, the issue may be platform-level requiring support
+
+### Advanced Troubleshooting for Network Errors
+
+#### Collect Diagnostic Information
+
+Before contacting support, gather:
+
+1. **Error details**:
+   - Exact error message
+   - Screenshot of error
+   - Time of failure (UTC timezone)
+   - Import method used (UI, PAC CLI, PowerShell)
+
+2. **Network diagnostics**:
+   ```powershell
+   # Test connectivity to Dynamics endpoint
+   Test-NetConnection -ComputerName yourorg.crm.dynamics.com -Port 443
+   
+   # Check for packet loss
+   ping yourorg.crm.dynamics.com -n 50
+   
+   # Trace route
+   tracert yourorg.crm.dynamics.com
+   ```
+
+3. **Browser console logs** (if using browser import):
+   - Press F12 to open Developer Tools
+   - Go to **Console** tab
+   - Reproduce the error
+   - Copy all red error messages
+   - Take screenshot
+
+4. **PAC CLI verbose output**:
+   ```powershell
+   pac solution import --path "solution.zip" --log-to-file --verbose
+   ```
+
+#### Check SSL/Certificate Issues
+
+If you see certificate or SSL errors:
+
+1. **Update Windows/OS certificates**:
+   - Windows: Run Windows Update
+   - Ensure latest root certificates are installed
+
+2. **Check TLS version**:
+   ```powershell
+   # Enable TLS 1.2 (PowerShell)
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+   ```
+
+3. **Verify corporate proxy isn't breaking SSL**:
+   - Temporarily bypass proxy (if permitted)
+   - Check with IT if SSL inspection is enabled for *.dynamics.com
+
+4. **Test from different network**:
+   - Try from home network (no corporate firewall)
+   - Try from mobile hotspot
+   - This helps isolate if issue is network-specific
+
+### Prevention for Future Imports
+
+1. **Upgrade more frequently**:
+   - Don't skip multiple versions
+   - Smaller version gaps = smaller imports
+   - Upgrade every 1-2 months when new versions release
+
+2. **Maintain stable network environment**:
+   - Use wired connections for admin operations
+   - Document successful import locations/networks
+
+3. **Keep tools updated**:
+   - Update PAC CLI regularly: `dotnet tool update --global Microsoft.PowerApps.CLI.Tool`
+   - Keep browsers updated
+   - Update PowerShell modules
+
+4. **Monitor environment health**:
+   - Check storage capacity monthly
+   - Remove unmanaged layers regularly
+   - Review and clean up unused components
 
 ---
 
@@ -383,6 +701,30 @@ This guide covers:
 ---
 
 ## Frequently Asked Questions (FAQ)
+
+### Q: I'm getting ERR_NETWORK or "connection forcibly closed" errors. What should I do?
+**A:** These are **network timeout errors** caused by the large size of CoE Core Components solution. See the [Network Errors and Timeout Issues](#network-errors-and-timeout-issues-during-import) section above for complete resolution steps. Quick fixes:
+1. Use a wired (Ethernet) connection instead of WiFi
+2. Disable VPN during import if possible
+3. Use PAC CLI with increased timeout: `pac solution import --async --max-async-wait-time 20`
+4. Import during off-peak hours (early morning or late evening)
+5. Ensure your firewall/proxy isn't blocking *.crm.dynamics.com
+
+### Q: PAC CLI shows certificate or SSL errors. How do I fix this?
+**A:** This is typically caused by corporate SSL inspection, proxy configuration, or outdated certificates:
+1. Enable TLS 1.2 in PowerShell: `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+2. Update Windows certificates via Windows Update
+3. Temporarily disable VPN/proxy (if permitted by your organization)
+4. Try importing from a different network (home network, mobile hotspot)
+5. Contact your IT department to whitelist *.dynamics.com from SSL inspection
+
+### Q: The import hangs with no error message. What's wrong?
+**A:** This is a network timeout occurring silently:
+1. Check the Power Platform Admin Center **Solution History** for actual status
+2. Wait at least 30-60 minutes before concluding it has failed
+3. Use PAC CLI instead of browser import for better visibility
+4. Check network stability (wired connection, no VPN)
+5. Import during off-peak hours when server load is lower
 
 ### Q: How long should I wait between retry attempts?
 **A:** Wait at least 60-90 minutes. For best results, wait 2-4 hours or perform the retry during off-peak hours.
