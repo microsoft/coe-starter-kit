@@ -15,6 +15,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
 📖 See [detailed resolution steps below](#resolution-steps) for complete guidance.
 
 ## Table of Contents
+- [SavedQuery Dependency Error Upgrading from v4.31](#savedquery-dependency-error-upgrading-from-v431)
 - [TooManyRequests Error During Upgrade](#toomanyreqs-error-during-upgrade)
   - [Quick Fix](#quick-fix-toomanyrequest-error)
   - [Issue Description](#issue-description)
@@ -25,6 +26,77 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
 - [AppForbidden DLP Errors](#appforbidden-dlp-errors)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
 - [Version-Specific Upgrade Paths](#version-specific-upgrade-paths)
+
+---
+
+## SavedQuery Dependency Error Upgrading from v4.31
+
+### Issue Description
+
+When upgrading CoE Starter Kit Core Components from **v4.31 (June 2024)** to any later version, the import process fails with the following error:
+
+```
+Solution "Center of Excellence - Core Components" failed to import: ImportAsHolding failed with exception: 
+The SavedQuery(f9d327af-b6b4-e911-a85b-000d3a372932) component cannot be deleted because it is referenced by 1 other component.
+```
+
+### Root Cause
+
+This error occurs due to a **solution packaging dependency issue**:
+
+1. The "Abandoned PowerApps" view (SavedQuery GUID: `f9d327af-b6b4-e911-a85b-000d3a372932`) existed in v4.31
+2. This view was only included in the Core Components Teams solution, not in Core Components
+3. The Power Platform Admin View app may have had residual references to this view from v4.31
+4. During upgrade, the system tries to delete the old view but fails because of the dependency reference
+
+### Resolution
+
+**This issue has been fixed in versions after [release date].** The "Abandoned PowerApps" SavedQuery is now included in the Core Components solution where it belongs.
+
+#### If You're Still on v4.31
+
+1. **Option 1: Upgrade to the latest version (Recommended)**
+   - Download the latest CoE Starter Kit release that includes the fix
+   - The upgrade will proceed normally without the SavedQuery error
+
+2. **Option 2: Use Incremental Upgrade Path**
+   - If direct upgrade still fails, try incremental upgrades:
+   - v4.31 → v4.35 → v4.40 → v4.45 → latest
+   - Remove unmanaged layers before each step
+
+#### Before Upgrading
+
+1. **Remove all unmanaged layers:**
+   - Open the CoE Admin Command Center app
+   - Navigate to the CoE flows section
+   - Identify and remove any unmanaged layers
+   - Check all CoE solutions (Core, Governance, Nurture, etc.)
+
+2. **Verify environment prerequisites:**
+   - Database capacity is sufficient
+   - No ongoing maintenance operations
+   - Environment is not in admin mode
+
+### Detailed Analysis
+
+For a comprehensive technical analysis of this issue, see:
+
+📖 **[SavedQuery Dependency Issue Analysis](docs/ISSUE-ANALYSIS-UPGRADE-V431-SAVEDQUERY.md)**
+
+This document covers:
+- Detailed root cause analysis
+- Solution component dependency explanation
+- Testing recommendations
+- Prevention measures for future development
+
+### Verification After Upgrade
+
+After successfully upgrading, verify:
+
+1. The import completed without SavedQuery errors
+2. The "Abandoned PowerApps" view is available in the admin_App entity
+3. The Power Platform Admin View app opens without errors
+4. The view displays apps where `cr5d5_appisorphaned` field equals "yes"
 
 ---
 
