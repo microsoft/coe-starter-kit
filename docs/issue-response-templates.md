@@ -5,8 +5,12 @@ This document contains standardized templates for responding to common issues an
 ## Available Templates
 
 1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
-2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
-3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+2. **[Setup Wizard Authentication Error](ISSUE-RESPONSE-SETUP-WIZARD-AUTHENTICATION.md)** - For UserNotLoggedIn, AADSTS500113, untrusted_authority errors after upgrade to 4.50.8+
+3. **[DLP Impact Analysis Authentication Error](ISSUE-RESPONSE-DLP-Impact-Analysis-Authentication.md)** - For authentication errors when opening DLP Impact Analysis app
+4. **[Entity admin_flow Does Not Exist](ISSUE-RESPONSE-entity-admin-flow-not-exist.md)** - For SYNC HELPER flow errors about missing admin_flow entity
+5. **[Environment Access Control](ISSUE-RESPONSE-EnvironmentAccessControl.md)** - For questions about environment visibility and access control
+6. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
+7. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
 
 ---
 
