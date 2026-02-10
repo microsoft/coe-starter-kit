@@ -1,0 +1,220 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    Environment Variable Update Bug Flow                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CURRENT (BROKEN) FLOW                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    User Opens Page
+         │
+         ▼
+    ┌─────────────────────────────┐
+    │   OnVisible Event           │
+    │                             │
+    │  Collect(AugmentedVars,     │
+    │    CurrentID: "xxxxxxx...", │ ◄── ⚠️ Placeholder GUID
+    │    hasCurrent: false)       │
+    └──────────────┬──────────────┘
+                   │
+                   ▼
+    ┌─────────────────────────────┐
+    │   UpdateIf() to populate    │
+    │   actual values             │
+    │                             │
+    │   CurrentID = LookUp(...)   │ ◄── ⚠️ May fail or return blank
+    │   hasCurrent = !IsBlank()   │
+    └──────────────┬──────────────┘
+                   │
+                   ├─── Success ───► CurrentID = actual GUID
+                   │                 hasCurrent = true
+                   │
+                   └─── Failure ───► CurrentID = "xxxxxxx..." (or blank)
+                                     hasCurrent = false ◄── ⚠️ PROBLEM!
+
+    User Edits Value
+         │
+         ▼
+    User Clicks "Save"
+         │
+         ▼
+    ┌─────────────────────────────┐
+    │  If(hasCurrent = true)      │
+    └──────────────┬──────────────┘
+                   │
+         ┌─────────┴─────────┐
+         │                   │
+         ▼                   ▼
+    ┌─────────────┐     ┌─────────────────────┐
+    │   TRUE      │     │   FALSE              │
+    │   (Update)  │     │   (Create)           │
+    │             │     │                      │
+    │  UpdateIf() │     │  Patch(Defaults())   │ ◄── ⚠️ ATTEMPTS CREATE
+    └─────────────┘     └──────────┬───────────┘
+                                   │
+                            Record Already Exists!
+                                   │
+                                   ▼
+                        ┌──────────────────────┐
+                        │  Dataverse Returns   │
+                        │  400 Bad Request     │
+                        │  Unique Constraint   │
+                        └──────────┬───────────┘
+                                   │
+                                   ▼
+                        ┌──────────────────────┐
+                        │  ❌ No Error Check   │
+                        │  Spinner Stops       │
+                        │  Panel Closes        │
+                        │  Shows "Success"     │ ◄── ⚠️ FALSE SUCCESS!
+                        └──────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FIXED FLOW                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    User Opens Page
+         │
+         ▼
+    ┌─────────────────────────────┐
+    │   OnVisible Event           │
+    │                             │
+    │  Collect(AugmentedVars,     │
+    │    CurrentID: Blank(),      │ ◄── ✅ Use Blank() instead
+    │    hasCurrent: false)       │
+    └──────────────┬──────────────┘
+                   │
+                   ▼
+    ┌─────────────────────────────┐
+    │   UpdateIf() to populate    │
+    │                             │
+    │   CurrentID = LookUp(...)   │
+    │   hasCurrent = !IsBlank(    │ ◄── ✅ Check record existence
+    │      envVarValue)           │     not just value
+    └─────────────────────────────┘
+
+    User Edits Value
+         │
+         ▼
+    User Clicks "Save"
+         │
+         ▼
+    ┌──────────────────────────────┐
+    │  Fresh Lookup!               │ ◄── ✅ Don't trust stale flags
+    │                              │
+    │  existingRecord = LookUp(    │
+    │    'Env Var Values',         │
+    │    DefnID = Selected.DefnID) │
+    └──────────────┬───────────────┘
+                   │
+         ┌─────────┴─────────┐
+         │                   │
+         ▼                   ▼
+    ┌─────────────┐     ┌─────────────────────┐
+    │  NOT Blank  │     │  IS Blank            │
+    │  (Update)   │     │  (Create)            │
+    │             │     │                      │
+    │  Patch(     │     │  Patch(              │
+    │   existing, │     │   Defaults(),        │ ◄── ✅ Only if truly new
+    │   {Value})  │     │   {...})             │
+    └──────┬──────┘     └──────────┬───────────┘
+           │                       │
+           └───────────┬───────────┘
+                       │
+                       ▼
+            ┌─────────────────────┐
+            │  Check for Errors   │ ◄── ✅ Error handling
+            │                     │
+            │  If(IsError(...))   │
+            └──────────┬──────────┘
+                       │
+         ┌─────────────┴─────────────┐
+         │                           │
+         ▼                           ▼
+    ┌─────────┐               ┌─────────┐
+    │  Error  │               │ Success │
+    │         │               │         │
+    │ Notify( │               │ Notify( │
+    │  Error) │               │ Success)│
+    │         │               │         │
+    │ Keep    │               │ Close   │
+    │ Panel   │               │ Panel   │
+    │ Open    │               │         │
+    └─────────┘               └─────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         KEY DIFFERENCES                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  BROKEN                              FIXED
+  ═══════════════════════════════════════════════════════════════════════
+
+  ❌ Placeholder GUID                 ✅ Blank() initialization
+  ❌ Stale hasCurrent flag            ✅ Fresh lookup before save
+  ❌ Trust cached data                ✅ Query Dataverse directly
+  ❌ UpdateIf() for updates           ✅ Patch() with specific record
+  ❌ No error handling                ✅ IsError() check + Notify()
+  ❌ Silent failures                  ✅ User feedback on errors
+  ❌ Panel closes on error            ✅ Panel stays open to retry
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ERROR SCENARIO                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Dataverse State:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  EnvironmentVariableDefinition                                  │
+  │  ID: abc-123                                                    │
+  │  SchemaName: admin_PowerPlatformMakeSecurityGroup               │
+  └─────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ (Reference)
+                              │
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  EnvironmentVariableValue  ◄───────────────── ALREADY EXISTS    │
+  │  ID: xyz-789                                                    │
+  │  DefinitionID: abc-123                                          │
+  │  Value: "some-value"                                            │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+  App Attempts:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  POST /api/data/v9.2/environmentvariablevalues                  │
+  │  {                                                              │
+  │    "environmentvariabledefinitionid": "abc-123",  ◄─── ❌       │
+  │    "value": "new-value"                                         │
+  │  }                                                              │
+  └─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  400 Bad Request                                                │
+  │  {                                                              │
+  │    "error": {                                                   │
+  │      "code": "0x80040237",                                      │
+  │      "message": "An EnvironmentVariableValue with the given    │
+  │                  EnvironmentVariableDefinitionId already        │
+  │                  exists..."                                     │
+  │    }                                                            │
+  │  }                                                              │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+  Correct Approach:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  PATCH /api/data/v9.2/environmentvariablevalues(xyz-789)        │
+  │  {                                                              │
+  │    "value": "new-value"                                         │
+  │  }                                                              │
+  └─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  200 OK  ✅                                                      │
+  │  Record updated successfully                                    │
+  └─────────────────────────────────────────────────────────────────┘
+
