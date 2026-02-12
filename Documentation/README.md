@@ -4,6 +4,20 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
+### [Inactivity Notification Flows - Complete Guide](./InactivityNotificationFlowsGuide.md)
+
+Comprehensive guide for understanding and managing the Governance Solution's inactivity notification flows. This document covers:
+
+- How inactivity notifications work (weekly scans, approval requests, daily checks)
+- Complete lifecycle of the Archive Approval table
+- Detailed explanation of all five flows involved in the process
+- Common scenarios (first run, user approves/rejects, ignored requests, manager notifications)
+- Troubleshooting repeated emails and timing issues
+- Best practices for configuration and rollout
+- FAQ addressing common questions
+
+**Relevant for**: CoE administrators implementing or troubleshooting the Governance Solution, particularly when users report receiving repeated inactivity emails after responding to approval requests
+
 ### [Troubleshooting: Unexpected Azure DevOps Email Notifications](../docs/TROUBLESHOOTING-AZURE-DEVOPS-EMAILS.md)
 
 Complete troubleshooting guide for unexpected email notifications about "Sync Issues to Azure DevOps" after upgrading Core Components. This document covers:

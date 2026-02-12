@@ -6,8 +6,14 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Troubleshooting Guides
 
+- **[Troubleshooting AppForbidden / DLP Error in CoE Admin Command Center](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**  
+  Comprehensive guide for resolving "AppForbidden" errors caused by Data Loss Prevention (DLP) policies
+
 - **[Troubleshooting: Entity 'admin_flow' Does Not Exist Error](troubleshooting-sync-helper-cloud-flows-entity-not-exist.md)**  
   Comprehensive guide for resolving the "Entity 'admin_flow' With Id = [GUID] Does Not Exist" error in SYNC HELPER - Cloud Flows
+
+- **[Troubleshooting: DLP Impact Analysis Authentication Error](ISSUE-RESPONSE-DLP-Impact-Analysis-Authentication.md)**  
+  Guide for resolving "UserNotLoggedIn" and "untrusted authority" errors when opening the Data Policy Impact Analysis app
 
 ### Issue Response Templates
 
@@ -16,6 +22,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 - **[Issue Response: Entity admin_flow Does Not Exist](ISSUE-RESPONSE-entity-admin-flow-not-exist.md)**  
   Template for responding to admin_flow entity not exist errors
+
+- **[Issue Response: Environment Access Control](ISSUE-RESPONSE-EnvironmentAccessControl.md)**  
+  Template for responding to questions about environment visibility and access control
 
 - **[General Issue Response Templates](issue-response-templates.md)**  
   Collection of templates for common issue responses
@@ -77,7 +86,6 @@ For comprehensive setup instructions, feature documentation, and best practices,
 ### Administration
 
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
-- [Granting View-Only Access to CoE Apps FAQ](../CenterofExcellenceResources/FAQ-GrantingAccessToCoEApps.md)
 
 ## Getting Help
 
