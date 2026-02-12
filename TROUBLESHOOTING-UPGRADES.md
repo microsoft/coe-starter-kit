@@ -21,6 +21,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Root Cause](#root-cause)
   - [Resolution Steps](#resolution-steps)
   - [Advanced Troubleshooting](#advanced-troubleshooting)
+- [V4 Flows Cannot Be Turned On After Upgrade](#v4-flows-cannot-be-turned-on-after-upgrade)
 - [Unexpected Azure DevOps Email Notifications](#unexpected-azure-devops-email-notifications)
 - [AppForbidden DLP Errors](#appforbidden-dlp-errors)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
@@ -211,6 +212,46 @@ If the system doesn't recognize an upgrade is available:
    - Watch the GitHub repository
    - Enable notifications for new releases
    - Review release notes before upgrading
+
+---
+
+## V4 Flows Cannot Be Turned On After Upgrade
+
+### Issue Description
+
+After upgrading CoE Core Components to v4.50+ or importing the solution for the first time, you may encounter issues where:
+- **Admin | Sync Template V4 (Driver)** flow cannot be turned on
+- Setup prompts to "first setup Admin | Sync template V4 driver"
+- Connection errors when attempting to enable V4 flows
+- Cannot configure connection references with admin account
+
+### Quick Fix
+
+**You do NOT need the service account that created the environment.** You can use any admin account with proper licenses and roles.
+
+1. ✅ **Install Creator Kit** (required for Setup Wizard)
+2. ✅ **Use the CoE Setup and Upgrade Wizard** to configure connections
+3. ✅ **Verify your account has:**
+   - Power Apps Per User or Premium license
+   - Power Platform Administrator role (Entra ID)
+   - System Administrator role (CoE environment)
+
+### Detailed Resolution
+
+📖 See the complete troubleshooting guide: **[TROUBLESHOOTING-V4-FLOW-CONFIGURATION.md](docs/TROUBLESHOOTING-V4-FLOW-CONFIGURATION.md)**
+
+This comprehensive guide includes:
+- Step-by-step Setup Wizard configuration
+- Manual configuration method (alternative)
+- Common errors and solutions
+- Service account best practices
+- Clarification on missing environment variables (`coe_enableinventorydriver` does not exist)
+
+**Key Points:**
+- ❌ **MYTH:** V4 flows must be enabled using the service account that created the environment
+- ✅ **FACT:** Any admin account with proper licenses and roles can configure V4 flows
+- ❌ Variables like `coe_enableinventorydriver`, `coe_enableinventoryflows` DO NOT exist
+- ✅ Use actual variables: `admin_FullInventory`, `admin_TenantID`, `admin_EnvironmentID`
 
 ---
 
