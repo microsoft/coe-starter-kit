@@ -84,6 +84,7 @@ This solution contains the core components for the CoE Starter Kit, including in
 ### Inventory and Sync Issues
 
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
+- **[Flow Action Details Array Limit](../docs/TROUBLESHOOTING-FLOW-ACTION-DETAILS-ARRAY-LIMIT.md)** - Resolve "ActualFlowActionDetails array exceeds max length" errors in Sync Template v3
 
 ### App Issues
 
