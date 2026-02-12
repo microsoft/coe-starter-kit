@@ -6,6 +6,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Troubleshooting Guides
 
+- **[Troubleshooting V4 Flow Configuration](TROUBLESHOOTING-V4-FLOW-CONFIGURATION.md)**  
+  Comprehensive guide for resolving Admin | Sync Template V4 flows that cannot be turned on, connection errors, and configuration problems
+
 - **[Troubleshooting AppForbidden / DLP Error in CoE Admin Command Center](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**  
   Comprehensive guide for resolving "AppForbidden" errors caused by Data Loss Prevention (DLP) policies
 
@@ -16,6 +19,9 @@ This directory contains additional documentation, troubleshooting guides, and re
   Guide for resolving "UserNotLoggedIn" and "untrusted authority" errors when opening the Data Policy Impact Analysis app
 
 ### Issue Response Templates
+
+- **[Issue Response: V4 Flow Configuration](ISSUE-RESPONSE-V4-Flow-Configuration.md)**  
+  Template for responding to V4 flow configuration issues and service account questions
 
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  
   Template for responding to PowerPages sessions-related issues

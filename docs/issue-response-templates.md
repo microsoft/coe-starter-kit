@@ -4,9 +4,71 @@ This document contains standardized templates for responding to common issues an
 
 ## Available Templates
 
-1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
-2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
-3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+1. **[V4 Flow Configuration Issues](ISSUE-RESPONSE-V4-Flow-Configuration.md)** - For V4 flows that cannot be turned on, connection errors, service account questions, and missing environment variables
+2. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
+3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
+4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+
+---
+
+# V4 Flow Configuration Issues
+
+This template provides a standardized response for issues where users report that **Admin | Sync Template V4 flows cannot be turned on** after solution import.
+
+---
+
+## Template: V4 Flows Cannot Be Turned On
+
+**Use when:** 
+- Users report V4 flows cannot be turned on
+- Mentions "Admin | Sync Template V4 Driver" flow
+- Connection errors when enabling flows
+- Environment created by service account, solution imported with different account
+- Mentions missing variables: `coe_enableinventorydriver`, `coe_enableinventoryflows`, `coe_enableinventoryapps`
+- Asks about service account requirements
+
+**For the complete response template, see**: [ISSUE-RESPONSE-V4-Flow-Configuration.md](ISSUE-RESPONSE-V4-Flow-Configuration.md)
+
+**Quick Response:**
+
+Thank you for reporting this issue! This is a common configuration scenario that can be resolved by following the proper setup steps.
+
+### Key Clarifications
+
+**1. Service Account Requirement**
+
+❌ **MYTH:** "V4 flows must be enabled using the service account that created the environment."  
+✅ **FACT:** V4 flows can be configured with **any admin account** that meets the requirements.
+
+**2. Missing Environment Variables**
+
+The variables `coe_enableinventorydriver`, `coe_enableinventoryflows`, and `coe_enableinventoryapps` **do NOT exist** in the CoE Starter Kit.
+
+**Actual variables are:**
+- `admin_FullInventory` - Controls full vs incremental inventory
+- `admin_TenantID` - Your Microsoft 365 Tenant ID
+- `admin_EnvironmentID` - Your CoE environment ID
+
+**3. Required Admin Account Configuration**
+
+Your admin account must have:
+- ✅ Power Apps Per User or Premium license
+- ✅ Power Platform Administrator role (Entra ID)
+- ✅ System Administrator role (CoE environment)
+
+### Resolution: Use the CoE Setup and Upgrade Wizard
+
+**Prerequisites:**
+1. Install **Creator Kit** from https://aka.ms/creatorkitdownload
+2. Verify your account has required licenses and roles
+3. Verify English language pack is enabled
+
+**Steps:**
+1. Open **CoE Setup and Upgrade Wizard** app
+2. Follow guided setup (Connection Setup → Environment Variables → Activate Flows)
+3. Verify configuration and test flows
+
+**Detailed Guide:** [TROUBLESHOOTING-V4-FLOW-CONFIGURATION.md](TROUBLESHOOTING-V4-FLOW-CONFIGURATION.md)
 
 ---
 

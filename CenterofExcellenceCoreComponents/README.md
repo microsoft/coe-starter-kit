@@ -83,6 +83,7 @@ This solution contains the core components for the CoE Starter Kit, including in
 
 ### Inventory and Sync Issues
 
+- **[V4 Flow Configuration Issues](../docs/TROUBLESHOOTING-V4-FLOW-CONFIGURATION.md)** - Guide for resolving V4 flows that cannot be turned on, connection errors, and configuration problems
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
 
 ### App Issues
