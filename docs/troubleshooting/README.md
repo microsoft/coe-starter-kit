@@ -4,7 +4,6 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
-
 ### Power BI Connection Issues
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
