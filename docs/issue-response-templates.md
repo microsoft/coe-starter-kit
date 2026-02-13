@@ -1,4 +1,16 @@
-# GitHub Issue Response Template - Sovereign Cloud / GCC High Questions
+# GitHub Issue Response Templates
+
+This document contains standardized templates for responding to common issues and questions about the CoE Starter Kit.
+
+## Available Templates
+
+1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
+2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
+3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+
+---
+
+# Sovereign Cloud / GCC High Questions
 
 This template can be used when responding to issues related to sovereign cloud deployments, GCC High upgrades, or connector availability.
 
@@ -217,6 +229,171 @@ Create or reference separate issues for:
 
 ---
 
+## Template: Unexpected Azure DevOps Email Notifications After Upgrade
+
+**Use when:** Users report receiving unexpected email notifications about "Sync Issues to Azure DevOps" or similar after upgrading Core Components, despite not using Azure DevOps, ALM Accelerator, or Innovation Backlog
+
+**Response:**
+
+Thank you for reporting this! This is a known and expected behavior after upgrading Core Components, and it can be safely resolved.
+
+### What's Happening
+
+After upgrading Core Components (especially to January 2026 or later versions), the **"Admin | Sync Template v3 Configure Emails"** flow runs automatically to configure email templates. This flow:
+
+1. Checks which CoE solutions are installed in your environment
+2. Attempts to configure email templates for all detected solutions
+3. May trigger flows that check for dependencies on other components
+
+If you have previously installed (or have remnants of) the Innovation Backlog, ALM Accelerator, or Pipeline Accelerator solutions, flows may attempt to configure features for these components and fail if they're not properly set up. Power Platform then sends automatic failure notifications.
+
+### This is Normal and Expected ✅
+
+These email notifications are **not errors in the Core Components** themselves, but rather:
+- Power Platform's automatic notification system alerting you to flows that cannot complete
+- Usually related to optional CoE components (Innovation Backlog, ALM Accelerator, Pipeline Accelerator) that aren't fully configured
+
+### Resolution Steps
+
+You have several options depending on your needs:
+
+**Option 1: Turn Off the Specific Flow** (if you don't use the feature)
+1. Go to Power Automate in your CoE environment
+2. Find the flow mentioned in the email notification
+3. Turn it off if you don't need that feature
+
+**Option 2: Remove Unused Solutions** (recommended if not using them)
+1. Go to Power Apps → Solutions
+2. Remove any of these if you're not using them:
+   - Center of Excellence - Innovation Backlog
+   - Center of Excellence - ALM Accelerator for Makers  
+   - Center of Excellence - Pipeline Accelerator
+
+**Option 3: Complete the Setup** (if you want to use the feature)
+- Follow the setup guide for the specific component causing the notification
+- Configure all required connections and environment variables
+
+### Detailed Troubleshooting Guide
+
+For comprehensive step-by-step instructions, see:
+
+📖 **[Troubleshooting Azure DevOps Email Notifications](../docs/TROUBLESHOOTING-AZURE-DEVOPS-EMAILS.md)**
+
+This guide includes:
+- Detailed explanations of why this occurs
+- Multiple resolution strategies
+- Prevention tips for future upgrades  
+- When to seek additional help
+
+### Prevention for Next Upgrade
+
+1. Only install CoE components you actively need
+2. Remove unused solutions before upgrading Core Components
+3. Complete setup for all installed components (connections + environment variables)
+4. Review the [Upgrade Troubleshooting Guide](../TROUBLESHOOTING-UPGRADES.md) before upgrades
+
+### Summary
+
+**Key Takeaway**: These emails are normal after Core Components upgrades and indicate flows trying to configure optional features you may not be using. Simply turn off those flows or remove the unused solutions.
+
+Let us know if the notifications continue after trying these steps!
+
+---
+
+## Template: DLP Impact Analysis Export Timeout
+
+**Use when:** Users report that they cannot export DLP Impact Analysis results due to timeouts or large dataset sizes
+
+**For the complete response template, see**: [ISSUE-RESPONSE-dlp-impact-analysis-export-timeout.md](ISSUE-RESPONSE-dlp-impact-analysis-export-timeout.md)
+
+**Quick Response:**
+
+Thank you for reporting this issue with exporting DLP Impact Analysis data!
+
+This is a **known limitation** when analyzing DLP policies with broad scope (such as "Strict" policies that block many connectors). The large number of impacted apps and flows creates too many records to export through standard methods.
+
+### Quick Reference
+
+We've created comprehensive documentation with **5 different solutions** based on your scenario:
+
+🔗 **[DLP Impact Analysis Export Timeout Troubleshooting Guide](troubleshooting/dlp-impact-analysis-export-timeout.md)**
+
+| Your Scenario | Recommended Solution | Complexity |
+|--------------|---------------------|------------|
+| < 2,000 records | Filter in Canvas App and export | ✅ Low |
+| 2,000 - 50,000 records | Use filtered views in model-driven app | ✅ Low |
+| > 50,000 records | **Power Automate batch export** | ⚠️ Medium |
+| Technical users | PowerShell with FetchXML pagination | 🔧 High |
+| Analysis only | Power BI integration | ✅ Low-Medium |
+
+### Tools Available
+
+- **PowerShell Script**: [Export-DLPImpactAnalysis.ps1](scripts/Export-DLPImpactAnalysis.ps1)
+- **Step-by-step Power Automate instructions**: [In troubleshooting guide](troubleshooting/dlp-impact-analysis-export-timeout.md#solution-1-power-automate-flow-export-recommended-for-large-datasets)
+
+Let me know if you need guidance on which approach would work best for your situation!
+
+---
+
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
 **Maintained by**: CoE Starter Kit Community
+
+---
+
+## Template: AppForbidden / DLP Policy Error
+
+**Use when:** Users report "AppForbidden" errors in CoE apps, particularly in the Admin Command Center
+
+**Response:**
+
+Thank you for reporting this issue!
+
+### Issue Summary
+
+The "AppForbidden" error occurs when **Data Loss Prevention (DLP) policies** in your environment prevent the app from using required connectors. This is a configuration issue, not a bug in the CoE Starter Kit.
+
+### Root Cause
+
+The CoE Admin Command Center (specifically the Flows section) requires the following connectors to be in the **same DLP policy group**:
+
+- ✅ **Microsoft Dataverse**
+- ✅ **Power Automate Management**
+- ✅ **Logic flows**
+
+If these connectors are in different DLP groups (Business vs. Non-Business) or if any are Blocked, the app will show the "AppForbidden" error.
+
+### Quick Resolution Steps
+
+1. **Navigate to [Power Platform Admin Center](https://admin.powerplatform.microsoft.com)** > **Policies** > **Data policies**
+2. **Identify which DLP policies apply** to your CoE environment
+3. **For each applicable policy**, verify that the three connectors above are in the **same group** (all Business or all Non-Business)
+4. **Update the DLP policy** to move connectors to the same group
+5. **Wait 5-10 minutes** for the policy to sync
+6. **Test the app again**
+
+### Detailed Troubleshooting Guide
+
+For complete step-by-step instructions, connector requirements, and best practices, please see:
+
+📖 **[Troubleshooting AppForbidden / DLP Errors](TROUBLESHOOTING-DLP-APPFORBIDDEN.md)**
+
+This comprehensive guide includes:
+- Complete list of all connectors required by CoE components
+- How to update DLP policies
+- How to exclude the CoE environment from restrictive policies
+- Best practices for CoE DLP configuration
+- Working with your security team on exemptions
+
+### Additional Resources
+
+- [DLP Policies Overview](https://learn.microsoft.com/power-platform/admin/wp-data-loss-prevention)
+- [CoE Starter Kit Prerequisites](https://learn.microsoft.com/power-platform/guidance/coe/setup#prerequisites)
+- [Connector Classification](https://learn.microsoft.com/power-platform/admin/dlp-connector-classification)
+
+### Next Steps
+
+Please review the troubleshooting guide and update your DLP policies accordingly. If you encounter any issues or need clarification, feel free to ask!
+
+---
+
