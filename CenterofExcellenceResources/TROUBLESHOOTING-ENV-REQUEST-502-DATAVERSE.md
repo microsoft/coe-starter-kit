@@ -227,7 +227,7 @@ A: No, only new requests after the fix is applied will benefit. Existing failed 
 **Q: Do I need to update both Core and Teams components?**  
 A: Yes, if you use both. The fix is required in both solutions.
 
-**Q: Can I apply this fix to an managed solution?**  
+**Q: Can I apply this fix to a managed solution?**  
 A: Not directly. You'll need to export as unmanaged, modify, and reimport, which converts it to unmanaged. Best to upgrade to the official release.
 
 **Q: Will the retry policy still work?**  
