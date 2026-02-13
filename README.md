@@ -59,13 +59,6 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
-## ⚠️ Important Notices
-
-### DLP Policy Operations
-If you plan to work with DLP (Data Loss Prevention) policies using the CoE Starter Kit tools, please read the **[DLP Policy Scope Issues Troubleshooting Guide](./Documentation/TROUBLESHOOTING-DLP-POLICY-SCOPE.md)** first. Improper use of DLP automation tools can cause tenant-wide flow suspension and other critical issues.
-
-## Troubleshooting
-
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).

@@ -4,19 +4,6 @@ This directory contains additional documentation, guidance, and best practices f
 
 ## Available Documentation
 
-### [Troubleshooting DLP Policy Scope Issues](./TROUBLESHOOTING-DLP-POLICY-SCOPE.md) ⚠️
-
-**CRITICAL**: Guide for preventing and resolving tenant-wide DLP enforcement issues when using the CoE Starter Kit's DLP Impact Analysis tool. This document covers:
-
-- Understanding the risk of unintended tenant-wide DLP enforcement
-- Root cause analysis of policy scope issues
-- Prevention strategies and safe practices
-- Step-by-step remediation for suspended flows
-- PowerShell diagnostic scripts
-- When to escalate to Microsoft Support
-
-**Relevant for**: Platform administrators, CoE administrators, anyone working with DLP policies
-
 ### [Reducing Azure Log Analytics Costs](./ReducingAzureLogAnalyticsCosts.md)
 
 Comprehensive guide addressing high Azure Log Analytics costs caused by non-interactive sign-in logs from CoE Starter Kit service accounts. This document covers:
