@@ -60,6 +60,8 @@ If role assignment fails:
 
 - **Quick Setup Checklist:** [QUICK-SETUP-CHECKLIST.md](../CenterofExcellenceResources/QUICK-SETUP-CHECKLIST.md)
 - **Troubleshooting Guide:** [TROUBLESHOOTING-SETUP-WIZARD.md](../CenterofExcellenceResources/TROUBLESHOOTING-SETUP-WIZARD.md)
+- **Copilot Agents FAQ:** [FAQ-COPILOT-AGENTS-SUPPORT.md](./FAQ-COPILOT-AGENTS-SUPPORT.md)
+- **PVA Sync Troubleshooting:** [TROUBLESHOOTING-PVA-SYNC.md](./TROUBLESHOOTING-PVA-SYNC.md)
 - **Official Documentation:** https://learn.microsoft.com/power-platform/guidance/coe/setup-core-components
 - **FAQ:** https://learn.microsoft.com/power-platform/guidance/coe/faq
 
