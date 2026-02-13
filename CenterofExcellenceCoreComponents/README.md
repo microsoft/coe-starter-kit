@@ -79,7 +79,22 @@ If role assignment fails:
 For complete installation and configuration instructions, visit the [official documentation](https://learn.microsoft.com/power-platform/guidance/coe/setup-core-components).
 This solution contains the core components for the CoE Starter Kit, including inventory flows, environment management, and telemetry collection.
 
+## ⚠️ Critical: DLP Policy Operations Warning
+
+**IMPORTANT**: When working with DLP (Data Loss Prevention) policies using the CoE Starter Kit tools, be aware of potential risks:
+
+- The **DLP Impact Analysis** tool is designed for **analysis and impact assessment only**
+- For **production DLP policy operations** (create, copy, modify, delete), use the **[Power Platform Admin Center](https://admin.powerplatform.microsoft.com)** directly
+- Copying or rapidly modifying DLP policies through automation can cause **unintended tenant-wide enforcement**
+- DLP policy evaluations are cached for 2-4 hours and may persist even after policy deletion
+
+📖 **See**: [Troubleshooting DLP Policy Scope Issues](../Documentation/TROUBLESHOOTING-DLP-POLICY-SCOPE.md) for detailed guidance and prevention strategies.
+
 ## Troubleshooting Guides
+
+### DLP and Policy Issues
+
+- **[DLP Policy Scope Issues](../Documentation/TROUBLESHOOTING-DLP-POLICY-SCOPE.md)** - Critical guidance for preventing and resolving tenant-wide DLP enforcement issues
 
 ### Inventory and Sync Issues
 
