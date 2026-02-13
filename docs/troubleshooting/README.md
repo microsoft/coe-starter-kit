@@ -4,6 +4,9 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 ## Available Guides
 
+### Environment Request Issues
+
+- **[502 Bad Gateway During Dataverse Provisioning](../../CenterofExcellenceResources/TROUBLESHOOTING-ENV-REQUEST-502-DATAVERSE.md)** - Fix 502 Bad Gateway errors when creating Dataverse databases through Environment Request flows. Includes root cause analysis and implementation guide.
 
 ### Power BI Connection Issues
 
