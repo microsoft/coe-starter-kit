@@ -4,9 +4,10 @@ This document contains standardized templates for responding to common issues an
 
 ## Available Templates
 
-1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
-2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
-3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+1. **[Network Errors During Solution Import](ISSUE-RESPONSE-NETWORK-IMPORT-ERRORS.md)** - For ERR_NETWORK, timeout errors, certificate/SSL errors during import
+2. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
+3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
+4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
 
 ---
 
