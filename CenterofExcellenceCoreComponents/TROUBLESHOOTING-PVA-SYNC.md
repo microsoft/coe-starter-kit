@@ -4,6 +4,34 @@
 
 You may notice that not all Copilot Studio agents (Power Virtual Agents/bots) are appearing in the `admin_pva` table or Power BI Dashboard, even though the **Admin | Sync Template v4 (PVA)** flow shows successful runs.
 
+## Important: Understanding Copilot Studio Agent Types
+
+**Before troubleshooting, please understand which types of agents are currently supported:**
+
+### ✅ Supported: Classic Conversational Bots (Copilot Studio/PVA)
+The CoE Starter Kit **fully supports** classic conversational bots created in Copilot Studio (formerly Power Virtual Agents). These bots:
+- Use topics, trigger phrases, and dialog trees
+- Are stored in the **`bots`** and **`botcomponents`** Dataverse tables
+- Are inventoried by the **Admin | Sync Template v4 (PVA)** flow
+- Appear in the **admin_pva** table and Power BI dashboards
+
+### ❓ Status Unknown: New Copilot Agent Types
+As of v4.50, the inventory status for newer Microsoft Copilot agent architectures is **not explicitly documented**:
+- **Declarative Copilot Agents** (manifest-based agents that extend Microsoft 365 Copilot)
+- **Autonomous Copilot Agents** (AI-driven task automation agents)
+
+**Why Unknown?**
+- These newer agent types may use different underlying Dataverse tables or storage mechanisms
+- If they use the same `bots` table as classic bots, they will likely be inventoried automatically
+- If they use different tables (e.g., `conversationalai`, `copilot_*`), they will NOT be captured by current sync flows
+
+**What to Do if You Have These Agent Types:**
+1. Test whether they appear in your inventory after a sync
+2. If they don't appear, manually check which Dataverse table stores them in your environment
+3. Report your findings on the [CoE Starter Kit GitHub Issues](https://github.com/microsoft/coe-starter-kit/issues) to help the community
+
+**Note:** The remainder of this troubleshooting guide assumes you are working with **classic conversational bots**. If you need inventory support for newer agent types, please file a feature request.
+
 ## Quick Diagnosis
 
 Before diving into detailed troubleshooting, answer these questions to quickly identify your issue:
@@ -234,19 +262,136 @@ To identify exactly which bots are missing:
 3. Compare the bot IDs to identify gaps
 4. Use the **admin_inventoryme** field to manually flag missing bots for the next sync
 
+## Specific Issue: "Alerts and Monitoring for Copilot Agents Not Available"
+
+If you're experiencing issues where **no Copilot Studio agents are appearing at all** or you're seeing a message that "alerts and monitoring for Copilot Agents is not available," follow these specific diagnostic steps:
+
+### Step 1: Verify Your Agent Type
+
+First, determine what type of Copilot Studio agent you have:
+
+1. Open [Copilot Studio](https://copilotstudio.microsoft.com)
+2. Navigate to your agent
+3. Check the agent type:
+   - **Classic Conversational Bot**: Uses "Topics" and "Trigger phrases" in the authoring canvas
+   - **Declarative/Autonomous Agent**: Uses AI models and may have a manifest-based configuration
+
+### Step 2: Confirm Dataverse Storage
+
+For classic conversational bots, verify they exist in Dataverse:
+
+1. Navigate to [Power Apps](https://make.powerapps.com)
+2. Select the environment where your agent exists
+3. Go to **Tables** (from the left navigation under **Data**)
+4. Search for and open the **bot** table (not `admin_pva` - this is the source table)
+5. Check if your agent appears in the list
+
+**If your agent is NOT in the `bots` table:**
+- Your agent may be a newer type that uses different storage
+- Current CoE inventory flows will NOT capture it
+- Consider filing a feature request: [CoE Starter Kit GitHub Issues](https://github.com/microsoft/coe-starter-kit/issues)
+
+**If your agent IS in the `bots` table:**
+- Your agent should be inventoried by the Admin Sync v4 (PVA) flow
+- Continue to Step 3
+
+### Step 3: Check CoE Environment Configuration
+
+Verify the CoE Starter Kit is properly configured:
+
+1. Confirm the **Admin | Sync Template v4 (PVA)** flow is turned ON
+2. Verify the flow connection references are valid and not expired
+3. Check that the flow has run successfully (check 28-day run history)
+4. Ensure the CoE service account has **System Administrator** permissions in the target environment
+
+### Step 4: Run a Full Inventory
+
+Force a complete sync of all bots:
+
+1. Navigate to the CoE environment in Power Apps
+2. Go to **Solutions** → **Center of Excellence - Core Components**
+3. Select **Environment Variables**
+4. Set **FullInventory** (`admin_FullInventory`) to `Yes`
+5. Wait for sync flows to complete (may take several hours)
+6. Check the `admin_pva` table for your agents
+7. **Important:** Set **FullInventory** back to `No` after completion
+
+### Step 5: Verify Environment Is Not Excluded
+
+Check that the environment hosting your agents is not excluded from inventory:
+
+1. Navigate to **Tables** → **Environment** (`admin_environment`)
+2. Find your environment record
+3. Verify these settings:
+   - `admin_excusefrominventory` = **No** (false)
+   - `admin_hascds` = **Yes** (true)
+   - `admin_environmentdeleted` = **No** (false)
+   - `admin_environmentruntimestate` = **Enabled**
+
+### Step 6: Check for "System" or Service Account Agents
+
+Some Copilot Studio agents created by system accounts or service principals may have different ownership patterns:
+
+1. Check if the agent has a valid owner in Copilot Studio
+2. System-owned agents may be marked as "orphaned" in the inventory
+3. They should still appear in `admin_pva` table with `admin_pvaisorphaned = Yes`
+
+### Expected Behavior for Alerts and Monitoring
+
+Once agents appear in the `admin_pva` table, the following monitoring and alerting features become available:
+
+**Available Features:**
+- ✅ Inventory tracking in the `admin_pva` table
+- ✅ Power BI dashboard visibility
+- ✅ Compliance workflows (if configured)
+- ✅ Bot usage tracking via `admin_pvabotusage`
+- ✅ Component/topic tracking via `admin_pvacomponent`
+
+**Alerting Capabilities:**
+- The CoE Starter Kit does not include pre-built "alerts" specific to Copilot Studio agents
+- You can build custom alerts using:
+  - Power Automate flows triggered on `admin_pva` table changes
+  - Power BI alerts on dashboard metrics
+  - Custom flows monitoring usage thresholds in `admin_pvabotusage`
+
+**If you expected specific alerting features:**
+- The "Alerts and Monitoring" may refer to custom features you or your organization built
+- The base CoE kit provides inventory and telemetry, but alerts must be configured
+- Check if you have custom flows or apps that provide alerting functionality
+
+### Troubleshooting Checklist
+
+Use this checklist to systematically diagnose the issue:
+
+- [ ] Confirmed agent type (classic conversational vs. newer types)
+- [ ] Verified agent exists in source environment's `bots` table
+- [ ] Confirmed **Admin | Sync Template v4 (PVA)** flow is ON and running
+- [ ] Checked flow run history for errors or throttling
+- [ ] Verified CoE service account has System Admin permissions
+- [ ] Confirmed target environment is not excluded from inventory
+- [ ] Ran a full inventory with `admin_FullInventory = Yes`
+- [ ] Checked `admin_pva` table for agent records
+- [ ] Verified Power BI dashboards show agent data
+- [ ] Confirmed no network/firewall issues blocking Dataverse queries
+
 ## Still Having Issues?
 
 If you've tried all troubleshooting steps above and are still experiencing issues:
 
 1. Collect diagnostics:
+   - Agent type and configuration details
+   - Screenshot of agent in Copilot Studio
    - Flow run history with detailed action outputs
    - `admin_syncflowerrorses` table records
    - Environment configuration (`admin_environment` record)
    - List of missing bot IDs and names
-   - Query results showing bots in source environment vs inventory
+   - Query results showing bots in source `bots` table vs `admin_pva` inventory table
+   - Dataverse table name where your agent is stored (if not `bots`)
 2. File an issue on the [CoE Starter Kit GitHub](https://github.com/microsoft/coe-starter-kit/issues) with:
-   - Solution version
-   - Environment details
+   - Issue title: "Copilot Agents not appearing in inventory" or "Monitoring for [Agent Type] not working"
+   - Solution version (check `Other/Solution.xml` for version number)
+   - Environment details (cloud type, region)
    - Flow run history screenshots
-   - Description of missing bots (how many, which environments, when created)
+   - Description of missing agents (how many, which environments, when created, what type)
    - All collected diagnostics
+   - Specific error messages or symptoms
