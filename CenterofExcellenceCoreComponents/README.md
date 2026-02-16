@@ -98,7 +98,9 @@ This solution contains the core components for the CoE Starter Kit, including in
 
 ### Inventory and Sync Issues
 
+- **[Power Platform Admin View Not Showing Updated Apps or Missing Environments](../docs/troubleshooting/admin-view-missing-data.md)** - Comprehensive guide for resolving issues where the Admin View app doesn't display all apps or environments after an upgrade
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
+- **[Desktop Flows Sync Issues](./TROUBLESHOOTING-DESKTOP-FLOW-SYNC.md)** - Guide for resolving issues where desktop flows are missing from the inventory
 
 ### App Issues
 

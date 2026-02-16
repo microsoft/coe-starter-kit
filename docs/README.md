@@ -86,7 +86,6 @@ For comprehensive setup instructions, feature documentation, and best practices,
 ### Administration
 
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
-- [Environment Access Control and Visibility FAQ](../CenterofExcellenceResources/FAQ-EnvironmentAccessControl.md)
 
 ## Getting Help
 
