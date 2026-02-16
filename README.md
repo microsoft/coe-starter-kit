@@ -59,23 +59,6 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
-## Troubleshooting Guides
-
-Common issues and their solutions:
-
-- **[Power BI Dashboard Showing Stale or No Data](docs/troubleshooting/power-bi-dashboard-stale-data.md)** - Fix issues with Power BI dashboard displaying outdated data or no data, including inventory flow troubleshooting
-- **[Power BI Connection Timeout](docs/troubleshooting/power-bi-connection-timeout.md)** - Resolve timeout errors when connecting Power BI to Dataverse
-- **[Upgrade Troubleshooting](TROUBLESHOOTING-UPGRADES.md)** - Resolve TooManyRequests errors and other upgrade issues
-- **[All Troubleshooting Guides](docs/troubleshooting/README.md)** - Complete list of troubleshooting resources
-
-### Frequently Asked Questions (FAQs)
-
-- **[Power BI Dashboard Data Collection](CenterofExcellenceResources/FAQ-PowerBI-Dashboard-Data.md)** - Common questions about inventory methods, data collection, and dashboard setup
-- **[CoE Environment Access Control](CenterofExcellenceResources/FAQ-EnvironmentAccessControl.md)** - Questions about environment visibility and security groups
-- **[Admin Role Requirements](CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)** - Understanding required permissions for CoE Starter Kit
-
-
-
 ## Microsoft Open Source Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).

@@ -4,8 +4,6 @@ This document contains standardized templates for responding to common issues an
 
 ## Available Templates
 
-1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
-2. **[Power BI Dashboard Stale Data](ISSUE-RESPONSE-powerbi-dashboard-stale-data.md)** - For issues with Power BI Dashboard showing outdated data or no data, especially when "None" is selected for inventory method
 3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
 4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
 
@@ -298,97 +296,6 @@ This guide includes:
 **Key Takeaway**: These emails are normal after Core Components upgrades and indicate flows trying to configure optional features you may not be using. Simply turn off those flows or remove the unused solutions.
 
 Let us know if the notifications continue after trying these steps!
-
----
-
-## Template: Power BI Dashboard Showing Stale or No Data
-
-**Use when:** Users report that the Power BI Dashboard displays outdated data, shows no data, or mentions "None" for inventory method
-
-**For the complete response template, see**: [ISSUE-RESPONSE-powerbi-dashboard-stale-data.md](ISSUE-RESPONSE-powerbi-dashboard-stale-data.md)
-
-**Quick Response:**
-
-Thank you for reporting this issue with the Power BI Dashboard!
-
-### Root Cause
-
-The key issue is that you indicated **"None"** as your inventory/telemetry method. The Power BI dashboard reads data from **Dataverse tables**, which are populated by **inventory flows**. Without these flows running:
-
-- ❌ Dataverse tables remain empty or show stale data
-- ❌ Power BI has nothing to display
-- ❌ Data appears "stuck" at the last time inventory ran
-
-### Quick Fix: Run Full Inventory
-
-1. Go to [Power Apps](https://make.powerapps.com/) → Your **CoE environment**
-2. Navigate to **Solutions** → **Center of Excellence - Core Components** → **Environment Variables**
-3. Find: **FullInventory** (`admin_FullInventory`)
-4. Set **Current Value** = `Yes`
-5. Wait **6-24 hours** for completion
-6. ⚠️ **Set back to** `No` after completion
-
-### Verify Flows Are Running
-
-1. Go to **Solutions** → **Center of Excellence - Core Components** → **Cloud flows**
-2. Check these flows are **On**:
-   - Admin | Sync Template v4
-   - Admin | Sync Template v4 (Apps)
-   - Admin | Sync Template v4 (Power Automate)
-   - And other inventory flows...
-3. Review **28-day run history** for errors
-
-### Comprehensive Guide
-
-📖 **[Complete Troubleshooting Guide](troubleshooting/power-bi-dashboard-stale-data.md)**
-
-This guide includes:
-- Quick diagnostic flowchart
-- Step-by-step solutions for all scenarios
-- Understanding inventory modes
-- BYODL-specific issues
-- Advanced troubleshooting
-
-### Key Takeaway
-
-**Simply deploying the .pbit file is not enough**—you must run inventory flows to populate Dataverse tables first, then Power BI can display that data.
-
----
-
-## Template: DLP Impact Analysis Export Timeout
-
-**Use when:** Users report that they cannot export DLP Impact Analysis results due to timeouts or large dataset sizes
-
-**For the complete response template, see**: [ISSUE-RESPONSE-dlp-impact-analysis-export-timeout.md](ISSUE-RESPONSE-dlp-impact-analysis-export-timeout.md)
-
-**Quick Response:**
-
-Thank you for reporting this issue with exporting DLP Impact Analysis data!
-
-This is a **known limitation** when analyzing DLP policies with broad scope (such as "Strict" policies that block many connectors). The large number of impacted apps and flows creates too many records to export through standard methods.
-
-### Quick Reference
-
-We've created comprehensive documentation with **5 different solutions** based on your scenario:
-
-🔗 **[DLP Impact Analysis Export Timeout Troubleshooting Guide](troubleshooting/dlp-impact-analysis-export-timeout.md)**
-
-| Your Scenario | Recommended Solution | Complexity |
-|--------------|---------------------|------------|
-| < 2,000 records | Filter in Canvas App and export | ✅ Low |
-| 2,000 - 50,000 records | Use filtered views in model-driven app | ✅ Low |
-| > 50,000 records | **Power Automate batch export** | ⚠️ Medium |
-| Technical users | PowerShell with FetchXML pagination | 🔧 High |
-| Analysis only | Power BI integration | ✅ Low-Medium |
-
-### Tools Available
-
-- **PowerShell Script**: [Export-DLPImpactAnalysis.ps1](scripts/Export-DLPImpactAnalysis.ps1)
-- **Step-by-step Power Automate instructions**: [In troubleshooting guide](troubleshooting/dlp-impact-analysis-export-timeout.md#solution-1-power-automate-flow-export-recommended-for-large-datasets)
-
-Let me know if you need guidance on which approach would work best for your situation!
-
----
 
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
