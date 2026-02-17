@@ -112,6 +112,9 @@ Key environment variables that control inventory behavior:
 - `admin_FullInventory` - Run full inventory (Yes/No, default: No)
 - `admin_InventoryFilter_DaysToLookBack` - Days to look back for modified resources (default: 7)
 - `admin_DelayObjectInventory` - Add random delay to avoid throttling (Yes/No, default: No)
+- `admin_isFullTenantInventory` - Track all environments or a subset (Yes/No, default: Yes)
+
+For detailed guidance on reducing action consumption and optimizing flow performance in large tenants, see the **[Flow Action Consumption Optimization Guide](../CenterofExcellenceResources/FlowActionConsumptionOptimization.md)**.
 
 ## Additional Documentation
 
