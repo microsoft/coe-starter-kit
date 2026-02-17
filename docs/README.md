@@ -86,6 +86,8 @@ For comprehensive setup instructions, feature documentation, and best practices,
 ### Administration
 
 - [Admin Role Requirements FAQ](../CenterofExcellenceResources/FAQ-AdminRoleRequirements.md)
+- [Environment Access Control FAQ](../CenterofExcellenceResources/FAQ-EnvironmentAccessControl.md)
+- [Microsoft Graph Security FAQ](../CenterofExcellenceResources/FAQ-MicrosoftGraphSecurity.md)
 
 ## Getting Help
 
