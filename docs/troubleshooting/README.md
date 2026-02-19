@@ -8,6 +8,10 @@ This directory contains troubleshooting guides for common issues encountered whe
 
 - **[Power BI Connection Timeout Error](power-bi-connection-timeout.md)** - Troubleshoot timeout and connection errors when connecting Power BI dashboards to Dataverse, specifically for the Admin Planning Component dashboard.
 
+### Sync Flow Issues
+
+- **[SYNC HELPER - Apps Role Assignment Failure](sync-helper-apps-role-assignment-failure.md)** - Troubleshoot blank errors at Get_App_Role_Assignments_as_Admin action in the SYNC HELPER - Apps flow.
+
 ## General Troubleshooting Resources
 
 For comprehensive setup and troubleshooting information, please refer to:
