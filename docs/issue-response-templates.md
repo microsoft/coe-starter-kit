@@ -4,9 +4,10 @@ This document contains standardized templates for responding to common issues an
 
 ## Available Templates
 
-1. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
-2. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
-3. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+1. **[Network Errors During Solution Import](ISSUE-RESPONSE-NETWORK-IMPORT-ERRORS.md)** - For ERR_NETWORK, timeout errors, certificate/SSL errors during import
+2. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
+3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
+4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
 
 ---
 
@@ -298,42 +299,6 @@ This guide includes:
 
 Let us know if the notifications continue after trying these steps!
 
----
-
-## Template: DLP Impact Analysis Export Timeout
-
-**Use when:** Users report that they cannot export DLP Impact Analysis results due to timeouts or large dataset sizes
-
-**For the complete response template, see**: [ISSUE-RESPONSE-dlp-impact-analysis-export-timeout.md](ISSUE-RESPONSE-dlp-impact-analysis-export-timeout.md)
-
-**Quick Response:**
-
-Thank you for reporting this issue with exporting DLP Impact Analysis data!
-
-This is a **known limitation** when analyzing DLP policies with broad scope (such as "Strict" policies that block many connectors). The large number of impacted apps and flows creates too many records to export through standard methods.
-
-### Quick Reference
-
-We've created comprehensive documentation with **5 different solutions** based on your scenario:
-
-🔗 **[DLP Impact Analysis Export Timeout Troubleshooting Guide](troubleshooting/dlp-impact-analysis-export-timeout.md)**
-
-| Your Scenario | Recommended Solution | Complexity |
-|--------------|---------------------|------------|
-| < 2,000 records | Filter in Canvas App and export | ✅ Low |
-| 2,000 - 50,000 records | Use filtered views in model-driven app | ✅ Low |
-| > 50,000 records | **Power Automate batch export** | ⚠️ Medium |
-| Technical users | PowerShell with FetchXML pagination | 🔧 High |
-| Analysis only | Power BI integration | ✅ Low-Medium |
-
-### Tools Available
-
-- **PowerShell Script**: [Export-DLPImpactAnalysis.ps1](scripts/Export-DLPImpactAnalysis.ps1)
-- **Step-by-step Power Automate instructions**: [In troubleshooting guide](troubleshooting/dlp-impact-analysis-export-timeout.md#solution-1-power-automate-flow-export-recommended-for-large-datasets)
-
-Let me know if you need guidance on which approach would work best for your situation!
-
----
 
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
