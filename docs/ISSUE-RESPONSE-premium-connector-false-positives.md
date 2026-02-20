@@ -10,7 +10,34 @@ The `SYNCHELPER-CloudFlows` flow determines whether a flow has premium connector
 2. Filtering for connectors where tier equals 'Premium'
 3. Also checking if the flow contains HTTP, HttpWebhook, or Request triggers/actions
 
-The issue is that the `apiDefinition/properties/tier` path may not always exist or may return unexpected values in the Power Platform API response, causing the tier detection to fail.
+**The issue:** The path `apiDefinition/properties/tier` is incorrect. According to the Power Platform API response structure and the Parse JSON schema defined in the flow itself, the correct path should be `apiDefinition/properties/properties/Tier` (note the extra `/properties` level and the capital 'T' in 'Tier').
+
+When the incorrect path is used, the tier value cannot be retrieved, resulting in null/empty values. This causes the premium connector detection logic to fail, potentially marking standard connectors as premium.
+
+## Solution
+
+The fix involves updating the path used to extract the tier from connector references in the `SYNCHELPER-CloudFlows` flow.
+
+**Change:** In the `Select_tier` action within the `Tier` scope, update:
+- **From:** `@item()?['apiDefinition/properties/tier']`
+- **To:** `@item()?['apiDefinition/properties/properties/Tier']`
+
+This fix has been applied to the solution in this update.
+
+## After Applying the Fix
+
+After upgrading to a version with this fix:
+
+1. **Full Inventory Required:** Run a full inventory to refresh all flow data with the corrected tier information
+   - Set the `admin_FullInventory` environment variable to `Yes`
+   - Run the inventory flows
+   - Set `admin_FullInventory` back to `No` after completion
+
+2. **Verify the Fix:** Check flows that were previously incorrectly flagged:
+   - Open the Admin Command Center
+   - Navigate to the Flows page
+   - Verify that standard connector flows now show "No" for hasPremiumConnectors
+   - Check a few flows to ensure premium flows are still correctly identified
 
 ## Impact
 - Flows are incorrectly flagged as using premium features
