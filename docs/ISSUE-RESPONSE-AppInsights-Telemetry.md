@@ -15,7 +15,7 @@ Thank you for asking about Application Insights telemetry visibility!
 ### Quick answer
 
 - The CoE Starter Kit **does not inventory or store the Application Insights instrumentation key / telemetry toggle for apps**, so there is **no out-of-the-box report** (including the CoE Power BI dashboards) that can show which apps have telemetry enabled.
-- The app inventory sync flow (`Admin | Sync Template v4 (Apps)` and its `SYNCHELPER-Apps` child) upserts fields such as display name, plan classification, connections, DLP status, complexity metrics, etc., but it **does not read or write any Application Insights fields** in `admin_apps`. [CenterofExcellenceCoreComponents/SolutionPackage/src/Workflows/SYNCHELPER-Apps-B677AA25-8DE4-ED11-A7C7-0022480813FF.json#395-520](../CenterofExcellenceCoreComponents/SolutionPackage/src/Workflows/SYNCHELPER-Apps-B677AA25-8DE4-ED11-A7C7-0022480813FF.json#L395-L520)
+- The app inventory sync flow (`Admin | Sync Template v4 (Apps)` and its `SYNCHELPER-Apps` child) upserts fields such as display name, plan classification, connections, DLP status, complexity metrics, etc., but it **does not read or write any Application Insights fields** in `admin_apps`. [CenterofExcellenceCoreComponents/SolutionPackage/src/Workflows/SYNCHELPER-Apps-B677AA25-8DE4-ED11-A7C7-0022480813FF.json#L395-L520](../CenterofExcellenceCoreComponents/SolutionPackage/src/Workflows/SYNCHELPER-Apps-B677AA25-8DE4-ED11-A7C7-0022480813FF.json#L395-L520)
 
 ### How to proceed
 
