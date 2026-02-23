@@ -8,6 +8,7 @@ This document contains standardized templates for responding to common issues an
 2. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
 3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
 4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+5. **[Application Insights telemetry status (Power Apps)](ISSUE-RESPONSE-AppInsights-Telemetry.md)** - For questions about checking which apps have Application Insights enabled
 
 ---
 
@@ -361,4 +362,3 @@ This comprehensive guide includes:
 Please review the troubleshooting guide and update your DLP policies accordingly. If you encounter any issues or need clarification, feel free to ask!
 
 ---
-
