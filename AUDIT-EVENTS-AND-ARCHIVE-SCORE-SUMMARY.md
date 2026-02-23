@@ -24,7 +24,7 @@ The CoE Starter Kit collects audit events from **Office 365 Management API** (or
 **Trigger**: Runs hourly (every 1 hour)
 
 **Key Environment Variables**:
-- `admin_AuditLogsUseGraphAPI` (Boolean, default: `false`) - If `true`, uses Graph API; if `false`, uses Office 365 Management API
+- `admin_AuditLogsUseGraphAPI` (Yes/No, default: `No/false`) - If `true`, uses Graph API; if `false`, uses Office 365 Management API
 - `admin_AuditLogsMinutestoLookBack` (Integer, default: `65`) - Number of minutes back to pull audit logs
 - `admin_AuditLogsEndTimeMinutesAgo` (Integer, default: `0`) - How far back in time to start looking for audit logs
 
@@ -58,7 +58,7 @@ Based on flow analysis, the following **Office 365 audit log operations** are cu
 
 **RecordType 256** = Power Platform / Dynamics 365 events
 
-#### Filter Logic (from flow JSON, lines 950-960):
+#### Filter Logic (from `FilterEvents` step in the flow):
 ```json
 "where": "@and(equals(item()?['RecordType'], 256), or(equals(item()?['Operation'], 'LaunchPowerApp'), equals(item()?['Operation'], 'DeletePowerApp')))"
 ```
