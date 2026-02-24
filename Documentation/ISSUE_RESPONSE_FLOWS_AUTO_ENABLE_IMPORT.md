@@ -24,6 +24,6 @@ Use this response when customers report that CoE Core or Governance (Audit) clou
 
 ## Troubleshooting checklist
 
-- ✅ Confirm whether the **Advanced import setting** was left enabled (most common cause of auto-activation).
+- ✅ Confirm whether the **Advanced import setting** was enabled/checked during import (most common cause of auto-activation).
 - ✅ Verify the package state shows `<StateCode>0</StateCode>` for the affected flows to confirm they ship off by default (see sources above).
 - ✅ If flows keep turning on after you disable them, check for automation (e.g., admin users or scripts) that might be reactivating flows during setup or post-deployment validation.
