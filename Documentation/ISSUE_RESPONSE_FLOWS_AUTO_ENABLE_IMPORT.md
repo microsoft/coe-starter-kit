@@ -13,7 +13,7 @@ Use this response when customers report that CoE Core or Governance (Audit) clou
 ## How to prevent flows turning on during import
 
 1. When importing the solution (Maker portal or Power Platform Admin Center), expand **Advanced settings** on the review step.
-2. **Clear/disable “Enable processes (such as business process flows, workflows, flows)”** before clicking **Import**. The solution will import with flows remaining off.
+2. **Clear/disable “Enable processes (workflows/flows/business rules)”** before clicking **Import**. The solution will import with flows remaining off.
 3. After import, run the **CoE Setup/Upgrade Wizard** to configure environment variables and then selectively turn on only the flows you need.
 
 ## If you already imported and flows started
