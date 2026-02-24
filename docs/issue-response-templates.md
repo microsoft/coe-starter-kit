@@ -8,6 +8,7 @@ This document contains standardized templates for responding to common issues an
 2. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
 3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
 4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
+5. **Long-Gap Upgrade Path (Cumulative Releases)** - For questions about whether every historical release must be installed
 
 ---
 
@@ -168,6 +169,38 @@ This will help us provide more specific guidance.
 
 - [Sovereign Cloud Support Guide](../docs/sovereign-cloud-support.md)
 - [Troubleshooting Section](../docs/sovereign-cloud-support.md#troubleshooting-common-issues)
+
+---
+
+## Template: Long-Gap Upgrade Path (Do I Need Every Release?)
+
+**Use when:** Users ask whether CoE Starter Kit releases are cumulative or if they must install every release one-by-one
+
+**Response:**
+
+Thank you for your question!  
+If you're upgrading after a long gap (for example from Core **4.29**), you **don't need to install every historical release**.
+
+### Recommended approach
+
+For older versions, use a **stepped upgrade path** to reduce import failures/rate limiting:
+
+- 4.29 (or any 4.43 and earlier) → **4.45** → **4.47** → **4.49** → **latest**
+
+This follows our upgrade troubleshooting guidance for long version gaps:
+- [Upgrade Troubleshooting Guide](../TROUBLESHOOTING-UPGRADES.md#version-specific-upgrade-paths)
+- [Setup and Upgrade guidance](https://learn.microsoft.com/power-platform/guidance/coe/setup-upgrade)
+- [After setup and upgrades](https://learn.microsoft.com/power-platform/guidance/coe/after-setup)
+
+### Quick checklist
+
+1. Back up current solutions/configuration
+2. Import in **Upgrade** mode (not Update)
+3. Upgrade one step at a time (Core first, then dependent solutions)
+4. Wait between imports and review import history/run logs
+5. Run/monitor inventory flows after the final upgrade
+
+If you share the exact list of installed CoE solutions and versions (Core, Governance, Nurture, Innovation Backlog), we can suggest the safest exact sequence for your tenant.
 
 ---
 
@@ -361,4 +394,3 @@ This comprehensive guide includes:
 Please review the troubleshooting guide and update your DLP policies accordingly. If you encounter any issues or need clarification, feel free to ask!
 
 ---
-
