@@ -100,7 +100,7 @@ This solution contains the core components for the CoE Starter Kit, including in
 
 - **[Power Platform Admin View Not Showing Updated Apps or Missing Environments](../docs/troubleshooting/admin-view-missing-data.md)** - Comprehensive guide for resolving issues where the Admin View app doesn't display all apps or environments after an upgrade
 - **[PVA/Copilot Studio Sync Issues](./TROUBLESHOOTING-PVA-SYNC.md)** - Guide for resolving issues where not all bots appear in the inventory
-- **[Desktop Flows Sync Issues](./TROUBLESHOOTING-DESKTOP-FLOW-SYNC.md)** - Guide for resolving issues where desktop flows are missing from the inventory
+
 
 ### App Issues
 
@@ -120,13 +120,20 @@ A: The inventory flows are triggered when environment records are created or upd
 
 A: "Skipped" branches are normal and indicate that a conditional branch was not executed because the condition was not met. For example, if you're running in incremental mode, the "full inventory" branch will be skipped. This is expected behavior.
 
+**Q: Why are my sync flows running for hours or appearing stuck?**
+
+A: Long-running sync flows (>1 hour) are typically caused by API throttling when multiple flows run concurrently without delays enabled. To fix this, set `admin_DelayObjectInventory` and `admin_DelayInventory` environment variables to `Yes`. See the [Long-Running Sync Template Flows guide](./TROUBLESHOOTING-SYNC-PERFORMANCE.md) for detailed troubleshooting steps.
+
 ## Environment Variables
 
 Key environment variables that control inventory behavior:
 
 - `admin_FullInventory` - Run full inventory (Yes/No, default: No)
 - `admin_InventoryFilter_DaysToLookBack` - Days to look back for modified resources (default: 7)
-- `admin_DelayObjectInventory` - Add random delay to avoid throttling (Yes/No, default: No)
+- `admin_DelayObjectInventory` - Add random delay to avoid throttling (Yes/No, default: No, **recommended: Yes**)
+- `admin_DelayInventory` - Add delay in Driver flow to space out environment processing (Yes/No, default: No, **recommended: Yes**)
+
+**⚠️ Important**: For optimal performance and to prevent throttling issues, set both delay variables to **Yes**, especially in medium to large tenants.
 
 ## Additional Documentation
 
