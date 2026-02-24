@@ -39,7 +39,7 @@ This document provides guidance on using Service Principals with the CoE Starter
 
 You can **mix ownership and connections**:
 - Keep the **service account as the owner** of all CoE Core flows
-- Use **Service Principal–based connections only for connectors that natively support it** (for example, Azure Resource Manager with “Connect with Service Principal”)
+- Use **Service Principal-based connections only for connectors that natively support it** (for example, Azure Resource Manager with “Connect with Service Principal”)
 - Continue using the **service account for all Power Platform admin/management connectors** (they require user context)
 
 **Workaround Considerations**:
@@ -206,7 +206,7 @@ Document the Service Principal details (Application ID, where secrets are stored
 1) **Flow owner**: Keep the licensed service account as owner of all CoE Core flows.  
 2) **Azure Resource Manager connector**:  
    - Create a new connection using “Connect with Service Principal” and supply the app registration’s Client ID, Tenant ID, and secret/certificate.  
-   - Prefer certificates for production; client secrets expire and require rotation.  
+   - Prefer certificates for production; client secrets expire (commonly every 1–2 years) and require rotation.  
    - Grant the app **Reader** (or the minimum role needed) on the subscriptions/resource groups you inventory.  
 3) **Other connectors**: Continue using the service account for Power Platform admin/management, Office 365, and other user-only connectors.  
 4) **Connection references**: In the CoE Core solution, rebind the Azure Resource Manager connection reference to the Service Principal connection; leave all other references bound to the service account.  
