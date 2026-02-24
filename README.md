@@ -59,17 +59,6 @@ If you are interested in contributing to the CoE Starter Kit by fixing issues or
 ## Setup Instructions and Documentation
 Please find all information on how to install and use the kit on https://docs.microsoft.com/power-platform/guidance/coe/starter-kit
 
-### Frequently Asked Questions (FAQs)
-- [Admin Role Requirements](CenterofExcellenceResources/FAQ-AdminRoleRequirements.md) - Understanding Power Platform Administrator role requirements
-- [Granting View-Only Access to CoE Apps](CenterofExcellenceResources/FAQ-GrantingAccessToCoEApps.md) - How to grant read-only access to CoE model-driven apps
-
-
-
-For troubleshooting guides, see:
-- [Troubleshooting Guides Directory](docs/troubleshooting/README.md)
-- [Long-Running Sync Template Flows](CenterofExcellenceCoreComponents/TROUBLESHOOTING-SYNC-PERFORMANCE.md)
-- [Upgrade Troubleshooting Guide](TROUBLESHOOTING-UPGRADES.md)
-- [Official CoE Starter Kit Documentation](https://docs.microsoft.com/power-platform/guidance/coe/starter-kit)
 
 ## Microsoft Open Source Code of Conduct
 
