@@ -19,3 +19,5 @@
 ## Answers to the user’s questions
 1. The two “Last run” values can differ because CoE relies on audit log events (subject to retention, availability, and flow health), while Admin Inventory uses platform analytics that may retain usage longer and refresh on a different schedule.
 2. The `admin_applastlaunchedon` (“Last run/App Last Used”) field is updated by the audit log pipeline: **Admin | Audit Logs - Sync Audit Logs v2** → **Admin | Audit Logs - Update Data v2** (or the optional audit log CSV import helper).
+
+*Links reference files from the repository root; adjust paths if this document is relocated.*
