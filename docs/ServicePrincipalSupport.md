@@ -203,7 +203,7 @@ Document the Service Principal details (Application ID, where secrets are stored
 ### Q: We want to avoid enabling MFA on the service account. Can we keep the flows owned by the service account but use a Service Principal for Azure Resource Manager?
 **A**: Yes. Use a mixed approach:
 1) **Flow owner**: Keep the licensed service account as owner of all CoE Core flows.  
-2) **Azure Resource Manager connector**: Create a new connection using “Connect with Service Principal” and supply the app registration’s Client ID, Tenant ID, and secret/certificate. Grant the app **Reader** (or the minimum role needed) on the subscriptions/resource groups you inventory.  
+2) **Azure Resource Manager connector**: Create a new connection using “Connect with Service Principal” and supply the app registration’s Client ID, Tenant ID, and secret/certificate. Prefer certificates for production; client secrets expire and require rotation. Grant the app **Reader** (or the minimum role needed) on the subscriptions/resource groups you inventory.  
 3) **Other connectors**: Continue using the service account for Power Platform admin/management, Office 365, and other user-only connectors.  
 4) **Connection references**: In the CoE Core solution, rebind the Azure Resource Manager connection reference to the Service Principal connection; leave all other references bound to the service account.  
 5) **Troubleshooting**: If ARM actions fail, verify the Service Principal role assignment on the target subscriptions/resource groups, confirm the secret/certificate is valid, and re-save the connection reference in each environment.
