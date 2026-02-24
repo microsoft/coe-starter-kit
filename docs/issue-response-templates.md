@@ -4,8 +4,6 @@ This document contains standardized templates for responding to common issues an
 
 ## Available Templates
 
-1. **[Network Errors During Solution Import](ISSUE-RESPONSE-NETWORK-IMPORT-ERRORS.md)** - For ERR_NETWORK, timeout errors, certificate/SSL errors during import
-2. **[Inactivity Notification Emails](../Documentation/ISSUE_RESPONSE_INACTIVITY_NOTIFICATIONS.md)** - For questions about repeated emails, manager notifications, and Archive Approval lifecycle
 3. **Sovereign Cloud / GCC High Questions** - For deployment and upgrade questions in sovereign clouds
 4. **Azure DevOps Email Notifications** - For unexpected notifications after Core Components upgrades
 
@@ -300,7 +298,6 @@ This guide includes:
 **Key Takeaway**: These emails are normal after Core Components upgrades and indicate flows trying to configure optional features you may not be using. Simply turn off those flows or remove the unused solutions.
 
 Let us know if the notifications continue after trying these steps!
-
 
 **Template Version**: 1.0  
 **Last Updated**: January 2026  
