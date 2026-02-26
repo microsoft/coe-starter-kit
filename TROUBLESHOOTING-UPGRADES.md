@@ -11,6 +11,7 @@ This document provides troubleshooting guidance for common issues encountered wh
 | `ERR_NETWORK`, `ERR_CONNECTION_RESET`, `timeout` | [Network Errors](#network-errors-and-timeout-issues-during-import) | Use wired connection + PAC CLI |
 | `connection forcibly closed`, `certificate not configured` | [Network Errors](#network-errors-and-timeout-issues-during-import) | Disable VPN, enable TLS 1.2 |
 | `TooManyRequests` | [TooManyRequests Error](#toomanyreqs-error-during-upgrade) | Remove unmanaged layers + wait 60-90 min |
+| Newsletter flow 404 error, RSS feed failure | [Newsletter RSS Feed Issues](#newsletter-flow-rss-feed-404-errors) | Upgrade solution or update RSS URL |
 | Azure DevOps emails (when not using Azure DevOps) | [Azure DevOps Notifications](#unexpected-azure-devops-email-notifications) | Turn off related flows |
 | `AppForbidden` in CoE apps | [DLP Errors](#appforbidden-dlp-errors) | Fix DLP policy configuration |
 | Import hangs with no error | [Network Errors](#network-errors-and-timeout-issues-during-import) | Check Solution History, wait 30-60 min |
@@ -55,6 +56,7 @@ If you're experiencing a **"TooManyRequests"** error during upgrade:
   - [Root Cause](#root-cause)
   - [Resolution Steps](#resolution-steps)
   - [Advanced Troubleshooting](#advanced-troubleshooting)
+- [Newsletter Flow RSS Feed 404 Errors](#newsletter-flow-rss-feed-404-errors)
 - [Unexpected Azure DevOps Email Notifications](#unexpected-azure-devops-email-notifications)
 - [AppForbidden DLP Errors](#appforbidden-dlp-errors)
 - [General Upgrade Best Practices](#general-upgrade-best-practices)
@@ -544,6 +546,116 @@ If the system doesn't recognize an upgrade is available:
    - Watch the GitHub repository
    - Enable notifications for new releases
    - Review release notes before upgrading
+
+---
+
+## Newsletter Flow RSS Feed 404 Errors
+
+### Issue Description
+
+The flow **"Admin | Newsletter with Product Updates"** (part of the Nurture Components solution) may fail with a **404 error** when trying to retrieve RSS feed items. The error typically occurs at the action:
+- **"List PowerApps Community Blog RSS feed items"** or similar action name
+
+**Error Details:**
+```
+HTTP 404 Not Found
+URL: https://powerusers.microsoft.com/jgvjg48436/rss/board?board.id=PowerAppsBlog
+```
+
+### Root Cause
+
+The old Power Apps Community RSS feed URL (`powerusers.microsoft.com`) has been **deprecated by Microsoft** and now returns 404. Microsoft has consolidated all Power Platform blog RSS feeds under the official Microsoft blog domain.
+
+The **current version of the CoE Starter Kit already contains the corrected RSS feed URLs**. If you're experiencing this issue, it means:
+1. You're running an outdated version of the Nurture Components solution, **OR**
+2. You have unmanaged customizations on the Newsletter flow that prevent receiving updates
+
+### Resolution Steps
+
+#### ✅ Recommended: Upgrade to Latest Version
+
+The Newsletter flow in the latest CoE Starter Kit version uses the correct Microsoft Power Platform blog feeds:
+
+| Feed | Old URL (404) | New URL (Working) |
+|------|---------------|-------------------|
+| Power Apps | `powerusers.microsoft.com/jgvjg48436/rss/...` | `https://www.microsoft.com/en-us/power-platform/blog/power-apps/feed/` |
+| Power Automate | N/A | `https://www.microsoft.com/en-us/power-platform/blog/power-automate/feed/` |
+| Power BI | N/A | `https://powerbi.microsoft.com/en-us/blog/feed/` |
+| Microsoft Copilot | N/A | `https://www.microsoft.com/en-us/microsoft-copilot/blog/feed/` |
+
+**Steps to Upgrade:**
+
+1. **Check your current version:**
+   - Navigate to **Power Platform Admin Center** → **Environments**
+   - Select your CoE environment → **Solutions**
+   - Find **Center of Excellence - Nurture Components**
+   - Note the version number
+
+2. **Remove unmanaged customizations:**
+   - Open [Power Automate](https://make.powerautomate.com) and select your CoE environment
+   - Navigate to **Solutions** → **Center of Excellence - Nurture Components**
+   - Find the flow **Admin | Newsletter with Product Updates**
+   - If there's an option to **"Remove unmanaged layer"**, click it
+   - This ensures you receive the latest updates during upgrade
+
+3. **Upgrade the Nurture Components solution:**
+   - Follow the [official upgrade guide](https://learn.microsoft.com/en-us/power-platform/guidance/coe/setup-upgrade)
+   - Import the latest version of the Nurture Components solution
+   - The RSS feed URLs will be automatically updated
+
+#### ⚠️ Alternative: Manual Fix (Temporary Workaround)
+
+If you need an **immediate fix** and cannot upgrade right now:
+
+1. Open [Power Automate](https://make.powerautomate.com) and select your CoE environment
+2. Find the flow **Admin | Newsletter with Product Updates**
+3. Click **Edit**
+4. Find the action failing with the 404 error (usually named "List PowerApps Community Blog RSS feed items" or similar)
+5. Update the **Feed URL** parameter from:
+   ```
+   https://powerusers.microsoft.com/jgvjg48436/rss/board?board.id=PowerAppsBlog
+   ```
+   to:
+   ```
+   https://www.microsoft.com/en-us/power-platform/blog/power-apps/feed/
+   ```
+6. **Save** the flow
+7. **Test** by running the flow manually
+
+**⚠️ Important Warning:**
+- Manual changes create an **unmanaged layer** that prevents receiving future updates to this flow
+- You will **not** receive automatic fixes or improvements until you upgrade and remove the unmanaged layer
+- **Plan to upgrade as soon as possible** after applying this workaround
+
+### Verification
+
+To verify the Newsletter flow is working after the fix:
+
+1. Navigate to [Power Automate](https://make.powerautomate.com)
+2. Select your CoE environment
+3. Go to **Solutions** → **Center of Excellence - Nurture Components**
+4. Find **Admin | Newsletter with Product Updates**
+5. Click **Run** to manually trigger the flow
+6. Check the **Run history** to confirm all RSS feed actions succeed (no 404 errors)
+
+### Additional RSS Feed Information
+
+The Newsletter flow monitors these official Microsoft blog feeds (all are currently active):
+
+- **Power Apps**: `https://www.microsoft.com/en-us/power-platform/blog/power-apps/feed/`
+- **Power Automate**: `https://www.microsoft.com/en-us/power-platform/blog/power-automate/feed/`
+- **Power BI**: `https://powerbi.microsoft.com/en-us/blog/feed/`
+- **Microsoft Copilot**: `https://www.microsoft.com/en-us/microsoft-copilot/blog/feed/`
+
+If you want to monitor additional feeds (like Power Pages or general Power Platform), you can customize the flow:
+- **Power Pages**: `https://www.microsoft.com/en-us/power-platform/blog/power-pages/feed/`
+- **Power Platform (General)**: `https://www.microsoft.com/en-us/power-platform/blog/feed/`
+
+### Related Documentation
+
+- [Setup Nurture Components](https://learn.microsoft.com/en-us/power-platform/guidance/coe/setup-nurture-components)
+- [CoE Starter Kit Upgrade Guide](https://learn.microsoft.com/en-us/power-platform/guidance/coe/setup-upgrade)
+- [Power Platform Blog](https://www.microsoft.com/en-us/power-platform/blog/)
 
 ---
 
