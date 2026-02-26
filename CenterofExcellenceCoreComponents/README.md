@@ -56,6 +56,12 @@ If role assignment fails:
 
 **Full troubleshooting steps:** [TROUBLESHOOTING-SETUP-WIZARD.md](../CenterofExcellenceResources/TROUBLESHOOTING-SETUP-WIZARD.md)
 
+### Admin Audit Logs flow fails with `Resource not found for the segment 'activity'`
+If **Admin | Audit Logs | Sync Audit Logs (V2)** fails in **ListAuditLogContent**:
+- If you want Microsoft Graph collection, set `admin_AuditLogsUseGraphAPI` to `Yes`.
+- If you use Office 365 Management API collection (default), keep `admin_AuditLogsAudience` on your `manage.office.*` endpoint (commercial: `https://manage.office.com`) instead of `https://graph.microsoft.com/`.
+- Keep `admin_AuditLogsAuthority` aligned to your cloud authority.
+
 ## Documentation
 
 - **Quick Setup Checklist:** [QUICK-SETUP-CHECKLIST.md](../CenterofExcellenceResources/QUICK-SETUP-CHECKLIST.md)
