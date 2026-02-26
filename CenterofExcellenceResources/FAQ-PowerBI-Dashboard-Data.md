@@ -350,6 +350,37 @@ If you see failed runs:
 
 ---
 
+### Q: How do I view or export all Business pre-built connectors in DLP policies, and do I need Audit/Nurture components?
+
+**A:** For this scenario, **Core Components are sufficient**. You do **not** need Audit or Nurture components to inventory DLP policy connector groups.
+
+#### Where the data is stored in CoE (Core)
+
+- **DLP Policy table**: `admin_dlppolicy` (`admin_dlppolicies`)
+- **Business (Confidential) pre-built connectors relationship**: `admin_confidential_policy_connectors`
+- **Blocked connectors relationship**: `admin_blocked_policy_connectors`
+- **Connector master table**: `admin_connector` (`admin_connectors`)
+
+> In CoE Dataverse, the "Business" group is represented as **Confidential** on DLP policy records.
+
+#### Why Production dashboard can look incomplete
+
+- `Production_CoEDashboard_*.pbit` focuses on broad production governance metrics and may not expose every DLP connector-group detail.
+- For DLP-focused reporting, use `PowerPlatformGovernance_CoEDashboard_*.pbit` and/or export directly from Dataverse tables.
+
+#### How to export the connector list per policy
+
+Use Dataverse (Power Automate, Advanced Find, or API) and query each policy with relationship expansion, for example:
+
+- Table: `admin_dlppolicies`
+- Expand: `admin_confidential_policy_connectors($select=admin_id,admin_displayname),admin_blocked_policy_connectors($select=admin_id,admin_displayname)`
+
+This returns the Business/Confidential and Blocked connector sets for each policy in one exportable dataset.
+
+📖 Reference: [Power Platform DLP policies](https://learn.microsoft.com/power-platform/admin/wp-data-loss-prevention)
+
+---
+
 ### Q: Can I reduce how much data the inventory collects?
 
 **A:** Yes, there are several ways to control inventory scope:
