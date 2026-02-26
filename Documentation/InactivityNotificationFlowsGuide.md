@@ -406,11 +406,14 @@ If you use the app but haven't modified it, it may still trigger if "Last Launch
 
 **Solution**: Respond with "Keep" and provide justification. The app will be excused from future notifications.
 
+> **📖 Note**: The "Last Launched Date" field requires Office 365 Audit Logs to be enabled and configured. If you're seeing empty "App Last Launched On" dates, see [QUICKREF-APP-LAST-LAUNCHED-EMPTY.md](../docs/QUICKREF-APP-LAST-LAUNCHED-EMPTY.md) for setup instructions.
+
 ---
 
 ## Additional Resources
 
 - **Official Documentation**: [Microsoft Power Platform CoE Starter Kit - Governance Components](https://learn.microsoft.com/en-us/power-platform/guidance/coe/governance-components)
+- **App Last Launched Troubleshooting**: [Quick Reference Guide](../docs/QUICKREF-APP-LAST-LAUNCHED-EMPTY.md) | [Detailed Analysis](../ISSUE-ANALYSIS-APP-LAST-LAUNCHED-EMPTY.md)
 - **GitHub Issues**: [Report issues or ask questions](https://github.com/microsoft/coe-starter-kit/issues)
 - **Community Forum**: [Power Apps Governance and Administration](https://powerusers.microsoft.com/t5/Power-Apps-Governance-and/bd-p/Admin_PowerApps)
 

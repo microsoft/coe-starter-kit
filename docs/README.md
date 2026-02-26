@@ -17,6 +17,9 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 ### Issue Response Templates
 
+- **[Issue Response: App Last Launched On Field Empty](ISSUE-RESPONSE-APP-LAST-LAUNCHED-EMPTY.md)**  
+  Template for responding to issues where "App Last Launched On" field is empty - requires audit log setup
+
 - **[Issue Response: PowerPages Sessions](ISSUE-RESPONSE-PowerPages-Sessions.md)**  
   Template for responding to PowerPages sessions-related issues
 
@@ -28,6 +31,11 @@ This directory contains additional documentation, troubleshooting guides, and re
 
 - **[General Issue Response Templates](issue-response-templates.md)**  
   Collection of templates for common issue responses
+
+### Quick Reference Guides
+
+- **[Quick Fix: App Last Launched On Field Empty](QUICKREF-APP-LAST-LAUNCHED-EMPTY.md)**  
+  Fast reference card for diagnosing and fixing empty "App Last Launched On" field issues
 
 ### Feature Documentation
 
