@@ -108,6 +108,10 @@ This solution contains the core components for the CoE Starter Kit, including in
 
 - **[AppForbidden Error in CoE Admin Command Center](../docs/TROUBLESHOOTING-DLP-APPFORBIDDEN.md)** - Resolve DLP policy errors when opening the Flows section in the Admin Command Center
 
+### Security and Access
+
+- **[Security Roles FAQ](../CenterofExcellenceResources/FAQ-SecurityRoles.md)** - Guide for understanding and assigning CoE security roles to grant users access to CoE apps
+
 ### Common Questions
 
 **Q: Why aren't all my resources showing up in the inventory?**
