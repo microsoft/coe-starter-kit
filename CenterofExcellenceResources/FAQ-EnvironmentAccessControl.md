@@ -580,11 +580,24 @@ Get-AzureADGroup -Filter "DisplayName eq 'Your Group Name'" | Select-Object Obje
 3. **Group type**: Must be a Microsoft 365 group, not a security group
 4. **Service principals**: Flow filters out service principals - this is expected
 
+**Important clarification on "mail-enabled" guidance**:
+- The `Admin | Add Maker to Group` flow uses the Office 365 Groups connector actions `ListGroupMembers` and `AddMemberToGroup`.
+- Those actions expect a **Microsoft 365 Group** (Unified group).
+- A **mail-enabled security group** can be valid for email scenarios, but it is **not** the group type this flow is designed to manage.
+
 **Resolution**:
 1. Check flow run history for specific error messages
 2. Verify environment variable `Power Platform Maker Group ID` has correct group ID
 3. Ensure the connection owner has permission to manage the M365 group membership
 4. If you don't need automatic additions, turn off the flow
+
+### Issue: Environment request is approved but creation flow does not run
+
+If the approval date is not updating and no environment gets created, verify these first:
+1. Flow **EnvRequestCreateApprovedEnvironment** is turned on and connections are healthy.
+2. The request status is actually updated to **Approved** (`coe_requeststatus = 597910003`) and the record is saved.
+3. Connection reference `admin_CoECorePowerPlatformforAdminsEnvRequest` is authenticated with a Power Platform admin account.
+4. No unmanaged layer has overwritten trigger/configuration in environment request flows.
 
 ### Issue: Can't find the Admin | Add Maker to Group flow
 
