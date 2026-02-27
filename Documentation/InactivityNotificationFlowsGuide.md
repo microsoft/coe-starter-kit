@@ -40,14 +40,15 @@ The inactivity notification process helps administrators identify apps and flows
 
 **Key Actions**:
 - Queries all apps not launched or modified in the past 6 months (configurable)
-- Checks if an approval already exists (approved, rejected, or pending)
-- Creates new approval requests only if:
+- Checks if an approval already exists with a completed response
+- Creates new approval requests when:
   - No "Approve" response exists
   - No "Reject" response exists
+  - (This includes scenarios where prior requests are still pending/no response)
   - Creates a record in the Archive Approval table
   - Sets `admin_apparchiverequestignoredsince` if the user hasn't responded
 
-**Important**: This flow does NOT send duplicate approvals if a valid approval response already exists.
+**Important**: This flow does not create duplicates for **completed** responses (Approve/Reject). Pending approvals can receive new weekly requests until a response is processed.
 
 ### 2. Admin | Inactivity notifications v2 - Start Approval for Flows
 
@@ -55,7 +56,7 @@ The inactivity notification process helps administrators identify apps and flows
 
 **Purpose**: Same as above but for Power Automate flows
 
-**Key Actions**: Similar to the Apps version but targets flows instead
+**Key Actions**: Similar to the Apps version but targets flows instead. Pending requests can receive weekly re-notifications until a response is processed by the Check Approval flow.
 
 ### 3. Admin | Inactivity notifications v2 - Check Approval
 
@@ -260,8 +261,8 @@ If users are receiving repeated inactivity emails even after approving/rejecting
 **Symptom**: User receives multiple approval emails for the same app in the same week
 
 **Root Cause**: 
-- Multiple Archive Approval records were created (shouldn't happen)
-- Flow ran multiple times due to retries
+- Weekly Start Approval flows create another request when prior requests are still pending (no Approve/Reject response yet)
+- In some cases, duplicate runs/retries can further increase requests
 
 **Solution**:
 1. Check Archive Approval table for duplicate records
@@ -371,6 +372,23 @@ To test without sending emails to actual makers:
 ### Q1: Why do manager emails keep coming even after the employee responded?
 
 **A**: There may be a timing issue or the `admin_apparchiverequestignoredsince` field wasn't cleared. Check the Archive Approval record and ensure the Check Approval flow is running daily.
+
+### Q8: How does the manager reminder flow determine ignored requests?
+
+**A**: `Admin | Email Managers - Ignored Inactivity notifications - Apps` queries:
+- `admin_apps` where `admin_apparchiverequestignoredsince` is older than the flow's **Get past time** value
+- `admin_flows` where `admin_flowarchiverequestignoredsince` is older than the same threshold
+
+Those ignored-since fields are set when an archival request is first created and are cleared when a response is processed.
+
+### Q9: Can I avoid creating a new approval if one is already pending?
+
+**A**: Out of the box, pending requests can receive weekly re-notifications. If you need strict "one open request only" behavior, customize the Start Approval flows to skip creation when a pending `admin_archiveapprovals` record already exists for the same app/flow.
+
+### Q10: How can I change owner reminder cadence before manager escalation (for example, 5 weeks)?
+
+**A**: Update the **Get past time** action in `Admin | Email Managers - Ignored Inactivity notifications - Apps`.  
+Example: set `interval = 5` and `timeUnit = Week` to delay manager escalation to 5 weeks from the first ignored request.
 
 ### Q2: How long does an "Approve" response last?
 
