@@ -1,3 +1,11 @@
+> NOTE: [Microsoft Power Platform Center of Excellence (CoE) Starter Kit transition to Power Platform admin center](https://learn.microsoft.com/en-us/power-platform/guidance/coe/starter-kit)
+>
+> The Power Platform Center of Excellence (CoE) Starter Kit has historically helped organizations establish governance, visibility, and best practices for Power Platform adoption.
+>
+> Today, you can find these core capabilities directly in the [Microsoft Power Platform admin center](https://admin.powerplatform.microsoft.com) through in-product experiences such as Inventory, Usage, Monitor, and Actions. These experiences provide real-time visibility into resources, usage, operational health, and governance insights in a centralized, enterprise-scale experience.
+>
+> As Microsoft continues to invest in delivering these capabilities natively in product, the CoE Starter Kit is no longer receiving ongoing feature investments or updates.
+
 # Microsoft Power Platform Center of Excellence (CoE) Starter Kit
 The Center of Excellence (CoE) Starter Kit is a set of templates that are designed to help develop a strategy for adopting, maintaining and supporting the Power Platform, with a focus on Power Apps and Power Automate. The kit includes multiple Power Apps and Power BI analytics reports to view and interact with the data collected.  The kit also provides several assets that provide templates and suggested patterns and practices for implementing CoE efforts. The assets part of the CoE Starter Kit should be seen as a template from which you inherit your individual solution or can serve as inspiration for implementing your own apps and flows.
 
